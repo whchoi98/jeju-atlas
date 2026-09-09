@@ -1,8 +1,10 @@
 # 제주 아틀라스 배포 결과
 
-배포 완료: **2026-09-09 16:56 UTC**
+최초 배포: **2026-09-09 16:56 UTC**
 
-최종 인프라 검증: **2026-09-09 16:57 UTC**
+고도 타일 캐시 업데이트 완료: **2026-09-09 17:30 UTC**
+
+최종 인프라·타일 캐시 검증: **2026-09-09 17:31 UTC**
 
 **서비스:** https://d2mznud99i2mdr.cloudfront.net
 
@@ -14,24 +16,27 @@
 |---|---|
 | AWS 계정 | `061525506239` |
 | 리전 | `ap-northeast-2` |
-| CloudFormation | `Jeju3dRegistry`, `Jeju3dApp` — `CREATE_COMPLETE` |
+| CloudFormation | `Jeju3dRegistry` — `CREATE_COMPLETE`, `Jeju3dApp` — `UPDATE_COMPLETE` |
 | CloudFront | `E20RRTIO667ZDY` — `Deployed` |
+| 고도 타일 경로 | `/terrarium/{z}/{x}/{y}.png` |
+| 고도 캐시 정책 | `bab63f7f-ec61-476f-9894-3fb97d18623b` |
+| 고도 응답 함수 | `jeju-3d-terrain-browser-cache` |
 | ALB | `jeju-3d-alb` |
 | ALB DNS | `jeju-3d-alb-1953229828.ap-northeast-2.elb.amazonaws.com` |
 | Target Group | `jeju-3d-tasks` |
 | ECS 클러스터 / 서비스 | `jeju-3d` / `jeju-3d` |
-| Task Definition | `jeju-3d:1` |
+| Task Definition | `jeju-3d:2` |
 | 배포 용량 | ARM64, 0.25 vCPU, 512 MiB, 1개 태스크 |
 | ALB SG | `sg-06eb051b85d92d155` |
 | Task SG | `sg-05884348204666b85` |
 | 로그 그룹 | `/ecs/jeju-3d` |
 | ECR | `061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d` |
-| 릴리스 | `release-20260909T164925Z` |
+| 릴리스 | `release-20260909T171535Z` |
 
 배포 이미지:
 
 ```text
-061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d@sha256:5619021cb85e2840243a1a4e14c18ed940038dd84316cd2b128c67a86a538c2b
+061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d@sha256:d4b9767e2199b1e242df359dff95c19772e6b6084f84c83e8dd5e290b1803508
 ```
 
 ## 재사용한 네트워크
@@ -45,7 +50,7 @@ VPC: **`cc-on-bedrock-vpc` — `vpc-0dfa5610180dfa628`**
 | ECS Private | `ap-northeast-2a` | `subnet-07b1e65682847dce9` | `nat-00b8a70dc184a4d0c` |
 | ECS Private | `ap-northeast-2b` | `subnet-095297380cd45e1eb` | `nat-08379e076e2e6e234` |
 
-확인 당시 실행 태스크의 ENI는 `eni-0d9b6124ffc9f1588`, Private IP는 `10.100.21.153`이며 Public IP는 없습니다. 태스크 교체 시 ENI/IP는 변경될 수 있습니다.
+확인 당시 실행 태스크의 ENI는 `eni-0591b1a5acd91ab5b`, Private IP는 `10.100.23.168`이며 Public IP는 없습니다. 태스크 교체 시 ENI/IP는 변경될 수 있습니다.
 
 새 VPC, 서브넷, NAT Gateway, EIP, 라우트 테이블은 생성하지 않았습니다. 기존 네트워크 스택과 라우팅을 변경하지 않았습니다.
 
@@ -58,19 +63,42 @@ VPC: **`cc-on-bedrock-vpc` — `vpc-0dfa5610180dfa628`**
 
 **CloudFront→ALB 구간은 HTTP입니다.** 현재 계정의 Hosted Zone이 실제 공개 DNS에 위임되어 있지 않아 기본 CloudFront 주소를 사용했습니다. 원본 구간 HTTPS에는 공개 검증이 가능한 도메인과 서울 리전의 신뢰된 ACM 인증서가 필요합니다.
 
+고도 요청 `/terrarium/*`는 별도 동작으로 **CloudFront→기존 공개 S3 원본(HTTPS)** 경로를 사용합니다. ALB/Fargate를 통과하지 않고 ALB 원본 검증 헤더도 전달하지 않습니다. 위성 영상은 기존 Esri 경로를 유지합니다.
+
+## 고도 캐시 적용 결과
+
+- 엣지 기본 TTL **7일**(최소 0초, 최대 30일), 정상 타일 브라우저 TTL **1일**.
+- 오류 응답은 `no-store`; 304 재검증은 정상 브라우저 TTL을 유지합니다.
+- 쿠키·쿼리·사용자별 헤더 없이 타일 경로 단위로 캐시를 공유합니다.
+- PNG 원본 바이트, 지형 해상도, 고도 값은 변경하지 않았습니다.
+- 별도 서울 S3 복제본과 서버 증설 없이 기존 CloudFront를 확장했습니다.
+
+2026-09-09 17:31 UTC에 서울 실행 환경에서 제주 고도 타일 **5개 × 3회**를 번갈아 다운로드했습니다.
+
+| 측정 | 중앙값 |
+|---|---:|
+| 공개 S3에 직접 요청 | 200.449 ms |
+| CloudFront 캐시 적중 | 4.758 ms |
+| 다운로드 지연 감소 | 97.6% |
+| 반복 요청 캐시 적중 | 15/15 |
+
+각 타일의 SHA-256과 PNG 바이트가 원본과 같고, 304 재검증과 없는 타일의 404 `no-store`도 확인했습니다. 이 수치는 **검증 호스트에서 캐시가 적중한 샘플의 다운로드 지연**입니다. 사용자 기기의 FPS나 전체 페이지 로딩 시간 개선율을 의미하지 않으며, 캐시 미스는 원본 왕복이 필요합니다.
+
 ## 검증 결과
 
 | 검사 | 결과 |
 |---|---|
 | TypeScript + Vite 빌드 | 성공 |
 | 정적 HTTP 서버 검사 | 7개 통과 |
+| 고도 응답 함수 검사 | 200·206·304·403·404·500·503 상태 통과 |
 | CloudFormation 최초 배포 재계획 회귀 검사 | 1개 통과 |
 | cfn-lint | 오류 없음 |
 | cfn-nag | 실패 0건, 개발 구성에 따른 경고는 README에 명시 |
 | npm 런타임 의존성 audit | 취약점 0건 |
 | 최종 이미지 ECR Inspector | 검사 완료, 취약점 0건 |
-| 실제 공개 주소의 브라우저 검사 | 10개 통과 |
-| 실제 AWS/HTTP 인프라 검사 | 30개 통과 |
+| 실제 공개 주소의 브라우저 검사 | 11개 통과 |
+| 실제 AWS/HTTP 인프라 검사 | 33개 통과 |
+| 고도 캐시 HTTP 검사 | PNG 일치·15회 적중·304·오류 no-store 통과 |
 
 브라우저는 실제 DEM과 위성 타일을 받아 한라산의 고도를 샘플링했습니다. 검색, 장소 분류, 2D/3D, 고도 배율, 지형 색상, 자동 둘러보기, 공유 URL 복원, 모바일 장소 서랍과 선택 정보 표시를 확인했습니다. 위성/고도 데이터 출처를 화면에 표시하며 영상이 실시간이라고 주장하지 않습니다.
 
@@ -79,17 +107,20 @@ VPC: **`cc-on-bedrock-vpc` — `vpc-0dfa5610180dfa628`**
 최종 검증 자료:
 
 - [인프라 검사 JSON](../.local/verification.json)
-- [운영 브라우저 검사 JSON](../.local/browser-production/report.json)
+- [운영 브라우저 검사 JSON](../.local/browser-terrain-cache/report.json)
+- [고도 캐시 검사와 지연 측정 JSON](../.local/terrain-cache-verification.json)
 - [ECR 검사 JSON](../.local/image-scan.json)
-- [데스크톱 위성 지도](../.local/browser-production/desktop-satellite.png)
-- [데스크톱 고도 지도](../.local/browser-production/desktop-terrain.png)
-- [모바일 지도](../.local/browser-production/mobile-map.png)
-- [모바일 장소 선택](../.local/browser-production/mobile-place.png)
+- [데스크톱 위성 지도](../.local/browser-terrain-cache/desktop-satellite.png)
+- [데스크톱 고도 지도](../.local/browser-terrain-cache/desktop-terrain.png)
+- [모바일 지도](../.local/browser-terrain-cache/mobile-map.png)
+- [모바일 장소 선택](../.local/browser-terrain-cache/mobile-place.png)
 
-`.local`은 실제 검증 기록으로 워크스페이스에 보관하며 Git에는 포함하지 않습니다. 미사용 테스트 이미지 2개는 정리했고, 최종 배포 이미지는 보존했습니다.
+`.local`은 실제 검증 기록으로 워크스페이스에 보관하며 Git에는 포함하지 않습니다. 최초 배포의 미사용 테스트 이미지 2개는 정리했으며, 현재 이미지와 이전 정상 릴리스 이미지는 보존했습니다.
 
 ## 운영 비용과 범위
 
 월 730시간, 태스크 1개 기준 고정성 비용은 약 **$32.02**, 소규모 트래픽을 포함한 예상 비용은 **월 $35–45**입니다. 세금·할인·크레딧 미반영이며 실제 트래픽에 따라 달라집니다. 기존 NAT의 시간당 비용이 추가되지는 않으며 추가 처리량은 별도입니다.
+
+고도 캐시 사용에 따른 CloudFront 전송·HTTPS 요청·함수 실행료가 추가됩니다. 2026-09-09 조회한 아시아 태평양 구간 단가에서 100GB 전송 + HTTPS 100만 건 + 함수 100만 실행의 예시는 **약 $13.30 추가**이며 무료 구간·할인·세금 미반영입니다. 사용량 예시이며 월간 사용량 예측은 아닙니다.
 
 상시 다중 태스크 이중화는 구성하지 않았습니다. 서비스는 두 Private 서브넷에 배치 가능하고 배포 시 일시적으로 태스크가 늘어날 수 있습니다. 재배포, 검증, 이미지 보안 및 삭제 시 보관 리소스는 [README](../README.md)를 참고하세요.

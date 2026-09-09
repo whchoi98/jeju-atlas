@@ -17,6 +17,7 @@ const browser = await chromium.launch({
 const checks = [];
 const errors = [];
 const tileResponses = { terrain: 0, satellite: 0 };
+const terrainHosts = new Set();
 let page;
 
 function passed(name, detail) {
@@ -53,7 +54,10 @@ try {
     if (message.type() === 'error') errors.push(message.text());
   });
   page.on('response', (response) => {
-    if (response.status() === 200 && response.url().includes('/terrarium/')) tileResponses.terrain++;
+    if (response.status() === 200 && response.url().includes('/terrarium/')) {
+      tileResponses.terrain++;
+      terrainHosts.add(new URL(response.url()).origin);
+    }
     if (response.status() === 200 && response.url().includes('World_Imagery/MapServer/tile/')) tileResponses.satellite++;
   });
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 });
@@ -75,6 +79,14 @@ try {
   assert.match(initial.credit, /Esri/);
   assert.match(initial.credit, /Mapzen/);
   passed('Real 3D terrain, satellite tiles and visible attribution', { ...initial, tileResponses });
+  const appOrigin = new URL(baseUrl);
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(appOrigin.hostname)) {
+    assert.deepEqual([...terrainHosts], [appOrigin.origin], 'Published DEM requests must use the app CloudFront origin');
+    const urls = await page.evaluate(() =>
+      window.__JEJU_MAP__.getStyle().sources['terrain-dem'].tiles);
+    assert.ok(urls.every((url) => url.startsWith(appOrigin.origin + '/terrarium/')));
+    passed('Published map downloads DEM tiles through the shared CloudFront cache');
+  }
   await page.screenshot({ path: resolve(output, 'desktop-satellite.png'), fullPage: true });
 
   await page.locator('#place-search').fill('성산일출봉');

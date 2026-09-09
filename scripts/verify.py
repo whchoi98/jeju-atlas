@@ -102,8 +102,27 @@ def verify():
     check("CloudFront deployed", distribution["Status"] == "Deployed", distribution["Status"])
     config = distribution["DistributionConfig"]
     check("Viewers redirected to HTTPS", config["DefaultCacheBehavior"]["ViewerProtocolPolicy"] == "redirect-to-https")
-    origin = config["Origins"]["Items"][0]
+    origin = next(item for item in config["Origins"]["Items"] if item["Id"] == "jeju-alb")
     check("CloudFront origin is this ALB", origin["DomainName"] == outputs["LoadBalancerDnsName"])
+    terrain_origin = next((item for item in config["Origins"]["Items"] if item["Id"] == "jeju-terrain"), None)
+    check("Terrain origin uses HTTPS and receives no ALB secret", bool(terrain_origin)
+          and terrain_origin["DomainName"] == "elevation-tiles-prod.s3.us-east-1.amazonaws.com"
+          and terrain_origin["CustomOriginConfig"]["OriginProtocolPolicy"] == "https-only"
+          and terrain_origin.get("CustomHeaders", {}).get("Quantity", 0) == 0)
+    terrain_behavior = next((item for item in config.get("CacheBehaviors", {}).get("Items", [])
+                             if item["PathPattern"] == "/terrarium/*"), None)
+    check("Elevation tile route bypasses the ALB", bool(terrain_behavior)
+          and terrain_behavior["TargetOriginId"] == "jeju-terrain"
+          and terrain_behavior["ViewerProtocolPolicy"] == "redirect-to-https"
+          and set(terrain_behavior["AllowedMethods"]["Items"]) == {"GET", "HEAD"})
+    if terrain_behavior:
+        terrain_cache = edge.get_cache_policy(Id=terrain_behavior["CachePolicyId"])["CachePolicy"]["CachePolicyConfig"]
+        cache_key = terrain_cache["ParametersInCacheKeyAndForwardedToOrigin"]
+        check("Seven-day edge terrain cache shared across viewers", terrain_cache["DefaultTTL"] == 604800
+              and terrain_cache["MinTTL"] == 0
+              and cache_key["CookiesConfig"]["CookieBehavior"] == "none"
+              and cache_key["HeadersConfig"]["HeaderBehavior"] == "none"
+              and cache_key["QueryStringsConfig"]["QueryStringBehavior"] == "none")
     listeners = elb.describe_listeners(LoadBalancerArn=outputs["LoadBalancerArn"])["Listeners"]
     listener = next(item for item in listeners if item["Port"] == 80)
     check("Unmatched ALB requests denied", listener["DefaultActions"][0]["Type"] == "fixed-response"

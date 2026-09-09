@@ -30,7 +30,14 @@ interface MapCallbacks {
   onRecovered: () => void;
 }
 
-const terrainTiles = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+// Published maps share one CloudFront tile cache. Local development and a
+// standalone localhost preview keep working without a CloudFront router.
+const localPreview = import.meta.env.DEV
+  || ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+const terrainBase = localPreview
+  ? 'https://s3.amazonaws.com/elevation-tiles-prod'
+  : window.location.origin;
+const terrainTiles = `${terrainBase}/terrarium/{z}/{x}/{y}.png`;
 const terrainAttribution = 'Elevation: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">Mapzen / AWS · USGS · NOAA</a>';
 const satelliteAttribution = 'Tiles © Esri — Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community';
 // Keep navigation around Jeju while allowing enough north/south water for a

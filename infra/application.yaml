@@ -370,6 +370,80 @@ Resources:
             Preload: false
             Override: true
 
+  TerrainCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: jeju-3d-terrain-cache
+        Comment: Share public DEM tiles across viewers. Seven-day edge default with no user-specific cache keys.
+        MinTTL: 0
+        DefaultTTL: 604800
+        MaxTTL: 2592000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: false
+          EnableAcceptEncodingBrotli: false
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  TerrainResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: jeju-3d-terrain-headers
+        Comment: Public elevation PNGs; browser caching and resource timing.
+        CorsConfig:
+          AccessControlAllowCredentials: false
+          AccessControlAllowHeaders:
+            Items:
+              - '*'
+          AccessControlAllowMethods:
+            Items:
+              - GET
+              - HEAD
+          AccessControlAllowOrigins:
+            Items:
+              - '*'
+          AccessControlMaxAgeSec: 86400
+          OriginOverride: true
+        SecurityHeadersConfig:
+          ContentTypeOptions:
+            Override: true
+        CustomHeadersConfig:
+          Items:
+            # This baseline also applies to errors, for which CloudFront skips
+            # viewer-response functions. Successful tiles get a longer browser
+            # TTL in TerrainBrowserCacheFunction after this policy is applied.
+            # Edge cache TTL remains governed by TerrainCachePolicy.
+            - Header: Cache-Control
+              Value: no-store
+              Override: true
+            - Header: Timing-Allow-Origin
+              Value: '*'
+              Override: true
+
+  TerrainBrowserCacheFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: jeju-3d-terrain-browser-cache
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Cache successful DEM responses in browsers; never cache failures.
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var response = event.response;
+          var status = response.statusCode;
+          var success = (status >= 200 && status < 300) || status === 304;
+          response.headers['cache-control'] = {
+            value: success ? 'public, max-age=86400' : 'no-store'
+          };
+          return response;
+        }
+
   Distribution:
     Type: AWS::CloudFront::Distribution
     DependsOn: OriginRule
@@ -395,6 +469,34 @@ Resources:
               OriginKeepaliveTimeout: 5
               OriginSSLProtocols:
                 - TLSv1.2
+          - Id: jeju-terrain
+            # This existing third-party public dataset is read anonymously.
+            # Keep the ALB verification header exclusively on the ALB origin.
+            DomainName: elevation-tiles-prod.s3.us-east-1.amazonaws.com
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+              OriginReadTimeout: 30
+              OriginKeepaliveTimeout: 5
+        CacheBehaviors:
+          - PathPattern: /terrarium/*
+            TargetOriginId: jeju-terrain
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD
+            Compress: false
+            CachePolicyId: !Ref TerrainCachePolicy
+            ResponseHeadersPolicyId: !Ref TerrainResponseHeadersPolicy
+            FunctionAssociations:
+              - EventType: viewer-response
+                FunctionARN: !GetAtt TerrainBrowserCacheFunction.FunctionMetadata.FunctionARN
         DefaultCacheBehavior:
           TargetOriginId: jeju-alb
           ViewerProtocolPolicy: redirect-to-https
@@ -449,3 +551,7 @@ Outputs:
     Value: !Ref LogGroup
   TaskDefinitionArn:
     Value: !Ref TaskDefinition
+  TerrainTileUrl:
+    Value: !Sub 'https://${Distribution.DomainName}/terrarium/{z}/{x}/{y}.png'
+  TerrainCachePolicyId:
+    Value: !Ref TerrainCachePolicy
