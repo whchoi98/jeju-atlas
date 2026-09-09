@@ -89,6 +89,9 @@ try {
   }
   await page.screenshot({ path: resolve(output, 'desktop-satellite.png'), fullPage: true });
 
+  if (await page.locator('#terrain-quickplaces').count()) {
+    await page.locator('#terrain-quickplaces > summary').click();
+  }
   await page.locator('#place-search').fill('성산일출봉');
   assert.equal(await page.locator('#place-list .place-card').count(), 1);
   await page.locator('#place-list [data-place="seongsan"]').click();
@@ -173,6 +176,9 @@ try {
   await mobilePage.screenshot({ path: resolve(output, 'mobile-map.png'), fullPage: true });
   await mobilePage.locator('#drawer-toggle').click();
   assert.equal(await mobilePage.locator('#drawer-toggle').getAttribute('aria-expanded'), 'true');
+  if (await mobilePage.locator('#terrain-quickplaces').count()) {
+    await mobilePage.locator('#terrain-quickplaces > summary').click();
+  }
   await mobilePage.locator('#place-search').fill('우도');
   await mobilePage.locator('#place-list [data-place="udo"]').click();
   await mobilePage.waitForFunction(() => document.querySelector('#drawer-toggle').getAttribute('aria-expanded') === 'false');

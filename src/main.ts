@@ -3,6 +3,7 @@ import './style.css';
 import { brandMark, icon } from './icons';
 import { categories, formatCoordinates, places, tourStops, type Place } from './places';
 import type { AtlasMap, ViewState } from './map';
+import { AtlasExperience } from './explore';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let atlas: AtlasMap | undefined;
@@ -18,6 +19,7 @@ let tourTimer: ReturnType<typeof setTimeout> | undefined;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 let lastState: ViewState | undefined;
 let initializationId = 0;
+let experience: AtlasExperience | undefined;
 
 app.innerHTML = `
   <a href="#map" class="skip-link">지도로 바로 가기</a>
@@ -202,6 +204,7 @@ function renderSelected(): void {
 }
 
 function selectPlace(place: Place, fly: boolean, touring = false): void {
+  experience?.legacySelected();
   selected = place;
   atlas?.setSelected(place.id);
   renderPlaces();
@@ -319,6 +322,7 @@ async function initializeMap(stateOverride?: ViewState): Promise<void> {
         setMapReady(true);
         element('map-loading').hidden = true;
         atlas?.setCategory(activeCategory);
+        if (atlas) experience?.onMapReady(atlas);
         if (pendingFly) {
           atlas?.flyTo(pendingFly);
           pendingFly = undefined;
@@ -392,6 +396,10 @@ function startTour(): void {
 async function shareView(): Promise<void> {
   if (!atlas || !mapModule) return;
   const url = mapModule.cameraURL(atlas.getState());
+  await copyURL(url, '지금 보고 있는 제주의 주소를 복사했어요.');
+}
+
+async function copyURL(url: string, message: string): Promise<void> {
   try {
     history.replaceState(null, '', url);
   } catch {
@@ -400,7 +408,7 @@ async function shareView(): Promise<void> {
   try {
     if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
     await navigator.clipboard.writeText(url);
-    toast('지금 보고 있는 제주의 주소를 복사했어요.');
+    toast(message);
   } catch {
     element<HTMLInputElement>('share-url').value = url;
     element<HTMLDialogElement>('share-dialog').showModal();
@@ -479,12 +487,18 @@ document.addEventListener('keydown', (event) => {
   const editing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || (event.target as HTMLElement)?.isContentEditable;
   if (event.key === '/' && !editing && !document.querySelector('dialog[open]')) {
     event.preventDefault();
-    setDrawer(true);
-    element<HTMLInputElement>('place-search').focus();
+    experience?.searchFocus();
   }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) stopTour(); });
-window.addEventListener('hashchange', () => { void initializeMap(); });
+window.addEventListener('hashchange', () => {
+  if (mapReady && atlas && mapModule) {
+    const state = mapModule.readView();
+    atlas.restoreView(state);
+    selected = places.find((place) => place.id === state.selectedId) ?? places[0];
+    renderPlaces();
+  } else void initializeMap();
+});
 window.matchMedia('(max-width: 760px)').addEventListener('change', () => {
   setDrawer(drawerOpen);
   atlas?.map.resize();
@@ -497,4 +511,13 @@ window.addEventListener('pagehide', () => {
 renderPlaces();
 renderSelected();
 setDrawer(false);
+experience = new AtlasExperience({
+  atlas: () => atlas,
+  closeDrawer: () => setDrawer(false),
+  openDrawer: () => setDrawer(true),
+  stopTour: () => stopTour(),
+  notify: toast,
+  cameraURL: () => atlas && mapModule ? mapModule.cameraURL(atlas.getState()) : window.location.href,
+  copyURL,
+});
 void initializeMap();

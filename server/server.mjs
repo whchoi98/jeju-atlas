@@ -10,6 +10,7 @@ const contentTypes = {
   '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.geojson': 'application/geo+json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
@@ -25,7 +26,7 @@ const contentTypes = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-export function createAppServer({ root, release = 'local' }) {
+export function createAppServer({ root, release = 'local', api }) {
   const staticRoot = realpathSync(root);
   return createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -41,10 +42,6 @@ export function createAppServer({ root, release = 'local' }) {
       });
       res.end(req.method === 'HEAD' ? undefined : text);
     };
-    if (!['GET', 'HEAD'].includes(req.method)) {
-      res.setHeader('Allow', 'GET, HEAD');
-      return reply(405, 'Method not allowed\n');
-    }
     let pathname;
     try {
       // Do not use URL.pathname here: URL normalizes dot segments before checks.
@@ -57,6 +54,27 @@ export function createAppServer({ root, release = 'local' }) {
     }
     if (pathname.split('/').some((segment) => segment.startsWith('.'))) {
       return reply(403, 'Forbidden\n');
+    }
+    if (Number(req.headers['content-length']) > 16 * 1024) {
+      res.setHeader('Connection', 'close');
+      req.resume();
+      return reply(413, 'Request body too large\n');
+    }
+    if (pathname === '/api' || pathname.startsWith('/api/')) {
+      if (!api) return reply(404, JSON.stringify({ error: { code: 'not_found', message: 'API unavailable' } }), 'application/json; charset=utf-8');
+      try {
+        return await api(req, res, new URL(req.url, 'http://localhost'));
+      } catch {
+        if (!res.headersSent) {
+          return reply(503, JSON.stringify({ error: { code: 'service_unavailable', message: '서비스를 일시적으로 이용할 수 없습니다.' } }), 'application/json; charset=utf-8');
+        }
+        res.destroy();
+        return;
+      }
+    }
+    if (!['GET', 'HEAD'].includes(req.method)) {
+      res.setHeader('Allow', 'GET, HEAD');
+      return reply(405, 'Method not allowed\n');
     }
     if (pathname === '/healthz') {
       return reply(200, JSON.stringify({ status: 'ok', service: 'jeju-3d', release }), 'application/json; charset=utf-8');
@@ -76,7 +94,9 @@ export function createAppServer({ root, release = 'local' }) {
     }
 
     const type = contentTypes[extname(filename).toLowerCase()] || 'application/octet-stream';
-    const cache = extname(filename) === '.html'
+    const cache = pathname === '/sw.js'
+      ? 'no-cache'
+      : extname(filename) === '.html'
       ? 'public, max-age=0, must-revalidate'
       : pathname.startsWith('/assets/')
         ? 'public, max-age=31536000, immutable'
@@ -98,17 +118,44 @@ export function createAppServer({ root, release = 'local' }) {
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const here = dirname(fileURLToPath(import.meta.url));
   const root = process.env.STATIC_ROOT || join(here, '..', 'dist');
-  const server = createAppServer({ root, release: process.env.RELEASE || 'local' });
+  const release = process.env.RELEASE || 'local';
+  let catalog;
+  let api;
+  // Keep static-only imports/tests independent of SQLite and AWS packages.
+  if (process.env.CATALOG_BUCKET || process.env.CATALOG_LOCAL_PATH || process.env.GUIDE_RUNTIME_ARN) {
+    try {
+      const { createApiHandler } = await import('./api.mjs');
+      if (process.env.CATALOG_BUCKET || process.env.CATALOG_LOCAL_PATH) {
+        const { Catalog } = await import('./catalog.mjs');
+        catalog = new Catalog({
+          bucket: process.env.CATALOG_BUCKET, key: process.env.CATALOG_KEY || 'catalog/catalog.sqlite',
+          cacheDir: process.env.CATALOG_CACHE_DIR || '/tmp/atlas-catalog',
+          localPath: process.env.CATALOG_LOCAL_PATH, mediaOrigin: process.env.MEDIA_ORIGIN,
+        });
+        await catalog.init();
+      }
+      api = createApiHandler({ catalog, release, env: process.env });
+    } catch {
+      catalog?.close();
+      console.error(JSON.stringify({ event: 'startup-error', code: 'API_INITIALIZATION_FAILED' }));
+      process.exit(1);
+    }
+  }
+  const server = createAppServer({ root, release, api });
   const port = Number(process.env.PORT || 8080);
   const host = process.env.HOST || '0.0.0.0';
-  server.listen(port, host, () => console.log(JSON.stringify({ event: 'listening', port, release: process.env.RELEASE || 'local' })));
+  server.listen(port, host, () => console.log(JSON.stringify({ event: 'listening', port: server.address().port, release })));
   server.requestTimeout = 15_000;
   server.headersTimeout = 10_000;
   server.keepAliveTimeout = 65_000;
   for (const signal of ['SIGTERM', 'SIGINT']) {
     process.once(signal, () => {
       console.log(JSON.stringify({ event: 'shutdown', signal }));
-      server.close(() => process.exit(0));
+      api?.close();
+      server.close(() => {
+        catalog?.close();
+        process.exit(0);
+      });
       setTimeout(() => process.exit(1), 25_000).unref();
     });
   }

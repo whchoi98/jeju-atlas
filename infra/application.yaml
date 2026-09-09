@@ -25,8 +25,47 @@ Parameters:
     Default: 1
     MinValue: 1
     MaxValue: 4
+  CatalogBucket:
+    Type: String
+    Default: ohmyjeju-catalog-061525506239-prod
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+  GuideRuntimeArn:
+    Type: String
+    Default: arn:aws:bedrock-agentcore:ap-northeast-2:061525506239:runtime/Ohmyjeju_OhmyjejuAgent-7fiRWV5uVi
+    AllowedPattern: '^arn:aws:bedrock-agentcore:ap-northeast-2:[0-9]{12}:runtime/[A-Za-z0-9_-]+$'
 
 Resources:
+  SessionSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Jeju Atlas session signing key, separate from the ALB origin key.
+      GenerateSecretString:
+        PasswordLength: 48
+        ExcludePunctuation: true
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  GuideQuota:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: jeju-3d-guide-quota
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
   OriginSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -218,6 +257,9 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: !GetAtt LogGroup.Arn
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref SessionSecret
       Tags:
         - Key: Project
           Value: jeju-3d
@@ -225,7 +267,7 @@ Resources:
   TaskRole:
     Type: AWS::IAM::Role
     Properties:
-      Description: Jeju static app has no AWS API permissions.
+      Description: Read the selected catalog, invoke the selected guide and enforce its daily quota.
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -238,6 +280,24 @@ Resources:
                 aws:SourceAccount: !Ref AWS::AccountId
               ArnLike:
                 aws:SourceArn: !Sub 'arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:*'
+      Policies:
+        - PolicyName: AtlasCatalogAndGuide
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${CatalogBucket}/catalog/catalog.sqlite'
+              - Effect: Allow
+                Action:
+                  - bedrock-agentcore:InvokeAgentRuntime
+                  - bedrock-agentcore:InvokeAgentRuntimeForUser
+                Resource:
+                  - !Ref GuideRuntimeArn
+                  - !Sub '${GuideRuntimeArn}/runtime-endpoint/DEFAULT'
+              - Effect: Allow
+                Action: dynamodb:UpdateItem
+                Resource: !GetAtt GuideQuota.Arn
       Tags:
         - Key: Project
           Value: jeju-3d
@@ -256,6 +316,8 @@ Resources:
         OperatingSystemFamily: LINUX
       ExecutionRoleArn: !GetAtt ExecutionRole.Arn
       TaskRoleArn: !GetAtt TaskRole.Arn
+      Volumes:
+        - Name: catalog-cache
       ContainerDefinitions:
         - Name: web
           Image: !Ref ImageUri
@@ -272,6 +334,31 @@ Resources:
           Environment:
             - Name: RELEASE
               Value: !Ref Release
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: CATALOG_BUCKET
+              Value: !Ref CatalogBucket
+            - Name: CATALOG_KEY
+              Value: catalog/catalog.sqlite
+            - Name: CATALOG_CACHE_DIR
+              Value: /tmp/atlas-catalog
+            - Name: MEDIA_ORIGIN
+              Value: https://ohmyjeju.whchoi.net
+            - Name: GUIDE_RUNTIME_ARN
+              Value: !Ref GuideRuntimeArn
+            - Name: GUIDE_QUOTA_TABLE
+              Value: !Ref GuideQuota
+            - Name: GUIDE_DAILY_LIMIT
+              Value: '30'
+            - Name: PUBLIC_ORIGIN
+              Value: !Sub 'https://${Distribution.DomainName}'
+          Secrets:
+            - Name: ATLAS_SESSION_SECRET
+              ValueFrom: !Ref SessionSecret
+          MountPoints:
+            - SourceVolume: catalog-cache
+              ContainerPath: /tmp
+              ReadOnly: false
           StopTimeout: 30
           HealthCheck:
             Command:
@@ -349,6 +436,42 @@ Resources:
             HeaderBehavior: none
           QueryStringsConfig:
             QueryStringBehavior: none
+
+  CatalogCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: jeju-3d-catalog-public-cache
+        Comment: Public catalog only. Never forward cookies or private guide state.
+        MinTTL: 0
+        DefaultTTL: 60
+        MaxTTL: 300
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: all
+
+  ApiOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: jeju-3d-private-api-requests
+        Comment: Carry signed sessions and Origin to the uncached API.
+        CookiesConfig:
+          CookieBehavior: all
+        HeadersConfig:
+          HeaderBehavior: whitelist
+          Headers:
+            - Origin
+            - Content-Type
+            - Accept
+        QueryStringsConfig:
+          QueryStringBehavior: all
 
   ResponseHeadersPolicy:
     Type: AWS::CloudFront::ResponseHeadersPolicy
@@ -497,6 +620,37 @@ Resources:
             FunctionAssociations:
               - EventType: viewer-response
                 FunctionARN: !GetAtt TerrainBrowserCacheFunction.FunctionMetadata.FunctionARN
+          - PathPattern: /api/catalog/*
+            TargetOriginId: jeju-alb
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD
+            Compress: true
+            CachePolicyId: !Ref CatalogCachePolicy
+            ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
+          - PathPattern: /api/*
+            TargetOriginId: jeju-alb
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - PATCH
+              - POST
+              - DELETE
+            CachedMethods:
+              - GET
+              - HEAD
+            Compress: false
+            # AWS-managed CachingDisabled, verified through ListCachePolicies.
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
+            ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
         DefaultCacheBehavior:
           TargetOriginId: jeju-alb
           ViewerProtocolPolicy: redirect-to-https
@@ -555,3 +709,7 @@ Outputs:
     Value: !Sub 'https://${Distribution.DomainName}/terrarium/{z}/{x}/{y}.png'
   TerrainCachePolicyId:
     Value: !Ref TerrainCachePolicy
+  CatalogBucketName:
+    Value: !Ref CatalogBucket
+  GuideQuotaTableName:
+    Value: !Ref GuideQuota

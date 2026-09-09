@@ -1,0 +1,225 @@
+import type { CatalogPlace, GuideMap } from '../shared/api-types';
+import type { AtlasMap } from './map';
+import type { PlaceSnapshot, TripStop } from './trip';
+import { TripPlanner } from './trip';
+import { CatalogMap } from './catalog-map';
+import { CatalogUI } from './catalog-ui';
+import { GuidePanel } from './guide';
+import { categoryName, distanceLabel, distanceMeters, html } from './api';
+import { initializePWA } from './pwa';
+import { icon } from './icons';
+import './explore.css';
+
+interface ExperienceOptions {
+  atlas: () => AtlasMap | undefined;
+  closeDrawer: () => void;
+  openDrawer: () => void;
+  stopTour: () => void;
+  notify: (message: string) => void;
+  cameraURL: () => string;
+  copyURL: (url: string, message: string) => Promise<void>;
+}
+
+export class AtlasExperience {
+  readonly planner: TripPlanner;
+  readonly catalog: CatalogUI;
+  readonly guide: GuidePanel;
+  private layers: CatalogMap | undefined;
+  private options: ExperienceOptions;
+  private tripStops: TripStop[] = [];
+  private recommendation: GuideMap | undefined;
+  private selectedCatalog: CatalogPlace | PlaceSnapshot | undefined;
+  private isCatalogSelection = false;
+  private activeTab = 'explore';
+
+  constructor(options: ExperienceOptions) {
+    this.options = options;
+    document.body.classList.add('has-catalog');
+    const sidebar = document.querySelector<HTMLElement>('#sidebar-content')!;
+    const legacy = sidebar.querySelector<HTMLElement>('.explorer')!;
+    const intro = sidebar.querySelector<HTMLElement>('.sidebar-intro')!;
+    intro.innerHTML = `<div class="eyebrow"><span class="eyebrow-line"></span> AN ISLAND, IN PERSPECTIVE</div><h1>제주를 펼치고,<br>나만의 <em>여행으로.</em></h1>`;
+    const tabs = document.createElement('div');
+    tabs.className = 'sidebar-tabs';
+    tabs.setAttribute('role', 'tablist');
+    tabs.setAttribute('aria-label', '제주 탐색 도구');
+    tabs.innerHTML = `<button id="tab-explore" role="tab" aria-selected="true" aria-controls="explore-panel" data-panel="explore">${icon('search')}탐색</button><button id="tab-trip" role="tab" aria-selected="false" aria-controls="trip-panel" data-panel="trip" tabindex="-1">${icon('route')}내 여행<span id="trip-tab-count">0</span></button><button id="tab-guide" role="tab" aria-selected="false" aria-controls="guide-panel" data-panel="guide" tabindex="-1">${icon('globe')}AI 가이드</button>`;
+    const browse = document.createElement('section');
+    browse.id = 'explore-panel';
+    browse.className = 'experience-panel explore-panel';
+    browse.setAttribute('role', 'tabpanel');
+    browse.setAttribute('aria-labelledby', 'tab-explore');
+    const catalogRoot = document.createElement('div');
+    catalogRoot.id = 'catalog-explorer';
+    const quick = document.createElement('details');
+    quick.id = 'terrain-quickplaces';
+    quick.className = 'terrain-quickplaces';
+    quick.innerHTML = `<summary>${icon('mountain')}지형 명소 빠르게 보기 <span>12곳</span>${icon('chevronDown')}</summary>`;
+    quick.append(legacy);
+    browse.append(catalogRoot, quick);
+    const trip = document.createElement('section');
+    trip.id = 'trip-panel'; trip.className = 'experience-panel trip-panel'; trip.hidden = true;
+    trip.setAttribute('role', 'tabpanel'); trip.setAttribute('aria-labelledby', 'tab-trip');
+    const guide = document.createElement('section');
+    guide.id = 'guide-panel'; guide.className = 'experience-panel guide-panel'; guide.hidden = true;
+    guide.setAttribute('role', 'tabpanel'); guide.setAttribute('aria-labelledby', 'tab-guide');
+    intro.after(tabs, browse, trip, guide);
+    const footer = sidebar.querySelector<HTMLElement>('.sidebar-footer')!;
+    footer.classList.add('experience-footer');
+    initializePWA(footer, options.notify);
+    const detail = document.createElement('section');
+    detail.id = 'catalog-detail'; detail.className = 'catalog-detail'; detail.hidden = true;
+    detail.setAttribute('role', 'region'); detail.setAttribute('aria-label', '카탈로그 장소 상세');
+    document.querySelector('.map-shell')!.append(detail);
+    const routeInfo = document.createElement('div');
+    routeInfo.id = 'trip-map-caption'; routeInfo.className = 'trip-map-caption'; routeInfo.hidden = true;
+    document.querySelector('.map-shell')!.append(routeInfo);
+    const guideCaption = document.createElement('div');
+    guideCaption.id = 'guide-map-caption'; guideCaption.className = 'guide-map-caption'; guideCaption.hidden = true;
+    document.querySelector('.map-shell')!.append(guideCaption);
+
+    this.planner = new TripPlanner(trip, {
+      notify: options.notify,
+      onChange: (stops) => this.setTrip(stops),
+      onSelect: (place) => { void this.catalog.openPlace(place.id, place); },
+      shareCamera: options.cameraURL,
+      copy: (url) => options.copyURL(url, '장소 순서와 체류 시간이 담긴 코스 주소를 복사했어요.'),
+    });
+    this.catalog = new CatalogUI(catalogRoot, detail, {
+      center: () => {
+        const center = options.atlas()?.map.getCenter();
+        return center ? { lng: center.lng, lat: center.lat } : { lng: 126.56, lat: 33.38 };
+      },
+      bounds: () => {
+        const bounds = options.atlas()?.map.getBounds();
+        return bounds ? [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()] : [125.8, 32.9, 127.1, 34.1];
+      },
+      onPoints: (points) => this.layers?.setPoints(points),
+      onSelect: (place) => this.selectCatalog(place),
+      onVisibility: (visible) => this.layers?.setVisible(visible),
+      planner: this.planner, notify: options.notify, openDrawer: options.openDrawer,
+    });
+    this.guide = new GuidePanel(guide, {
+      notify: options.notify,
+      onApply: (map) => {
+        if (!this.layers) { options.notify('지도가 준비되면 다시 표시해 주세요.'); return; }
+        options.stopTour();
+        this.recommendation = map;
+        this.layers.setGuide(map);
+        this.catalog.closeDetail();
+        options.closeDrawer();
+        guideCaption.hidden = false;
+        guideCaption.textContent = map.route_meta?.mode === 'straight'
+          ? `AI 추천 · 직선 참고 연결 · ${map.markers.length}곳`
+          : `AI 추천 ${map.markers.length}곳 · 경로 정보는 제공 출처를 확인하세요`;
+      },
+      context: () => {
+        const center = options.atlas()?.map.getCenter();
+        return `${this.selectedCatalog ? `선택 장소 ${this.selectedCatalog.name}. ` : ''}${center ? `지도 중심 ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}. ` : ''}${this.tripStops.length ? `내 코스 ${this.tripStops.map((stop) => stop.name).join(', ')}.` : ''}`;
+      },
+    });
+    tabs.querySelectorAll<HTMLButtonElement>('[data-panel]').forEach((button) => {
+      button.addEventListener('click', () => this.showTab(button.dataset.panel!));
+      button.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const order = ['explore', 'trip', 'guide'];
+        const index = order.indexOf(button.dataset.panel!);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (index + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+        this.showTab(order[next]);
+        document.querySelector<HTMLButtonElement>(`#tab-${order[next]}`)!.focus();
+      });
+    });
+    window.addEventListener('atlas:saved-change', () => {
+      if (this.isCatalogSelection && this.selectedCatalog) this.renderSelection(this.selectedCatalog);
+    });
+    window.addEventListener('hashchange', () => {
+      if (this.planner.restoreShared()) this.showTab('trip');
+    });
+  }
+
+  showTab(tab: string): void {
+    if (!['explore', 'trip', 'guide'].includes(tab)) return;
+    this.activeTab = tab;
+    for (const id of ['explore', 'trip', 'guide']) {
+      const selected = id === tab;
+      document.getElementById(`${id}-panel`)!.hidden = !selected;
+      const button = document.getElementById(`tab-${id}`)!;
+      button.setAttribute('aria-selected', String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    }
+    this.catalog.closeDetail();
+  }
+
+  onMapReady(atlas: AtlasMap): void {
+    this.layers = new CatalogMap(atlas.map, (id) => {
+      const saved = this.tripStops.find((stop) => stop.id === id);
+      const recommended = this.recommendation?.markers.find((marker) => marker.id === id);
+      if (recommended && !saved && !this.catalog.pointData.features.some((point) => point.properties.id === id)) {
+        const fallback: PlaceSnapshot = {
+          ...recommended, source: recommended.source ?? 'unknown', source_label: recommended.source ?? 'AI 추천 · 원문 출처 정보 없음',
+          base_note: 'AI 추천 위치입니다. 카탈로그 상세 정보와 공식 자료를 추가로 확인해 주세요.',
+          address: null, updated_at: recommended.observed_at, geometry: { type: 'Point', coordinates: [recommended.lng, recommended.lat] },
+          sources: [],
+        };
+        void this.catalog.openPlace(id, fallback);
+      } else void this.catalog.openPlace(id, saved);
+    });
+    this.layers.setTrip(this.tripStops);
+    if (this.recommendation) this.layers.setGuide(this.recommendation);
+    this.catalog.onMapReady();
+    atlas.map.on('moveend', () => this.catalog.onMapMove());
+    if (this.isCatalogSelection && this.selectedCatalog) this.renderSelection(this.selectedCatalog);
+  }
+
+  legacySelected(): void {
+    this.isCatalogSelection = false;
+    this.selectedCatalog = undefined;
+    this.catalog.closeDetail();
+  }
+
+  searchFocus(): void {
+    this.showTab('explore');
+    this.options.openDrawer();
+    document.getElementById('catalog-search')?.focus();
+  }
+
+  private selectCatalog(place: CatalogPlace | PlaceSnapshot): void {
+    this.options.stopTour();
+    this.isCatalogSelection = true;
+    this.selectedCatalog = place;
+    const atlas = this.options.atlas();
+    if (atlas) {
+      atlas.setSelected('');
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      atlas.map.flyTo({
+        center: [place.lng, place.lat], zoom: Math.max(12.5, Math.min(15, atlas.map.getZoom())),
+        pitch: atlas.getState().is3D ? 52 : 0, duration: reduced ? 0 : 1500,
+        padding: { top: 40, bottom: matchMedia('(max-width: 760px)').matches ? 170 : 130, left: 0, right: 0 },
+      });
+    }
+    this.options.closeDrawer();
+    this.renderSelection(place);
+  }
+
+  private renderSelection(place: CatalogPlace | PlaceSnapshot): void {
+    const target = document.getElementById('selected-place')!;
+    target.innerHTML = `<div class="selected-place-emblem">${icon('pin')}</div><div class="selected-place-info"><div class="selected-eyebrow"><span>${html(categoryName(place.category))}</span><span>·</span><span>기본: ${html(place.source_label)}</span></div><div class="selected-title"><h2>${html(place.name)}</h2></div><p>${html(place.address || '주소 정보 없음')}</p></div><button class="catalog-selection-detail" id="selected-catalog-detail">상세 보기 ${icon('chevron')}</button><button class="fly-button" id="selected-add-trip" aria-label="${html(place.name)} 내 여행에 담기">${icon(this.planner.hasStop(place.id) ? 'check' : 'plus')}<span>내 여행</span></button>`;
+    target.querySelector('#selected-catalog-detail')!.addEventListener('click', () => void this.catalog.openPlace(place.id, 'geometry' in place ? place : undefined));
+    target.querySelector('#selected-add-trip')!.addEventListener('click', () => this.planner.add(this.catalog.selection?.id === place.id ? this.catalog.selection : place));
+  }
+
+  private setTrip(stops: TripStop[]): void {
+    this.tripStops = stops;
+    this.layers?.setTrip(stops);
+    const badge = document.getElementById('trip-tab-count');
+    if (badge) badge.textContent = String(stops.length);
+    const caption = document.getElementById('trip-map-caption');
+    if (caption) {
+      const distance = stops.reduce((sum, stop, index) => index ? sum + distanceMeters(stops[index - 1], stop) : sum, 0);
+      caption.hidden = !stops.length;
+      caption.innerHTML = `${icon('route')}내 여행 ${stops.length}곳 · 직선 연결 ${html(distanceLabel(distance))}`;
+    }
+    if (this.activeTab === 'trip') document.getElementById('trip-panel')?.setAttribute('aria-label', `내 여행 ${stops.length}곳`);
+  }
+}

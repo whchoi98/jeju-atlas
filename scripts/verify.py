@@ -56,7 +56,44 @@ def verify():
     iam = session.client("iam")
     attached = iam.list_attached_role_policies(RoleName=task_role_name)["AttachedPolicies"]
     inline = iam.list_role_policies(RoleName=task_role_name)["PolicyNames"]
-    check("Application task has no AWS policies", not attached and not inline)
+    environment = {item["name"]: item["value"] for item in container.get("environment", [])}
+    expected_resources = {
+        "s3:GetObject": {f"arn:aws:s3:::{environment.get('CATALOG_BUCKET')}/catalog/catalog.sqlite"},
+        "bedrock-agentcore:InvokeAgentRuntime": {
+            environment.get("GUIDE_RUNTIME_ARN"),
+            str(environment.get("GUIDE_RUNTIME_ARN")) + "/runtime-endpoint/DEFAULT",
+        },
+        "bedrock-agentcore:InvokeAgentRuntimeForUser": {
+            environment.get("GUIDE_RUNTIME_ARN"),
+            str(environment.get("GUIDE_RUNTIME_ARN")) + "/runtime-endpoint/DEFAULT",
+        },
+        "dynamodb:UpdateItem": {
+            f"arn:aws:dynamodb:ap-northeast-2:{ACCOUNT}:table/{environment.get('GUIDE_QUOTA_TABLE')}"
+        },
+    }
+    seen_actions = set()
+    policies_scoped = not attached
+    for policy_name in inline:
+        statements = iam.get_role_policy(RoleName=task_role_name, PolicyName=policy_name)["PolicyDocument"].get("Statement", [])
+        for statement in statements:
+            actions = statement.get("Action", [])
+            resources = statement.get("Resource", [])
+            if isinstance(actions, str):
+                actions = [actions]
+            if isinstance(resources, str):
+                resources = [resources]
+            policies_scoped = policies_scoped and statement.get("Effect") == "Allow"
+            for action in actions:
+                seen_actions.add(action)
+                policies_scoped = policies_scoped and action in expected_resources and set(resources) <= expected_resources.get(action, set())
+    check("Task IAM limited to selected catalog, guide and quota", policies_scoped and seen_actions == set(expected_resources))
+    check("Only catalog cache volume is writable", [
+        mount["containerPath"] for mount in container.get("mountPoints", []) if not mount.get("readOnly", False)
+    ] == ["/tmp"])
+    check("Session secret injected without plaintext environment", "ATLAS_SESSION_SECRET" not in environment
+          and any(item["name"] == "ATLAS_SESSION_SECRET" and item["valueFrom"].startswith("arn:aws:secretsmanager:")
+                  for item in container.get("secrets", [])))
+    check("Guide daily cap configured", environment.get("GUIDE_DAILY_LIMIT") == "30")
 
     task_arns = ecs.list_tasks(cluster=outputs["ClusterName"], serviceName=outputs["ServiceName"], desiredStatus="RUNNING")["taskArns"]
     tasks = ecs.describe_tasks(cluster=outputs["ClusterName"], tasks=task_arns)["tasks"] if task_arns else []
@@ -123,6 +160,18 @@ def verify():
               and cache_key["CookiesConfig"]["CookieBehavior"] == "none"
               and cache_key["HeadersConfig"]["HeaderBehavior"] == "none"
               and cache_key["QueryStringsConfig"]["QueryStringBehavior"] == "none")
+    behaviors = config.get("CacheBehaviors", {}).get("Items", [])
+    catalog_behavior = next((item for item in behaviors if item["PathPattern"] == "/api/catalog/*"), None)
+    api_behavior = next((item for item in behaviors if item["PathPattern"] == "/api/*"), None)
+    check("Private API never cached and supports POST", bool(api_behavior)
+          and api_behavior["CachePolicyId"] == "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+          and "POST" in api_behavior["AllowedMethods"]["Items"])
+    if catalog_behavior:
+        policy = edge.get_cache_policy(Id=catalog_behavior["CachePolicyId"])["CachePolicy"]["CachePolicyConfig"]
+        check("Public catalog cache does not forward cookies", policy["MinTTL"] == 0 and policy["DefaultTTL"] == 60
+              and policy["ParametersInCacheKeyAndForwardedToOrigin"]["CookiesConfig"]["CookieBehavior"] == "none")
+    else:
+        check("Public catalog cache configured", False)
     listeners = elb.describe_listeners(LoadBalancerArn=outputs["LoadBalancerArn"])["Listeners"]
     listener = next(item for item in listeners if item["Port"] == 80)
     check("Unmatched ALB requests denied", listener["DefaultActions"][0]["Type"] == "fixed-response"
@@ -161,6 +210,26 @@ def verify():
         check("Versioned assets present", False)
     missing = requests.get(url + "/assets/does-not-exist.js", timeout=30)
     check("Missing asset returns 404", missing.status_code == 404)
+    catalog_response = requests.get(url + "/api/catalog/status", timeout=30)
+    catalog_data = catalog_response.json() if catalog_response.status_code == 200 else {}
+    check("Live service catalog includes enriched and OSM data", catalog_data.get("total", 0) >= 6000
+          and catalog_data.get("by_source", {}).get("OpenStreetMap", 0) >= 6000
+          and catalog_data.get("by_source", {}).get("sample", 0) >= 130,
+          {"total": catalog_data.get("total"), "bySource": catalog_data.get("by_source")})
+    check("Public catalog has no session cookie", not catalog_response.headers.get("Set-Cookie"))
+    client = requests.Session()
+    api_config = client.get(url + "/api/config", timeout=30)
+    api_data = api_config.json() if api_config.status_code == 200 else {}
+    check("Private config enables bounded guide without caching", api_config.status_code == 200
+          and api_config.headers.get("Cache-Control") == "no-store"
+          and api_data.get("guide", {}).get("daily_limit") == 30)
+    cookie_header = api_config.headers.get("Set-Cookie", "").lower()
+    check("Session cookie is HttpOnly and Secure", "httponly" in cookie_header and "secure" in cookie_header and "samesite=lax" in cookie_header)
+    rejected = client.post(url + "/api/guide", json={"message": "이 요청은 실행되지 않아야 합니다."},
+                           headers={"Origin": "https://example.com"}, timeout=20)
+    check("Foreign-origin guide requests rejected", rejected.status_code == 403)
+    worker = requests.get(url + "/sw.js", timeout=20)
+    check("PWA worker revalidates", worker.status_code == 200 and "no-cache" in worker.headers.get("Cache-Control", ""))
 
     try:
         direct = requests.get("http://" + outputs["LoadBalancerDnsName"] + "/", timeout=6)

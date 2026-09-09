@@ -348,6 +348,17 @@ export class AtlasMap {
     return { ...this.state, center: [...this.state.center], selectedId: this.selection };
   }
 
+  restoreView(state: ViewState): void {
+    this.setExaggeration(state.exaggeration);
+    this.setBasemap(state.basemap);
+    this.set3D(state.is3D);
+    this.setSelected(state.selectedId);
+    this.map.jumpTo({
+      center: state.center, zoom: state.zoom, pitch: state.pitch, bearing: state.bearing,
+      padding: { top: 0, bottom: 0, left: 0, right: 0 },
+    });
+  }
+
   setSelected(id: string): void {
     this.selection = id;
     this.state.selectedId = id;
