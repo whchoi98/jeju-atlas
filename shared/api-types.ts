@@ -82,6 +82,17 @@ export type WeatherResult = {
   }[];
   message?: string;
 };
+export type GuidePlaceInfo = {
+  id: string;
+  name: string;
+  facilities: Record<string, string>;
+  hours_week: HoursRow[];
+  hours_source: string | null;
+  enriched_at: string | null;
+  sources: SourceRecord[];
+  base_note: string | null;
+  business_status: string | null;
+};
 export type GuideMap = {
   answer: string;
   center: LatLng | null;
@@ -94,6 +105,7 @@ export type GuideMap = {
     source: string | null;
     observed_at: string | null;
   })[];
+  place_info?: GuidePlaceInfo[];
   route: LatLng[];
   route_meta: {
     mode: 'car' | 'walk' | 'transit' | 'straight';

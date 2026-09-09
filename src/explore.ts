@@ -7,7 +7,7 @@ import { CatalogUI } from './catalog-ui';
 import { GuidePanel } from './guide';
 import { categoryName, distanceLabel, distanceMeters, html } from './api';
 import { initializePWA } from './pwa';
-import { icon } from './icons';
+import { categorySymbol, icon } from './icons';
 import './explore.css';
 
 interface ExperienceOptions {
@@ -98,9 +98,11 @@ export class AtlasExperience {
       onSelect: (place) => this.selectCatalog(place),
       onVisibility: (visible) => this.layers?.setVisible(visible),
       planner: this.planner, notify: options.notify, openDrawer: options.openDrawer,
+      onReset: () => { options.stopTour(); options.atlas()?.reset(); },
     });
     this.guide = new GuidePanel(guide, {
       notify: options.notify,
+      onSelect: (id) => { void this.catalog.openPlace(id); },
       onApply: (map) => {
         if (!this.layers) { options.notify('지도가 준비되면 다시 표시해 주세요.'); return; }
         options.stopTour();
@@ -136,6 +138,8 @@ export class AtlasExperience {
     window.addEventListener('hashchange', () => {
       if (this.planner.restoreShared()) this.showTab('trip');
     });
+    document.getElementById('reset-view')?.addEventListener('click', () => this.catalog.resetFilters(false));
+    document.getElementById('brand-home')?.addEventListener('click', () => this.catalog.resetFilters(false));
   }
 
   showTab(tab: string): void {
@@ -168,13 +172,24 @@ export class AtlasExperience {
     this.layers.setTrip(this.tripStops);
     if (this.recommendation) this.layers.setGuide(this.recommendation);
     this.catalog.onMapReady();
+    atlas.setRepresentativeSelectHandler((place) => {
+      if (place.catalogId) void this.catalog.openPlace(place.catalogId);
+      else {
+        this.showTab('explore');
+        this.catalog.browseNearby({ lng: place.coordinates[0], lat: place.coordinates[1] });
+      }
+    });
     atlas.map.on('moveend', () => this.catalog.onMapMove());
-    if (this.isCatalogSelection && this.selectedCatalog) this.renderSelection(this.selectedCatalog);
+    if (this.isCatalogSelection && this.selectedCatalog) {
+      this.layers.setSelection(this.selectedCatalog);
+      this.renderSelection(this.selectedCatalog);
+    }
   }
 
   legacySelected(): void {
     this.isCatalogSelection = false;
     this.selectedCatalog = undefined;
+    this.layers?.setSelection(null);
     this.catalog.closeDetail();
   }
 
@@ -188,6 +203,7 @@ export class AtlasExperience {
     this.options.stopTour();
     this.isCatalogSelection = true;
     this.selectedCatalog = place;
+    this.layers?.setSelection(place);
     const atlas = this.options.atlas();
     if (atlas) {
       atlas.setSelected('');
@@ -204,7 +220,7 @@ export class AtlasExperience {
 
   private renderSelection(place: CatalogPlace | PlaceSnapshot): void {
     const target = document.getElementById('selected-place')!;
-    target.innerHTML = `<div class="selected-place-emblem">${icon('pin')}</div><div class="selected-place-info"><div class="selected-eyebrow"><span>${html(categoryName(place.category))}</span><span>·</span><span>기본: ${html(place.source_label)}</span></div><div class="selected-title"><h2>${html(place.name)}</h2></div><p>${html(place.address || '주소 정보 없음')}</p></div><button class="catalog-selection-detail" id="selected-catalog-detail">상세 보기 ${icon('chevron')}</button><button class="fly-button" id="selected-add-trip" aria-label="${html(place.name)} 내 여행에 담기">${icon(this.planner.hasStop(place.id) ? 'check' : 'plus')}<span>내 여행</span></button>`;
+    target.innerHTML = `<div class="selected-place-emblem">${icon(categorySymbol(place.category).icon)}</div><div class="selected-place-info"><div class="selected-eyebrow"><span>${html(categoryName(place.category))}</span><span>·</span><span>기본: ${html(place.source_label)}</span></div><div class="selected-title"><h2>${html(place.name)}</h2></div><p>${html(place.address || '주소 정보 없음')}</p></div><button class="catalog-selection-detail" id="selected-catalog-detail">상세 보기 ${icon('chevron')}</button><button class="fly-button" id="selected-add-trip" aria-label="${html(place.name)} 내 여행에 담기">${icon(this.planner.hasStop(place.id) ? 'check' : 'plus')}<span>내 여행</span></button>`;
     target.querySelector('#selected-catalog-detail')!.addEventListener('click', () => void this.catalog.openPlace(place.id, 'geometry' in place ? place : undefined));
     target.querySelector('#selected-add-trip')!.addEventListener('click', () => this.planner.add(this.catalog.selection?.id === place.id ? this.catalog.selection : place));
   }

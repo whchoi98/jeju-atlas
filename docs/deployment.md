@@ -6,7 +6,9 @@
 
 운영 카탈로그·여행 코스·AI·PWA 업데이트 완료: **2026-09-09 19:05 UTC**
 
-최종 인프라 검증: **2026-09-09 19:07 UTC**
+AI 가이드·대표 아이콘·카테고리 탐색 최종 수정 배포 완료: **2026-09-09 23:30 UTC**
+
+최종 인프라 검증: **2026-09-09 23:33 UTC**
 
 **서비스:** https://d2mznud99i2mdr.cloudfront.net
 
@@ -27,21 +29,21 @@
 | ALB DNS | `jeju-3d-alb-1953229828.ap-northeast-2.elb.amazonaws.com` |
 | Target Group | `jeju-3d-tasks` |
 | ECS 클러스터 / 서비스 | `jeju-3d` / `jeju-3d` |
-| Task Definition | `jeju-3d:3` |
+| Task Definition | `jeju-3d:5` |
 | 배포 용량 | ARM64, 0.25 vCPU, 512 MiB, 1개 태스크 |
 | ALB SG | `sg-06eb051b85d92d155` |
 | Task SG | `sg-05884348204666b85` |
 | 로그 그룹 | `/ecs/jeju-3d` |
 | ECR | `061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d` |
-| 릴리스 | `release-20260909T185508Z` |
+| 릴리스 | `release-20260909T232341Z` |
 | 읽기 전용 카탈로그 | `ohmyjeju-catalog-061525506239-prod/catalog/catalog.sqlite` |
 | AI 호출 한도 테이블 | `jeju-3d-guide-quota` |
-| AI 런타임 | 기존 `Ohmyjeju_OhmyjejuAgent-7fiRWV5uVi` 재사용 |
+| AI 런타임 | 기존 `Ohmyjeju_OhmyjejuAgent-7fiRWV5uVi` 버전 16, READY 재사용 |
 
 배포 이미지:
 
 ```text
-061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d@sha256:204ff4b0127910ba6e82542115b08ff7b587ddec4b7da4ed10772309c658ec98
+061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d@sha256:6e66d9e78358fdcb8eb92c1c42b0fb124b1204ee260f79a3e9899c65fb7b80c3
 ```
 
 ## 재사용한 네트워크
@@ -55,7 +57,7 @@ VPC: **`cc-on-bedrock-vpc` — `vpc-0dfa5610180dfa628`**
 | ECS Private | `ap-northeast-2a` | `subnet-07b1e65682847dce9` | `nat-00b8a70dc184a4d0c` |
 | ECS Private | `ap-northeast-2b` | `subnet-095297380cd45e1eb` | `nat-08379e076e2e6e234` |
 
-확인 당시 실행 태스크의 ENI는 `eni-0f85f80c450a86678`, Private IP는 `10.100.28.81`이며 Public IP는 없습니다. 태스크 교체 시 ENI/IP는 변경될 수 있습니다.
+확인 당시 실행 태스크의 ENI는 `eni-0fa86053891366b17`, Private IP는 `10.100.40.56`이며 Public IP는 없습니다. 태스크 교체 시 ENI/IP는 변경될 수 있습니다.
 
 새 VPC, 서브넷, NAT Gateway, EIP, 라우트 테이블은 생성하지 않았습니다. 기존 네트워크 스택과 라우팅을 변경하지 않았습니다.
 
@@ -78,7 +80,7 @@ VPC: **`cc-on-bedrock-vpc` — `vpc-0dfa5610180dfa628`**
 - 실제 운영 S3의 **6,724곳**을 검색·분류·주변 탐색합니다. OpenStreetMap 6,587곳과 큐레이션 시드 137곳의 출처를 유지합니다.
 - 137건의 기본 이름·좌표·주소·소개를 공식 대조 검증값으로 취급하지 않습니다. 공식 소스와 매칭된 사진·시간·인허가 등 보강 필드의 출처를 따로 표시합니다.
 - 사진 credit/license, 요일별 이용시간, 편의·메뉴·인허가 상태, 관측·갱신일을 제공합니다. 없는 값을 생성하지 않으며 인허가 `open`을 현재 시각의 “영업 중”으로 표시하지 않습니다.
-- 지도는 GPU 클러스터와 페이지당 40개 목록을 사용합니다. 6천 개 이상의 DOM 마커를 생성하지 않습니다.
+- 첫 지도에는 대표 명소만 표시하고 전체 카탈로그 점을 요청하지 않습니다. 카테고리·검색을 선택하면 관련 장소를 GPU 그림 아이콘으로 표시하며 목록은 페이지당 40개입니다. 협재해변 등 대표 아이콘을 카탈로그 상세로 연결합니다.
 - 즐겨찾기·코스 순서·체류시간을 브라우저에 저장하고 공유 주소로 복원합니다. 직선 연결선과 도로 경로를 구별합니다.
 - 선택 지점의 Open-Meteo 날씨·3일 예보와 기존 Ohmyjeju AI 가이드를 연결합니다.
 - PWA 앱 셸과 저장한 코스를 오프라인에서 볼 수 있습니다. API·지도 타일·외부 사진은 서비스 워커 사전 저장 대상이 아닙니다.
@@ -86,6 +88,12 @@ VPC: **`cc-on-bedrock-vpc` — `vpc-0dfa5610180dfa628`**
 카탈로그 파일은 S3 ETag를 10분마다 확인해 검증된 파일로 교체합니다. 읽기 실패 시 마지막 정상 파일과 갱신 지연 상태를 유지합니다. 참조 프로젝트, 원본 S3 카탈로그와 보강 파이프라인은 변경하지 않았습니다.
 
 AI는 서명된 HttpOnly/Secure/SameSite 쿠키와 사용자에 묶인 대화 토큰을 사용합니다. 한국 날짜 기준 전체 하루 30회, 사용자별 시간당 5회, 최대 2개 동시 요청·90초 제한을 적용합니다. DynamoDB 한도 기록에 실패하면 모델 호출을 시작하지 않습니다. 모델 비용은 호출 내용과 사용량에 따라 별도 발생합니다.
+
+일반 질문에는 초기 지도 중심을 자동으로 붙이지 않습니다. “아이와 함께…” 질문이 지도 중심 5km 안에서 빈 검색을 반복하던 원인을 수정했습니다. 지도·선택 장소·내 코스를 명시한 질문에는 맥락을 유지합니다.
+
+추천에 카탈로그 편의 정보·출처·미확인 항목을 함께 표시합니다. 시간 문구에서 변환한 시간대에는 휴무일 미확인을 명시하고, 기본 시드를 공식 대조 검증으로 취급하지 않습니다. 긴 SSE 응답과 최신 답변 스크롤, 검색 범위 변경 시 이전 응답 취소도 보완했습니다.
+
+범위가 없는 아이 동반·실내 추천은 실제 카탈로그 태그와 분류에서 후보를 먼저 조회해 전달합니다. 입력 2,000자·호출 한도를 유지하고, 결과가 부족할 때 제공하는 카탈로그 참고 장소는 AI 검색 결과와 구분합니다. 공개 주소에서 사용자 질문 “아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.”에 **25.3초** 만에 김녕미로공원·넥슨컴퓨터박물관의 AI 추천과 편의 정보가 반환됨을 확인했습니다. 이 시간은 한 번의 검증 관측값입니다.
 
 ## 고도 캐시 적용 결과
 
@@ -111,15 +119,18 @@ AI는 서명된 HttpOnly/Secure/SameSite 쿠키와 사용자에 묶인 대화 �
 | 검사 | 결과 |
 |---|---|
 | TypeScript + Vite 빌드 | 성공 |
-| Node 24 HTTP·SQLite·세션·가이드·날씨·고도 함수 검사 | 66개 통과 |
+| Node 24 HTTP·SQLite·세션·가이드·날씨·고도 함수 검사 | 94개 통과 |
 | 고도 응답 함수 검사 | 200·206·304·403·404·500·503 상태 통과 |
 | CloudFormation 최초 배포 재계획 회귀 검사 | 1개 통과 |
 | cfn-lint | 오류 없음 |
 | cfn-nag | 실패 0건, 개발 구성에 따른 경고는 README에 명시 |
 | npm 런타임 의존성 audit | 취약점 0건 |
-| 최종 이미지 ECR Inspector | 검사 완료, 취약점 0건 |
+| 최종 이미지 ECR Inspector | 지속 검사 ACTIVE, 23:23 UTC 검사 결과 발견 0건 |
 | 실제 공개 주소의 브라우저 검사 | 11개 통과 |
-| 카탈로그·코스·실제 AI·PWA·모바일 통합 검사 | 9개 통과 |
+| 카탈로그·코스·실제 AI·PWA·모바일 통합 검사 | 10개 통과 |
+| 대표 아이콘·카테고리·현재 지도 목록·모바일 검사 | 공개 주소 7개 통과 |
+| 질문 맥락·편의 표시·상세 연결·답변 스크롤 검사 | 제어된 SSE 5개 통과 |
+| 지연된 지도 응답 경합 검사 | 범위 변경 후 이전 요청 취소·최신 40개 핀 유지 |
 | 실제 AWS/HTTP 인프라 검사 | 44개 통과 |
 | 고도 캐시 HTTP 검사 | PNG 일치·15회 적중·304·오류 no-store 통과 |
 
@@ -130,21 +141,24 @@ AI는 서명된 HttpOnly/Secure/SameSite 쿠키와 사용자에 묶인 대화 �
 최종 검증 자료:
 
 - [인프라 검사 JSON](../.local/verification.json)
-- [기존 3D 기능 운영 브라우저 검사 JSON](../.local/browser-after-guide/report.json)
-- [카탈로그·실제 AI·PWA 운영 브라우저 검사](../.local/guide-browser-production/report.json)
-- [카탈로그·여행·PWA 로컬 통합 브라우저 검사](../.local/guide-browser-local/report.json)
+- [기존 3D 기능 운영 브라우저 검사 JSON](../.local/browser-after-guide-fix/report.json)
+- [카탈로그·실제 AI·PWA 운영 브라우저 검사](../.local/guide-browser-fix-production/report.json)
+- [대표 아이콘·분류·지도 목록 운영 검사](../.local/map-discovery-production/report.json)
+- [카탈로그·여행·PWA 로컬 통합 브라우저 검사](../.local/guide-browser-fix-local/report.json)
+- [가이드 화면 회귀 검사](../.local/guide-regression-local/report.json)
+- [늦은 지도 응답 취소 검사](../.local/map-race-after/report.json)
 - [고도 캐시 검사와 지연 측정 JSON](../.local/terrain-cache-verification.json)
-- [ECR 검사 JSON](../.local/image-scan.json)
+- [ECR 검사 JSON](../.local/image-scan-guide-grounding.json)
 - [데스크톱 위성 지도](../.local/browser-terrain-cache/desktop-satellite.png)
 - [데스크톱 고도 지도](../.local/browser-terrain-cache/desktop-terrain.png)
 - [모바일 지도](../.local/browser-terrain-cache/mobile-map.png)
 - [모바일 장소 선택](../.local/browser-terrain-cache/mobile-place.png)
-- [서비스 카탈로그 지도](../.local/guide-browser-production/catalog-overview.png)
-- [공식 보강 사진과 장소 상세](../.local/guide-browser-production/official-detail.png)
-- [여행 코스 편집](../.local/guide-browser-production/trip-planner.png)
-- [실제 AI 가이드 응답](../.local/guide-browser-production/live-guide.png)
-- [오프라인 저장 코스](../.local/guide-browser-production/offline-trip.png)
-- [모바일 여행 코스](../.local/guide-browser-production/mobile-trip.png)
+- [대표 명소로 시작하는 지도](../.local/map-discovery-production/initial-representatives.png)
+- [공식 보강 사진과 장소 상세](../.local/guide-browser-fix-production/official-detail.png)
+- [여행 코스 편집](../.local/guide-browser-fix-production/trip-planner.png)
+- [실제 AI 가이드 응답](../.local/guide-browser-fix-production/live-guide.png)
+- [오프라인 저장 코스](../.local/guide-browser-fix-production/offline-trip.png)
+- [모바일 여행 코스](../.local/guide-browser-fix-production/mobile-trip.png)
 
 `.local`은 실제 검증 기록으로 워크스페이스에 보관하며 Git에는 포함하지 않습니다. 최초 배포의 미사용 테스트 이미지 2개는 정리했으며, 현재 이미지와 이전 정상 릴리스 이미지는 보존했습니다.
 

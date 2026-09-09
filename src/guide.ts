@@ -1,6 +1,10 @@
-import type { GuideMap } from '../shared/api-types';
-import { ApiError, getConfig, html, isJejuPoint, publicMessage, sourceName, withAbort } from './api';
+import type { GuideMap, GuidePlaceInfo } from '../shared/api-types';
+import { ApiError, dateLabel, getConfig, html, isJejuPoint, publicMessage, safeURL, sourceName, withAbort } from './api';
+import { buildGuideMessage } from './guide-context';
+import { facilityText, hasFacilityRecord, hoursText } from './guide-facts';
+import { splitGuideFrames } from './guide-stream';
 import { icon } from './icons';
+import './guide.css';
 
 type ChatMessage = { role: 'user' | 'assistant'; text: string; state?: 'writing' | 'done' | 'interrupted' };
 
@@ -18,10 +22,31 @@ export function validateGuideMap(value: unknown): GuideMap | null {
     observed_at: typeof point.observed_at === 'string' ? point.observed_at.slice(0, 60) : null,
   }));
   const center = raw.center && isJejuPoint(raw.center.lng, raw.center.lat) ? { lng: raw.center.lng, lat: raw.center.lat } : null;
+  const ids = new Set(markers.map((marker) => marker.id));
+  const time = /^(?:[01]\d|2[0-3]):[0-5]\d$|^24:00$/;
+  const placeInfo = Array.isArray(raw.place_info) ? raw.place_info.filter((place) => place && ids.has(place.id)
+    && typeof place.name === 'string').slice(0, 12).map((place): GuidePlaceInfo => ({
+    id: place.id, name: place.name.slice(0, 160),
+    facilities: place.facilities && typeof place.facilities === 'object' && !Array.isArray(place.facilities)
+      ? Object.fromEntries(Object.entries(place.facilities).filter(([, value]) => typeof value === 'string')
+        .slice(0, 8).map(([key, value]) => [key.slice(0, 60), value.slice(0, 400)])) : {},
+    hours_week: Array.isArray(place.hours_week) ? place.hours_week.filter((hour) => hour
+      && Number.isInteger(hour.day) && hour.day >= 0 && hour.day <= 6 && time.test(hour.open) && time.test(hour.close)).slice(0, 14) : [],
+    hours_source: typeof place.hours_source === 'string' ? place.hours_source.slice(0, 160) : null,
+    enriched_at: typeof place.enriched_at === 'string' ? place.enriched_at.slice(0, 60) : null,
+    base_note: typeof place.base_note === 'string' ? place.base_note.slice(0, 500) : null,
+    business_status: typeof place.business_status === 'string' ? place.business_status.slice(0, 80) : null,
+    sources: Array.isArray(place.sources) ? place.sources.filter((source) => source && typeof source.source === 'string').slice(0, 8)
+      .map((source) => ({
+        source: source.source.slice(0, 160), url: safeURL(source.url),
+        observed_at: typeof source.observed_at === 'string' ? source.observed_at.slice(0, 60) : null,
+        license: typeof source.license === 'string' ? source.license.slice(0, 60) : null,
+      })) : [],
+  })) : [];
   return {
     answer: typeof raw.answer === 'string' ? raw.answer.slice(0, 15000) : '',
     center, zoom: typeof raw.zoom === 'number' && Number.isFinite(raw.zoom) ? Math.max(8, Math.min(17, raw.zoom)) : 11,
-    markers, route: Array.isArray(raw.route) ? raw.route.filter((p) => p && isJejuPoint(p.lng, p.lat)).slice(0, 512) : [],
+    markers, place_info: placeInfo, route: Array.isArray(raw.route) ? raw.route.filter((p) => p && isJejuPoint(p.lng, p.lat)).slice(0, 512) : [],
     route_meta: raw.route_meta && typeof raw.route_meta.provider === 'string' && ['car', 'walk', 'transit', 'straight'].includes(raw.route_meta.mode)
       ? raw.route_meta : null,
     warnings: Array.isArray(raw.warnings) ? raw.warnings.filter((value) => typeof value === 'string').map((value) => value.slice(0, 300)).slice(0, 8) : [],
@@ -39,16 +64,19 @@ export class GuidePanel {
   private onApply: (map: GuideMap) => void;
   private notify: (message: string) => void;
   private context: () => string;
+  private onSelect: ((id: string) => void) | undefined;
 
   constructor(root: HTMLElement, options: {
     onApply: (map: GuideMap) => void; notify: (message: string) => void; context: () => string;
+    onSelect?: (id: string) => void;
   }) {
     this.root = root;
     this.onApply = options.onApply;
     this.notify = options.notify;
     this.context = options.context;
+    this.onSelect = options.onSelect;
     root.innerHTML = `
-      <div class="panel-intro"><span class="eyebrow">A LOCAL PERSPECTIVE</span><h2>어떤 제주를 찾으세요?</h2><p>카탈로그를 바탕으로 함께 여행을 그려 봐요.</p></div>
+      <div class="panel-intro"><span class="eyebrow">A LOCAL PERSPECTIVE</span><h2>어떤 제주를 찾으세요?</h2><p>지역을 지정하지 않으면 제주 전체에서 찾아요.</p></div>
       <div class="guide-quick-prompts"><button data-prompt="제주 동쪽에서 자연을 즐기는 반나절 코스를 추천해 주세요.">동쪽 반나절</button><button data-prompt="제주에서 비 오는 날 둘러보기 좋은 실내 장소를 알려 주세요.">비 오는 날</button><button data-prompt="아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.">아이와 함께</button></div>
       <div id="guide-messages" class="guide-messages" role="log" aria-label="AI 가이드 대화" aria-live="polite"></div>
       <div id="guide-recommendation" class="guide-recommendation" hidden></div>
@@ -121,11 +149,32 @@ export class GuidePanel {
     const recommendation = this.recommendation;
     panel.hidden = !recommendation || !recommendation.markers.length;
     if (!recommendation) return;
-    panel.innerHTML = `<strong>지도에 펼칠 추천 ${recommendation.markers.length}곳</strong><p>${recommendation.markers.slice(0, 4).map((marker) => html(marker.name)).join(' · ')}</p><p class="micro-note">${[...new Set(recommendation.markers.map((marker) => sourceName(marker.source)))].map(html).join(' · ')}</p>${recommendation.warnings.map((warning) => `<p class="micro-note">${html(warning)}</p>`).join('')}<button id="guide-apply-map" class="button button--primary">추천 장소 지도에 표시 ${icon('arrow')}</button>`;
+    panel.innerHTML = `<strong>지도에 펼칠 추천 ${recommendation.markers.length}곳</strong><p>${recommendation.markers.slice(0, 4).map((marker) => html(marker.name)).join(' · ')}</p><button id="guide-apply-map" class="button button--primary">추천 장소 지도에 표시 ${icon('arrow')}</button>${this.renderPlaceInfo(recommendation.place_info ?? [])}<p class="micro-note">${[...new Set(recommendation.markers.map((marker) => sourceName(marker.source)))].map(html).join(' · ')}</p>${recommendation.warnings.map((warning) => `<p class="micro-note">${html(warning)}</p>`).join('')}`;
     panel.querySelector('#guide-apply-map')?.addEventListener('click', () => {
       this.onApply(recommendation);
       this.notify('추천 장소를 지도에 표시했어요.');
     });
+    panel.querySelectorAll<HTMLButtonElement>('[data-guide-place]').forEach((button) => {
+      button.addEventListener('click', () => this.onSelect?.(button.dataset.guidePlace!));
+    });
+    panel.scrollTop = 0;
+  }
+
+  private renderPlaceInfo(places: GuidePlaceInfo[]): string {
+    if (!places.length) return '';
+    const labels: Record<string, string> = {
+      parking: '주차', stroller: '유모차', wheelchair: '접근성 관련 표기', baby_stroller: '유모차',
+      toilets: '화장실', restroom: '화장실', pets: '반려동물', baby_room: '수유실',
+      kid_friendly: '어린이 관련 표기', wifi: '와이파이', card: '카드 결제', credit_card: '카드 결제',
+      pet: '반려동물', outdoor_seating: '야외 좌석', reservation: '예약',
+    };
+    return `<section class="guide-place-info" aria-label="추천 장소 편의 정보"><h3>카탈로그 편의 정보</h3><p>등록된 자료 기준이며, 빈 항목은 미확인입니다.</p>${places.map((place, index) => {
+      const facilities = Object.entries(place.facilities);
+      const recorded = facilities.filter(([, value]) => hasFacilityRecord(value)).length;
+      const sources = [...new Set(place.sources.map((source) =>
+        `${sourceName(source.source)}${source.observed_at ? ` (${dateLabel(source.observed_at)})` : ''}`))];
+      return `<details class="guide-place-facts"${index === 0 ? ' open' : ''}><summary><span>${html(place.name)}</span><small>${recorded ? `편의 ${recorded}항목 기록` : '편의 정보 미확인'}${place.hours_week.length ? ' · 이용시간 자료 있음' : ''}</small></summary><div>${facilities.length ? `<dl>${facilities.map(([key, value]) => `<dt>${html(labels[key] ?? key)}</dt><dd>${html(facilityText(value))}</dd>`).join('')}</dl>` : '<p>주차·화장실·유모차 이용 정보는 카탈로그에서 확인되지 않았습니다.</p>'}<p>${html(hoursText(place.hours_week, place.hours_source))}${place.hours_week.length ? ` · 출처 ${html(sourceName(place.hours_source))}` : ''}</p>${sources.length ? `<p>보강 자료 출처: ${sources.map(html).join(' · ')}</p>` : ''}${place.enriched_at ? `<p>보강일: ${html(dateLabel(place.enriched_at))}</p>` : ''}${place.base_note ? `<p>${html(place.base_note)}</p>` : ''}${this.onSelect ? `<button data-guide-place="${html(place.id)}">${icon('pin')}장소 상세 보기 ${icon('chevron')}</button>` : ''}</div></details>`;
+    }).join('')}</section>`;
   }
 
   async send(message: string): Promise<void> {
@@ -148,11 +197,10 @@ export class GuidePanel {
       const config = await withAbort(getConfig(), controller.signal);
       if (!config.features.guide) throw new ApiError('unavailable', 503);
       if (controller.signal.aborted) throw controller.signal.reason;
-      const context = this.context();
       const response = await fetch('/api/guide', {
         method: 'POST', credentials: 'same-origin', signal: controller.signal,
         headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-        body: JSON.stringify({ message: `${message}${context ? `\n\n현재 탐색 맥락: ${context}` : ''}`.slice(0, 2000), ...(this.conversationId ? { conversation_id: this.conversationId } : {}) }),
+        body: JSON.stringify({ message: buildGuideMessage(message, this.context()), ...(this.conversationId ? { conversation_id: this.conversationId } : {}) }),
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
@@ -204,12 +252,10 @@ export class GuidePanel {
         const chunk = await reader.read();
         if (chunk.done) break;
         buffer += decoder.decode(chunk.value, { stream: true });
-        if (buffer.length > 100000) throw new ApiError('invalid_stream', 502);
-        let match: RegExpExecArray | null;
-        while ((match = /\r?\n\r?\n/.exec(buffer))) {
-          dispatch(buffer.slice(0, match.index));
-          buffer = buffer.slice(match.index + match[0].length);
-        }
+        const parsed = splitGuideFrames(buffer);
+        if (!parsed) throw new ApiError('invalid_stream', 502);
+        buffer = parsed.rest;
+        for (const block of parsed.frames) dispatch(block);
       }
       if (finished || serverError) await reader.cancel().catch(() => {});
       if (!finished && !serverError) throw new ApiError('interrupted', 502);
@@ -227,8 +273,10 @@ export class GuidePanel {
     } finally {
       clearTimeout(timer);
       this.controller = undefined;
-      this.setRunning(false);
+      // The facts panel reduces the log's height after the final text token.
+      // Keep following the current answer through that last layout change.
       this.renderMessages();
+      this.setRunning(false);
     }
   }
 }

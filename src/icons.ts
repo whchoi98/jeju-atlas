@@ -23,9 +23,48 @@ const paths = {
   route: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 6h8a4 4 0 0 1 0 8H9a4 4 0 0 0 0 8"/>',
   warning: '<path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v5m0 3h.01"/>',
   globe: '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',
+  cafe: '<path d="M4 9h12v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Zm12 1h2a3 3 0 0 1 0 6h-2M3 22h15M7 3v3m4-4v4m4-3v3"/>',
+  food: '<path d="M5 3v6a3 3 0 0 0 6 0V3M8 3v19M18 3c-3 4-3 8 0 9h2V3h-2Zm2 9v10"/>',
+  museum: '<path d="m3 8 9-5 9 5H3Zm2 3v8m5-8v8m4-8v8m5-8v8M3 21h18M3 11h18"/>',
+  market: '<path d="M4 4h16l2 6H2l2-6Zm-1 6v3a3 3 0 0 0 5 2 3 3 0 0 0 4 0 3 3 0 0 0 4 0 3 3 0 0 0 5-2v-3M4 16v6h16v-6M9 22v-5h6v5"/>',
+  parking: '<path d="M8 20V5h5a4 4 0 0 1 0 8H8"/><rect x="2" y="2" width="20" height="20" rx="4"/>',
+  trail: '<path d="M4 22c9-3 9-7 4-9s-2-6 7-7M16 2v9m0-9 6 3-6 3"/>',
+  lodging: '<path d="M3 20V7m18 13V7M3 16h18M3 10h18v6M6 6h5v4H6V6Zm7 0h5v4h-5V6Z"/>',
 } as const;
 
 export type IconName = keyof typeof paths;
+
+/** Shared pictograms for the actual catalog taxonomy and legacy terrain pins. */
+export function categorySymbol(category: string): { icon: IconName; color: string } {
+  if (['해변', 'beach', 'coast'].includes(category)) return { icon: 'coast', color: '#187c87' };
+  if (['오름', 'mountain', 'nature', 'park'].includes(category)) return { icon: 'mountain', color: '#5f805a' };
+  if (['카페', 'cafe'].includes(category)) return { icon: 'cafe', color: '#86644a' };
+  if (['맛집', 'food', 'restaurant'].includes(category)) return { icon: 'food', color: '#b16845' };
+  if (['박물관', 'museum', 'culture'].includes(category)) return { icon: 'museum', color: '#64759a' };
+  if (['시장', 'market', 'shopping'].includes(category)) return { icon: 'market', color: '#927b43' };
+  if (['주차장', 'parking'].includes(category)) return { icon: 'parking', color: '#5c7582' };
+  if (['올레길', 'trail'].includes(category)) return { icon: 'trail', color: '#5b8d72' };
+  if (['숙소', 'stay', 'hotel', 'lodging', 'accommodation'].includes(category)) return { icon: 'lodging', color: '#787096' };
+  if (['섬', 'island'].includes(category)) return { icon: 'island', color: '#748757' };
+  return { icon: 'pin', color: '#187c87' };
+}
+
+/** Draw trusted local icon artwork synchronously for MapLibre sprite images. */
+export function paintIcon(context: CanvasRenderingContext2D, name: IconName): void {
+  const document = new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${paths[name]}</svg>`, 'image/svg+xml');
+  for (const element of document.documentElement.children) {
+    const number = (attribute: string) => Number(element.getAttribute(attribute) ?? 0);
+    context.beginPath();
+    if (element.tagName === 'path') {
+      context.stroke(new Path2D(element.getAttribute('d') ?? ''));
+      continue;
+    }
+    if (element.tagName === 'circle') context.arc(number('cx'), number('cy'), number('r'), 0, Math.PI * 2);
+    if (element.tagName === 'ellipse') context.ellipse(number('cx'), number('cy'), number('rx'), number('ry'), 0, 0, Math.PI * 2);
+    if (element.tagName === 'rect') context.roundRect(number('x'), number('y'), number('width'), number('height'), number('rx'));
+    context.stroke();
+  }
+}
 
 export function icon(name: IconName, className = ''): string {
   return `<svg class="icon ${className}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;

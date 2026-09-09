@@ -1,5 +1,7 @@
 import { setImmediate as yieldToLoop } from 'node:timers/promises';
 import { inJeju } from './weather.mjs';
+import { prepareGuideGrounding, catalogReference } from './guide-grounding.mjs';
+import { catalogPlaceInfo } from './guide-facts.mjs';
 
 const MESSAGES = {
   guide_unavailable: '여행 가이드를 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.',
@@ -220,6 +222,7 @@ export function normalizeGuideMap(input, { catalog } = {}) {
   const center = point(input.center);
   if (input.center != null && !center) warn('제주 범위를 벗어난 지도 중심을 제외했습니다.');
   const markers = [];
+  const placeInfo = [];
   const ids = new Set();
   const rawMarkers = Array.isArray(input.markers) ? input.markers : [];
   for (const marker of rawMarkers.slice(0, 1000)) {
@@ -246,6 +249,10 @@ export function normalizeGuideMap(input, { catalog } = {}) {
       observed_at: known ? timestamp(known.updated_at) : null,
     });
     ids.add(marker.id);
+    if (known) {
+      const info = catalogPlaceInfo(known);
+      if (info) placeInfo.push(info);
+    }
     if (!known) warn('카탈로그에서 확인되지 않은 장소가 포함되어 있습니다. 방문 전에 확인해 주세요.');
     if (known?.base_note || /curated|seed/i.test(known?.source || '')) {
       warn('큐레이션 시드의 기본 정보는 공식 대조 검증을 거치지 않았습니다.');
@@ -278,7 +285,8 @@ export function normalizeGuideMap(input, { catalog } = {}) {
   return {
     answer: input.answer.slice(0, 6000), center,
     zoom: Number.isFinite(input.zoom) ? Math.min(20, Math.max(1, input.zoom)) : 10,
-    markers, route, route_meta: routeMeta, warnings,
+    markers, ...(placeInfo.length ? { place_info: placeInfo } : {}),
+    route, route_meta: routeMeta, warnings,
   };
 }
 
@@ -313,7 +321,10 @@ function statusMessage(event) {
 }
 
 function frame(event, data) {
-  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  const output = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  // Match the browser's character limit after JSON escaping, wrapper included.
+  if (output.length > 512 * 1024) throw new GuideError(502, 'invalid_response');
+  return output;
 }
 
 async function writeEvent(res, event, data, signal) {
@@ -404,9 +415,10 @@ export function createGuideHandler({
       }, heartbeatMs);
       heartbeat.unref();
       await writeEvent(res, 'session', { conversation_id: conversation.token }, signal);
+      const grounding = prepareGuideGrounding(body.message, catalog);
       const source = await abortable(Promise.resolve().then(() => {
         signal.throwIfAborted();
-        return invokeEvents({ message: body.message, actorId, conversationId: conversation.id, signal });
+        return invokeEvents({ message: grounding.prompt, actorId, conversationId: conversation.id, signal });
       }), signal);
       iterator = source?.[Symbol.asyncIterator]?.() || source?.[Symbol.iterator]?.();
       if (!iterator) throw new GuideError(502, 'invalid_response');
@@ -440,6 +452,18 @@ export function createGuideHandler({
       if (!map) {
         if (!answer.trim()) throw new GuideError(502, 'invalid_response');
         map = normalizeGuideMap({ answer, warnings: ['지도 정보 없이 텍스트 답변만 제공되었습니다.'] });
+      }
+      if (!map.markers.length) {
+        const reference = catalogReference(map.answer, grounding);
+        if (reference) {
+          const appendix = reference.appendix ? `\n\n${reference.appendix}` : '';
+          map = normalizeGuideMap({
+            ...map, answer: `${map.answer.slice(0, 6000 - appendix.length)}${appendix}`,
+            markers: reference.markers, center: reference.center, zoom: 10, route: [], route_meta: null,
+            warnings: [...map.warnings, reference.warning],
+          }, { catalog });
+          if (appendix && answer.trim()) await writeEvent(res, 'text', { delta: appendix }, signal);
+        }
       }
       await writeEvent(res, 'map', map, signal);
       await writeEvent(res, 'done', {}, signal);

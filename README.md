@@ -170,9 +170,19 @@ s3://ohmyjeju-catalog-061525506239-prod/catalog/catalog.sqlite
 
 서버는 S3 ETag를 10분마다 확인합니다. 검증된 새 SQLite 파일로 교체하고, 원본 장애 시 마지막 정상 파일을 유지하면서 갱신 지연을 알립니다. 브라우저의 API 응답에는 출처와 데이터 기준일을 남깁니다.
 
+첫 지도에는 대표 명소 아이콘만 표시합니다. 카테고리나 검색어를 선택하면 해당 카탈로그 장소를 지도에 표시하며, 전체 장소 표시는 사용자가 켤 수 있습니다. 해변·오름·카페 등은 서로 다른 아이콘을 사용하고, 대표 명소와 검색 결과는 카탈로그 상세 화면으로 연결됩니다.
+
 ## AI와 저장
 
 AI는 기존 Ohmyjeju AgentCore 런타임을 사용합니다. 브라우저는 AWS 자격 증명이나 런타임 ARN을 받지 않으며 서버가 IAM으로 호출합니다.
+
+일반 추천 질문에는 지도 중심이나 저장된 코스를 자동으로 붙이지 않습니다. “여기 근처”, “현재 지도”, “선택한 장소”, “내 코스”처럼 화면 상태를 직접 참조한 질문에만 탐색 맥락을 붙입니다. 초기 지도 중심을 주변 5km 검색으로 해석해 추천이 비던 문제를 방지합니다.
+
+추천 장소의 편의 정보와 요일별 영업시간은 서버가 같은 ID의 카탈로그 상세 자료에서 읽어 별도로 표시합니다. AI가 생성한 편의 정보는 이 영역에 사용하지 않습니다. 자료가 없는 항목은 미확인으로 표시하며, 보강 자료 출처와 영업시간 출처를 구분합니다. 보강 자료 전체의 출처를 개별 편의 항목의 출처로 추정하지 않습니다.
+
+`unknown` 시설 값은 미확인으로 표시하고 기록된 편의 항목 수에 포함하지 않습니다. `tourapi_usetime`은 이용시간 문구에서 추출한 시간대이며, 일주일 내내 영업하거나 휴무일이 없다는 의미로 표시하지 않습니다.
+
+범위가 없는 아이 동반·실내 추천은 카탈로그의 실제 태그와 분류에서 최대 3개 후보를 먼저 조회해 AI에 전달합니다. 기존 AgentCore의 입력 한도 2,000자를 지키며 질문 원문을 유지합니다. 지역·주변·음식점·숙소 등 별도 조건이 있는 요청에는 이 기본 후보를 강제로 적용하지 않습니다. AI 검색 결과가 비면 카탈로그에서 조회한 참고 장소라는 점을 명시해 함께 표시하며, 한도 초과나 통신 오류를 성공으로 바꾸지는 않습니다.
 
 - 서명된 HttpOnly/Secure/SameSite 쿠키에서 사용자 식별자를 만들고 다른 사용자와 메모리를 분리합니다.
 - 대화 ID는 사용자와 만료 시각에 묶인 서명 토큰입니다. 클라이언트가 actor/user ID를 지정할 수 없습니다.
@@ -208,7 +218,14 @@ node scripts/browser-check.mjs http://127.0.0.1:8097 browser-local
 ```bash
 node scripts/browser-guide-check.mjs http://127.0.0.1:8097 guide-browser-local
 node scripts/browser-guide-check.mjs https://d2mznud99i2mdr.cloudfront.net guide-browser-production --live-guide
+node scripts/browser-map-discovery-check.mjs http://127.0.0.1:8097 .local/map-discovery-local
+node scripts/browser-map-race-check.mjs http://127.0.0.1:8097 map-race-local
+node scripts/browser-guide-regression.mjs http://127.0.0.1:8097 guide-regression-local
 ```
+
+`browser-guide-regression.mjs`는 제어된 SSE 응답으로 질문 범위·편의 정보 표시·상세 연결을 검사하며 AI를 호출하지 않습니다. 실제 AI 검사는 `--live-guide`에서 사용자가 보고한 “아이와 함께” 질문으로 따로 실행합니다.
+
+`browser-map-race-check.mjs`는 지도 범위 응답을 지연시켜, 이후 선택한 주변 검색 결과를 이전 응답이 덮지 않는지 검사합니다.
 
 브라우저 검사는 실제 고도·위성 타일, 지도 시점, 검색, 분류, 2D/3D, 고도 배율, 지형 지도, 자동 둘러보기, 공유 복원, 모바일 조작을 확인합니다. 결과와 스크린샷은 `.local/`에 저장합니다.
 

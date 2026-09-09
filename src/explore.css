@@ -14,6 +14,19 @@
 .catalog-status-line .icon { width: 13px; height: 13px; }
 .catalog-search-field { margin: 0; height: 41px; padding-inline: 10px; }
 .catalog-search-field > input { font-size: 11px; }
+.catalog-category-chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 10px; flex-shrink: 0; }
+.catalog-category-chips > button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 3px; border: 1px solid #e0e9e3; border-radius: 5px; background: #f8faf7; color: #628170; font-size: 10px; }
+.catalog-category-chips .icon { width: 15px; height: 15px; }
+.catalog-category-chips > button:hover:not(:disabled) { background: #eaf4ee; border-color: #bbd8cc; }
+.catalog-category-chips > button.is-active { background: var(--teal); border-color: var(--teal); color: white; }
+.catalog-category-chips > button.is-active:hover:not(:disabled) { background: var(--teal); border-color: var(--teal); color: white; }
+.catalog-category-chips > button:disabled { cursor: default; }
+.catalog-discovery-note { display: flex; align-items: center; justify-content: space-between; gap: 5px; margin-top: 6px; flex-shrink: 0; }
+.catalog-discovery-note > span { color: #829b8d; font-size: 8px; line-height: 1.6; }
+.catalog-discovery-note > button { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; padding: 5px 2px; background: transparent; color: #739383; font-size: 8px; }
+.catalog-discovery-note .icon { width: 10px; height: 10px; }
+.catalog-map-label { position: absolute; z-index: 9; transform: translate(-50%, -100%); padding: 7px 11px; border: 1px solid #d8e8e1; border-radius: 6px; background: #fffffff5; color: var(--ink); font: 500 11px 'Noto Sans KR', sans-serif; box-shadow: 0 3px 12px #133a3420; max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+.has-catalog .place-marker--quiet { display: none; }
 .catalog-filters { display: flex; align-items: center; justify-content: space-between; gap: 7px; margin-top: 9px; flex-shrink: 0; }
 .catalog-filters > label:first-child { flex: 1; min-width: 0; }
 .catalog-filters select, .catalog-radius-row select { width: 100%; background: white; border: 1px solid #e0e8e2; border-radius: 5px; color: #607b6c; font-size: 10px; padding: 8px 6px; }
@@ -163,6 +176,9 @@
 .detail-action-bar > button .icon { width: 12px; height: 12px; }
 .detail-action-bar #detail-add-trip { background: var(--teal); border-color: var(--teal); color: white; }
 .detail-action-bar .is-saved { color: var(--teal); background: #e8f3e7; }
+.detail-related-actions { display: flex; gap: 8px; padding: 7px 15px; border-bottom: 1px solid #e7eee6; background: #fafcf8; flex-shrink: 0; }
+.detail-related-actions > button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: 1; background: transparent; color: var(--teal); font-size: 10px; padding: 5px; }
+.detail-related-actions .icon { width: 13px; height: 13px; }
 .detail-content { overflow-y: auto; flex: 1; min-height: 0; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #d8e3cf transparent; padding: 0 17px 20px; }
 .detail-photos { margin: 0 -17px; padding: 0; display: flex; gap: 0; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: #d9e3d1 transparent; }
 .detail-photos > figure { flex: 0 0 100%; scroll-snap-align: start; margin: 0; background: #f8faf6; }
@@ -245,6 +261,9 @@
 }
 
 @media (max-width: 760px) {
+  .has-catalog .sidebar { height: min(80%, 650px); }
+  .has-catalog .map-shell.is-drawer-open .maplibregl-ctrl-bottom-right { bottom: calc(min(80%, 650px) + 4px) !important; }
+  .has-catalog .map-shell.is-drawer-open .maplibregl-ctrl-bottom-left { bottom: calc(min(80%, 650px) + 62px) !important; }
   .has-catalog .sidebar-intro { display: none; }
   .sidebar-tabs { margin: 0 18px 10px; }
   .sidebar-tabs > button { font-size: 12px; padding-block: 10px; }
@@ -253,6 +272,11 @@
   .catalog-status-line { font-size: 10px; margin-bottom: 6px; min-height: 19px; }
   .catalog-search-field { height: 39px; min-height: 39px; }
   .catalog-search-field input { font-size: 12px; }
+  .catalog-category-chips { display: flex; gap: 5px; margin-top: 8px; overflow-x: auto; scrollbar-width: thin; padding: 2px 1px 4px; }
+  .catalog-category-chips > button { flex: 0 0 auto; min-width: 62px; min-height: 34px; padding: 6px 9px; font-size: 10px; }
+  .catalog-category-chips .icon { width: 14px; height: 14px; }
+  .catalog-discovery-note { margin-top: 3px; }
+  .catalog-discovery-note > span, .catalog-discovery-note > button { font-size: 8px; }
   .catalog-filters { margin-top: 7px; }
   .catalog-filters select { padding-block: 6px; font-size: 11px; }
   .catalog-map-switch { font-size: 10px; }

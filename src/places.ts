@@ -12,6 +12,8 @@ export interface Place {
   zoom: number;
   bearing: number;
   elevation?: number;
+  /** Matching catalog record, checked against the read-only reference snapshot. */
+  catalogId?: string;
 }
 
 export const categories: Record<Category, string> = {
@@ -35,6 +37,7 @@ export const places: Place[] = [
     zoom: 12.5,
     bearing: -24,
     elevation: 1947,
+    catalogId: 'osm:node/7036109099',
   },
   {
     id: 'seongsan',
@@ -47,6 +50,7 @@ export const places: Place[] = [
     location: '서귀포시 성산읍',
     zoom: 14.3,
     bearing: -40,
+    catalogId: 'poi_0008',
   },
   {
     id: 'hyeopjae',
@@ -59,6 +63,7 @@ export const places: Place[] = [
     location: '제주시 한림읍',
     zoom: 13.3,
     bearing: 25,
+    catalogId: 'poi_0057',
   },
   {
     id: 'udo',
@@ -71,6 +76,7 @@ export const places: Place[] = [
     location: '제주시 우도면',
     zoom: 12.6,
     bearing: -15,
+    catalogId: 'osm:relation/9742044',
   },
   {
     id: 'sanbangsan',
@@ -83,6 +89,7 @@ export const places: Place[] = [
     location: '서귀포시 안덕면',
     zoom: 13.5,
     bearing: -25,
+    catalogId: 'osm:node/12190653939',
   },
   {
     id: 'hamdeok',
@@ -95,6 +102,7 @@ export const places: Place[] = [
     location: '제주시 조천읍',
     zoom: 13.4,
     bearing: 15,
+    catalogId: 'poi_0056',
   },
   {
     id: 'sangumburi',
@@ -107,6 +115,7 @@ export const places: Place[] = [
     location: '제주시 조천읍',
     zoom: 14,
     bearing: -35,
+    catalogId: 'osm:node/2598237154',
   },
   {
     id: 'jusangjeolli',
@@ -119,6 +128,7 @@ export const places: Place[] = [
     location: '서귀포시 중문동',
     zoom: 14,
     bearing: -8,
+    catalogId: 'poi_0002',
   },
   {
     id: 'bija',
@@ -143,6 +153,7 @@ export const places: Place[] = [
     location: '서귀포시 대정읍',
     zoom: 13.8,
     bearing: -25,
+    catalogId: 'poi_0033',
   },
   {
     id: 'seopjikoji',
@@ -155,6 +166,7 @@ export const places: Place[] = [
     location: '서귀포시 성산읍',
     zoom: 13.8,
     bearing: -25,
+    catalogId: 'poi_0007',
   },
   {
     id: 'gapado',

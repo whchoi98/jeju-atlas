@@ -1,0 +1,15 @@
+.guide-place-info { margin-top: 13px; border-top: 1px solid #d6e2e9; padding-top: 11px; }
+.guide-place-info > h3 { font-size: 11px; font-weight: 600; color: var(--ink); }
+.guide-place-info > p { font-size: 9px; line-height: 1.7; color: #657e8c; margin: 5px 0 10px; }
+.guide-place-facts { background: #ffffffc7; border: 1px solid #dbe5e9; border-radius: 6px; margin-top: 6px; }
+.guide-place-facts > summary { cursor: pointer; font-size: 10px; line-height: 1.7; padding: 9px; }
+.guide-place-facts > summary > span { font-weight: 600; }
+.guide-place-facts > summary > small { display: block; margin-left: 13px; font-size: 9px; color: #6d8390; }
+.guide-place-facts > div { padding: 0 10px 10px; }
+.guide-place-facts p { font-size: 9px; line-height: 1.8; color: #627c8a; margin-top: 7px; overflow-wrap: anywhere; }
+.guide-place-facts dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 9px; font-size: 10px; line-height: 1.8; }
+.guide-place-facts dt { color: #627c8a; }
+.guide-place-facts dd { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.guide-place-facts button { display: flex; align-items: center; gap: 5px; background: #e8f1f3; color: var(--teal-dark); border-radius: 4px; margin-top: 9px; padding: 8px 9px; font-size: 10px; }
+.guide-place-facts button > .icon { width: 13px; height: 13px; }
+.guide-panel .guide-recommendation { max-height: min(30dvh, 250px); }

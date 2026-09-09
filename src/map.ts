@@ -201,6 +201,7 @@ export class AtlasMap {
   private ready = false;
   private disposed = false;
   private selection = 'hallasan';
+  private representativeSelect: ((place: Place) => void) | undefined;
   private onContextLost: (event: Event) => void;
   private onContextRestored: () => void;
 
@@ -303,6 +304,8 @@ export class AtlasMap {
       const element = document.createElement('button');
       element.type = 'button';
       element.className = `place-marker place-marker--${place.category}`;
+      element.dataset.landmarkId = place.id;
+      if (place.catalogId) element.dataset.catalogId = place.catalogId;
       element.setAttribute('aria-label', `${place.name} 자세히 보기`);
       element.setAttribute('title', place.name);
       element.innerHTML = `<span class="marker-dot">${icon(place.category)}</span><span class="marker-label">${place.name}${place.id === 'hallasan' ? '<span class="marker-subtitle">HALLASAN</span>' : ''}</span>`;
@@ -310,6 +313,7 @@ export class AtlasMap {
         event.stopPropagation();
         this.callbacks.onInteraction();
         this.callbacks.onSelect(place);
+        this.representativeSelect?.(place);
       });
       const marker = new maplibregl.Marker({
         element,
@@ -346,6 +350,10 @@ export class AtlasMap {
 
   getState(): ViewState {
     return { ...this.state, center: [...this.state.center], selectedId: this.selection };
+  }
+
+  setRepresentativeSelectHandler(handler: (place: Place) => void): void {
+    this.representativeSelect = handler;
   }
 
   restoreView(state: ViewState): void {

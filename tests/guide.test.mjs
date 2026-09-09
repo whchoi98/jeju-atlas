@@ -433,7 +433,7 @@ test('guide maps use exact catalog IDs, bound geometry, keep route metadata, and
   });
   const response = await f.post(await f.cookie()).completed;
   const map = events(response.body).find((event) => event.event === 'map').data;
-  assert.deepEqual(Object.keys(map).sort(), ['answer', 'center', 'markers', 'route', 'route_meta', 'warnings', 'zoom']);
+  assert.deepEqual(Object.keys(map).sort(), ['answer', 'center', 'markers', 'place_info', 'route', 'route_meta', 'warnings', 'zoom']);
   assert.equal(map.answer.length, 6000);
   assert.equal(map.center, null);
   assert.ok(map.zoom >= 1 && map.zoom <= 20);
@@ -444,6 +444,10 @@ test('guide maps use exact catalog IDs, bound geometry, keep route metadata, and
   assert.equal(map.markers[1].id, 'unknown');
   assert.equal(map.markers[1].name, '알 수 없는 카페');
   assert.equal(map.markers[1].source, null);
+  assert.deepEqual(map.place_info, [{
+    id: 'poi_0001', name: '카탈로그 이름', facilities: {}, hours_week: [], hours_source: null,
+    enriched_at: null, sources: [], base_note: '공식 대조 검증 전 큐레이션 시드', business_status: null,
+  }]);
   assert.ok(map.warnings.some((warning) => /시드|검증/.test(warning)));
   assert.deepEqual(map.route_meta, road);
   assert.ok(map.markers.every((marker) => marker.lat >= 33.1 && marker.lat <= 33.6 && marker.lng >= 126.15 && marker.lng <= 126.98));
@@ -556,4 +560,350 @@ test('hourly actor storage stays bounded without evicting limits, and expired ac
   now += 3_600_000;
   assert.equal((await f.post(second).completed).status, 200);
   assert.equal(f.invocations.length, 2);
+});
+
+test('HTTP guide place_info carries exact catalog facts and ignores model-supplied enrichment', async (t) => {
+  const detail = Object.freeze({
+    id: 'sample:family', name: '카탈로그 가족 공원', category: '관광지',
+    lat: 33.4, lng: 126.5, source: 'sample', summary: '시드 기본 소개',
+    facilities: Object.freeze({ parking: 'yes', wheelchair: 'unknown' }),
+    hours_week: Object.freeze([Object.freeze({ day: 0, open: '09:00', close: '18:00' })]),
+    hours_source: 'tourapi_usetime', enriched_at: '2026-09-08T21:48:08+00:00',
+    sources: Object.freeze([Object.freeze({
+      source: 'tourapi', url: 'https://example.org/place/family',
+      observed_at: '2026-09-08T21:46:33+00:00', license: 'KOGL-1',
+      note: '장소 보강 자료; 개별 편의시설의 검증 근거는 아님',
+    })]),
+    base_note: '큐레이션 기본 좌표·주소·소개는 공식 대조 검증되지 않았습니다.',
+    business_status: 'open',
+  });
+  const empty = {
+    id: 'osm:node/1', name: '편의 정보 없는 장소', category: '카페',
+    lat: 33.41, lng: 126.51, source: 'OpenStreetMap',
+  };
+  const reads = [];
+  let modelStarts = 0;
+  const f = await fixture(t, {
+    catalog: {
+      status: () => ({ status: 'ready' }),
+      detail(id) {
+        reads.push(id);
+        return id === detail.id ? detail : id === empty.id ? empty : null;
+      },
+    },
+    invokeEvents: () => {
+      modelStarts++;
+      return eventsFrom([
+        { type: 'token', text: '아이와 방문할 장소를 안내합니다.' },
+        { type: 'map', ...mapResponse({
+          markers: [
+            { ...detail, name: '모델이 바꾼 이름', facilities: { stroller: 'yes' } },
+            { ...empty, facilities: { parking: 'yes' } },
+            { id: 'unknown', name: detail.name, category: '관광지', lat: 33.4, lng: 126.5 },
+          ],
+          place_info: [
+            { id: detail.id, name: '가짜 공식 명칭', facilities: { stroller: 'yes' }, hours_source: 'model', open_now: true },
+            { id: empty.id, facilities: { wheelchair: 'yes' } },
+            { id: 'unknown', facilities: { parking: 'yes' }, sources: [{ source: 'official' }] },
+          ],
+        }) },
+        { type: 'done' },
+      ]);
+    },
+  });
+  const response = await f.post(await f.cookie(), {
+    message: '아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.',
+  }).completed;
+  assert.equal(response.status, 200);
+  const output = events(response.body);
+  const map = output.find((event) => event.event === 'map').data;
+  assert.deepEqual(map.place_info, [{
+    id: 'sample:family', name: '카탈로그 가족 공원',
+    facilities: { parking: 'yes', wheelchair: 'unknown' },
+    hours_week: [{ day: 0, open: '09:00', close: '18:00' }],
+    hours_source: 'tourapi_usetime', enriched_at: '2026-09-08T21:48:08+00:00',
+    sources: [{
+      source: 'tourapi', url: 'https://example.org/place/family',
+      observed_at: '2026-09-08T21:46:33+00:00', license: 'KOGL-1',
+      note: '장소 보강 자료; 개별 편의시설의 검증 근거는 아님',
+    }],
+    base_note: '큐레이션 기본 좌표·주소·소개는 공식 대조 검증되지 않았습니다.',
+    business_status: 'open',
+  }, {
+    id: 'osm:node/1', name: '편의 정보 없는 장소', facilities: {}, hours_week: [],
+    hours_source: null, enriched_at: null, sources: [], base_note: null, business_status: null,
+  }]);
+  assert.deepEqual(reads, ['sample:family', 'osm:node/1', 'unknown']);
+  assert.equal(modelStarts, 1);
+  assert.equal(f.quotas.length, 1);
+  assert.equal(output.filter((event) => event.event === 'error').length, 0);
+  assert.deepEqual(output.at(-1), { event: 'done', data: {} });
+  assert.doesNotMatch(JSON.stringify(map.place_info), /open_now|stroller|facility_sources|가짜 공식/);
+});
+
+test('guide place_info only covers accepted exact-ID catalog matches, including empty known rows', () => {
+  const marker = { id: 'known', name: '모델 이름', category: '관광지', lat: 33.4, lng: 126.5 };
+  const modelFacts = [{ id: marker.id, name: marker.name, facilities: { parking: 'yes' } }];
+  for (const catalog of [
+    undefined, { detail: () => null }, { detail: () => { throw new Error('unavailable'); } },
+    { detail: () => ({ ...marker, id: 'different-id', facilities: { parking: 'yes' } }) },
+    { detail: () => ({ ...marker, name: null, facilities: { parking: 'yes' } }) },
+    { detail: () => ({ ...marker, lat: 90, facilities: { parking: 'yes' } }) },
+  ]) {
+    const map = guideModule.normalizeGuideMap(mapResponse({ markers: [marker], place_info: modelFacts }), { catalog });
+    assert.deepEqual(map.place_info ?? [], []);
+  }
+  const catalog = { detail: (id) => ({ ...marker, id, name: `카탈로그 ${id}` }) };
+  const map = guideModule.normalizeGuideMap(mapResponse({
+    markers: [marker, marker, ...Array.from({ length: 13 }, (_, i) => ({ ...marker, id: `p${i}` }))],
+    place_info: modelFacts,
+  }), { catalog });
+  assert.equal(map.place_info.length, 12);
+  assert.deepEqual(map.place_info.map((info) => info.id), map.markers.map((item) => item.id));
+  assert.deepEqual(map.place_info[0], {
+    id: 'known', name: '카탈로그 known', facilities: {}, hours_week: [], hours_source: null,
+    enriched_at: null, sources: [], base_note: null, business_status: null,
+  });
+});
+
+test('guide place_info bounds facility text and validates hours without making open-now claims', () => {
+  const inherited = { inherited_facility: 'yes' };
+  const facilities = Object.assign(Object.create(inherited), {
+    parking: '가'.repeat(450), wheelchair: 'unknown', empty: '', malformed: true,
+    ['k'.repeat(61)]: 'do not rename an oversized facility key',
+  });
+  Object.defineProperty(facilities, '__proto__', { enumerable: true, value: 'no pollution' });
+  for (let i = 0; i < 12; i++) facilities[`facility${i}`] = '확인된 문구';
+  const known = {
+    id: 'hours', name: '카탈로그 시간', category: '관광지', lat: 33.4, lng: 126.5, facilities,
+    hours_source: 'catalog-provider/use-time-v2',
+    hours_week: [
+      { day: 0, open: '09:00', close: '24:00', open_now: true },
+      { day: 6, open: '20:00', close: '08:00' },
+      ...[
+        { day: -1, open: '09:00', close: '18:00' }, { day: 7, open: '09:00', close: '18:00' },
+        { day: '1', open: '09:00', close: '18:00' }, { day: 1.5, open: '09:00', close: '18:00' },
+        { day: 1, open: '24:00', close: '24:01' }, { day: 1, open: '9:00', close: '18:00' },
+        { day: 1, open: '09:60', close: '18:00' }, { day: 1, open: '09:00', close: null },
+      ],
+      ...Array.from({ length: 20 }, () => ({ day: 2, open: '10:00', close: '17:00' })),
+    ],
+    enriched_at: 'invalid date', business_status: 'open', open_now: true,
+  };
+  const map = guideModule.normalizeGuideMap(mapResponse({ markers: [known] }), { catalog: { detail: () => known } });
+  const info = map.place_info?.[0];
+  assert.ok(info, 'accepted catalog place should include facts');
+  assert.equal(Object.keys(info.facilities).length, 8);
+  assert.equal(info.facilities.parking, '가'.repeat(400));
+  assert.equal(info.facilities.wheelchair, 'unknown');
+  for (const key of ['inherited_facility', '__proto__', 'empty', 'malformed', 'k'.repeat(61)]) {
+    assert.equal(Object.hasOwn(info.facilities, key), false, key);
+  }
+  assert.ok(Object.keys(info.facilities).every((key) => key.length <= 60));
+  assert.equal(info.hours_week.length, 14);
+  assert.deepEqual(info.hours_week.slice(0, 2), [
+    { day: 0, open: '09:00', close: '24:00' }, { day: 6, open: '20:00', close: '08:00' },
+  ]);
+  assert.ok(info.hours_week.slice(2).every((hour) => hour.day === 2));
+  assert.equal(info.hours_source, 'catalog-provider/use-time-v2');
+  assert.equal(info.enriched_at, null);
+  assert.equal(info.business_status, 'open');
+  assert.doesNotMatch(JSON.stringify(info), /open_now/);
+});
+
+test('guide place_info source links are bounded public HTTP URLs, with row provenance kept separate', () => {
+  const known = { id: 'source', name: '출처 장소', category: '관광지', lat: 33.4, lng: 126.5 };
+  const cases = [
+    ['https://example.org/place?a=1', 'https://example.org/place?a=1'],
+    ['http://example.org/place', 'http://example.org/place'],
+    ['javascript:alert(1)', null], ['data:text/html,hi', null], ['file:///etc/passwd', null],
+    ['/relative', null], ['https://name:password@example.org/place', null],
+    ['https://example.org/with\\backslash', null], ['https://example.org/\npath', null],
+    ['http://localhost/place', null], ['http://127.1/place', null], ['http://10.0.0.1/place', null],
+    ['http://[::1]/place', null], ['https://catalog.local/place', null],
+    [`https://example.org/${'x'.repeat(3000)}`, null],
+  ];
+  for (const [url, expected] of cases) {
+    const detail = {
+      ...known,
+      sources: [{
+        source: 'tourapi', url, observed_at: 'bad date', license: 'KOGL-1',
+        note: '주차장별 검증 출처로 해석하지 않는 행 보강 자료', fields: ['parking'], open_now: true,
+      }],
+    };
+    const map = guideModule.normalizeGuideMap(mapResponse({ markers: [known] }), { catalog: { detail: () => detail } });
+    assert.deepEqual(map.place_info?.[0]?.sources, [{
+      source: 'tourapi', url: expected, observed_at: null, license: 'KOGL-1',
+      note: '주차장별 검증 출처로 해석하지 않는 행 보강 자료',
+    }], url);
+    assert.deepEqual(map.place_info[0].facilities, {});
+    assert.equal(map.place_info[0].hours_source, null);
+  }
+});
+
+test('guide place_info keeps the worst-case twelve-place response finite and strips unknown fields', () => {
+  const places = Array.from({ length: 13 }, (_, i) => ({
+    id: `p${i}`, name: '이'.repeat(1000), category: '관광지', lat: 33.4, lng: 126.5,
+    facilities: Object.fromEntries(Array.from({ length: 12 }, (_, j) => [`${'편'.repeat(55)}${j}`, '값'.repeat(1000)])),
+    hours_week: Array.from({ length: 20 }, () => ({ day: 0, open: '00:00', close: '24:00' })),
+    hours_source: '공급자'.repeat(100), base_note: '시드 검증 전 '.repeat(1000),
+    business_status: '상태'.repeat(200), enriched_at: '2026-09-09T00:00:00Z',
+    sources: [
+      null, { source: null }, { source: '' },
+      ...Array.from({ length: 20 }, (_, j) => ({
+        source: `provider-${j}`, url: `https://example.org/${'x'.repeat(2000)}`,
+        license: '허가'.repeat(1000), observed_at: '2026-09-09T00:00:00Z',
+        note: '보강 자료 '.repeat(1000), unknown: 'x'.repeat(50_000),
+      })),
+    ],
+    unknown: 'x'.repeat(50_000),
+  }));
+  const byId = new Map(places.map((place) => [place.id, place]));
+  const map = guideModule.normalizeGuideMap(mapResponse({ markers: places }), { catalog: { detail: (id) => byId.get(id) } });
+  assert.equal(map.place_info.length, 12);
+  assert.ok(Buffer.byteLength(JSON.stringify(map)) < 1024 * 1024);
+  for (const info of map.place_info) {
+    assert.equal(info.name.length, 160);
+    assert.equal(Object.keys(info.facilities).length, 8);
+    assert.equal(info.hours_week.length, 14);
+    assert.equal(info.hours_source, null, 'oversized source identifiers must not become different identifiers');
+    assert.equal(info.sources.length, 8);
+    assert.ok(info.base_note.length <= 1000);
+    assert.ok(info.business_status.length <= 80);
+    for (const source of info.sources) {
+      assert.ok(source.source.length <= 120);
+      assert.ok(source.url === null || source.url.length <= 2048);
+      assert.ok(source.license === null || source.license.length <= 120);
+      assert.ok(source.note === null || source.note.length <= 400);
+      assert.equal(Object.hasOwn(source, 'unknown'), false);
+    }
+    assert.equal(Object.hasOwn(info, 'unknown'), false);
+  }
+});
+
+function largeFrameFixture(escaped = false) {
+  const text = escaped ? '"' : '가';
+  const modelText = escaped ? '\u0001' : '가';
+  const point = { lat: 33.333333333333336, lng: 126.33333333333333 };
+  const places = Array.from({ length: 12 }, (_, i) => ({
+    id: escaped ? `p${'\u0001'.repeat(252)}${i}` : `p${i}`,
+    name: (escaped ? '\ud800' : text).repeat(160),
+    category: modelText.repeat(80), summary: modelText.repeat(1200),
+    source: modelText.repeat(120), ...point,
+    facilities: Object.fromEntries(Array.from({ length: 8 }, (_, j) => [text.repeat(59) + j, text.repeat(400)])),
+    hours_week: Array.from({ length: 14 }, () => ({ day: 0, open: '00:00', close: '24:00' })),
+    hours_source: text.repeat(160), base_note: text.repeat(1000), business_status: text.repeat(80),
+    enriched_at: '2026-09-09T00:00:00.000+00:00',
+    sources: Array.from({ length: 8 }, () => ({
+      source: text.repeat(120), url: 'https://example.org/' + 'x'.repeat(2028),
+      observed_at: '2026-09-09T00:00:00.000+00:00', license: text.repeat(120), note: text.repeat(400),
+    })),
+  }));
+  const byId = new Map(places.map((place) => [place.id, place]));
+  const catalog = { status: () => ({ status: 'ready' }), detail: (id) => byId.get(id) };
+  const input = mapResponse({
+    answer: modelText.repeat(6000), center: point, markers: places.map(({ id }) => ({ id })),
+    route: Array.from({ length: 512 }, () => ({ ...point })),
+    route_meta: { mode: 'straight', distance_m: 123456789.123456789, duration_s: null, provider: modelText.repeat(160) },
+    warnings: Array.from({ length: 32 }, (_, i) => modelText.repeat(298) + String(i).padStart(2, '0')),
+  });
+  return { catalog, input };
+}
+
+test('large valid guide frames are accepted by character count even above 512 KiB of UTF-8 bytes', async (t) => {
+  const { catalog, input } = largeFrameFixture();
+  const f = await fixture(t, {
+    catalog,
+    invokeEvents: () => eventsFrom([{ type: 'map', ...input }, { type: 'done' }]),
+  });
+  const response = await f.post(await f.cookie()).completed;
+  assert.equal(response.status, 200);
+  const output = events(response.body);
+  const map = output.find((event) => event.event === 'map')?.data;
+  assert.ok(map, 'large bounded catalog facts must reach the browser');
+  assert.equal(map.markers.length, 12);
+  assert.equal(map.place_info.length, 12);
+  assert.equal(map.place_info[0].sources.length, 8);
+  const frame = response.body.split('\n\n').find((part) => part.startsWith('event: map\n')) + '\n\n';
+  assert.ok(frame.length > 100_000);
+  assert.ok(frame.length <= 512 * 1024, 'the complete frame, including its wrapper, must fit');
+  assert.ok(Buffer.byteLength(frame) > 512 * 1024, 'bytes must not be mistaken for characters');
+  assert.equal(output.filter((event) => event.event === 'error').length, 0);
+  assert.deepEqual(output.at(-1), { event: 'done', data: {} });
+});
+
+test('JSON escaping beyond the guide frame character limit sends invalid_response and done without a partial map', async (t) => {
+  const { catalog, input } = largeFrameFixture(true);
+  const normalized = guideModule.normalizeGuideMap(input, { catalog });
+  const oversized = `event: map\ndata: ${JSON.stringify(normalized)}\n\n`;
+  assert.ok(oversized.length > 512 * 1024, 'escape expansion must exercise the output guard');
+  const f = await fixture(t, {
+    catalog,
+    invokeEvents: () => eventsFrom([{ type: 'map', ...input }, { type: 'done' }]),
+  });
+  const response = await f.post(await f.cookie()).completed;
+  assert.equal(response.status, 200, 'the SSE headers are already sent');
+  const output = events(response.body);
+  assert.equal(output.filter((event) => event.event === 'map').length, 0);
+  const errors = output.filter((event) => event.event === 'error');
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].data.code, 'invalid_response');
+  assert.equal(output.filter((event) => event.event === 'done').length, 1);
+  assert.deepEqual(output.at(-1), { event: 'done', data: {} });
+  assert.ok(response.body.split('\n\n').filter(Boolean).every((part) => (part + '\n\n').length <= 512 * 1024));
+});
+
+test('broad family requests relay bounded catalog context and label catalog-assisted empty model results', async (t) => {
+  const place = {
+    id: 'family-park', name: '가족공원', category: '관광지', lat: 33.4, lng: 126.5,
+    source: 'sample', tags: ['아이동반', '가족'], base_note: '기본 정보 공식 대조 검증 미확인',
+    facilities: { parking: 'yes', restroom: 'unknown' }, hours_week: [], sources: [],
+  };
+  const invoked = [];
+  const f = await fixture(t, {
+    catalog: {
+      status: () => ({ status: 'ready' }),
+      search: ({ category }) => ({ items: category === place.category ? [place] : [] }),
+      detail: (id) => id === place.id ? place : null,
+    },
+    invokeEvents: (input) => {
+      invoked.push(input);
+      return eventsFrom([
+        { type: 'token', text: '검색한 복합 키워드와 일치하는 결과를 찾지 못했습니다.' },
+        { type: 'map', ...mapResponse({ answer: '검색한 복합 키워드와 일치하는 결과를 찾지 못했습니다.' }) },
+        { type: 'done' },
+      ]);
+    },
+  });
+  const response = await f.post(await f.cookie(), {
+    message: '아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.',
+  }).completed;
+  assert.equal(response.status, 200);
+  assert.equal(invoked.length, 1);
+  assert.equal(f.quotas.length, 1);
+  assert.ok(invoked[0].message.length <= 2000);
+  assert.match(invoked[0].message, /가족공원/);
+  const output = events(response.body);
+  const map = output.find((event) => event.event === 'map').data;
+  assert.deepEqual(map.markers.map((marker) => marker.id), [place.id]);
+  assert.equal(map.place_info[0].facilities.restroom, 'unknown');
+  assert.match(map.answer, /카탈로그 참고 장소/);
+  assert.match(output.filter((event) => event.event === 'text').map((event) => event.data.delta).join(''), /카탈로그 참고 장소/);
+  assert.match(map.warnings.join(' '), /AI의 검색 결과가 부족/);
+  assert.equal(output.at(-1).event, 'done');
+});
+
+test('catalog grounding does not bypass exhausted guide quotas', async (t) => {
+  let searches = 0;
+  const f = await fixture(t, {
+    consumeQuota: async () => false,
+    catalog: {
+      status: () => ({ status: 'ready' }),
+      search: () => { searches++; return { items: [] }; }, detail: () => null,
+    },
+  });
+  const response = await f.post(await f.cookie(), { message: '아이와 함께 방문할 장소 추천' }).completed;
+  assert.equal(response.status, 429);
+  assert.equal(searches, 0);
+  assert.equal(f.invocations.length, 0);
 });

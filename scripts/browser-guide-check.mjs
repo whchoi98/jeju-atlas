@@ -24,7 +24,7 @@ function pass(name, detail) {
   results.push(result);
   console.log(JSON.stringify(result));
 }
-async function ready(target, catalog = true) {
+async function ready(target, catalog = false) {
   await target.waitForFunction(() => {
     const map = window.__JEJU_MAP__;
     return map && map.isStyleLoaded() && map.areTilesLoaded() && !map.isMoving()
@@ -41,7 +41,7 @@ async function ready(target, catalog = true) {
 async function selectPlace(target, query, id) {
   await target.locator('#tab-explore').click();
   await target.locator('#catalog-search').fill(query);
-  const card = target.locator(`[data-catalog-id="${id}"]`);
+  const card = target.locator(`#catalog-list [data-catalog-id="${id}"]`);
   await card.waitFor({ state: 'visible', timeout: 30_000 });
   await card.click();
   await target.locator('#detail-add-trip').waitFor({ state: 'visible', timeout: 30_000 });
@@ -69,21 +69,33 @@ try {
       domMarkers: document.querySelectorAll('.maplibregl-marker').length,
     };
   });
-  assert.ok(mapState.terrain && mapState.elevation > 1000 && mapState.clusters > 0);
+  assert.ok(mapState.terrain && mapState.elevation > 1000);
+  assert.equal(mapState.clusters, 0, 'Initial map shows representative landmarks, not the full catalog');
+  assert.equal(await page.locator('#catalog-map-toggle').isChecked(), false);
   assert.ok(mapState.domMarkers < 100, 'Catalog must not create thousands of DOM markers');
-  pass('Live 6,000+ catalog, paginated list and GPU clusters preserve real 3D terrain', { total: status.total, ...mapState });
+  pass('Live 6,000+ catalog list preserves a quiet representative 3D overview', { total: status.total, ...mapState });
   await page.screenshot({ path: resolve(output, 'catalog-overview.png'), fullPage: true });
+
+  await page.locator('[data-map-category="해변"]').click();
+  await ready(page, true);
+  const categoryPoints = await page.evaluate(async () => await window.__JEJU_MAP__.getSource('catalog-points').getData());
+  assert.ok(categoryPoints.features.length > 0);
+  assert.ok(categoryPoints.features.every((feature) => feature.properties.category === '해변'));
+  assert.equal(await page.evaluate(() => window.__JEJU_MAP__.getLayer('catalog-dots').type), 'symbol');
+  pass('Explicit category selection enables related GPU pictograms');
+  await page.locator('#catalog-reset').click();
 
   await selectPlace(page, '김녕미로공원', 'poi_0001');
   assert.match(await page.locator('#catalog-detail .detail-base-note').innerText(), /큐레이션|원자료/);
   assert.match(await page.locator('#catalog-detail .detail-base-note').innerText(), /공식|검증/);
   assert.equal(await page.locator('.hours-table tbody tr').count(), 7);
   assert.match(await page.locator('.hours-table').innerText(), /09:00/);
+  assert.match(await page.locator('.hours-table caption').innerText(), /휴무일 미확인/);
   await page.locator('#detail-favorite').click();
   assert.equal(await page.locator('#detail-favorite').getAttribute('aria-pressed'), 'true');
   await page.locator('#detail-add-trip').click();
   await page.locator('[data-detail-action="close"]').click();
-  pass('Curated base provenance stays distinct from official weekday hours; favorites and stops save');
+  pass('Curated base stays distinct from official time-text enrichment; unknown holidays, favorites and stops remain explicit');
 
   await selectPlace(page, '생원전복', 'osm:node/8441493336');
   const photo = page.locator('#catalog-detail .detail-photos img').first();
@@ -143,17 +155,20 @@ try {
 
   if (liveGuide) {
     await page.locator('#tab-guide').click();
-    await page.locator('#guide-input').fill('제주 동쪽의 실제 카탈로그 장소 두 곳을 한국어로 짧게 소개해 주세요. 운영시간은 확인된 정보만 말해 주세요.');
+    const familyPrompt = '아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.';
+    await page.locator('#guide-input').fill(familyPrompt);
     // Chromium may discard a streamed CDP response body. Tee the actual fetch
     // stream in the page so the UI still consumes the original, unmocked data.
     await page.evaluate(() => {
       const fetchOriginal = window.fetch.bind(window);
       window.__atlasGuideWire = null;
+      window.__atlasGuideQuestion = null;
       window.fetch = async (...args) => {
         const response = await fetchOriginal(...args);
         const input = args[0];
         const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, location.href);
         if (url.pathname === '/api/guide') {
+          window.__atlasGuideQuestion = JSON.parse(args[1].body).message;
           response.clone().text().then(
             (body) => { window.__atlasGuideWire = { status: response.status, body }; },
             (error) => { window.__atlasGuideWire = { status: response.status, error: String(error) }; },
@@ -162,6 +177,7 @@ try {
         return response;
       };
     });
+    const guideStarted = Date.now();
     await page.locator('#guide-send').click();
     await page.waitForFunction(() => Boolean(window.__atlasGuideWire), null, { timeout: 110_000 });
     const guideWire = await page.evaluate(() => window.__atlasGuideWire);
@@ -174,6 +190,10 @@ try {
     const resultEvent = guideBody.split('\n\n').find((event) => event.startsWith('event: map'));
     const result = JSON.parse(resultEvent.split('\ndata: ')[1]);
     assert.ok(result.answer?.length > 40 && result.markers?.length > 0);
+    assert.doesNotMatch((result.warnings ?? []).join(' '), /AI의 검색 결과가 부족/, 'Live verification must receive an agent recommendation, not only catalog assistance');
+    assert.equal(await page.evaluate(() => window.__atlasGuideQuestion), familyPrompt, 'A general family request must not inherit camera or itinerary constraints');
+    assert.ok(result.place_info?.length > 0, 'Catalog facts must accompany the live recommendation');
+    assert.ok(result.place_info.every((place) => result.markers.some((marker) => marker.id === place.id)));
     await page.waitForFunction(() => {
       const log = document.querySelector('#guide-messages');
       return log && log.textContent.length > 100 && document.querySelector('#guide-send')?.disabled === false;
@@ -181,8 +201,12 @@ try {
     const conversation = await page.locator('#guide-messages').innerText();
     assert.doesNotMatch(conversation, /모의 응답|mock agent/i);
     assert.ok(conversation.length > 100);
+    assert.ok(await page.locator('.guide-place-facts').count() > 0);
     await page.screenshot({ path: resolve(output, 'live-guide.png'), fullPage: true });
-    pass('Live guide returns through the public session-protected SSE endpoint', { markers: result.markers.length });
+    pass('Reported family question returns live recommendations and catalog facts through the public SSE endpoint', {
+      markers: result.markers.length, facts: result.place_info.length, seconds: Math.round((Date.now() - guideStarted) / 100) / 10,
+      places: [...new Set(result.markers.map((marker) => marker.name))],
+    });
   }
 
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
@@ -211,7 +235,7 @@ try {
   await ready(page);
   await page.locator('#drawer-toggle').click();
   await page.locator('#catalog-search').fill('김녕미로공원');
-  await page.locator('[data-catalog-id="poi_0001"]').click();
+  await page.locator('#catalog-list [data-catalog-id="poi_0001"]').click();
   await page.locator('#detail-add-trip').waitFor({ state: 'visible' });
   await page.locator('#detail-add-trip').click();
   await page.screenshot({ path: resolve(output, 'mobile-detail.png'), fullPage: true });
