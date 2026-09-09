@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Jeju Atlas image repository. No network resources are created.
+Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      RepositoryName: jeju-3d
+      ImageTagMutability: IMMUTABLE
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      EncryptionConfiguration:
+        EncryptionType: AES256
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Expire untagged build images after seven days",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 7
+                },
+                "action": {"type": "expire"}
+              }
+            ]
+          }
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+        - Key: ManagedBy
+          Value: CloudFormation
+Outputs:
+  RepositoryUri:
+    Value: !GetAtt Repository.RepositoryUri
+  RepositoryArn:
+    Value: !GetAtt Repository.Arn

@@ -1,0 +1,95 @@
+# 제주 아틀라스 배포 결과
+
+배포 완료: **2026-09-09 16:56 UTC**
+
+최종 인프라 검증: **2026-09-09 16:57 UTC**
+
+**서비스:** https://d2mznud99i2mdr.cloudfront.net
+
+**상태 확인:** https://d2mznud99i2mdr.cloudfront.net/healthz
+
+## 생성한 앱 리소스
+
+| 항목 | 값 |
+|---|---|
+| AWS 계정 | `061525506239` |
+| 리전 | `ap-northeast-2` |
+| CloudFormation | `Jeju3dRegistry`, `Jeju3dApp` — `CREATE_COMPLETE` |
+| CloudFront | `E20RRTIO667ZDY` — `Deployed` |
+| ALB | `jeju-3d-alb` |
+| ALB DNS | `jeju-3d-alb-1953229828.ap-northeast-2.elb.amazonaws.com` |
+| Target Group | `jeju-3d-tasks` |
+| ECS 클러스터 / 서비스 | `jeju-3d` / `jeju-3d` |
+| Task Definition | `jeju-3d:1` |
+| 배포 용량 | ARM64, 0.25 vCPU, 512 MiB, 1개 태스크 |
+| ALB SG | `sg-06eb051b85d92d155` |
+| Task SG | `sg-05884348204666b85` |
+| 로그 그룹 | `/ecs/jeju-3d` |
+| ECR | `061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d` |
+| 릴리스 | `release-20260909T164925Z` |
+
+배포 이미지:
+
+```text
+061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d@sha256:5619021cb85e2840243a1a4e14c18ed940038dd84316cd2b128c67a86a538c2b
+```
+
+## 재사용한 네트워크
+
+VPC: **`cc-on-bedrock-vpc` — `vpc-0dfa5610180dfa628`**
+
+| 역할 | AZ | 서브넷 | 기존 기본 경로 |
+|---|---|---|---|
+| ALB Public | `ap-northeast-2a` | `subnet-08486a1e618b1991e` | `igw-0119eaa5d417c8839` |
+| ALB Public | `ap-northeast-2b` | `subnet-0c161777c4031c320` | `igw-0119eaa5d417c8839` |
+| ECS Private | `ap-northeast-2a` | `subnet-07b1e65682847dce9` | `nat-00b8a70dc184a4d0c` |
+| ECS Private | `ap-northeast-2b` | `subnet-095297380cd45e1eb` | `nat-08379e076e2e6e234` |
+
+확인 당시 실행 태스크의 ENI는 `eni-0d9b6124ffc9f1588`, Private IP는 `10.100.21.153`이며 Public IP는 없습니다. 태스크 교체 시 ENI/IP는 변경될 수 있습니다.
+
+새 VPC, 서브넷, NAT Gateway, EIP, 라우트 테이블은 생성하지 않았습니다. 기존 네트워크 스택과 라우팅을 변경하지 않았습니다.
+
+## 접근 경로
+
+1. 브라우저는 CloudFront에 HTTPS로 접속합니다. HTTP 접속은 HTTPS로 리다이렉트합니다.
+2. ALB TCP 80은 AWS 관리 Prefix List `pl-22a6434b` (`com.amazonaws.global.cloudfront.origin-facing`)만 허용합니다.
+3. CloudFront의 원본 검증 헤더 값이 일치할 때만 ALB가 태스크에 전달합니다. 기본 리스너 응답은 403입니다.
+4. ECS TCP 8080은 ALB 보안 그룹만 허용합니다. 태스크는 비루트 사용자, 읽기 전용 루트 파일시스템, AWS 권한 없는 앱 역할로 실행됩니다.
+
+**CloudFront→ALB 구간은 HTTP입니다.** 현재 계정의 Hosted Zone이 실제 공개 DNS에 위임되어 있지 않아 기본 CloudFront 주소를 사용했습니다. 원본 구간 HTTPS에는 공개 검증이 가능한 도메인과 서울 리전의 신뢰된 ACM 인증서가 필요합니다.
+
+## 검증 결과
+
+| 검사 | 결과 |
+|---|---|
+| TypeScript + Vite 빌드 | 성공 |
+| 정적 HTTP 서버 검사 | 7개 통과 |
+| CloudFormation 최초 배포 재계획 회귀 검사 | 1개 통과 |
+| cfn-lint | 오류 없음 |
+| cfn-nag | 실패 0건, 개발 구성에 따른 경고는 README에 명시 |
+| npm 런타임 의존성 audit | 취약점 0건 |
+| 최종 이미지 ECR Inspector | 검사 완료, 취약점 0건 |
+| 실제 공개 주소의 브라우저 검사 | 10개 통과 |
+| 실제 AWS/HTTP 인프라 검사 | 30개 통과 |
+
+브라우저는 실제 DEM과 위성 타일을 받아 한라산의 고도를 샘플링했습니다. 검색, 장소 분류, 2D/3D, 고도 배율, 지형 색상, 자동 둘러보기, 공유 URL 복원, 모바일 장소 서랍과 선택 정보 표시를 확인했습니다. 위성/고도 데이터 출처를 화면에 표시하며 영상이 실시간이라고 주장하지 않습니다.
+
+인프라 검사는 CloudFront `Deployed`, ECS steady state, 컨테이너 및 ALB Target Health, Private ENI, Public IP 비활성화, SG/Prefix List, 원본 검증 값 일치, 기존 NAT 경로, HTTP→HTTPS, 정적 자산의 CloudFront cache hit, 존재하지 않는 파일의 404를 확인했습니다. 일반 인터넷 출발지에서 ALB 직접 접속은 TCP 단계에서 차단되었습니다.
+
+최종 검증 자료:
+
+- [인프라 검사 JSON](../.local/verification.json)
+- [운영 브라우저 검사 JSON](../.local/browser-production/report.json)
+- [ECR 검사 JSON](../.local/image-scan.json)
+- [데스크톱 위성 지도](../.local/browser-production/desktop-satellite.png)
+- [데스크톱 고도 지도](../.local/browser-production/desktop-terrain.png)
+- [모바일 지도](../.local/browser-production/mobile-map.png)
+- [모바일 장소 선택](../.local/browser-production/mobile-place.png)
+
+`.local`은 실제 검증 기록으로 워크스페이스에 보관하며 Git에는 포함하지 않습니다. 미사용 테스트 이미지 2개는 정리했고, 최종 배포 이미지는 보존했습니다.
+
+## 운영 비용과 범위
+
+월 730시간, 태스크 1개 기준 고정성 비용은 약 **$32.02**, 소규모 트래픽을 포함한 예상 비용은 **월 $35–45**입니다. 세금·할인·크레딧 미반영이며 실제 트래픽에 따라 달라집니다. 기존 NAT의 시간당 비용이 추가되지는 않으며 추가 처리량은 별도입니다.
+
+상시 다중 태스크 이중화는 구성하지 않았습니다. 서비스는 두 Private 서브넷에 배치 가능하고 배포 시 일시적으로 태스크가 늘어날 수 있습니다. 재배포, 검증, 이미지 보안 및 삭제 시 보관 리소스는 [README](../README.md)를 참고하세요.

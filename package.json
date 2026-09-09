@@ -1,0 +1,21 @@
+{
+  "name": "jeju-atlas",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "maplibre-gl": "6.9.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vite": "7.3.6"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}
