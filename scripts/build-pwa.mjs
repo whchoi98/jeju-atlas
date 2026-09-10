@@ -9,7 +9,7 @@ async function visit(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) await visit(path);
-    else if (/\.(?:html|js|css|svg|png|webmanifest|pbf)$/.test(entry.name) && entry.name !== 'sw.js') files.push(path);
+    else if (/\.(?:html|js|css|svg|png|webmanifest|pbf|woff2?)$/.test(entry.name) && entry.name !== 'sw.js') files.push(path);
   }
 }
 await visit(rootPath);

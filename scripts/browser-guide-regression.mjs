@@ -64,6 +64,7 @@ try {
   await page.goto(base, { waitUntil: 'domcontentloaded' });
   await page.locator('#tab-guide').click();
   await page.locator('.guide-quick-prompts button').filter({ hasText: '아이와 함께' }).click();
+  await page.locator('#guide-send').click();
   await page.locator('#guide-apply-map').waitFor({ state: 'visible', timeout: 20000 });
   assert.equal(requests[0], '아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.');
   pass('Family quick prompt sends the user question without an implicit camera radius');
@@ -86,6 +87,7 @@ try {
   await page.locator('#guide-send').click();
   await page.waitForFunction(() => document.querySelector('#guide-send')?.disabled === false
     && document.querySelectorAll('.chat-message').length === 4, null, { timeout: 20000 });
+  assert.ok(requests[1].startsWith('여기 근처 카페를 찾아 주세요.'));
   assert.match(requests[1], /지도 중심/);
   assert.match(requests[1], /선택 장소 김녕미로공원/);
   assert.equal(await page.locator('.guide-place-facts').getAttribute('open'), '');

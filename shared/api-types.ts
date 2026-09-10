@@ -118,5 +118,5 @@ export type GuideMap = {
 export type AppConfig = {
   version: string;
   features: { catalog: boolean; guide: boolean; planner: boolean; pwa: boolean };
-  guide: { daily_limit: number };
+  guide: { daily_limit: number; csrf_token?: string };
 };

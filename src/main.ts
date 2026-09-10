@@ -141,7 +141,7 @@ app.innerHTML = `
       <div><dt>${icon('play')} 가볍게 둘러보기</dt><dd>‘제주 한 바퀴’는 다섯 장소로 시점을 이동합니다. 지도를 직접 움직이거나 Esc를 누르면 멈춥니다.</dd></div>
     </dl>
     <p class="data-note">위성 영상은 실시간 영상이 아닙니다. 지형 데이터의 해상도에 따라 작은 바위와 건물은 표시되지 않습니다. 장소 좌표는 탐색용 중심점이며 길 안내를 제공하지 않습니다.</p>
-    <div class="data-sources"><strong>지도 데이터</strong><span>위성 영상 · Esri World Imagery</span><span>고도 타일 · Mapzen / AWS Terrain Tiles</span><span>육지 고도 · USGS (SRTM / GMTED2010)</span><span>전 지구 지형 · NOAA (ETOPO1)</span><a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">고도 데이터 전체 출처 보기 ↗</a><span>지도 엔진 · MapLibre GL JS</span></div>
+    <div class="data-sources"><strong>지도 데이터</strong><span>위성 영상 · Esri World Imagery</span><span>고도 타일 · Mapzen / AWS Terrain Tiles</span><span>육지 고도 · USGS (SRTM / GMTED2010)</span><span>전 지구 지형 · NOAA (ETOPO1)</span><a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">고도 데이터 전체 출처 보기 ↗</a><span>지도 엔진 · MapLibre GL JS</span><span id="emoji-attribution">UI 이모지 · <a href="https://github.com/twitter/twemoji/tree/v14.0.2" target="_blank" rel="noopener noreferrer">Twemoji © Twitter, Inc and other contributors</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a></span><a href="/emoji/LICENSE-GRAPHICS.txt" target="_blank" rel="noopener">이모지 이용허락 전문 ↗</a></div>
     <button class="button button--primary dialog-start" id="about-start">제주 탐험하기 ${icon('arrow')}</button>
   </dialog>
   <dialog class="share-dialog" id="share-dialog" aria-labelledby="share-title">

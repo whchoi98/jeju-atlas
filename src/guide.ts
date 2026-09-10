@@ -1,12 +1,24 @@
 import type { GuideMap, GuidePlaceInfo } from '../shared/api-types';
 import { ApiError, dateLabel, getConfig, html, isJejuPoint, publicMessage, safeURL, sourceName, withAbort } from './api';
-import { buildGuideMessage } from './guide-context';
 import { facilityText, hasFacilityRecord, hoursText } from './guide-facts';
 import { splitGuideFrames } from './guide-stream';
+import { requestGuide } from './guide-request';
+import { renderGuideMarkdown } from './guide-markdown';
+import { buildGuideMessage } from './guide-context';
+import { guideEmoji } from './guide-emoji';
 import { icon } from './icons';
 import './guide.css';
 
-type ChatMessage = { role: 'user' | 'assistant'; text: string; state?: 'writing' | 'done' | 'interrupted' };
+type ChatMessage = { role: 'user' | 'assistant'; text: string; emoji?: string; state?: 'writing' | 'done' | 'interrupted' };
+type ToolUse = { name: string | null; label: string };
+
+function questionEmoji(question: string): string {
+  if (/맛집|식당|음식|먹|카페|커피/.test(question)) return '🍽️';
+  if (/아이|어린|가족|유모차/.test(question)) return '👨‍👩‍👧';
+  if (/비\s*오는|우천|실내|우산/.test(question)) return '☔';
+  if (/오름|숲|자연|산책|해변|산|바다/.test(question)) return '🌿';
+  return '🧭';
+}
 
 export function validateGuideMap(value: unknown): GuideMap | null {
   if (!value || typeof value !== 'object') return null;
@@ -65,6 +77,10 @@ export class GuidePanel {
   private notify: (message: string) => void;
   private context: () => string;
   private onSelect: ((id: string) => void) | undefined;
+  private lastQuestion = '';
+  private tools: ToolUse[] = [];
+  private renderTimer: ReturnType<typeof setTimeout> | undefined;
+  private rendered = new WeakMap<ChatMessage, { text: string; html?: string; state: 'loading' | 'ready' | 'fallback' }>();
 
   constructor(root: HTMLElement, options: {
     onApply: (map: GuideMap) => void; notify: (message: string) => void; context: () => string;
@@ -76,12 +92,19 @@ export class GuidePanel {
     this.context = options.context;
     this.onSelect = options.onSelect;
     root.innerHTML = `
-      <div class="panel-intro"><span class="eyebrow">A LOCAL PERSPECTIVE</span><h2>어떤 제주를 찾으세요?</h2><p>지역을 지정하지 않으면 제주 전체에서 찾아요.</p></div>
-      <div class="guide-quick-prompts"><button data-prompt="제주 동쪽에서 자연을 즐기는 반나절 코스를 추천해 주세요.">동쪽 반나절</button><button data-prompt="제주에서 비 오는 날 둘러보기 좋은 실내 장소를 알려 주세요.">비 오는 날</button><button data-prompt="아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.">아이와 함께</button></div>
-      <div id="guide-messages" class="guide-messages" role="log" aria-label="AI 가이드 대화" aria-live="polite"></div>
-      <div id="guide-recommendation" class="guide-recommendation" hidden></div>
-      <p id="guide-status" class="guide-status" role="status">질문을 보내면 가이드가 시작됩니다.</p>
-      <form id="guide-form" class="guide-form"><label class="sr-only" for="guide-input">AI 가이드에게 질문</label><textarea id="guide-input" rows="3" maxlength="2000" placeholder="가고 싶은 곳, 여행 취향을 알려 주세요."></textarea><div><span id="guide-limit">하루 최대 30회 · AI 답변은 출처를 함께 확인하세요.</span><button type="button" id="guide-cancel" hidden>기다리기 중지</button><button type="submit" id="guide-send" aria-label="가이드 질문 보내기">${icon('arrow')}</button></div></form>
+      <div class="panel-intro"><span class="eyebrow">A LOCAL PERSPECTIVE</span><h2>${guideEmoji('🧭')} 어떤 제주를 찾으세요?</h2><p>지역을 지정하지 않으면 제주 전체에서 찾아요.</p></div>
+      <div class="guide-body">
+        <div id="guide-thinking" class="guide-thinking" role="status" hidden>${guideEmoji('🤖')}<strong id="guide-thinking-text">생각 중</strong><span class="guide-thinking-dots" aria-hidden="true">···</span></div>
+        <section id="guide-tools" class="guide-tools" aria-label="실행된 도구" hidden><span class="guide-tools-heading">사용 도구</span><div id="guide-tool-list" role="list"></div></section>
+        <div id="guide-messages" class="guide-messages" role="log" aria-label="AI 가이드 대화" aria-live="polite"></div>
+        <div id="guide-recommendation" class="guide-recommendation" hidden></div>
+      </div>
+      <div id="guide-footer" class="guide-footer">
+        <p id="guide-status" class="guide-status" role="status">질문을 보내면 가이드가 시작됩니다.</p>
+        <form id="guide-form" class="guide-form"><label class="sr-only" for="guide-input">AI 가이드에게 질문</label><textarea id="guide-input" rows="2" maxlength="2000" placeholder="가고 싶은 곳, 여행 취향을 알려 주세요."></textarea><div><span id="guide-limit">하루 최대 30회 · AI 답변은 출처를 함께 확인하세요.</span><button type="button" id="guide-cancel" hidden>기다리기 중지</button><button type="submit" id="guide-send" aria-label="가이드 질문 보내기">${icon('arrow')}</button></div></form>
+        <div class="guide-followup-heading">이어서 물어보세요 <span>선택하면 입력창에 담겨요</span></div>
+        <div id="guide-followups" class="guide-quick-prompts guide-followups" aria-label="다음 질문 제안"></div>
+      </div>
     `;
     root.querySelector<HTMLFormElement>('#guide-form')!.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -92,9 +115,16 @@ export class GuidePanel {
       void this.send(message);
     });
     root.querySelector('#guide-cancel')!.addEventListener('click', () => this.cancel());
-    root.querySelectorAll<HTMLButtonElement>('[data-prompt]').forEach((button) => {
-      button.addEventListener('click', () => { if (!this.running) void this.send(button.dataset.prompt!); });
+    root.querySelector('#guide-followups')!.addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-prompt]');
+      if (!button) return;
+      const input = root.querySelector<HTMLTextAreaElement>('#guide-input')!;
+      input.value = button.dataset.prompt!;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      this.renderFollowups();
     });
+    root.querySelector('#guide-input')!.addEventListener('input', () => this.renderFollowups());
     root.querySelector<HTMLTextAreaElement>('#guide-input')!.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
@@ -106,6 +136,7 @@ export class GuidePanel {
       root.querySelector('#guide-limit')!.textContent = `하루 최대 ${this.dailyLimit}회 · AI 답변은 출처를 함께 확인하세요.`;
       if (!config.features.guide) this.status('AI 가이드를 현재 사용할 수 없어요. 잠시 후 다시 시도해 주세요.');
     }).catch(() => this.status('가이드 연결은 질문을 보낼 때 다시 확인합니다.'));
+    this.renderFollowups();
   }
 
   private status(message: string): void {
@@ -115,15 +146,107 @@ export class GuidePanel {
   private renderMessages(): void {
     const log = this.root.querySelector<HTMLElement>('#guide-messages')!;
     const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 100;
-    log.innerHTML = this.messages.map((message) => `<article class="chat-message chat-message--${message.role}"><span>${message.role === 'user' ? '나' : '제주 가이드'}</span><p>${html(message.text || '제주 정보를 확인하고 있어요…')}</p>${message.state === 'interrupted' ? '<small>답변이 중단되었습니다.</small>' : ''}</article>`).join('');
+    log.innerHTML = this.messages.map((message) => {
+      const text = message.text || '제주 정보를 확인하고 있어요…';
+      let content = `<p>${html(text)}</p>`;
+      if (message.role === 'assistant') {
+        let cached = this.rendered.get(message);
+        if (message.text && (!cached || cached.text !== text)) {
+          cached = { text, state: 'loading' };
+          this.rendered.set(message, cached);
+          const pending = cached;
+          const apply = (markup: string, state: 'ready' | 'fallback') => {
+            if (this.rendered.get(message) !== pending || message.text !== text || !this.messages.includes(message)) return;
+            pending.html = markup;
+            pending.state = state;
+            this.renderMessages();
+          };
+          // Ignore stale async renders. A lazy parser must never replace the
+          // completed answer with an older streaming prefix.
+          void renderGuideMarkdown(text).then(
+            (markup) => apply(markup, 'ready'),
+            () => apply(`<p>${html(text)}</p>`, 'fallback'),
+          );
+        }
+        content = `<div class="guide-markdown" data-markdown-state="${cached?.state ?? 'plain'}">${cached?.html ?? `<p>${html(text)}</p>`}</div>`;
+      }
+      return `<article class="chat-message chat-message--${message.role}"><span>${message.role === 'user' ? '나' : `${guideEmoji(message.emoji ?? '🧭')} 제주 가이드`}</span>${content}${message.state === 'interrupted' ? '<small>답변이 중단되었습니다.</small>' : ''}</article>`;
+    }).join('');
     if (nearBottom || this.running) log.scrollTop = log.scrollHeight;
+  }
+
+  private scheduleMessages(): void {
+    // Reference chat implementation also coalesces whole-answer parsing to
+    // roughly five frames/second rather than reparsing every token.
+    if (this.renderTimer !== undefined) return;
+    this.renderTimer = setTimeout(() => {
+      this.renderTimer = undefined;
+      this.renderMessages();
+    }, 200);
+  }
+
+  private renderFollowups(): void {
+    const typed = this.root.querySelector<HTMLTextAreaElement>('#guide-input')!.value.trim();
+    const question = typed || this.lastQuestion;
+    const names = !typed ? this.recommendation?.markers.slice(0, 2).map((place) => place.name).join(' · ') : '';
+    const selected = !question ? this.context().match(/선택 장소 (.+?)\. (?:지도 중심|내 코스)/)?.[1] : '';
+    const subject = (typed || names || question || selected || '').replace(/\s+/g, ' ').replace(/[?!.。]+$/, '').slice(0, 180);
+    const prompt = (detail: string) => `${subject ? `${subject}. ` : ''}${detail}`.slice(0, 2000);
+    let suggestions: { label: string; emoji: string; prompt: string }[];
+    if (/맛집|식당|음식|먹|카페|커피/.test(question)) {
+      suggestions = [
+        { label: '주차 확인', emoji: '🧭', prompt: prompt('추천 장소의 주차 정보가 확인되는지 알려 주세요.') },
+        { label: '이용시간', emoji: '🍽️', prompt: prompt('확인된 이용시간과 출처를 알려 주세요.') },
+        { label: '근처 산책', emoji: '🌿', prompt: prompt('함께 들를 가까운 산책 장소를 추천해 주세요.') },
+      ];
+    } else if (/아이|어린|가족|유모차/.test(question)) {
+      suggestions = [
+        { label: '유모차 안내', emoji: '👨‍👩‍👧', prompt: prompt('유모차와 어린이 관련 편의 정보가 확인되는지 알려 주세요.') },
+        { label: '실내 대안', emoji: '☔', prompt: prompt('비가 오면 대신 갈 수 있는 실내 장소를 추천해 주세요.') },
+        { label: '식사 장소', emoji: '🍽️', prompt: prompt('아이와 함께 갈 가까운 식당을 찾아 주세요.') },
+      ];
+    } else if (question || selected) {
+      suggestions = [
+        { label: '주변 맛집', emoji: '🍽️', prompt: prompt('함께 들를 가까운 맛집을 찾아 주세요.') },
+        { label: '편의 정보', emoji: '🧭', prompt: prompt('주차·화장실 등 확인된 편의 정보를 알려 주세요.') },
+        { label: '비 오는 날', emoji: '☔', prompt: prompt('비 오는 날의 실내 대안을 추천해 주세요.') },
+      ];
+    } else {
+      suggestions = [
+        { label: '맛집 찾기', emoji: '🍽️', prompt: '제주에서 맛집을 추천하고 확인된 이용 정보를 알려 주세요.' },
+        { label: '자연 산책', emoji: '🌿', prompt: '제주 동쪽에서 자연을 즐기는 반나절 코스를 추천해 주세요.' },
+        { label: '아이와 함께', emoji: '👨‍👩‍👧', prompt: '아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.' },
+      ];
+    }
+    this.root.querySelector('#guide-followups')!.innerHTML = suggestions.map((suggestion) =>
+      `<button type="button" data-prompt="${html(suggestion.prompt)}" title="${html(suggestion.prompt)}">${guideEmoji(suggestion.emoji)}${html(suggestion.label)}</button>`).join('');
+  }
+
+  private recordTool(value: Record<string, unknown>): void {
+    if (value.stage !== 'tool') return;
+    const raw = typeof value.tool === 'string' ? value.tool : '';
+    const name = /^[A-Za-z0-9_.:-]{1,120}$/.test(raw) && !/arn:|secret|token/i.test(raw) ? raw : null;
+    const label = publicMessage(value.label ?? value.message, '도구 실행');
+    const index = this.tools.findIndex((tool) => name ? tool.name === name : !tool.name && tool.label === label);
+    if (index >= 0) this.tools.splice(index, 1);
+    this.tools.push({ name, label });
+    this.tools = this.tools.slice(-8);
+    this.renderTools();
+  }
+
+  private renderTools(): void {
+    this.root.querySelector<HTMLElement>('#guide-tools')!.hidden = !this.tools.length;
+    this.root.querySelector('#guide-tool-list')!.innerHTML = this.tools.map((tool, index) =>
+      `<div class="guide-tool-chip${this.running && index === this.tools.length - 1 ? ' is-current' : ''}" role="listitem" data-tool="${html(tool.name ?? '')}"><span>${html(tool.label)}</span>${tool.name ? `<code>${html(tool.name)}</code>` : ''}</div>`).join('');
   }
 
   private setRunning(value: boolean): void {
     this.running = value;
     this.root.querySelector<HTMLButtonElement>('#guide-send')!.disabled = value;
     this.root.querySelector<HTMLElement>('#guide-cancel')!.hidden = !value;
-    this.root.querySelectorAll<HTMLButtonElement>('[data-prompt]').forEach((button) => { button.disabled = value; });
+    this.root.querySelector<HTMLElement>('#guide-thinking')!.hidden = !value;
+    if (value) this.root.querySelector('#guide-thinking-text')!.textContent = '생각 중';
+    this.renderTools();
     this.root.querySelector('#guide-messages')!.setAttribute('aria-busy', String(value));
   }
 
@@ -137,10 +260,18 @@ export class GuidePanel {
     const normalized = code.toLowerCase();
     if (/concurr|busy/.test(normalized)) return '다른 요청을 처리하고 있어요. 잠시 후 다시 질문해 주세요.';
     if (/hourly/.test(normalized)) return '한 시간 이용 한도에 도달했어요. 잠시 후 다시 질문해 주세요.';
+    if (normalized === 'quota_unavailable') return '이용 한도를 확인하지 못해 요청을 시작하지 않았어요. 잠시 후 다시 보내 주세요.';
     if (/daily|quota/.test(normalized)) return `오늘의 이용 한도에 도달했어요. 하루 최대 ${this.dailyLimit}회까지 이용할 수 있어요.`;
     if (status === 429 || /limit/.test(normalized)) return '요청이 많아 잠시 쉬고 있어요. 잠시 후 다시 질문해 주세요.';
     if (/timeout/.test(normalized)) return '답변 시간이 길어 연결을 마쳤어요. 질문을 조금 줄여 다시 보내 주세요.';
-    if (status === 401 || status === 403 || /session|conversation/.test(normalized)) return '대화 연결을 새로 시작해 주세요. 다음 질문부터 새 대화로 이어집니다.';
+    if (normalized === 'invalid_conversation') return '대화를 새로 연결하지 못했어요. 잠시 후 같은 질문을 다시 보내 주세요.';
+    if (normalized === 'session_required') return '세션 연결을 확인하지 못했어요. 페이지를 다시 열어 주세요.';
+    if (normalized === 'csrf_invalid') return '요청 연결을 확인하지 못했어요. 페이지를 다시 열고 질문해 주세요.';
+    if (normalized === 'origin_forbidden' || status === 403) return '현재 페이지에서 요청이 허용되지 않았어요. 제주 아틀라스 페이지를 다시 열어 주세요.';
+    if (status === 401) return '접속 상태를 확인하지 못했어요. 페이지를 다시 열어 주세요.';
+    if (normalized === 'invalid_stream' || normalized === 'invalid_response') return '답변 형식을 확인하지 못했어요. 잠시 후 다시 질문해 주세요.';
+    if (normalized === 'interrupted') return '답변을 받는 중 연결이 끊겼어요. 잠시 후 다시 보내 주세요.';
+    if (normalized === 'guide_unavailable' || normalized === 'unavailable') return 'AI 가이드 서버가 답변을 제공하지 못했어요. 잠시 후 다시 보내 주세요.';
     return '가이드에 연결하지 못했어요. 잠시 후 다시 질문해 주세요.';
   }
 
@@ -148,6 +279,7 @@ export class GuidePanel {
     const panel = this.root.querySelector<HTMLElement>('#guide-recommendation')!;
     const recommendation = this.recommendation;
     panel.hidden = !recommendation || !recommendation.markers.length;
+    this.renderFollowups();
     if (!recommendation) return;
     panel.innerHTML = `<strong>지도에 펼칠 추천 ${recommendation.markers.length}곳</strong><p>${recommendation.markers.slice(0, 4).map((marker) => html(marker.name)).join(' · ')}</p><button id="guide-apply-map" class="button button--primary">추천 장소 지도에 표시 ${icon('arrow')}</button>${this.renderPlaceInfo(recommendation.place_info ?? [])}<p class="micro-note">${[...new Set(recommendation.markers.map((marker) => sourceName(marker.source)))].map(html).join(' · ')}</p>${recommendation.warnings.map((warning) => `<p class="micro-note">${html(warning)}</p>`).join('')}`;
     panel.querySelector('#guide-apply-map')?.addEventListener('click', () => {
@@ -179,10 +311,12 @@ export class GuidePanel {
 
   async send(message: string): Promise<void> {
     if (this.running || !message.trim()) return;
-    message = message.trim().slice(0, 1800);
+    message = message.trim().slice(0, 2000);
+    this.lastQuestion = message;
+    this.tools = [];
     this.setRunning(true);
     this.messages = [...this.messages.slice(-18), { role: 'user', text: message }];
-    const answer: ChatMessage = { role: 'assistant', text: '', state: 'writing' };
+    const answer: ChatMessage = { role: 'assistant', text: '', emoji: questionEmoji(message), state: 'writing' };
     this.messages.push(answer);
     this.recommendation = null;
     this.renderRecommendation();
@@ -197,15 +331,17 @@ export class GuidePanel {
       const config = await withAbort(getConfig(), controller.signal);
       if (!config.features.guide) throw new ApiError('unavailable', 503);
       if (controller.signal.aborted) throw controller.signal.reason;
-      const response = await fetch('/api/guide', {
-        method: 'POST', credentials: 'same-origin', signal: controller.signal,
-        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-        body: JSON.stringify({ message: buildGuideMessage(message, this.context()), ...(this.conversationId ? { conversation_id: this.conversationId } : {}) }),
+      const requestMessage = buildGuideMessage(message, this.context());
+      const response = await requestGuide({
+        message: requestMessage,
+        conversationId: this.conversationId,
+        csrfToken: config.guide.csrf_token,
+        signal: controller.signal,
+        onRecovery: () => {
+          this.conversationId = undefined;
+          this.status('대화를 새로 연결하고 같은 질문을 다시 보내고 있어요.');
+        },
       });
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new ApiError(String(body.code ?? body.error?.code ?? 'unavailable'), response.status);
-      }
       if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) throw new ApiError('invalid_stream', 502);
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -218,10 +354,14 @@ export class GuidePanel {
         let value: Record<string, unknown>;
         try { value = JSON.parse(data); } catch { throw new ApiError('invalid_stream', 502); }
         if (event === 'session' && typeof value.conversation_id === 'string' && value.conversation_id.length < 2000) this.conversationId = value.conversation_id;
-        if (event === 'status') this.status(publicMessage(value.message, '제주 정보를 확인하고 있어요.'));
-        if (event === 'text' && typeof value.delta === 'string') {
+        if (event === 'status') {
+          this.status(publicMessage(value.message, '제주 정보를 확인하고 있어요.'));
+          this.recordTool(value);
+        }
+        if (event === 'text' && typeof value.delta === 'string' && value.delta) {
+          if (!answer.text) this.root.querySelector('#guide-thinking-text')!.textContent = '답변 작성 중';
           answer.text = `${answer.text}${value.delta}`.slice(0, 30000);
-          this.renderMessages();
+          this.scheduleMessages();
         }
         if (event === 'map') {
           this.recommendation = validateGuideMap(value);
@@ -241,9 +381,10 @@ export class GuidePanel {
           serverError = true;
           const code = String(value.code ?? 'unavailable');
           if (/session|conversation/i.test(code)) this.conversationId = undefined;
-          this.status(this.errorMessage(code));
+          const reason = this.errorMessage(code);
+          this.status(reason);
           answer.state = 'interrupted';
-          if (!answer.text) answer.text = '완성된 답변을 받지 못했어요.';
+          if (!answer.text) answer.text = reason;
           this.recommendation = null;
           this.renderRecommendation();
         }
@@ -262,21 +403,27 @@ export class GuidePanel {
     } catch (error) {
       answer.state = 'interrupted';
       if (controller.signal.aborted && controller.signal.reason?.name === 'AbortError') {
-        this.status('기다리기를 중지했어요. 이미 시작한 요청은 일일 횟수에 포함될 수 있어요.');
+        const reason = '기다리기를 중지했어요. 이미 시작한 요청은 일일 횟수에 포함될 수 있어요.';
+        this.status(reason);
+        if (!answer.text) answer.text = reason;
       } else {
         const code = error instanceof ApiError ? error.code : controller.signal.aborted ? 'timeout' : 'unavailable';
         const status = error instanceof ApiError ? error.status : 0;
-        if (status === 401 || status === 403) this.conversationId = undefined;
-        this.status(this.errorMessage(code, status));
+        if ((status === 403 && code === 'invalid_conversation') || (status === 401 && code === 'session_required')) this.conversationId = undefined;
+        const reason = this.errorMessage(code, status);
+        this.status(reason);
+        if (!answer.text) answer.text = reason;
       }
-      if (!answer.text) answer.text = '완성된 답변을 받지 못했어요.';
     } finally {
       clearTimeout(timer);
+      clearTimeout(this.renderTimer);
+      this.renderTimer = undefined;
       this.controller = undefined;
       // The facts panel reduces the log's height after the final text token.
       // Keep following the current answer through that last layout change.
       this.renderMessages();
       this.setRunning(false);
+      this.renderFollowups();
     }
   }
 }

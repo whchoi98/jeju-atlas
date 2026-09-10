@@ -461,7 +461,7 @@ Resources:
     Properties:
       OriginRequestPolicyConfig:
         Name: jeju-3d-private-api-requests
-        Comment: Carry signed sessions and Origin to the uncached API.
+        Comment: Carry signed sessions, Origin and session-bound CSRF proof to the uncached API.
         CookiesConfig:
           CookieBehavior: all
         HeadersConfig:
@@ -470,6 +470,7 @@ Resources:
             - Origin
             - Content-Type
             - Accept
+            - X-Atlas-CSRF
         QueryStringsConfig:
           QueryStringBehavior: all
 

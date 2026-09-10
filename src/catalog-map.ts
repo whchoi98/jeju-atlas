@@ -110,10 +110,10 @@ export class CatalogMap {
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
       if (!context) return;
-      context.font = '500 22px "Noto Sans KR", sans-serif';
+      context.font = '500 22px "NanumSquare", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
       canvas.width = Math.min(480, Math.ceil(context.measureText(name).width) + 24);
       canvas.height = 42;
-      context.font = '500 22px "Noto Sans KR", sans-serif';
+      context.font = '500 22px "NanumSquare", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
       context.fillStyle = '#fffffff2';
       context.beginPath(); context.roundRect(0, 0, canvas.width, 42, 7); context.fill();
       context.fillStyle = '#17313a'; context.textBaseline = 'middle'; context.textAlign = 'center';
@@ -144,7 +144,7 @@ export class CatalogMap {
       context.lineCap = 'round'; context.lineJoin = 'round'; paintIcon(context, key); context.restore();
       if (cluster) {
         const count = categoryMatch[3] ?? '';
-        context.font = 'bold 9px ui-monospace, monospace';
+        context.font = '700 9px "NanumSquare", sans-serif';
         const width = Math.max(17, context.measureText(count).width + 8);
         context.fillStyle = color; context.strokeStyle = '#ffffff'; context.lineWidth = 1;
         context.beginPath(); context.roundRect(14, 27, width, 14, 6); context.fill(); context.stroke();
@@ -161,7 +161,7 @@ export class CatalogMap {
     canvas.height = 40;
     const context = canvas.getContext('2d');
     if (!context) return;
-    context.font = 'bold 24px ui-monospace, monospace';
+    context.font = '700 24px "NanumSquare", sans-serif';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillStyle = '#ffffff';

@@ -166,6 +166,10 @@ def verify():
     check("Private API never cached and supports POST", bool(api_behavior)
           and api_behavior["CachePolicyId"] == "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
           and "POST" in api_behavior["AllowedMethods"]["Items"])
+    if api_behavior:
+        request_policy = edge.get_origin_request_policy(Id=api_behavior["OriginRequestPolicyId"])["OriginRequestPolicy"]["OriginRequestPolicyConfig"]
+        check("Private API forwards the session-bound request proof",
+              "x-atlas-csrf" in [value.lower() for value in request_policy["HeadersConfig"].get("Headers", {}).get("Items", [])])
     if catalog_behavior:
         policy = edge.get_cache_policy(Id=catalog_behavior["CachePolicyId"])["CachePolicy"]["CachePolicyConfig"]
         check("Public catalog cache does not forward cookies", policy["MinTTL"] == 0 and policy["DefaultTTL"] == 60
@@ -225,9 +229,21 @@ def verify():
           and api_data.get("guide", {}).get("daily_limit") == 30)
     cookie_header = api_config.headers.get("Set-Cookie", "").lower()
     check("Session cookie is HttpOnly and Secure", "httponly" in cookie_header and "secure" in cookie_header and "samesite=lax" in cookie_header)
+    csrf_token = api_data.get("guide", {}).get("csrf_token", "")
+    check("Private config returns a bounded session-bound request proof",
+          isinstance(csrf_token, str) and bool(re.fullmatch(r"[A-Za-z0-9_-]{43}", csrf_token)))
     rejected = client.post(url + "/api/guide", json={"message": "이 요청은 실행되지 않아야 합니다."},
                            headers={"Origin": "https://example.com"}, timeout=20)
     check("Foreign-origin guide requests rejected", rejected.status_code == 403)
+    # Empty messages stop at validation, before quota or model invocation.
+    proof_request = client.post(url + "/api/guide", json={"message": ""},
+                                headers={"Origin": "null", "X-Atlas-CSRF": csrf_token}, timeout=20)
+    check("Verified app requests tolerate a missing browser origin without a model call",
+          proof_request.status_code == 400 and proof_request.json().get("error", {}).get("code") == "invalid_message")
+    forged_proof = client.post(url + "/api/guide", json={"message": ""},
+                               headers={"Origin": "null", "X-Atlas-CSRF": "forged"}, timeout=20)
+    check("Forged app request proofs are rejected",
+          forged_proof.status_code == 403 and forged_proof.json().get("error", {}).get("code") == "csrf_invalid")
     worker = requests.get(url + "/sw.js", timeout=20)
     check("PWA worker revalidates", worker.status_code == 200 and "no-cache" in worker.headers.get("Cache-Control", ""))
 

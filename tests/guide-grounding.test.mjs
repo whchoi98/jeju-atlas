@@ -51,7 +51,9 @@ test('regional, nearby, non-recommendation and adult-only requests keep their ow
     assert.equal(result.prompt, message);
     assert.deepEqual(result.candidates, []);
   }
-  assert.equal(f.calls.length, 0);
+  // Nearby aliases may verify one exact anchor name, but must not trigger
+  // island-wide family/indoor candidate searches.
+  assert.deepEqual(f.calls.map((call) => call.q), ['협재해수욕장']);
 });
 
 test('indoor family requests exclude outdoor-only candidates and preserve a long question', () => {

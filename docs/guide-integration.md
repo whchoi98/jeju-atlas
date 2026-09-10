@@ -38,13 +38,13 @@
 
 응답 타입은 `shared/api-types.ts`에 정의한다.
 
-- `GET /api/config`: 기능, 버전, AI 한도; 세션 쿠키 발급. ARN·시크릿은 반환하지 않는다.
+- `GET /api/config`: 기능, 버전, AI 한도; 세션 쿠키와 해당 세션의 CSRF 요청 토큰 발급. AWS 자격 증명·런타임 ARN·서명 비밀키는 반환하지 않는다.
 - `GET /api/catalog/status`: 건수·분류·출처·갱신일·오래된 캐시 여부.
 - `GET /api/catalog/search?q=&category=&lat=&lng=&radius_m=&limit=&offset=`: `{items,total,has_more}`.
 - `GET /api/catalog/points?bbox=w,s,e,n&category=`: GeoJSON FeatureCollection(컴팩트 속성). 제주 범위·개수 상한 검사.
 - `GET /api/catalog/places/{encodeURIComponent(id)}`: 기본 필드 및 보강 데이터.
 - `GET /api/weather?lat=&lng=`: 현재 날씨와 3일 예보.
-- `POST /api/guide`: `{message,conversation_id?}`. SSE `session`, `status`, `text`, `map`, `done`, `error`. 본문 16KB, 메시지 2,000자 제한. 사용자/actor ID는 클라이언트 입력을 받지 않는다.
+- `POST /api/guide`: `{message,conversation_id?}`, 선택적 `X-Atlas-CSRF` 세션 증명 헤더. SSE `session`, `status`, `text`, `map`, `done`, `error`. 본문 16KB, 메시지 2,000자 제한. 사용자/actor ID는 클라이언트 입력을 받지 않는다.
 - `map.place_info`: 지도 마커와 동일한 ID의 카탈로그 편의 정보·요일별 영업시간·출처·보강일·기본 정보 검증 한계. 모델 입력의 동명 필드는 무시하고 서버가 카탈로그에서 구성한다.
 
 ## AI 추천 범위와 지도 표시 수정
@@ -68,6 +68,22 @@
 지도는 처음부터 모든 카탈로그 점을 켜지 않는다. 대표 명소 아이콘으로 시작하고, 카테고리·검색 결과 또는 사용자의 표시 선택에 따라 카탈로그 레이어를 켠다. 명소와 추천 장소의 상세 화면 연결을 유지한다.
 
 검색 범위를 바꿀 때 이전 지도 요청을 취소하여 늦게 도착한 응답이 새 검색 결과를 덮지 않도록 한다. 장소 표시를 끈 상태에서도 현재 지도 목록은 이동한 범위에 맞춰 갱신한다. 추천 편의 정보가 펼쳐져 대화 영역 높이가 바뀌어도 완료된 최신 답변을 계속 보여준다.
+
+## 2026-09-10 질문·응답 표시 보완
+
+사용자가 보고한 “한라산 근처 맛집?”은 새 대화에서 응답했으나, 참조 Agent의 첫 텍스트 검색 결과인 시내 카페 `한라산도`를 기준점으로 잡았다. 동일 Agent에 `한라산국립공원 근처 맛집?`을 전달한 비교 호출은 20초에 올바른 공원 좌표와 10km 안의 음식점 5개를 반환했다.
+
+`server/guide-locations.mjs`는 주변 검색의 알려진 명소 별칭을 실제 카탈로그의 전체 이름·분류와 대조한 뒤 전달한다. 한라산도처럼 다른 이름은 바꾸지 않고, 나머지 질문 조건과 2,000자 한도를 보존한다. 좌표 선택·3→5→10km 확장·음식 제한 처리는 참조 Agent의 기존 도구에 맡긴다.
+
+대화는 참조 프로젝트 `product/web/sessions.py`의 유휴 14분 처리 방식을 따른다. 유효한 요청은 같은 사용자·대화 UUID의 서명 토큰을 갱신한다. 클라이언트는 모델 호출 전에 반환된 `invalid_conversation`·`session_required`·`csrf_invalid`만 같은 질문으로 한 번 복구한다. 세 종류를 합쳐 복구 시도는 한 번이며, 쿠키나 CSRF 토큰 갱신 시 비공개 설정을 다시 읽는다. 비용이 이미 발생할 수 있는 네트워크·5xx·SSE 오류나 이용 한도는 자동 재전송하지 않는다.
+
+응답은 참조 프로젝트 `product/web/frontend/src/lib/markdown.ts`의 unified·remark·rehype GFM 파이프라인을 사용한다. 강조·제목·목록·표·코드·링크를 지원하고 원시 HTML과 임의 이미지, 위험한 링크를 차단한다. 입력 전후의 추천 질문 말풍선은 추가 모델 호출 없이 대화와 입력 내용에 맞춰 갱신하며, 선택하면 입력창에 담는다.
+
+답변을 준비하는 동안 생각 중 상태를 표시하고, 실제 런타임에서 받은 8종 도구의 이름과 한국어 설명을 보여준다. 진단 로그에는 거절 코드·상태·소요시간과 제한된 오류 타입만 기록하며 질문·답변·사용자 ID·쿠키·대화 토큰은 기록하지 않는다.
+
+화면·폼·지도 라벨은 NAVER의 원본 NanumSquare Regular/Bold WOFF를 자체 제공한다. 파일은 변환하지 않았으며 공식 출처·해시·라이선스는 `public/fonts/README.md`와 `OFL-NanumSquare.txt`에 보관한다. 두 글꼴은 PWA 앱 셸 캐시에 포함한다.
+
+후속 운영 요청에서 `origin_forbidden`이 반복되어, Origin 비교와 함께 서명 세션에 묶인 CSRF 요청 증명을 지원한다. `/api/config`의 비공개·`no-store` 응답이 토큰을 발급하고 프런트엔드와 CloudFront가 `X-Atlas-CSRF`로 전달한다. 토큰은 별도 HMAC 도메인으로 생성하며 실제 검증된 세션의 actor와 비교한다. 올바른 Origin의 기존 클라이언트는 유지하고, Origin이 다르거나 없으면 유효한 쿠키와 토큰이 모두 있어야 한다. CORS 허용 범위를 넓히거나 모델 호출 한도를 완화하지 않는다.
 
 ## 검증과 배포 순서
 

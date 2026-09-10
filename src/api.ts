@@ -1,8 +1,13 @@
 import type { AppConfig } from '../shared/api-types';
 
 export class ApiError extends Error {
-  constructor(readonly code: string, readonly status: number) {
+  readonly code: string;
+  readonly status: number;
+
+  constructor(code: string, status: number) {
     super(code);
+    this.code = code;
+    this.status = status;
   }
 }
 
@@ -30,11 +35,14 @@ export async function apiJSON<T>(path: string, signal?: AbortSignal): Promise<T>
 }
 
 let configRequest: Promise<AppConfig> | undefined;
-export function getConfig(): Promise<AppConfig> {
-  configRequest ??= apiJSON<AppConfig>('/api/config').catch((error) => {
-    configRequest = undefined;
-    throw error;
-  });
+export function getConfig(refresh = false): Promise<AppConfig> {
+  if (!configRequest || refresh) {
+    const request: Promise<AppConfig> = apiJSON<AppConfig>('/api/config').catch((error) => {
+      if (configRequest === request) configRequest = undefined;
+      throw error;
+    });
+    configRequest = request;
+  }
   return configRequest;
 }
 

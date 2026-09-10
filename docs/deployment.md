@@ -8,7 +8,11 @@
 
 AI 가이드·대표 아이콘·카테고리 탐색 최종 수정 배포 완료: **2026-09-09 23:30 UTC**
 
-최종 인프라 검증: **2026-09-09 23:33 UTC**
+대화 복구·마크다운·도구 표시·추천 말풍선·나눔스퀘어 배포 완료: **2026-09-10 01:39 UTC**
+
+Origin 차이 처리·세션 요청 토큰 보완 배포 완료: **2026-09-10 02:08 UTC**
+
+최종 인프라 검증: **2026-09-10 02:09 UTC**
 
 **서비스:** https://d2mznud99i2mdr.cloudfront.net
 
@@ -29,13 +33,13 @@ AI 가이드·대표 아이콘·카테고리 탐색 최종 수정 배포 완료:
 | ALB DNS | `jeju-3d-alb-1953229828.ap-northeast-2.elb.amazonaws.com` |
 | Target Group | `jeju-3d-tasks` |
 | ECS 클러스터 / 서비스 | `jeju-3d` / `jeju-3d` |
-| Task Definition | `jeju-3d:5` |
+| Task Definition | `jeju-3d:7` |
 | 배포 용량 | ARM64, 0.25 vCPU, 512 MiB, 1개 태스크 |
 | ALB SG | `sg-06eb051b85d92d155` |
 | Task SG | `sg-05884348204666b85` |
 | 로그 그룹 | `/ecs/jeju-3d` |
 | ECR | `061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d` |
-| 릴리스 | `release-20260909T232341Z` |
+| 릴리스 | `release-20260910T020356Z` |
 | 읽기 전용 카탈로그 | `ohmyjeju-catalog-061525506239-prod/catalog/catalog.sqlite` |
 | AI 호출 한도 테이블 | `jeju-3d-guide-quota` |
 | AI 런타임 | 기존 `Ohmyjeju_OhmyjejuAgent-7fiRWV5uVi` 버전 16, READY 재사용 |
@@ -43,7 +47,7 @@ AI 가이드·대표 아이콘·카테고리 탐색 최종 수정 배포 완료:
 배포 이미지:
 
 ```text
-061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d@sha256:6e66d9e78358fdcb8eb92c1c42b0fb124b1204ee260f79a3e9899c65fb7b80c3
+061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d@sha256:48b0b8783ba848665263df40667895fbd001fbaa0eeb44cbb50594767bd91e52
 ```
 
 ## 재사용한 네트워크
@@ -57,7 +61,7 @@ VPC: **`cc-on-bedrock-vpc` — `vpc-0dfa5610180dfa628`**
 | ECS Private | `ap-northeast-2a` | `subnet-07b1e65682847dce9` | `nat-00b8a70dc184a4d0c` |
 | ECS Private | `ap-northeast-2b` | `subnet-095297380cd45e1eb` | `nat-08379e076e2e6e234` |
 
-확인 당시 실행 태스크의 ENI는 `eni-0fa86053891366b17`, Private IP는 `10.100.40.56`이며 Public IP는 없습니다. 태스크 교체 시 ENI/IP는 변경될 수 있습니다.
+확인 당시 실행 태스크의 ENI는 `eni-01738ee83b09427ff`, Private IP는 `10.100.44.114`이며 Public IP는 없습니다. 태스크 교체 시 ENI/IP는 변경될 수 있습니다.
 
 새 VPC, 서브넷, NAT Gateway, EIP, 라우트 테이블은 생성하지 않았습니다. 기존 네트워크 스택과 라우팅을 변경하지 않았습니다.
 
@@ -95,6 +99,12 @@ AI는 서명된 HttpOnly/Secure/SameSite 쿠키와 사용자에 묶인 대화 �
 
 범위가 없는 아이 동반·실내 추천은 실제 카탈로그 태그와 분류에서 후보를 먼저 조회해 전달합니다. 입력 2,000자·호출 한도를 유지하고, 결과가 부족할 때 제공하는 카탈로그 참고 장소는 AI 검색 결과와 구분합니다. 공개 주소에서 사용자 질문 “아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.”에 **25.3초** 만에 김녕미로공원·넥슨컴퓨터박물관의 AI 추천과 편의 정보가 반환됨을 확인했습니다. 이 시간은 한 번의 검증 관측값입니다.
 
+한라산 주변 검색은 카탈로그에서 확인한 `한라산국립공원` 이름으로 전달하여 동명이 유사한 시내 카페와 구분합니다. 참조 Agent의 기존 거리 확장과 음식 제한 처리를 유지합니다. 대화가 만료되면 모델 호출 전의 세션 오류에 한해 같은 질문을 한 번 복구하고, 사용 중인 대화는 유휴 14분 기준으로 토큰을 갱신합니다.
+
+가이드 응답은 안전한 GFM 마크다운으로 표시합니다. 준비 중에는 AI 상태와 실제 사용 도구를 보여주며, 하단 추천 말풍선은 입력·대화에 맞춰 갱신되고 선택 시 입력창에 담깁니다. 페이지·폼·지도 라벨은 NAVER 원본 나눔스퀘어 두 글꼴을 자체 제공하고, UI 이모지는 작은 로컬 SVG로 표시합니다. 글꼴과 이모지는 PWA 앱 셸에 포함됩니다.
+
+운영 가이드에서 반복된 `origin_forbidden`을 보완하기 위해 비공개 설정 응답에서 세션에 묶인 요청 토큰을 발급합니다. CloudFront는 `X-Atlas-CSRF` 헤더를 API에 전달하며, Origin이 없거나 달라도 유효한 서명 쿠키·토큰 조합을 확인합니다. 다른 세션·위조·만료 토큰은 모델 호출 전에 차단하고, CORS 허용 범위와 사용 한도는 유지합니다. 실제 브라우저에서 Origin을 `null`로 바꾼 조건으로 “성산일출봉 근처 맛집을 알려주세요.”를 요청해 **23.7초**에 정상 응답·지도·도구 표시를 확인했습니다.
+
 ## 고도 캐시 적용 결과
 
 - 엣지 기본 TTL **7일**(최소 0초, 최대 30일), 정상 타일 브라우저 TTL **1일**.
@@ -119,19 +129,21 @@ AI는 서명된 HttpOnly/Secure/SameSite 쿠키와 사용자에 묶인 대화 �
 | 검사 | 결과 |
 |---|---|
 | TypeScript + Vite 빌드 | 성공 |
-| Node 24 HTTP·SQLite·세션·가이드·날씨·고도 함수 검사 | 94개 통과 |
+| Node 24 HTTP·SQLite·세션·가이드·날씨·고도 함수 검사 | 149개 통과 |
 | 고도 응답 함수 검사 | 200·206·304·403·404·500·503 상태 통과 |
 | CloudFormation 최초 배포 재계획 회귀 검사 | 1개 통과 |
 | cfn-lint | 오류 없음 |
 | cfn-nag | 실패 0건, 개발 구성에 따른 경고는 README에 명시 |
 | npm 런타임 의존성 audit | 취약점 0건 |
-| 최종 이미지 ECR Inspector | 지속 검사 ACTIVE, 23:23 UTC 검사 결과 발견 0건 |
+| 최종 이미지 ECR Inspector | 지속 검사 ACTIVE, 2026-09-10 02:04 UTC 검사 결과 발견 0건 |
 | 실제 공개 주소의 브라우저 검사 | 11개 통과 |
 | 카탈로그·코스·실제 AI·PWA·모바일 통합 검사 | 10개 통과 |
 | 대표 아이콘·카테고리·현재 지도 목록·모바일 검사 | 공개 주소 7개 통과 |
 | 질문 맥락·편의 표시·상세 연결·답변 스크롤 검사 | 제어된 SSE 5개 통과 |
 | 지연된 지도 응답 경합 검사 | 범위 변경 후 이전 요청 취소·최신 40개 핀 유지 |
-| 실제 AWS/HTTP 인프라 검사 | 44개 통과 |
+| 대화 만료·마크다운·생각 중·도구·추천 말풍선·모바일 검사 | 제어된 HTTP/SSE 브라우저 검사 10개 통과 |
+| 나눔스퀘어 및 UI 이모지 | 공식 원본 WOFF 2개와 로컬 SVG 6개 로드 확인 |
+| 실제 AWS/HTTP 인프라 검사 | 요청 증명 전달·위조 차단 포함 48개 통과 |
 | 고도 캐시 HTTP 검사 | PNG 일치·15회 적중·304·오류 no-store 통과 |
 
 브라우저는 실제 DEM과 위성 타일을 받아 한라산의 고도를 샘플링했습니다. 검색, 장소 분류, 2D/3D, 고도 배율, 지형 색상, 자동 둘러보기, 공유 URL 복원, 모바일 장소 서랍과 선택 정보 표시를 확인했습니다. 위성/고도 데이터 출처를 화면에 표시하며 영상이 실시간이라고 주장하지 않습니다.
@@ -147,8 +159,12 @@ AI는 서명된 HttpOnly/Secure/SameSite 쿠키와 사용자에 묶인 대화 �
 - [카탈로그·여행·PWA 로컬 통합 브라우저 검사](../.local/guide-browser-fix-local/report.json)
 - [가이드 화면 회귀 검사](../.local/guide-regression-local/report.json)
 - [늦은 지도 응답 취소 검사](../.local/map-race-after/report.json)
+- [대화 복구·GFM·도구·말풍선·모바일 검사](../.local/guide-session-local/report.json)
+- [새 화면·여행·오프라인 로컬 검사](../.local/guide-browser-ui-local/report.json)
+- [한라산 실제 응답 및 나눔스퀘어 운영 검사](../.local/hallasan-guide-production/report.json)
+- [Origin 차이 조건의 성산일출봉 실제 응답 검사](../.local/seongsan-origin-proof-production/report.json)
 - [고도 캐시 검사와 지연 측정 JSON](../.local/terrain-cache-verification.json)
-- [ECR 검사 JSON](../.local/image-scan-guide-grounding.json)
+- [ECR 검사 JSON](../.local/image-scan-origin-proof.json)
 - [데스크톱 위성 지도](../.local/browser-terrain-cache/desktop-satellite.png)
 - [데스크톱 고도 지도](../.local/browser-terrain-cache/desktop-terrain.png)
 - [모바일 지도](../.local/browser-terrain-cache/mobile-map.png)

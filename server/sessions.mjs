@@ -42,6 +42,17 @@ export function createSessions({ secret, clock = Date.now }) {
     }
   }
   return {
+    csrfToken(actorId) {
+      return digest('csrf', actorId).toString('base64url');
+    },
+    verifyCsrf(token, actorId) {
+      if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)
+        || typeof actorId !== 'string') return false;
+      const supplied = Buffer.from(token, 'base64url');
+      const expected = digest('csrf', actorId);
+      return supplied.toString('base64url') === token && supplied.length === expected.length
+        && timingSafeEqual(supplied, expected);
+    },
     readCookie(header) {
       if (typeof header !== 'string' || header.length > 8192) return null;
       const matching = header.split(';').map((part) => part.trim())
@@ -65,7 +76,10 @@ export function createSessions({ secret, clock = Date.now }) {
     verifyConversation(token, actorId) {
       const data = verify('conversation', token, CONVERSATION_AGE_MS);
       return data && data.actor === actorId && typeof data.id === 'string' && UUID.test(data.id)
-        ? { id: data.id, token } : null;
+        // The caller emits this renewed token only after the turn is admitted.
+        // Old tokens retain their original 14-minute expiry; UUID/actor binding
+        // and all signature/future-time checks above remain unchanged.
+        ? { id: data.id, token: sign('conversation', { v: 1, id: data.id, actor: actorId, iat: clock() }) } : null;
     },
   };
 }

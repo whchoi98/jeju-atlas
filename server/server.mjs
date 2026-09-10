@@ -26,8 +26,16 @@ const contentTypes = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-export function createAppServer({ root, release = 'local', api }) {
+export function createAppServer({ root, release = 'local', api, onDiagnostic = () => {} }) {
   const staticRoot = realpathSync(root);
+  const rejectedGuide = (pathname, code, status) => {
+    if (pathname !== '/api/guide') return;
+    try {
+      Promise.resolve(onDiagnostic({ event: 'guide_rejected', code, status })).catch(() => {});
+    } catch {
+      // A logging failure must not affect the HTTP response.
+    }
+  };
   return createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -56,16 +64,21 @@ export function createAppServer({ root, release = 'local', api }) {
       return reply(403, 'Forbidden\n');
     }
     if (Number(req.headers['content-length']) > 16 * 1024) {
+      rejectedGuide(pathname, 'body_too_large', 413);
       res.setHeader('Connection', 'close');
       req.resume();
       return reply(413, 'Request body too large\n');
     }
     if (pathname === '/api' || pathname.startsWith('/api/')) {
-      if (!api) return reply(404, JSON.stringify({ error: { code: 'not_found', message: 'API unavailable' } }), 'application/json; charset=utf-8');
+      if (!api) {
+        rejectedGuide(pathname, 'not_found', 404);
+        return reply(404, JSON.stringify({ error: { code: 'not_found', message: 'API unavailable' } }), 'application/json; charset=utf-8');
+      }
       try {
         return await api(req, res, new URL(req.url, 'http://localhost'));
       } catch {
         if (!res.headersSent) {
+          rejectedGuide(pathname, 'service_unavailable', 503);
           return reply(503, JSON.stringify({ error: { code: 'service_unavailable', message: '서비스를 일시적으로 이용할 수 없습니다.' } }), 'application/json; charset=utf-8');
         }
         res.destroy();
@@ -119,6 +132,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   const here = dirname(fileURLToPath(import.meta.url));
   const root = process.env.STATIC_ROOT || join(here, '..', 'dist');
   const release = process.env.RELEASE || 'local';
+  const onDiagnostic = process.env.NODE_ENV === 'production'
+    ? (diagnostic) => console.error(JSON.stringify(diagnostic)) : undefined;
   let catalog;
   let api;
   // Keep static-only imports/tests independent of SQLite and AWS packages.
@@ -134,14 +149,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
         });
         await catalog.init();
       }
-      api = createApiHandler({ catalog, release, env: process.env });
+      api = createApiHandler({ catalog, release, env: process.env, onDiagnostic });
     } catch {
       catalog?.close();
       console.error(JSON.stringify({ event: 'startup-error', code: 'API_INITIALIZATION_FAILED' }));
       process.exit(1);
     }
   }
-  const server = createAppServer({ root, release, api });
+  const server = createAppServer({ root, release, api, onDiagnostic });
   const port = Number(process.env.PORT || 8080);
   const host = process.env.HOST || '0.0.0.0';
   server.listen(port, host, () => console.log(JSON.stringify({ event: 'listening', port: server.address().port, release })));

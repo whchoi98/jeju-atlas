@@ -25,6 +25,33 @@ export class GuideError extends Error {
   }
 }
 
+/** Diagnostic callbacks receive only explicitly selected, non-sensitive fields. */
+export function emitGuideDiagnostic(onDiagnostic, diagnostic) {
+  try {
+    Promise.resolve(onDiagnostic(diagnostic)).catch(() => {});
+  } catch {
+    // Observability must not change request handling or streaming.
+  }
+}
+
+function diagnosticErrorType(error) {
+  try {
+    const name = error?.name;
+    return typeof name === 'string' && /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(name) ? name : 'UnknownError';
+  } catch {
+    return 'UnknownError';
+  }
+}
+
+function diagnosticElapsed(clock, started) {
+  try {
+    const elapsed = Math.trunc(clock() - started);
+    return Number.isSafeInteger(elapsed) ? Math.max(0, elapsed) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function abortable(value, signal) {
   const promise = Promise.resolve(value);
   if (!signal) return promise;
@@ -314,10 +341,31 @@ function eventError(event) {
   return new GuideError(502, 'agent_error');
 }
 
-function statusMessage(event) {
-  if (event.stage !== 'tool') return '여행 가이드가 답변을 준비하고 있습니다.';
-  if (event.tool === 'find_places') return '제주 카탈로그에서 장소를 찾고 있습니다.';
-  return '여행에 필요한 정보를 확인하고 있습니다.';
+const TOOL_LABELS = {
+  find_places: '장소 검색',
+  place_detail: '장소 상세 정보',
+  route: '이동 경로',
+  weather: '날씨',
+  sun_times: '일출·일몰',
+  layer: '지도 정보',
+  festivals: '축제·행사',
+  plan_day: '하루 일정',
+};
+
+function statusData(event) {
+  if (event.stage === 'thinking') {
+    return { message: '여행 가이드가 답변을 준비하고 있습니다.', stage: 'thinking', label: 'AI 생각 중' };
+  }
+  if (event.stage !== 'tool') return null;
+  const tool = typeof event.tool === 'string' && event.tool.length <= 80
+    ? event.tool.replace(/^ohmyjejutools_/, '') : '';
+  if (!Object.hasOwn(TOOL_LABELS, tool)) {
+    return { message: '여행에 필요한 정보를 확인하고 있습니다.', stage: 'tool' };
+  }
+  return {
+    message: tool === 'find_places' ? '제주 카탈로그에서 장소를 찾고 있습니다.' : '여행에 필요한 정보를 확인하고 있습니다.',
+    stage: 'tool', tool, label: TOOL_LABELS[tool],
+  };
 }
 
 function frame(event, data) {
@@ -352,6 +400,7 @@ async function writeEvent(res, event, data, signal) {
 export function createGuideHandler({
   sessions, catalog, consumeQuota, invokeEvents, clock = Date.now,
   heartbeatMs = 8000, deadlineMs = 90_000, maxActors = 10_000,
+  onDiagnostic = () => {},
 }) {
   const active = new Map();
   const usage = new Map();
@@ -379,7 +428,11 @@ export function createGuideHandler({
     const controller = new AbortController();
     const { signal } = controller;
     active.set(actorId, controller);
-    const onClose = () => controller.abort(new GuideError(503, 'guide_unavailable'));
+    let disconnected = false;
+    const onClose = () => {
+      disconnected = !res.writableEnded;
+      controller.abort(new GuideError(503, 'guide_unavailable'));
+    };
     // IncomingMessage 'close' fires when its body completes, not when the
     // browser abandons an already-started response.
     res.once('close', onClose);
@@ -388,6 +441,7 @@ export function createGuideHandler({
     let heartbeat;
     let iterator;
     let started = false;
+    let runtimeError = false;
     try {
       let permitted;
       try {
@@ -415,6 +469,7 @@ export function createGuideHandler({
       }, heartbeatMs);
       heartbeat.unref();
       await writeEvent(res, 'session', { conversation_id: conversation.token }, signal);
+      await writeEvent(res, 'status', statusData({ stage: 'thinking' }), signal);
       const grounding = prepareGuideGrounding(body.message, catalog);
       const source = await abortable(Promise.resolve().then(() => {
         signal.throwIfAborted();
@@ -432,9 +487,13 @@ export function createGuideHandler({
         const event = item.value;
         if (!record(event)) continue;
         if (event.type === 'done') break;
-        if (event.type === 'error') throw eventError(event);
+        if (event.type === 'error') {
+          runtimeError = true;
+          throw eventError(event);
+        }
         if (event.type === 'status') {
-          await writeEvent(res, 'status', { message: statusMessage(event) }, signal);
+          const status = statusData(event);
+          if (status) await writeEvent(res, 'status', status, signal);
         } else if (event.type === 'token') {
           const delta = text(event.text, Math.max(0, 6000 - answer.length));
           if (delta) {
@@ -469,9 +528,19 @@ export function createGuideHandler({
       await writeEvent(res, 'done', {}, signal);
       res.end();
     } catch (error) {
+      const cause = signal.aborted ? signal.reason : error;
+      const failure = safeError(cause);
+      const cancelled = signal.aborted && failure.code !== 'guide_timeout' && (disconnected || closed);
+      if (started || cancelled) {
+        emitGuideDiagnostic(onDiagnostic, {
+          event: cancelled ? 'guide_cancelled' : 'guide_stream_error',
+          code: cancelled ? (disconnected ? 'client_disconnected' : 'server_shutdown') : failure.code,
+          type: cancelled ? 'AbortError' : runtimeError ? 'RuntimeError' : diagnosticErrorType(cause),
+          elapsed_ms: diagnosticElapsed(clock, now),
+        });
+      }
       if (!started) throw error;
       if (!res.destroyed && !res.writableEnded) {
-        const failure = safeError(signal.aborted ? signal.reason : error);
         res.end(frame('error', { code: failure.code, message: failure.message }) + frame('done', {}));
       }
     } finally {

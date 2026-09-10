@@ -4,7 +4,7 @@ import { promisify } from 'node:util';
 import { createSessions } from './sessions.mjs';
 import { createWeatherService, inJeju } from './weather.mjs';
 import {
-  GuideError, createGuideHandler, createAgentInvoker, createDynamoQuotaConsumer,
+  GuideError, createGuideHandler, createAgentInvoker, createDynamoQuotaConsumer, emitGuideDiagnostic,
 } from './guide.mjs';
 
 const compress = promisify(gzip);
@@ -186,6 +186,7 @@ export function createApiHandler({
   consumeQuota, invokeEvents, fetch: fetchImpl = globalThis.fetch, clock = Date.now,
   heartbeatMs = 8000, deadlineMs = 90_000, maxActors = 10_000,
   weatherOptions = {},
+  onDiagnostic = () => {},
 } = {}) {
   if (!Number.isSafeInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 1000) {
     throw new Error('GUIDE_DAILY_LIMIT must be an integer between 1 and 1000');
@@ -202,7 +203,7 @@ export function createApiHandler({
     table: env.GUIDE_QUOTA_TABLE, dailyLimit, region: env.AWS_REGION || 'ap-northeast-2', clock,
   });
   const guide = createGuideHandler({
-    sessions, catalog, consumeQuota: quota, invokeEvents: agent, clock, heartbeatMs, deadlineMs, maxActors,
+    sessions, catalog, consumeQuota: quota, invokeEvents: agent, clock, heartbeatMs, deadlineMs, maxActors, onDiagnostic,
   });
   const weather = createWeatherService({ fetch: fetchImpl, clock, ...weatherOptions });
 
@@ -216,18 +217,28 @@ export function createApiHandler({
         throw new ApiError(405, 'method_not_allowed', '지원하지 않는 요청 방식입니다.');
       }
       if (path === '/api/config') {
-        if (!sessions.readCookie(req.headers.cookie)) sessions.issueCookie(res);
+        const session = sessions.readCookie(req.headers.cookie) || sessions.issueCookie(res);
         return await sendJson(req, res, 200, {
           version: release,
           features: { catalog: Boolean(catalog && catalog.status().status === 'ready'), guide: enabled, planner: true, pwa: true },
-          guide: { daily_limit: dailyLimit },
+          guide: {
+            daily_limit: dailyLimit,
+            ...(enabled ? { csrf_token: sessions.csrfToken(session.actorId) } : {}),
+          },
         });
       }
       if (path === '/api/guide') {
-        if (!allowedOrigin || req.headers.origin !== allowedOrigin) {
-          throw new ApiError(403, 'origin_forbidden', '허용된 페이지에서 다시 요청해 주세요.');
-        }
         const session = sessions.readCookie(req.headers.cookie);
+        const proof = req.headers['x-atlas-csrf'];
+        const originMatches = allowedOrigin && req.headers.origin === allowedOrigin;
+        const proofMatches = session && sessions.verifyCsrf(proof, session.actorId);
+        // The private, same-origin config response hands the app a proof bound
+        // to its signed cookie. No wildcard CORS or anonymous-origin bypass.
+        if (!allowedOrigin || (!originMatches && !proofMatches)) {
+          throw proof !== undefined
+            ? new ApiError(403, 'csrf_invalid', '요청 연결 확인이 만료되었습니다. 연결을 갱신해 주세요.')
+            : new ApiError(403, 'origin_forbidden', '허용된 페이지에서 다시 요청해 주세요.');
+        }
         if (!session) {
           sessions.issueCookie(res);
           throw new ApiError(401, 'session_required', '페이지를 새로고침한 뒤 다시 질문해 주세요.');
@@ -294,6 +305,9 @@ export function createApiHandler({
       const failure = error instanceof ApiError || error instanceof GuideError
         ? error : error instanceof RangeError || (error?.statusCode === 400 && error?.code === 'CATALOG_BAD_QUERY')
           ? invalidQuery() : new ApiError(503, 'service_unavailable', '서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+      if (url.pathname === '/api/guide') {
+        emitGuideDiagnostic(onDiagnostic, { event: 'guide_rejected', code: failure.code, status: failure.status });
+      }
       if (failure.status === 429) res.setHeader('Retry-After', failure.code === 'hourly_limit' ? '3600' : '60');
       await sendJson(req, res, failure.status, { error: { code: failure.code, message: failure.message } });
     }

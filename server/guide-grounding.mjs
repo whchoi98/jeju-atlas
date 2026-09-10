@@ -1,4 +1,5 @@
 import { inJeju } from './weather.mjs';
+import { normalizeGuideLocation } from './guide-locations.mjs';
 
 const categories = ['관광지', '박물관'];
 const normalized = (value) => String(value ?? '').normalize('NFC').replace(/\s+/gu, '').toLowerCase();
@@ -31,7 +32,7 @@ function compact(place) {
  * This adds no network calls and never changes the user's question.
  */
 export function prepareGuideGrounding(message, catalog) {
-  const empty = { prompt: message, candidates: [], kind: null };
+  const empty = { prompt: normalizeGuideLocation(message, catalog), candidates: [], kind: null };
   if (!catalog?.search || !catalog?.detail || scoped.test(message) || adultOnly.test(message) || otherIntent.test(message)
     || !/추천|방문|장소|둘러|어디/.test(message)) return empty;
   const family = /아이|어린이|가족|유아|아기/.test(message);
