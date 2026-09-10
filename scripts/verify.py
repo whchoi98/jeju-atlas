@@ -8,7 +8,108 @@ import re
 import sys
 
 import requests
-from deploy import ACCOUNT, APP, LOCAL, PREFIX, PRIVATE, PUBLIC, VPC, SETTINGS, assert_network, connect, emit, load, save, stack_outputs, validate_settings
+from deploy import ACCOUNT, APP, LOCAL, PREFIX, PRIVATE, PUBLIC, REGION, VPC, SETTINGS, assert_network, connect, emit, load, save, stack_outputs, validate_settings
+
+
+def task_iam_scoped(iam, role_name, environment, *, details_bucket=""):
+    """Require every selected object/runtime/table grant, with no additional access."""
+    if environment.get("DETAILS_BUCKET", "") != details_bucket:
+        return False
+    if details_bucket and environment.get("DETAILS_KEY") != "place-details/latest.json":
+        return False
+    expected_resources = {
+        "s3:GetObject": {f"arn:aws:s3:::{environment.get('CATALOG_BUCKET')}/catalog/catalog.sqlite"},
+        "bedrock-agentcore:InvokeAgentRuntime": {
+            environment.get("GUIDE_RUNTIME_ARN"),
+            str(environment.get("GUIDE_RUNTIME_ARN")) + "/runtime-endpoint/DEFAULT",
+        },
+        "bedrock-agentcore:InvokeAgentRuntimeForUser": {
+            environment.get("GUIDE_RUNTIME_ARN"),
+            str(environment.get("GUIDE_RUNTIME_ARN")) + "/runtime-endpoint/DEFAULT",
+        },
+        "dynamodb:UpdateItem": {
+            f"arn:aws:dynamodb:ap-northeast-2:{ACCOUNT}:table/{environment.get('GUIDE_QUOTA_TABLE')}"
+        },
+        "dynamodb:GetItem": {
+            f"arn:aws:dynamodb:ap-northeast-2:{ACCOUNT}:table/{environment.get('GUIDE_QUOTA_TABLE')}"
+        },
+    }
+    if details_bucket:
+        expected_resources["s3:GetObject"].add(f"arn:aws:s3:::{details_bucket}/place-details/latest.json")
+    if iam.list_attached_role_policies(RoleName=role_name)["AttachedPolicies"]:
+        return False
+    granted = {action: set() for action in expected_resources}
+    for policy_name in iam.list_role_policies(RoleName=role_name)["PolicyNames"]:
+        statements = iam.get_role_policy(RoleName=role_name, PolicyName=policy_name)["PolicyDocument"].get("Statement", [])
+        if isinstance(statements, dict):
+            statements = [statements]
+        for statement in statements:
+            actions = statement.get("Action", [])
+            resources = statement.get("Resource", [])
+            if isinstance(actions, str):
+                actions = [actions]
+            if isinstance(resources, str):
+                resources = [resources]
+            if (statement.get("Effect") != "Allow" or not actions or not resources
+                    or "NotAction" in statement or "NotResource" in statement
+                    or not all(isinstance(value, str) for value in [*actions, *resources])):
+                return False
+            for action in actions:
+                if action not in expected_resources or not set(resources) <= expected_resources[action]:
+                    return False
+                granted[action].update(resources)
+    return granted == expected_resources
+
+
+def verify_media_delivery(edge, config, parameters, check):
+    """Read-only checks for the optional private S3 media origin and its cache."""
+    bucket = parameters.get("DetailsBucket", "")
+    origins = [item for item in config.get("Origins", {}).get("Items", []) if item.get("Id") == "jeju-media"]
+    behaviors = config.get("CacheBehaviors", {}).get("Items", [])
+    routes = [item for item in behaviors if item.get("PathPattern") in ("/media/*", "media/*")]
+    media_targets = [item for item in behaviors if item.get("TargetOriginId") == "jeju-media"]
+    default_is_media = config.get("DefaultCacheBehavior", {}).get("TargetOriginId") == "jeju-media"
+    if not bucket:
+        check("Media remains disabled without a details bucket",
+              not origins and not routes and not media_targets and not default_is_media)
+        return
+
+    origin = origins[0] if len(origins) == 1 else {}
+    oac_id = parameters.get("MediaOriginAccessControlId", "")
+    expected_domain = f"{bucket}.s3.{REGION}.amazonaws.com"
+    headers = origin.get("CustomHeaders", {})
+    check("Media uses the selected S3 bucket and OAC without ALB credentials", bool(origin)
+          and parameters.get("MediaBucketDomainName") == expected_domain
+          and origin.get("DomainName") == expected_domain
+          and bool(oac_id) and origin.get("OriginAccessControlId") == oac_id
+          and origin.get("S3OriginConfig", {}).get("OriginAccessIdentity") == ""
+          and not origin.get("CustomOriginConfig") and not origin.get("OriginPath")
+          and headers.get("Quantity", 0) == 0 and not headers.get("Items"))
+    oac = {}
+    if oac_id and origin.get("OriginAccessControlId") == oac_id:
+        oac = edge.get_origin_access_control(Id=oac_id)["OriginAccessControl"]["OriginAccessControlConfig"]
+    check("Media S3 OAC signs every origin request", oac.get("OriginAccessControlOriginType") == "s3"
+          and oac.get("SigningBehavior") == "always" and oac.get("SigningProtocol") == "sigv4")
+
+    behavior = routes[0] if len(routes) == 1 else {}
+    methods = behavior.get("AllowedMethods", {})
+    check("Only the public media path reaches S3 with GET and HEAD", bool(behavior)
+          and behavior.get("PathPattern") == "/media/*" and media_targets == [behavior]
+          and not default_is_media and behaviors[0] == behavior
+          and behavior.get("ViewerProtocolPolicy") == "redirect-to-https"
+          and set(methods.get("Items", [])) == {"GET", "HEAD"}
+          and set(methods.get("CachedMethods", {}).get("Items", [])) == {"GET", "HEAD"}
+          and behavior.get("Compress") is False and not behavior.get("OriginRequestPolicyId"))
+    cache = {}
+    if behavior.get("CachePolicyId"):
+        cache = edge.get_cache_policy(Id=behavior["CachePolicyId"])["CachePolicy"]["CachePolicyConfig"]
+    key = cache.get("ParametersInCacheKeyAndForwardedToOrigin", {})
+    check("One-year media cache excludes cookies, headers and query strings",
+          cache.get("MinTTL") == 0 and cache.get("DefaultTTL") == 31536000 and cache.get("MaxTTL") == 31536000
+          and key.get("CookiesConfig", {}).get("CookieBehavior") == "none"
+          and key.get("HeadersConfig", {}).get("HeaderBehavior") == "none"
+          and key.get("QueryStringsConfig", {}).get("QueryStringBehavior") == "none"
+          and key.get("EnableAcceptEncodingGzip") is False and not key.get("EnableAcceptEncodingBrotli", False))
 
 
 def verify():
@@ -36,6 +137,7 @@ def verify():
     check("Existing NAT Gateways reused", nat_ids == {"nat-00b8a70dc184a4d0c", "nat-08379e076e2e6e234"}, sorted(nat_ids))
 
     stack = cf.describe_stacks(StackName=APP)["Stacks"][0]
+    parameters = {item["ParameterKey"]: item["ParameterValue"] for item in stack.get("Parameters", [])}
     check("CloudFormation complete", stack["StackStatus"] in ["CREATE_COMPLETE", "UPDATE_COMPLETE"], stack["StackStatus"])
     resources = cf.list_stack_resources(StackName=APP)["StackResourceSummaries"]
     forbidden = {"AWS::EC2::VPC", "AWS::EC2::Subnet", "AWS::EC2::NatGateway", "AWS::EC2::EIP", "AWS::EC2::Route", "AWS::EC2::RouteTable"}
@@ -56,42 +158,9 @@ def verify():
     check("Nonroot and read-only container", container.get("user") == "1000:1000" and container.get("readonlyRootFilesystem") is True)
     task_role_name = taskdef["taskRoleArn"].split("/")[-1]
     iam = session.client("iam")
-    attached = iam.list_attached_role_policies(RoleName=task_role_name)["AttachedPolicies"]
-    inline = iam.list_role_policies(RoleName=task_role_name)["PolicyNames"]
     environment = {item["name"]: item["value"] for item in container.get("environment", [])}
-    expected_resources = {
-        "s3:GetObject": {f"arn:aws:s3:::{environment.get('CATALOG_BUCKET')}/catalog/catalog.sqlite"},
-        "bedrock-agentcore:InvokeAgentRuntime": {
-            environment.get("GUIDE_RUNTIME_ARN"),
-            str(environment.get("GUIDE_RUNTIME_ARN")) + "/runtime-endpoint/DEFAULT",
-        },
-        "bedrock-agentcore:InvokeAgentRuntimeForUser": {
-            environment.get("GUIDE_RUNTIME_ARN"),
-            str(environment.get("GUIDE_RUNTIME_ARN")) + "/runtime-endpoint/DEFAULT",
-        },
-        "dynamodb:UpdateItem": {
-            f"arn:aws:dynamodb:ap-northeast-2:{ACCOUNT}:table/{environment.get('GUIDE_QUOTA_TABLE')}"
-        },
-        "dynamodb:GetItem": {
-            f"arn:aws:dynamodb:ap-northeast-2:{ACCOUNT}:table/{environment.get('GUIDE_QUOTA_TABLE')}"
-        },
-    }
-    seen_actions = set()
-    policies_scoped = not attached
-    for policy_name in inline:
-        statements = iam.get_role_policy(RoleName=task_role_name, PolicyName=policy_name)["PolicyDocument"].get("Statement", [])
-        for statement in statements:
-            actions = statement.get("Action", [])
-            resources = statement.get("Resource", [])
-            if isinstance(actions, str):
-                actions = [actions]
-            if isinstance(resources, str):
-                resources = [resources]
-            policies_scoped = policies_scoped and statement.get("Effect") == "Allow"
-            for action in actions:
-                seen_actions.add(action)
-                policies_scoped = policies_scoped and action in expected_resources and set(resources) <= expected_resources.get(action, set())
-    check("Task IAM limited to selected catalog, guide and quota", policies_scoped and seen_actions == set(expected_resources))
+    check("Task IAM limited to selected catalog, guide and quota",
+          task_iam_scoped(iam, task_role_name, environment, details_bucket=parameters.get("DetailsBucket", "")))
     check("Only catalog cache volume is writable", [
         mount["containerPath"] for mount in container.get("mountPoints", []) if not mount.get("readOnly", False)
     ] == ["/tmp"])
@@ -162,6 +231,7 @@ def verify():
         settings["OriginDomainName"] if use_tls else outputs["LoadBalancerDnsName"]))
     check("Origin protocol matches the staged TLS configuration",
           origin["CustomOriginConfig"]["OriginProtocolPolicy"] == ("https-only" if use_tls else "http-only"))
+    verify_media_delivery(edge, config, parameters, check)
     terrain_origin = next((item for item in config["Origins"]["Items"] if item["Id"] == "jeju-terrain"), None)
     check("Terrain origin uses HTTPS and receives no ALB secret", bool(terrain_origin)
           and terrain_origin["DomainName"] == "elevation-tiles-prod.s3.us-east-1.amazonaws.com"

@@ -1,11 +1,15 @@
 # 실제 AgentCore 구성
 
-2026-09-10 서울 리전의 `AgentCore-Ohmyjeju-default` 스택과 서비스 API에서 확인했습니다.
+2026-09-10 서울 리전 `AgentCore-Ohmyjeju-default`의 공식 상세 연동 후속 배포
+기준입니다. **Agent 버전 20, Tools 버전 11이 배포되어 READY**입니다.
+이 준비 상태만으로 새 웹 이미지의 실서비스 종합 검증 완료를 뜻하지는 않습니다.
+웹 배포 확인 범위는 [배포 현황](deployment.md),
+실제 검증 결과는 [최종 배포 확인](details-olle-release-2026-09-10.md)에 구분합니다.
 
 | 구성 | 실제 구현 |
 |---|---|
-| Agent Runtime | `Ohmyjeju_OhmyjejuAgent` — HTTP, Python, Strands Agent, SSE 답변 |
-| Tools Runtime | `Ohmyjeju_OhmyjejuTools` — MCP 서버 |
+| Agent Runtime | `Ohmyjeju_OhmyjejuAgent` — 버전 20, READY; HTTP, Python, Strands Agent, SSE 답변 |
+| Tools Runtime | `Ohmyjeju_OhmyjejuTools` — 버전 11, READY; MCP 서버, 정확한 이름 우선 검색과 Atlas 공식 상세 S3 읽기 |
 | Gateway | `OhmyjejuGateway`와 Tools Runtime 대상 1개 |
 | Memory | `Ohmyjeju_OhmyjejuAgentMemory`, ACTIVE |
 | 인증 | Fargate의 Runtime 호출과 Agent의 Gateway 호출에 AWS IAM 사용 |
@@ -23,11 +27,37 @@ Strands는 AgentCore 안에서 도구 호출과 대화를 실행하는 개발 �
           일반 질문: global.openai.gpt-5.6-sol
           일정 계획: global.openai.gpt-6-astra
       → AgentCore Gateway → MCP Tools Runtime
+          → 기존 카탈로그 조회
+          → Atlas S3 place-details/latest.json (읽기 전용)
       → AgentCore Memory
 ```
 
 도구 8개는 `find_places`, `place_detail`, `route`, `weather`, `sun_times`,
 `layer`, `festivals`, `plan_day`입니다. `layer`가 주차·충전·도로 상태를 다룹니다.
+
+장소 자체의 정보는 정확한 이름을 우선해 검색한 후 `place_detail`로 읽습니다.
+‘성산일출봉, 제한 3개’ 검색에서 상업시설 이름이 명소를 밀어내던 문제를
+실제 카탈로그로 재현하고 수정했습니다. 카테고리·반경 조건과 근처 검색에서
+기준 장소를 제외하는 동작은 유지합니다.
+
+## 공식 상세와 제공처 키의 경계
+
+Tools와 웹 태스크는 Atlas 전용 비공개 S3의
+`place-details/latest.json`을 `s3:GetObject`로 읽습니다. 제공처·언어·조회 시각과
+출처를 유지해 상세 정보에 합치며, 카탈로그 기본 ID·이름·좌표를 덮어쓰거나
+공식 기록이 붙었다는 이유만으로 시드 정보를 검증 완료로 승격하지 않습니다.
+
+TourAPI·VisitJeju API 키는 SSM SecureString에 보관하며, **전용 데이터 수집
+태스크 역할만 읽습니다.** 웹·Agent·Tools에는 제공처 키 읽기 권한을 주지
+않고, **AgentCore API-key/OAuth Credential Provider로 등록하지 않았습니다.**
+수집 작업이 제공처를 조회해 스냅샷을 발행하고, 웹·Tools는 발행된 자료를 읽습니다.
+키 값은 브라우저 응답·소스·로그에 포함하지 않습니다.
+
+상업 이용이 허용된 `media/` 객체만 CloudFront S3 OAC로 제공합니다.
+사진 이용조건·언어별 상세·수집 갱신 정책은
+[공식 장소 상세와 올레길](official-details-olle.md)을 참고합니다.
+
+## 대화 기억과 보관
 
 Memory 전략 4개가 모두 ACTIVE입니다.
 
@@ -44,5 +74,5 @@ Memory 전략 4개가 모두 ACTIVE입니다.
 현재 확인한 스택에 없습니다. OAuth/API-key Credential Provider를 별도로
 연결한 구성도 아닙니다.
 
-배포 확인 자료: `.local/agentcore-components.json`,
-`.local/guide-model-status.json`.
+버전 확인 자료: [런타임 상태](../.local/guide-model-status.json).
+Memory·Gateway 구성 자료: [AgentCore 구성](../.local/agentcore-components.json).

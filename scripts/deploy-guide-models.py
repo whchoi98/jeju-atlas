@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Deploy reviewed guide models, provenance rules and optional anchor fixes.
+"""Deploy reviewed guide models, provenance rules and official place details.
 
-Keeps live dependency bundles, Gateway, Memory and IAM intact.
+Keeps live dependency bundles, Gateway and Memory intact. Optional official
+details add only a read grant for the owned snapshot to the Tools role.
 The canonical source changes live in the supplied agentcore-cli worktree.
 """
 from __future__ import annotations
@@ -17,13 +18,14 @@ import subprocess
 import time
 import zipfile
 
-from deploy import connect, LOCAL, load, save
+from deploy import connect, LOCAL, load, save, stack_outputs
 
 STACK = "AgentCore-Ohmyjeju-default"
 NAME = "Ohmyjeju_OhmyjejuAgent"
 FILES = ("model/load.py", "ohmyjeju_agent/routing.py", "ohmyjeju_agent/prompts/system.md")
 TOOLS_NAME = "Ohmyjeju_OhmyjejuTools"
-TOOLS_FILES = ("ohmyjeju_tools/places.py",)
+TOOLS_FILES = ("ohmyjeju_tools/places.py", "ohmyjeju_tools/official_details.py")
+NEW_FILES = {"ohmyjeju_tools/official_details.py"}
 MODELS = {
     "OHMYJEJU_MODEL_ROUTING": "auto",
     "OHMYJEJU_MODEL_FAST": "global.openai.gpt-5.6-sol",
@@ -91,7 +93,7 @@ def patch_archive(original, target, source, files=FILES):
                      for name in files if name.endswith(".py"))
     with zipfile.ZipFile(original) as before:
         names = before.namelist()
-        if any(names.count(name) != 1 for name in files):
+        if any(names.count(name) != 1 and not (name in NEW_FILES and names.count(name) == 0) for name in files):
             raise RuntimeError("Expected exactly one copy of each reviewed model module")
         if any(Path(name).name.startswith(".env") or name in (".aws/credentials", "credentials") for name in names):
             raise RuntimeError("The bundle contains a credential/config file; do not process it with this script")
@@ -102,10 +104,16 @@ def patch_archive(original, target, source, files=FILES):
                     continue
                 data = patches.get(info.filename)
                 after.writestr(info, before.read(info.filename) if data is None else data)
+            for name in files:
+                if name not in names:
+                    info = zipfile.ZipInfo(name, date_time=(2026, 9, 10, 0, 0, 0))
+                    info.external_attr = 0o100644 << 16
+                    info.compress_type = zipfile.ZIP_DEFLATED
+                    after.writestr(info, patches[name])
     Path(target).chmod(0o600)
 
 
-def allowed_changes(changes, runtime_ids):
+def allowed_changes(changes, runtime_ids, detail_policies=()):
     """Only runtime edits and unchanged references to their stable ARNs."""
     dependency_properties = {
         "AWS::BedrockAgentCore::GatewayTarget": "TargetConfiguration",
@@ -116,6 +124,11 @@ def allowed_changes(changes, runtime_ids):
             return False
         if item["LogicalResourceId"] in runtime_ids:
             if item["ResourceType"] != "AWS::BedrockAgentCore::Runtime" or item.get("Replacement") != "False":
+                return False
+        elif item["LogicalResourceId"] in detail_policies:
+            if item["ResourceType"] != "AWS::IAM::Policy" or item.get("Replacement") != "False":
+                return False
+            if any(detail.get("Target", {}).get("Name") != "PolicyDocument" for detail in item.get("Details", [])):
                 return False
         else:
             property_name = dependency_properties.get(item["ResourceType"])
@@ -137,7 +150,24 @@ def review_runtimes(review):
     }]
 
 
-def plan(session, source, include_tools=False):
+def detail_statement(bucket):
+    if bucket != "jeju-3d-data-061525506239-ap-northeast-2":
+        raise RuntimeError("Official detail access is restricted to the owned Atlas bucket")
+    return {
+        "Sid": "AtlasOfficialDetailsRead", "Effect": "Allow", "Action": "s3:GetObject",
+        "Resource": f"arn:aws:s3:::{bucket}/place-details/latest.json",
+    }
+
+
+def detail_policy_only(before, after, bucket):
+    expected = copy.deepcopy(before)
+    statements = expected["Properties"]["PolicyDocument"]["Statement"]
+    statements[:] = [item for item in statements if item.get("Sid") != "AtlasOfficialDetailsRead"]
+    statements.append(detail_statement(bucket))
+    return expected == after
+
+
+def plan(session, source, include_tools=False, details_bucket=None):
     save("guide-model-change-set.json", {"stack": STACK, "status": "PLANNING"})
     cf = session.client("cloudformation")
     control = session.client("bedrock-agentcore-control")
@@ -149,11 +179,16 @@ def plan(session, source, include_tools=False):
     if isinstance(template, str):
         template = json.loads(template)
     updated = copy.deepcopy(template)
+    if details_bucket:
+        if not include_tools or stack_outputs(cf, "Jeju3dData").get("DetailsBucketName") != details_bucket:
+            raise RuntimeError("The owned data stack and the Tools runtime must both be selected")
+        detail_statement(details_bucket)
     specs = [(NAME, source, FILES)]
     if include_tools:
         specs.append((TOOLS_NAME, source.parent / "OhmyjejuTools", TOOLS_FILES))
     runtimes = []
     uploads = []
+    detail_policies = []
     for name, directory, files in specs:
         logical = next(key for key, item in template["Resources"].items()
                        if item["Type"] == "AWS::BedrockAgentCore::Runtime"
@@ -180,6 +215,17 @@ def plan(session, source, include_tools=False):
         properties["AgentRuntimeArtifact"]["CodeConfiguration"]["Code"]["S3"]["Prefix"] = key
         if name == NAME:
             properties["EnvironmentVariables"].update(MODELS)
+        elif details_bucket:
+            properties["EnvironmentVariables"]["OHMYJEJU_DETAILS_BUCKET"] = details_bucket
+            role_ref = properties["RoleArn"]["Fn::GetAtt"]
+            role_id = role_ref[0] if isinstance(role_ref, list) else role_ref.split(".", 1)[0]
+            policy_id = next(key for key, item in updated["Resources"].items()
+                             if item["Type"] == "AWS::IAM::Policy"
+                             and {"Ref": role_id} in item["Properties"].get("Roles", []))
+            statements = updated["Resources"][policy_id]["Properties"]["PolicyDocument"]["Statement"]
+            statements[:] = [item for item in statements if item.get("Sid") != "AtlasOfficialDetailsRead"]
+            statements.append(detail_statement(details_bucket))
+            detail_policies.append(policy_id)
         runtimes.append({
             "name": name, "logicalId": logical, "runtimeId": runtime_id,
             "expectedRuntimeVersion": current["agentRuntimeVersion"],
@@ -189,7 +235,10 @@ def plan(session, source, include_tools=False):
         uploads.append((candidate, old["bucket"], key, sha))
     runtime_ids = {item["logicalId"] for item in runtimes}
     for resource in template["Resources"]:
-        if resource not in runtime_ids and template["Resources"][resource] != updated["Resources"][resource]:
+        if resource in detail_policies:
+            if not detail_policy_only(template["Resources"][resource], updated["Resources"][resource], details_bucket):
+                raise RuntimeError("Unexpected detail access policy change")
+        elif resource not in runtime_ids and template["Resources"][resource] != updated["Resources"][resource]:
             raise RuntimeError("Unexpected non-runtime change")
     before_path = LOCAL / "guide-model-before-template.json"
     after_path = LOCAL / "guide-model-template.json"
@@ -216,7 +265,7 @@ def plan(session, source, include_tools=False):
         TemplateBody=body,
         Parameters=[{"ParameterKey": item["ParameterKey"], "UsePreviousValue": True} for item in stack.get("Parameters", [])],
         Capabilities=["CAPABILITY_IAM"],
-        Description="Jeju guide: Seoul Global CRIS models, field provenance, exact landmark anchors",
+        Description="Jeju guide: Seoul Global CRIS models, exact anchors and official place details",
     )
     while True:
         detail = cf.describe_change_set(ChangeSetName=change["Id"])
@@ -226,12 +275,13 @@ def plan(session, source, include_tools=False):
     if detail["Status"] != "CREATE_COMPLETE":
         raise RuntimeError(detail.get("StatusReason", "Change set failed"))
     changes = [item["ResourceChange"] for item in detail["Changes"]]
-    if not allowed_changes(changes, runtime_ids):
+    if not allowed_changes(changes, runtime_ids, detail_policies):
         raise RuntimeError("Expected in-place guide runtime changes only")
     review = {
         "stack": STACK, "runtimes": runtimes,
         "changeSetArn": change["Id"], "status": "REVIEWABLE",
         "models": MODELS,
+        "detailsBucket": details_bucket, "detailPolicies": detail_policies,
         "source": str(source.resolve()),
         "rollbackTemplate": str(baseline_path),
         "changes": [{k: item[k] for k in ("LogicalResourceId", "Action", "ResourceType", "Replacement")} for item in changes],
@@ -244,14 +294,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["plan", "apply", "status"])
     parser.add_argument("--source", type=Path)
-    parser.add_argument("--include-tools", action="store_true", help="Include the reviewed exact-anchor fix in the existing Tools runtime.")
+    parser.add_argument("--include-tools", action="store_true", help="Include reviewed place lookup and official-detail modules in the existing Tools runtime.")
+    parser.add_argument("--details-bucket", help="Allow Tools to read the owned official-detail snapshot only.")
     args = parser.parse_args()
     session = connect()
     cf = session.client("cloudformation")
     if args.action == "plan":
         if not args.source:
             parser.error("--source must point to the reviewed OhmyjejuAgent source directory")
-        plan(session, args.source, args.include_tools)
+        plan(session, args.source, args.include_tools, args.details_bucket)
     elif args.action == "apply":
         review = load("guide-model-change-set.json")
         if review["stack"] != STACK or review.get("status") != "REVIEWABLE":
@@ -267,8 +318,17 @@ def main():
         if detail.get("StackName") != STACK or not allowed_changes(
             [item["ResourceChange"] for item in detail.get("Changes", [])],
             {item["logicalId"] for item in runtimes},
+            review.get("detailPolicies", []),
         ):
             raise RuntimeError("Unexpected runtime change set")
+        if review.get("detailPolicies"):
+            before = cf.get_template(StackName=STACK, TemplateStage="Original")["TemplateBody"]
+            after = cf.get_template(ChangeSetName=review["changeSetArn"], TemplateStage="Original")["TemplateBody"]
+            before = json.loads(before) if isinstance(before, str) else before
+            after = json.loads(after) if isinstance(after, str) else after
+            for policy_id in review["detailPolicies"]:
+                if not detail_policy_only(before["Resources"][policy_id], after["Resources"][policy_id], review["detailsBucket"]):
+                    raise RuntimeError("Detail policy changed outside its single read-only object")
         cf.execute_change_set(ChangeSetName=review["changeSetArn"])
         print(json.dumps({"started": STACK, "runtimeIds": [item["runtimeId"] for item in runtimes]}))
     else:

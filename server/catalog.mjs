@@ -5,6 +5,7 @@ import { mkdir, rename, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { hasCredentialQuery, normalizeOfficialDetails } from './official-details.mjs';
 
 const JEJU = { south: 33.1, north: 33.6, west: 126.15, east: 126.98 };
 const MAX_BYTES = 32 * 1024 * 1024;
@@ -96,7 +97,7 @@ function safeUrl(value, mediaOrigin) {
   if (relative ? !mediaOrigin : !/^https?:\/\//i.test(raw)) return null;
   try {
     const url = relative ? new URL(raw, mediaOrigin) : new URL(raw);
-    if (!['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password) return null;
+    if (!['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password || hasCredentialQuery(url)) return null;
     if (relative && (url.origin !== mediaOrigin || !url.pathname.startsWith('/media/'))) return null;
     return url.href;
   } catch {
@@ -185,6 +186,17 @@ function photos(raw, mediaOrigin) {
       license: photo.license, source: text(photo.source) ?? '',
     }];
   });
+}
+
+function mergeOfficialPhotos(existing, details) {
+  const result = [...existing];
+  for (const photo of details.flatMap(detail => detail.photos)) {
+    const index = result.findIndex(item => item.url === photo.url || item.origin_url === photo.origin_url);
+    if (index < 0) result.push(photo);
+    // A duplicate must never reintroduce a derivative of a KOGL 3 original.
+    else if (photo.license === 'KOGL-3' && result[index].license !== 'KOGL-3') result[index] = photo;
+  }
+  return result;
 }
 
 function extraFields(row, mediaOrigin) {
@@ -314,6 +326,7 @@ export class Catalog {
   constructor({
     bucket, key = 'catalog/catalog.sqlite', cacheDir = '/tmp/atlas-catalog', localPath,
     refreshMs = 600000, mediaOrigin = 'https://ohmyjeju.whchoi.net', s3Client, clock = Date.now,
+    detailsLoader,
   } = {}) {
     if (!Number.isFinite(refreshMs) || refreshMs < 0) throw new TypeError('refreshMs must be nonnegative');
     const origin = safeUrl(mediaOrigin);
@@ -328,6 +341,7 @@ export class Catalog {
     this._client = s3Client;
     this._ownsClient = false;
     this._clock = clock;
+    this._detailsLoader = detailsLoader;
     this._snapshot = null;
     this._etag = null;
     this._initialized = false;
@@ -346,7 +360,10 @@ export class Catalog {
     if (this._closed) throw unavailable();
     if (this._initPromise) return this._initPromise;
     if (this._initialized) return this._snapshot ? this.status() : this.refreshIfNeeded();
-    this._initPromise = this._initialize().finally(() => { this._initPromise = null; });
+    this._initPromise = this._initialize().then(async () => {
+      try { await this._detailsLoader?.init(); } catch { /* Official enrichment is optional. */ }
+      return this.status();
+    }).finally(() => { this._initPromise = null; });
     return this._initPromise;
   }
 
@@ -377,6 +394,9 @@ export class Catalog {
   async refreshIfNeeded() {
     if (this._closed) throw unavailable();
     if (!this._initialized) return this.init();
+    if (!this._initPromise) {
+      try { await this._detailsLoader?.refreshIfNeeded(); } catch { /* Retain the base catalog and last-good details. */ }
+    }
     if (this._localPath) return this.status();
     if (this._refreshPromise) return this._refreshPromise;
     if (Number(this._clock()) - this._lastCheck < this._refreshMs) {
@@ -484,6 +504,11 @@ export class Catalog {
   /** @returns {import('../shared/api-types.ts').CatalogStatus} */
   status() {
     const stats = this._snapshot?.stats;
+    let details;
+    if (this._detailsLoader) {
+      try { details = this._detailsLoader.status(); }
+      catch { details = { status: 'unavailable', stale: true }; }
+    }
     return {
       status: stats ? 'ready' : 'unavailable',
       total: stats?.total ?? 0, by_source: { ...stats?.by_source },
@@ -491,6 +516,7 @@ export class Catalog {
       built_at: stats?.built_at ?? null, refreshed_at: this._refreshedAt,
       stale: this._stale, attribution: stats?.attribution ?? ATTRIBUTION,
       photos_count: stats?.photos_count ?? 0, hours_week_count: stats?.hours_week_count ?? 0,
+      ...(details ? { official_details_status: details } : {}),
     };
   }
 
@@ -578,7 +604,22 @@ export class Catalog {
     const rawExtra = hasExtra ? db.prepare('SELECT * FROM place_extra WHERE id = ?').get(id) : null;
     const base = place(row);
     const extra = extraFields(rawExtra, this._mediaOrigin);
-    return { ...base, ...extra, field_evidence: detailEvidence(base, extra) };
+    let official = [];
+    if (this._detailsLoader) {
+      try { official = normalizeOfficialDetails(this._detailsLoader.get(id), { now: this._clock() }); } catch { /* No unvalidated fallback. */ }
+      extra.photos = mergeOfficialPhotos(extra.photos, official);
+    }
+    const fields = detailEvidence(base, extra);
+    official.forEach((detail, index) => {
+      fields[`official_details.${index}`] = {
+        state: 'source_reported', source: detail.provider,
+        observed_at: detail.fetched_at, evidence_url: detail.source_url,
+      };
+    });
+    return {
+      ...base, ...extra, field_evidence: fields,
+      ...(this._detailsLoader ? { official_details: official } : {}),
+    };
   }
 
   close() {
@@ -589,5 +630,6 @@ export class Catalog {
     this._snapshot = null;
     this._stale = true;
     if (this._ownsClient) this._client?.destroy();
+    try { this._detailsLoader?.close(); } catch { /* Optional loader cleanup cannot prevent shutdown. */ }
   }
 }

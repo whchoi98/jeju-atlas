@@ -200,6 +200,54 @@
 .detail-photos figcaption > span { display: block; font-size: 11px; color: #52654b; overflow-wrap: anywhere; }
 .detail-photos figcaption a { color: #648253; }
 .detail-no-photo { width: 100%; text-align: center; padding: 20px; font-size: 10px; color: #9ba990; background: #f5f8ef; }
+.catalog-detail.has-official-details { width: min(440px, calc(100% - 105px)); bottom: 72px; }
+.detail-heading > div { min-width: 0; }
+.detail-breadcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 10px; color: var(--basalt); }
+.detail-breadcrumb > button { color: var(--teal-dark); background: transparent; padding: 4px 0; min-height: 27px; font-size: inherit; }
+.detail-gallery { margin: 0 -17px; border-bottom: 1px solid var(--border); }
+.detail-gallery .detail-photos { margin: 0; display: block; overflow: visible; }
+.detail-gallery .detail-photos > figure { width: 100%; }
+.detail-gallery .detail-photos img { height: 230px; object-fit: contain; filter: none; border-radius: 0; background: #edf3f1; }
+.detail-gallery .detail-photos figcaption { padding: 10px 17px; background: #f6f9f8; }
+.detail-gallery-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 15px 9px; background: #f6f9f8; }
+.detail-gallery-controls > button { width: 38px; height: 34px; display: grid; place-items: center; border: 1px solid #d8e4df; border-radius: 5px; color: var(--teal-dark); background: white; }
+.detail-gallery-controls .icon { width: 15px; height: 15px; }
+#detail-photo-prev .icon { transform: rotate(180deg); }
+#detail-photo-count { color: var(--basalt); font: 11px var(--sans); }
+.official-place-details, .detail-visit-summary { padding: 22px 0 18px; }
+.official-heading { margin-bottom: 9px; }
+.official-heading .eyebrow { font-size: 9px; letter-spacing: 1.1px; }
+.official-provider-tabs { display: flex; gap: 7px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+.official-provider-tabs > button { padding: 9px 13px; min-height: 38px; border-bottom: 2px solid transparent; color: var(--basalt); background: transparent; font-size: 12px; }
+.official-provider-tabs > button[aria-selected="true"] { color: var(--teal-dark); border-bottom-color: var(--teal); font-weight: 700; }
+.official-record-title { margin-bottom: 12px; }
+.official-record-title h3, .detail-visit-summary h3 { color: var(--ink); font: 700 18px/1.6 var(--sans); margin: 0 0 10px; overflow-wrap: anywhere; }
+.official-language { display: inline-block; font-size: 10px; line-height: 1.6; padding: 3px 7px; background: #edf3ef; color: #52695c; border-radius: 4px; }
+.official-overview { font: 13px/1.9 var(--sans); color: #435f61; white-space: pre-line; overflow-wrap: anywhere; word-break: keep-all; }
+.official-overview.is-collapsed { max-height: 7.6em; overflow: hidden; }
+.official-read-more { color: var(--teal-dark); background: transparent; padding: 8px 0; min-height: 34px; font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
+.official-contacts { margin: 17px 0; }
+.official-contacts > div { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; align-items: baseline; margin: 10px 0; }
+.official-contacts dt { color: var(--basalt); font-size: 11px; line-height: 1.8; }
+.official-contacts dd { margin: 0; font-size: 12px; line-height: 1.85; white-space: pre-line; overflow-wrap: anywhere; }
+.official-contacts a { color: var(--teal-dark); text-decoration: underline; text-underline-offset: 3px; display: inline-block; padding-block: 3px; }
+.official-facts { margin: 17px 0; border: 1px solid #dfe8e4; border-radius: 7px; overflow: hidden; }
+.official-facts > div { display: grid; grid-template-columns: minmax(82px, .36fr) minmax(0, 1fr); gap: 12px; padding: 12px; border-bottom: 1px solid #e4ece8; background: #f8fbf9; }
+.official-facts > div:last-child { border-bottom: 0; }
+.official-facts dt { color: #48675e; font-size: 11px; line-height: 1.8; }
+.official-facts dd { margin: 0; color: var(--ink); font-size: 12px; line-height: 1.85; white-space: pre-line; overflow-wrap: anywhere; }
+.official-more-facts { margin: 12px 0; border-top: 1px solid var(--border); }
+.official-more-facts > summary { padding: 12px 0; color: var(--basalt); font-size: 12px; cursor: pointer; }
+.official-more-facts .official-facts { margin-top: 0; }
+.official-source { display: flex; flex-direction: column; gap: 6px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 11px; line-height: 1.75; color: var(--basalt); }
+.official-source > a { color: var(--teal-dark); text-underline-offset: 3px; }
+.official-match { margin-top: 13px; color: var(--basalt); font-size: 11px; line-height: 1.8; }
+.official-match > summary { cursor: pointer; padding-block: 7px; }
+.official-match p { margin: 6px 0; overflow-wrap: anywhere; }
+.catalog-reference-details { border-block: 1px solid var(--border); margin-top: 8px; }
+.catalog-reference-details > summary { padding: 15px 0; color: var(--basalt); font-size: 12px; cursor: pointer; }
+.catalog-reference-details[open] > summary { color: var(--teal-dark); }
+.catalog-reference-details .detail-section:first-of-type { padding-top: 8px; }
 .detail-section { padding: 19px 0; border-bottom: 1px solid #e8efdf; }
 .detail-section > h3 { font-size: 12px; font-weight: 550; color: #4b6d45; margin: 0 0 12px; }
 .detail-section > h3 > span { display: block; font-size: 8px; font-weight: 400; color: #98a889; margin-top: 6px; }
@@ -330,6 +378,11 @@
   .guide-form #guide-limit { font-size: 8px; }
   .guide-recommendation { max-height: 130px; padding: 10px; }
   .catalog-detail { top: auto; bottom: calc(119px + env(safe-area-inset-bottom, 0px)); left: 11px; width: calc(100% - 22px); height: min(65%, 610px); max-height: calc(100% - 180px); border-radius: 12px; z-index: 22; }
+  .catalog-detail.has-official-details { width: calc(100% - 22px); height: min(74%, 650px); max-height: calc(100% - 155px); bottom: calc(119px + env(safe-area-inset-bottom, 0px)); }
+  .detail-gallery .detail-photos img { height: 190px; }
+  .official-place-details, .detail-visit-summary { padding-top: 17px; }
+  .official-record-title h3 { font-size: 17px; }
+  .official-facts > div { grid-template-columns: minmax(76px, .35fr) minmax(0, 1fr); gap: 9px; padding: 10px; }
   .detail-heading { padding: 15px 16px 12px; }
   .detail-heading h2 { font-size: 22px; }
   .detail-action-bar > button { min-height: 37px; font-size: 10px; }

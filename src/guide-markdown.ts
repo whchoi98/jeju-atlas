@@ -88,7 +88,7 @@ async function load(): Promise<Render> {
     },
   } as typeof defaultSchema;
   const processor = unified()
-    .use(remarkParse).use(remarkGfm).use(literalHtmlAndImages)
+    .use(remarkParse).use(remarkGfm, { singleTilde: false }).use(literalHtmlAndImages)
     .use(remarkRehype).use(hardenLinks).use(rehypeSanitize, schema).use(rehypeStringify);
   return async (markdown) => String(await processor.process(markdown));
 }

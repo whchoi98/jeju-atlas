@@ -37,7 +37,7 @@ PREFIX = "pl-22a6434b"
 SETTINGS = ROOT / "infra/production.json"
 STACKS = {
     "bootstrap": BOOTSTRAP, "app": APP, "origin": "Jeju3dOrigin",
-    "edge": "Jeju3dEdge", "operations": "Jeju3dOperations",
+    "edge": "Jeju3dEdge", "operations": "Jeju3dOperations", "data": "Jeju3dData",
 }
 
 
@@ -189,6 +189,21 @@ def infrastructure_parameters(session, kind):
             "LogGroupName": outputs["LogGroupName"],
             "GuideQuotaTableName": outputs["GuideQuotaTableName"],
         }
+    if kind == "data":
+        assert_network(session)
+        values = {
+            "DistributionArn": f"arn:aws:cloudfront::{ACCOUNT}:distribution/{outputs['DistributionId']}",
+            "VpcId": VPC, "PrivateSubnetIds": ",".join(PRIVATE),
+        }
+        if (LOCAL / "data-image.json").is_file():
+            values["WorkerImageUri"] = load("data-image.json")["imageUri"]
+        settings_path = ROOT / "infra/data-settings.json"
+        if settings_path.exists():
+            settings = json.loads(settings_path.read_text())
+            if settings.get("ScheduleState") not in ("ENABLED", "DISABLED") or set(settings) != {"ScheduleState"}:
+                raise ValueError("Data schedule settings must contain only ENABLED or DISABLED ScheduleState")
+            values.update(settings)
+        return values
     raise ValueError("Unexpected infrastructure stack")
 
 
@@ -285,10 +300,17 @@ def plan(session, kind):
         params.update(settings)
         edge = optional_stack_outputs(session, "edge")
         origin = optional_stack_outputs(session, "origin")
+        data = optional_stack_outputs(session, "data")
         if edge:
             params["WebAclArn"] = edge["WebAclArn"]
         if origin:
             params["OriginCertificateArn"] = origin["OriginCertificateArn"]
+        if data:
+            params.update({
+                "DetailsBucket": data["DetailsBucketName"],
+                "MediaBucketDomainName": data["MediaBucketDomainName"],
+                "MediaOriginAccessControlId": data["MediaOriginAccessControlId"],
+            })
         name, template = APP, ROOT / "infra/application.yaml"
     else:
         name, template, params = STACKS[kind], ROOT / f"infra/{kind}.yaml", infrastructure_parameters(session, kind)
@@ -298,13 +320,14 @@ def plan(session, kind):
         if existing["StackStatus"] == "ROLLBACK_COMPLETE":
             raise RuntimeError("Stack rolled back; inspect events before changing it")
         change_type = "CREATE" if existing["StackStatus"] == "REVIEW_IN_PROGRESS" else "UPDATE"
+        if change_type == "UPDATE":
+            for item in existing.get("Parameters", []):
+                if item.get("ParameterValue") and item["ParameterValue"] != "****":
+                    params.setdefault(item["ParameterKey"], item["ParameterValue"])
         if kind == "app" and change_type == "UPDATE":
             outputs = {item["OutputKey"]: item["OutputValue"] for item in existing.get("Outputs", [])}
             # Preserve existing non-secret parameters not overridden by the
             # checked-in settings (for example a previously deployed WebACL).
-            for item in existing.get("Parameters", []):
-                if item.get("ParameterValue") and item["ParameterValue"] != "****":
-                    params.setdefault(item["ParameterKey"], item["ParameterValue"])
             assert_domain(session, settings, outputs)
             assert_origin_tls(session, params, outputs)
             services = session.client("ecs").describe_services(
@@ -390,15 +413,19 @@ def apply(session, kind):
     emit({"started": review["stack"], "changeSet": arn})
 
 
-def build_push(session):
+def build_push(session, data_worker=False):
     cf = session.client("cloudformation")
     ecr = session.client("ecr")
     registry = stack_outputs(cf, BOOTSTRAP)
     uri = registry["RepositoryUri"]
-    release = "release-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    release = ("data-release-" if data_worker else "release-") + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     tag = f"{uri}:{release}"
-    subprocess.run(["node", "scripts/check.mjs"], check=True, cwd=ROOT)
-    subprocess.run(["docker", "build", "--platform", "linux/arm64", "--tag", tag, "."], check=True, cwd=ROOT)
+    if data_worker:
+        subprocess.run(["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "*detail*test.py"], check=True, cwd=ROOT)
+    else:
+        subprocess.run(["node", "scripts/check.mjs"], check=True, cwd=ROOT)
+    subprocess.run(["docker", "build", "--platform", "linux/arm64", "--file",
+                    "Dockerfile.data" if data_worker else "Dockerfile", "--tag", tag, "."], check=True, cwd=ROOT)
     token = ecr.get_authorization_token()["authorizationData"][0]
     username, password = base64.b64decode(token["authorizationToken"]).decode().split(":", 1)
     with tempfile.TemporaryDirectory(prefix="jeju-ecr-") as config:
@@ -409,7 +436,7 @@ def build_push(session):
         subprocess.run(["docker", "--config", config, "push", tag], check=True)
     result = ecr.describe_images(repositoryName="jeju-3d", imageIds=[{"imageTag": release}])["imageDetails"][0]
     image = {"release": release, "tag": tag, "digest": result["imageDigest"], "imageUri": f"{uri}@{result['imageDigest']}"}
-    save("image.json", image)
+    save("data-image.json" if data_worker else "image.json", image)
     emit(image)
 
 
@@ -433,7 +460,7 @@ def status(session, kind):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["network", "build-push", "invalidate"] + [
+    parser.add_argument("action", choices=["network", "build-push", "build-data-push", "invalidate"] + [
         f"{action}-{kind}" for kind in STACKS for action in ["plan", "apply", "status"]
     ])
     args = parser.parse_args()
@@ -448,6 +475,8 @@ def main():
         status(session, args.action.split("-")[1])
     elif args.action == "build-push":
         build_push(session)
+    elif args.action == "build-data-push":
+        build_push(session, data_worker=True)
     elif args.action == "invalidate":
         outputs = stack_outputs(session.client("cloudformation"), APP)
         result = session.client("cloudfront").create_invalidation(

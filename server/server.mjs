@@ -186,10 +186,25 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       const { createApiHandler } = await import('./api.mjs');
       if (process.env.CATALOG_BUCKET || process.env.CATALOG_LOCAL_PATH) {
         const { Catalog } = await import('./catalog.mjs');
+        let detailsLoader;
+        if (process.env.DETAILS_BUCKET || process.env.DETAILS_LOCAL_PATH) {
+          try {
+            const { OfficialDetailsLoader } = await import('./official-details.mjs');
+            detailsLoader = new OfficialDetailsLoader({
+              bucket: process.env.DETAILS_BUCKET, key: process.env.DETAILS_KEY || 'place-details/latest.json',
+              localPath: process.env.DETAILS_LOCAL_PATH,
+              cacheDir: process.env.DETAILS_CACHE_DIR || '/tmp/atlas-details',
+              mediaOrigin: process.env.DETAILS_MEDIA_ORIGIN || 'https://jeju-atlas.whchoi.net',
+            });
+          } catch {
+            try { onDiagnostic?.({ event: 'official_details_status', status: 'unavailable', code: 'configuration_error' }); } catch { /* Optional diagnostic. */ }
+          }
+        }
         catalog = new Catalog({
           bucket: process.env.CATALOG_BUCKET, key: process.env.CATALOG_KEY || 'catalog/catalog.sqlite',
           cacheDir: process.env.CATALOG_CACHE_DIR || '/tmp/atlas-catalog',
           localPath: process.env.CATALOG_LOCAL_PATH, mediaOrigin: process.env.MEDIA_ORIGIN,
+          detailsLoader,
         });
         await catalog.init();
       }

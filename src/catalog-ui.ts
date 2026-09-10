@@ -1,7 +1,7 @@
-import type { CatalogPlace, CatalogStatus, PlaceDetail, SourceRecord, WeatherResult } from '../shared/api-types';
+import type { CatalogPlace, CatalogStatus, OfficialPlaceDetail, PlaceDetail, PlacePhoto, SourceRecord, WeatherResult } from '../shared/api-types';
 import type { CatalogPoints } from './catalog-map';
 import type { PlaceSnapshot, TripPlanner } from './trip';
-import { aborted, apiJSON, catalogBounds, categoryName, dateLabel, distanceLabel, distanceMeters, html, isJejuPoint, link, safeURL, sourceName } from './api';
+import { aborted, apiJSON, catalogBounds, categoryName, dateLabel, distanceLabel, distanceMeters, html, isJejuPoint, link, sourceName } from './api';
 import { categorySymbol, icon } from './icons';
 import { hoursText } from './guide-facts';
 import { getLocale, placeName, t } from './i18n';
@@ -24,6 +24,80 @@ const numberLabel = (value: number | null, unit: string) => value == null || !Nu
 const categoryColor = (category: string) => ['food', 'restaurant', 'cafe', '맛집', '카페', '시장'].includes(category) ? 'food'
   : ['stay', 'hotel', 'accommodation', 'lodging', '숙소', '박물관'].includes(category) ? 'stay'
     : ['nature', 'mountain', 'park', '오름', '올레길'].includes(category) ? 'nature' : 'place';
+
+function publicProviderURL(value: unknown): string | null {
+  if (typeof value !== 'string' || !value.trim() || value.length > 4000) return null;
+  try {
+    const url = new URL(value);
+    if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) return null;
+    if ([...url.searchParams.keys()].some(key => /^(?:service[_-]?key|api[_-]?key|access[_-]?token|authorization)$/i.test(key))) return null;
+    return url.href;
+  } catch { return null; }
+}
+function providerText(value: unknown, limit = 20000): string {
+  if (typeof value !== 'string') return '';
+  // Provider fields are displayed as text, never trusted HTML.
+  const text = value.slice(0, limit).replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+    .replace(/<br\s*\/?>|<\/(?:p|div|li)>/gi, '\n').replace(/<[^>]*>/g, '');
+  return text.replace(/&(amp|lt|gt|quot|apos|nbsp);/g, (_match, entity: string) => ({
+    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+  }[entity] ?? '')).replace(/\n{3,}/g, '\n\n').trim();
+}
+function phoneHTML(value: unknown): string {
+  const label = providerText(value, 200);
+  // A range such as 064-710-7911~2 links to the first complete number.
+  const candidate = label.match(/\+?\d[\d().\s-]{5,30}\d/)?.[0].replace(/[^\d+]/g, '');
+  return candidate && /^\+?\d{7,15}$/.test(candidate)
+    ? `<a class="detail-phone" href="tel:${candidate}">${html(label)}</a>` : html(label);
+}
+type OfficialFact = OfficialPlaceDetail['facts'][number];
+function factContext(fact: OfficialFact): string {
+  return `${fact.key} ${fact.label_ko} ${fact.label_en}`.toLowerCase().replace(/\s+/g, '');
+}
+function factPriority(fact: OfficialFact): number {
+  const context = factContext(fact);
+  const groups = [
+    /hours|usetime|opentime|visitingtime|season|이용시간|운영시간|관람시간|개방시간|계절/,
+    /restdate|restday|closeddays|holiday|휴무|휴일|쉬는날/,
+    /admission|fee|price|입장료|요금|금액/,
+    /parking|주차/,
+    /access|wheelchair|stroller|접근|장애|유모차/,
+    /restroom|toilet|화장실/,
+  ];
+  const index = groups.findIndex(group => group.test(context));
+  return index < 0 ? groups.length : index;
+}
+function visitorFacts(record: OfficialPlaceDetail): OfficialFact[] {
+  return (Array.isArray(record.facts) ? record.facts : []).filter(fact => {
+    if (!fact || !providerText(fact.value) || (!providerText(fact.label_ko, 160) && !providerText(fact.label_en, 160))) return false;
+    const value = providerText(fact.value);
+    const key = providerText(fact.key, 80).toLowerCase();
+    if (/^[01]$/.test(value)) {
+      const quantitative = /fee|price|cost|admission|capacity|number|count|spaces|area|floor|금액|요금|입장료|수용|대수|면수|인원|면적|개수|횟수|층/.test(factContext(fact));
+      if (/^heritage\d*$/.test(key) || !quantitative) return false;
+    }
+    if (/^(?:phone|tel|telephone|infocenter|contact|contact_info)$/.test(key) && value === providerText(record.phone)) return false;
+    if (/^(?:address|roadaddress)$/.test(key) && value === providerText(record.address)) return false;
+    return true;
+  }).slice(0, 40).sort((a, b) => factPriority(a) - factPriority(b));
+}
+function factText(fact: OfficialFact): string {
+  const value = providerText(fact.value, 8000);
+  if (![0, 2].includes(factPriority(fact))) return value;
+  return value.replace(/\s*(\[[^\]]{1,100}\])\s*/g, '\n\n$1\n')
+    .replace(/\s*-\s+(?=[^\d\s])/g, '\n- ').replace(/\n{3,}/g, '\n\n').trim();
+}
+function officialRecords(place: PlaceDetail): OfficialPlaceDetail[] {
+  const records = Array.isArray(place.official_details) ? place.official_details.filter(item =>
+    item && ['tourapi', 'visitjeju'].includes(item.provider) && ['ko', 'en'].includes(item.locale)
+    && typeof item.provider_id === 'string' && providerText(item.title, 500) && publicProviderURL(item.source_url)) : [];
+  return (['tourapi', 'visitjeju'] as const).flatMap(provider => {
+    const candidates = records.filter(item => item.provider === provider);
+    const selected = candidates.find(item => item.locale === getLocale())
+      ?? candidates.find(item => item.locale === 'ko') ?? candidates[0];
+    return selected ? [selected] : [];
+  });
+}
 
 export class CatalogUI {
   private root: HTMLElement;
@@ -52,6 +126,9 @@ export class CatalogUI {
   private previousFocus: HTMLElement | null = null;
   private mapReady = false;
   private savedFallback: PlaceSnapshot | undefined;
+  private photoIndex = 0;
+  private photoItems: PlacePhoto[] = [];
+  private officialProvider: OfficialPlaceDetail['provider'] = 'tourapi';
 
   constructor(root: HTMLElement, detailRoot: HTMLElement, options: CatalogOptions) {
     this.root = root;
@@ -128,6 +205,28 @@ export class CatalogUI {
       if (target) void this.openPlace(target.dataset.catalogId!);
     });
     detailRoot.addEventListener('click', (event) => this.detailClick(event));
+    detailRoot.addEventListener('keydown', event => {
+      const target = event.target as HTMLElement;
+      if (this.photoItems.length > 1 && target.closest('.detail-gallery') && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        this.setPhoto(event.key === 'Home' ? 0 : event.key === 'End' ? this.photoItems.length - 1
+          : this.photoIndex + (event.key === 'ArrowRight' ? 1 : -1));
+      }
+      const tab = target.closest<HTMLButtonElement>('[data-official-provider]');
+      if (tab && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        const tabs = [...detailRoot.querySelectorAll<HTMLButtonElement>('[data-official-provider]')];
+        const index = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+          : (tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
+        tabs[index]?.click(); tabs[index]?.focus();
+      }
+    });
+    detailRoot.addEventListener('error', event => {
+      if (event.target !== detailRoot.querySelector('#detail-photo-image')) return;
+      (event.target as HTMLImageElement).hidden = true;
+      const notice = detailRoot.querySelector<HTMLElement>('#detail-photo-error');
+      if (notice) notice.hidden = false;
+    }, true);
     window.addEventListener('atlas:saved-change', () => this.updateSavedButtons());
     window.addEventListener('online', () => {
       void this.loadStatus();
@@ -144,9 +243,12 @@ export class CatalogUI {
       if (this.detailRoot.hidden || !this.currentDetail) return;
       const scroll = this.detailRoot.querySelector<HTMLElement>('.detail-content')?.scrollTop ?? 0;
       const weather = this.detailRoot.querySelector('#place-weather');
+      const referenceOpen = this.detailRoot.querySelector<HTMLDetailsElement>('#catalog-reference-details')?.open;
       const focusedAction = document.activeElement instanceof HTMLElement && this.detailRoot.contains(document.activeElement)
         ? document.activeElement.dataset.detailAction : undefined;
       this.renderDetail(this.currentDetail);
+      const reference = this.detailRoot.querySelector<HTMLDetailsElement>('#catalog-reference-details');
+      if (reference) reference.open = Boolean(referenceOpen);
       if (weather) this.detailRoot.querySelector('#place-weather')?.replaceWith(weather);
       const content = this.detailRoot.querySelector<HTMLElement>('.detail-content');
       if (content) content.scrollTop = scroll;
@@ -399,6 +501,7 @@ export class CatalogUI {
   async openPlace(id: string, saved?: PlaceSnapshot): Promise<void> {
     this.detailController?.abort();
     this.weatherController?.abort();
+    if (this.detailId !== id) { this.photoIndex = 0; this.officialProvider = 'tourapi'; }
     this.detailId = id;
     this.savedFallback = saved;
     this.currentDetail = null;
@@ -456,8 +559,131 @@ export class CatalogUI {
     return sources.length ? sources.map((source) => `<li>${link(source.url, sourceName(source.source))}<span>관측 ${html(dateLabel(source.observed_at))} · 이용허락 ${html(source.license || noData)}</span>${source.note ? `<span>${html(source.note)}</span>` : ''}</li>`).join('') : `<li>${noData}</li>`;
   }
 
+  private photoFigure(place: PlaceDetail): string {
+    const photo = this.photoItems[this.photoIndex];
+    if (!photo) return '';
+    const original = publicProviderURL(photo.origin_url);
+    return `<figure><img id="detail-photo-image" src="${html(photo.url)}" alt="${html(placeName(place))} · ${t('제공 사진')}" decoding="async">
+      <div id="detail-photo-error" class="feature-empty" role="status" hidden><p>${t('사진을 불러오지 못했어요. 다른 사진을 선택하거나 다시 시도해 주세요.')}</p><button data-detail-action="photo-retry">${t('사진 다시 불러오기')}</button></div>
+      <figcaption id="detail-photo-caption"><span class="photo-credit" data-i18n-ignore>${html(photo.credit || t('사진 크레딧 정보 없음'))}</span><span>${html(photo.license || t('이용허락 정보 없음'))} · ${html(sourceName(photo.source))}${original ? ` · <a id="detail-photo-origin" href="${html(original)}" target="_blank" rel="noopener noreferrer">${t('원본 출처')} ↗</a>` : ''}</span>${/KOGL[- ]?[34]/i.test(photo.license) ? `<span>${t('변경 금지 사진 · 원본 비율로 표시')}</span>` : ''}</figcaption></figure>`;
+  }
+
+  private renderGallery(place: PlaceDetail): string {
+    // The backend merges and licenses provider photos into this authoritative list.
+    const provided = Array.isArray(place.photos) ? place.photos : [];
+    const seen = new Set<string>();
+    this.photoItems = provided.filter(photo => {
+      const url = publicProviderURL(photo?.url);
+      if (!url || seen.has(url)) return false;
+      seen.add(url); return true;
+    }).slice(0, 12);
+    if (!this.photoItems.length) return '';
+    this.photoIndex = Math.min(this.photoIndex, this.photoItems.length - 1);
+    return `<section id="detail-photo-gallery" class="detail-gallery" tabindex="-1" aria-label="${t('장소 사진 갤러리')}"><div id="detail-gallery-image" class="detail-photos">${this.photoFigure(place)}</div>
+      <div class="detail-gallery-controls"${this.photoItems.length < 2 ? ' hidden' : ''}>
+        <button id="detail-photo-prev" data-detail-action="photo-prev" aria-label="${t('이전 사진')}">${icon('chevron')}</button>
+        <span id="detail-photo-count" role="status" aria-live="polite">${t('사진')} ${this.photoIndex + 1} / ${this.photoItems.length}</span>
+        <button id="detail-photo-next" data-detail-action="photo-next" aria-label="${t('다음 사진')}">${icon('chevron')}</button>
+      </div></section>`;
+  }
+
+  private setPhoto(index: number): void {
+    if (!this.currentDetail || !this.photoItems.length) return;
+    const gallery = this.detailRoot.querySelector('#detail-gallery-image');
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const replacingFocus = Boolean(gallery && active && gallery.contains(active));
+    const restoreOrigin = active?.id === 'detail-photo-origin';
+    this.photoIndex = (index + this.photoItems.length) % this.photoItems.length;
+    if (gallery) gallery.innerHTML = this.photoFigure(this.currentDetail);
+    const counter = this.detailRoot.querySelector('#detail-photo-count');
+    if (counter) counter.textContent = `${t('사진')} ${this.photoIndex + 1} / ${this.photoItems.length}`;
+    if (replacingFocus) {
+      const target = restoreOrigin ? this.detailRoot.querySelector<HTMLElement>('#detail-photo-origin') : null;
+      (target ?? this.detailRoot.querySelector<HTMLElement>('#detail-photo-gallery'))?.focus({ preventScroll: true });
+    }
+  }
+
+  private providerPanel(record: OfficialPlaceDetail): string {
+    const overview = providerText(record.overview);
+    const website = publicProviderURL(record.website);
+    const source = publicProviderURL(record.source_url)!;
+    const sourceURL = new URL(source);
+    const exactVisitJejuPage = record.provider === 'visitjeju'
+      && /(^|\.)visitjeju\.net$/i.test(sourceURL.hostname)
+      && /^\/(?:kr|en)\/detail\/view\/?$/.test(sourceURL.pathname)
+      && sourceURL.searchParams.get('contentsid') === record.provider_id;
+    const sourceLabel = t(exactVisitJejuPage ? '제공처 원문' : '정보 제공처');
+    const contacts = [
+      record.address ? `<div><dt>${t('주소')}</dt><dd data-i18n-ignore>${html(providerText(record.address, 1000))}</dd></div>` : '',
+      record.phone ? `<div><dt>${t('전화')}</dt><dd>${phoneHTML(record.phone)}</dd></div>` : '',
+      website ? `<div><dt>${t('웹사이트')}</dt><dd><a href="${html(website)}" target="_blank" rel="noopener noreferrer">${t('방문 안내 웹사이트')} ↗</a></dd></div>` : '',
+    ].join('');
+    const facts = visitorFacts(record);
+    const primary = facts.filter(fact => factPriority(fact) < 6);
+    const additional = facts.filter(fact => factPriority(fact) === 6);
+    const factRows = (items: OfficialFact[]) => items.map(fact => `<div data-official-fact="${html(providerText(fact.key, 80))}"><dt data-i18n-ignore>${html(providerText(getLocale() === 'en' ? fact.label_en || fact.label_ko : fact.label_ko || fact.label_en, 160))}</dt><dd data-i18n-ignore>${html(factText(fact))}</dd></div>`).join('');
+    const distance = record.match?.distance_m;
+    const coordinates = isJejuPoint(record.longitude, record.latitude)
+      ? `${record.latitude!.toFixed(5)}° N, ${record.longitude!.toFixed(5)}° E` : null;
+    const fetched = dateLabel(record.fetched_at, true);
+    return `<div class="official-provider-panel" id="official-provider-panel" role="tabpanel" aria-labelledby="official-tab-${record.provider}" data-official-locale="${record.locale}" data-provider-id="${html(record.provider_id)}">
+      <div class="official-record-title"><h3 data-i18n-ignore>${html(providerText(record.title, 500))}</h3>${record.locale !== getLocale() ? `<span class="official-language">${t(record.locale === 'ko' ? '한국어 원문' : '영어 원문')}</span>` : ''}</div>
+      ${record.stale ? `<p class="micro-note official-stale" role="status">${t('최근 갱신이 지연된 제공처 자료입니다. 이용 전 제공처에 확인해 주세요.')}</p>` : ''}
+      ${contacts ? `<dl class="official-contacts">${contacts}</dl>` : ''}
+      ${overview ? `<p class="official-overview${overview.length > 320 ? ' is-collapsed' : ''}" id="official-overview" data-i18n-ignore>${html(overview)}</p>${overview.length > 320 ? `<button class="official-read-more" data-detail-action="official-expand" aria-expanded="false" aria-controls="official-overview">${t('소개 더 읽기')}</button>` : ''}` : ''}
+      ${primary.length ? `<dl class="official-facts official-primary-facts">${factRows(primary)}</dl>` : ''}
+      ${additional.length ? `<details class="official-more-facts"><summary>${t('추가 제공 정보')} (${additional.length})</summary><dl class="official-facts">${factRows(additional)}</dl></details>` : ''}
+      ${!overview && !contacts && !facts.length ? `<p class="micro-note">${t('상세 항목은 제공처 원문에서 확인해 주세요.')}</p>` : ''}
+      <div class="official-source"><a href="${html(source)}" target="_blank" rel="noopener noreferrer">${html(sourceName(record.provider))} · ${sourceLabel} ↗</a><span>${t('조회 시각')} <time datetime="${html(record.fetched_at)}">${html(fetched === noData ? t(noData) : `${fetched} KST`)}</time></span></div>
+      <details class="official-match"><summary>${t('카탈로그와의 연결 정보')}</summary><p>${t('연결된 제공처 자료이며, 동일 장소의 검토 완료를 뜻하지 않습니다. 지도 위치는 카탈로그 좌표를 유지합니다.')}</p>${typeof distance === 'number' && Number.isFinite(distance) && distance >= 0 ? `<p>${t('카탈로그 위치와의 거리')}: ${html(distanceLabel(distance))}</p>` : ''}${coordinates ? `<p>${t('제공처 좌표')}: <span data-i18n-ignore>${coordinates}</span></p>` : ''}<p>${t('제공처 기록 ID')}: <span data-i18n-ignore>${html(providerText(record.provider_id, 200))}</span></p></details>
+    </div>`;
+  }
+  private renderOfficialDetails(place: PlaceDetail): string {
+    const records = officialRecords(place);
+    if (!records.length) return '';
+    if (!records.some(item => item.provider === this.officialProvider)) this.officialProvider = records[0].provider;
+    const selected = records.find(item => item.provider === this.officialProvider)!;
+    return `<section id="official-place-details" class="official-place-details" aria-label="${t('관광정보 제공처 안내')}">
+      <div class="official-heading"><span class="eyebrow">${t('제공처 안내')}</span></div>
+      <div class="official-provider-tabs" role="tablist" aria-label="${t('관광정보 제공처')}">${records.map(item =>
+        `<button type="button" role="tab" id="official-tab-${item.provider}" data-official-provider="${item.provider}" aria-controls="official-provider-panel" aria-selected="${item.provider === this.officialProvider}" tabindex="${item.provider === this.officialProvider ? '0' : '-1'}">${item.provider === 'tourapi' ? 'TourAPI' : 'VisitJeju'}</button>`).join('')}</div>
+      ${this.providerPanel(selected)}
+    </section>`;
+  }
+
+  private setOfficialProvider(provider: OfficialPlaceDetail['provider']): void {
+    if (!this.currentDetail) return;
+    const record = officialRecords(this.currentDetail).find(item => item.provider === provider);
+    if (!record) return;
+    this.officialProvider = provider;
+    const panel = this.detailRoot.querySelector('#official-provider-panel');
+    if (panel) panel.outerHTML = this.providerPanel(record);
+    this.detailRoot.querySelectorAll<HTMLButtonElement>('[data-official-provider]').forEach(tab => {
+      const selected = tab.dataset.officialProvider === provider;
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+    });
+  }
+
+  private renderCatalogVisitInfo(place: PlaceDetail): string {
+    const overview = providerText(place.overview || place.summary);
+    const website = publicProviderURL(place.url);
+    return `<section class="detail-visit-summary"><h3>${t('방문 정보')}</h3>
+      ${overview ? `<p class="official-overview" data-i18n-ignore>${html(overview)}</p>` : ''}
+      <dl class="official-contacts">
+        ${place.address ? `<div><dt>${t('주소')}</dt><dd data-i18n-ignore>${html(place.address)}</dd></div>` : ''}
+        ${place.phone ? `<div><dt>${t('전화')}</dt><dd>${phoneHTML(place.phone)}</dd></div>` : ''}
+        ${place.hours ? `<div><dt>${t('이용시간')}</dt><dd data-i18n-ignore>${html(providerText(place.hours, 3000))}</dd></div>` : ''}
+        ${website ? `<div><dt>${t('장소 링크')}</dt><dd><a href="${html(website)}" target="_blank" rel="noopener noreferrer">${t('방문 안내 웹사이트')} ↗</a></dd></div>` : ''}
+      </dl>
+      ${!overview && !place.address && !place.phone && !place.hours ? `<p>${t('현재 제공된 방문 정보가 없습니다.')}</p>` : ''}
+      <p class="micro-note">${t('기본 출처')}: ${html(place.source_label || sourceName(place.source))}</p></section>`;
+  }
+
   private renderDetail(place: PlaceDetail): void {
     const focusInside = this.detailRoot.contains(document.activeElement);
+    const official = officialRecords(place);
+    this.detailRoot.classList.toggle('has-official-details', official.length > 0);
     const curated = /curated|seed|큐레이션/i.test(`${place.source} ${place.source_label}`);
     const note = place.base_note || (curated ? '큐레이션 시드의 좌표·주소·소개는 공식 대조 검증 정보가 아닙니다. 보강된 항목의 출처를 각각 확인해 주세요.' : '기본 정보와 아래 보강 정보의 출처를 함께 확인해 주세요.');
     const days = ['월', '화', '수', '목', '금', '토', '일'];
@@ -469,16 +695,15 @@ export class CatalogUI {
     const parsedHours = place.hours_source === 'tourapi_usetime' || place.field_evidence?.hours_week?.state === 'parsed';
     const baseEvidence = `<dl class="base-evidence" aria-label="기본 필드별 근거">${[['name', '이름'], ['lat', '위도'], ['lng', '경도'], ['address', '주소'], ['summary', '기본 소개']].map(([path, label]) => `<div><dt>${label}</dt><dd>${evidenceHTML(place.field_evidence, path)}</dd></div>`).join('')}</dl>`;
     this.detailRoot.innerHTML = `
-      <div class="detail-heading"><div><span class="eyebrow">${html(categoryName(place.category))} · PLACE NOTES</span><h2 tabindex="-1" data-i18n-ignore>${html(placeName(place))}</h2>${place.name_en ? `<span class="detail-english" data-i18n-ignore>${html(getLocale() === 'en' ? place.name : place.name_en)}</span>` : ''}</div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div>
+      <div class="detail-heading"><div><nav class="detail-breadcrumb" aria-label="${t('장소 탐색 경로')}"><button data-detail-action="back">${t('이전 화면')}</button><span aria-hidden="true">›</span><span>${html(categoryName(place.category))}</span></nav><h2 tabindex="-1" data-i18n-ignore>${html(placeName(place))}</h2>${place.name_en ? `<span class="detail-english" data-i18n-ignore>${html(getLocale() === 'en' ? place.name : place.name_en)}</span>` : ''}</div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div>
       <div class="detail-action-bar"><button id="detail-favorite" data-detail-action="favorite" aria-pressed="${this.options.planner.isFavorite(place.id)}">${icon('pin')}즐겨찾기</button><button id="detail-add-trip" data-detail-action="add">${icon('plus')}내 여행에 담기</button><button data-detail-action="map">${icon('expand')}지도 보기</button></div>
       <p id="detail-save-status" class="detail-save-status" role="status" hidden></p>
       <div class="detail-related-actions"><button data-detail-action="nearby">${icon('compass')}주변 장소</button><button data-detail-action="category">${icon(categorySymbol(place.category).icon)}${html(categoryName(place.category))} 더 보기</button></div>
       <div class="detail-content">
-        <div class="detail-photos">${place.photos.slice(0, 8).map((photo) => {
-          const url = safeURL(photo.url);
-          return url ? `<figure><img src="${html(url)}" alt="${html(place.name)} · ${html(photo.source)} 제공 사진" loading="lazy" decoding="async"><figcaption>${html(photo.credit || '사진 크레딧 정보 없음')}<span>${html(photo.license || '이용허락 정보 없음')} · ${html(sourceName(photo.source))}${photo.origin_url ? ` · ${link(photo.origin_url, '원본 출처')}` : ''}</span>${/KOGL[- ]?[34]/i.test(photo.license) ? '<span>변경 금지 사진 · 원본 비율로 표시</span>' : ''}</figcaption></figure>` : '';
-        }).join('') || '<div class="detail-no-photo">제공된 사진 없음</div>'}</div>
-        <section class="detail-section"><h3>기본 정보 <span>${html(place.source_label || sourceName(place.source))}</span></h3><p class="detail-base-note">${html(note)}</p>${baseEvidence}<p class="detail-overview">${html(place.summary || t('기본 소개 정보 없음'))}</p><dl class="detail-basics"><div><dt>주소</dt><dd>${html(place.address || noData)}</dd></div><div><dt>전화</dt><dd>${place.phone ? html(place.phone) : noData}</dd></div><div><dt>좌표</dt><dd class="mono">${place.lat.toFixed(5)}° N, ${place.lng.toFixed(5)}° E</dd></div><div><dt>장소 링크</dt><dd>${place.url ? link(place.url, /openstreetmap\.org/i.test(place.url) ? 'OpenStreetMap 원문' : '장소 링크') : noData}</dd></div><div><dt>기본 정보 갱신</dt><dd>${html(dateLabel(place.updated_at))}</dd></div></dl><p class="micro-note">장소 이름·주소·소개는 제공된 원문이 표시될 수 있습니다.</p></section>
+        ${this.renderGallery(place)}
+        ${official.length ? this.renderOfficialDetails(place) : this.renderCatalogVisitInfo(place)}
+        <details id="catalog-reference-details" class="catalog-reference-details"><summary>${t('카탈로그 기록과 출처')}</summary>
+        <section class="detail-section"><h3>기본 정보 <span>${html(place.source_label || sourceName(place.source))}</span></h3><p class="detail-base-note">${html(note)}</p>${baseEvidence}<p class="detail-overview">${html(place.summary || t('기본 소개 정보 없음'))}</p><dl class="detail-basics"><div><dt>주소</dt><dd>${html(place.address || noData)}</dd></div><div><dt>전화</dt><dd>${place.phone ? phoneHTML(place.phone) : noData}</dd></div><div><dt>좌표</dt><dd class="mono">${place.lat.toFixed(5)}° N, ${place.lng.toFixed(5)}° E</dd></div><div><dt>장소 링크</dt><dd>${place.url ? link(place.url, /openstreetmap\.org/i.test(place.url) ? 'OpenStreetMap 원문' : '장소 링크') : noData}</dd></div><div><dt>기본 정보 갱신</dt><dd>${html(dateLabel(place.updated_at))}</dd></div></dl><p class="micro-note">장소 이름·주소·소개는 제공된 원문이 표시될 수 있습니다.</p></section>
         <section class="detail-section"><h3>보강 소개</h3><p class="detail-overview">${html(place.overview || t(noData))}</p><p class="micro-note">소개 관련 보강 출처: ${overviewSources.map((source) => html(sourceName(source.source))).join(' · ') || noData}</p></section>
         <section class="detail-section"><h3>요일별 이용시간</h3>${evidenceHTML(place.field_evidence, 'hours_week')}<table class="hours-table"><caption>${parsedHours ? '이용시간 문구에서 변환한 참고 시간 · 휴무일 미확인' : '제공된 요일별 이용시간 · 월요일 기준'}</caption><tbody>${days.map((day, index) => {
           const rows = place.hours_week.filter((row) => row.day === index);
@@ -487,8 +712,9 @@ export class CatalogUI {
         <section class="detail-section"><h3>편의 정보</h3><dl class="facility-grid">${Object.entries(facilities).map(([key, label]) => `<div><dt>${label}</dt><dd>${html(facilityValue[place.facilities[key]] ?? place.facilities[key] ?? noData)}${evidenceHTML(place.field_evidence, `facilities.${key}`)}</dd></div>`).join('')}</dl><p class="micro-note">항목별 상세 근거는 아래 보강 출처에서 확인하세요. 제공되지 않은 항목은 정보 없음으로 표시합니다.</p></section>
         <section class="detail-section"><h3>인허가 정보</h3><p id="business-registration">인허가 상태: ${business}</p>${evidenceHTML(place.field_evidence, 'business_status')}<p class="micro-note">${html(place.registration_note || '해당 인허가 기록의 상태이며 장소 전체의 운영 여부를 확정하지 않습니다. 현재 시각의 영업 여부를 뜻하지 않습니다.')}</p><ul class="detail-sources">${this.sourceList(businessSources)}</ul></section>
         <section class="detail-section"><h3>제공된 메뉴</h3>${place.menu.length ? `<ul class="detail-menu">${place.menu.slice(0, 20).map((item) => `<li><strong>${html(item.name)}</strong><span>${item.price_krw == null ? '가격 정보 없음' : `${item.price_krw.toLocaleString('ko-KR')}원`}</span><small>출처 ${html(sourceName(item.source))}</small></li>`).join('')}</ul>` : '<p class="micro-note">메뉴 정보 없음</p>'}</section>
-        <section id="place-weather" class="detail-section" aria-live="polite"><h3>이 장소의 날씨</h3><p class="micro-note">현재 날씨와 3일 예보를 확인하는 중…</p></section>
         <section class="detail-section"><h3>보강 출처와 관측일</h3><p class="micro-note">기본 필드의 검증 여부와 보강 항목의 출처는 별개입니다.</p><ul class="detail-sources">${this.sourceList(place.sources)}</ul><p class="micro-note">보강 갱신 ${html(dateLabel(place.enriched_at))}</p></section>
+        </details>
+        <section id="place-weather" class="detail-section" aria-live="polite"><h3>이 장소의 날씨</h3><p class="micro-note">현재 날씨와 3일 예보를 확인하는 중…</p></section>
       </div>`;
     this.updateSavedButtons();
     if (focusInside) this.detailRoot.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
@@ -513,9 +739,24 @@ export class CatalogUI {
   }
 
   private detailClick(event: MouseEvent): void {
+    const provider = (event.target as HTMLElement).closest<HTMLElement>('[data-official-provider]')?.dataset.officialProvider;
+    if (provider === 'tourapi' || provider === 'visitjeju') { this.setOfficialProvider(provider); return; }
     const action = (event.target as HTMLElement).closest<HTMLElement>('[data-detail-action]')?.dataset.detailAction;
     if (!action) return;
-    if (action === 'close') { this.closeDetail(); return; }
+    if (action === 'photo-prev') { this.setPhoto(this.photoIndex - 1); return; }
+    if (action === 'photo-next') { this.setPhoto(this.photoIndex + 1); return; }
+    if (action === 'photo-retry') { this.setPhoto(this.photoIndex); return; }
+    if (action === 'official-expand') {
+      const paragraph = this.detailRoot.querySelector('#official-overview');
+      const button = this.detailRoot.querySelector<HTMLButtonElement>('[data-detail-action="official-expand"]');
+      if (paragraph && button) {
+        const collapsed = paragraph.classList.toggle('is-collapsed');
+        button.setAttribute('aria-expanded', String(!collapsed));
+        button.textContent = t(collapsed ? '소개 더 읽기' : '소개 접기');
+      }
+      return;
+    }
+    if (action === 'close' || action === 'back') { this.closeDetail(); return; }
     if (action === 'retry') { void this.openPlace(this.detailId, this.savedFallback); return; }
     if (action === 'weather') { if (this.currentDetail) void this.loadWeather(this.currentDetail); return; }
     const place = this.currentDetail ?? this.savedFallback;

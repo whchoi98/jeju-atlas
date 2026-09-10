@@ -5,6 +5,11 @@ import { categories, formatCoordinates, places, tourStops, type Place } from './
 import type { AtlasMap, ViewState } from './map';
 import { AtlasExperience } from './explore';
 import { getLocale, initializeI18n, placeName, t } from './i18n';
+import { html } from './api';
+import {
+  DEFAULT_TOUR, createTourTrack, loadOlleRoute, loadTourManifest, routeBounds, routeDistance, tourLabel, tourText,
+  type OlleRoute, type TourChoice, type TourManifest,
+} from './tours';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let atlas: AtlasMap | undefined;
@@ -17,6 +22,17 @@ let mapReady = false;
 let pendingFly: Place | undefined;
 let tourIndex = -1;
 let tourTimer: ReturnType<typeof setTimeout> | undefined;
+let tourAnimation: number | undefined;
+let selectedTour = DEFAULT_TOUR;
+let tourManifest: TourManifest | undefined;
+let manifestFailed = false;
+let activeTrail: OlleRoute | undefined;
+let trailController: AbortController | undefined;
+let trailLoading = false;
+let trailFailed = false;
+let trailProgress = 0;
+let trailPart = 0;
+let tourInfoKey = '';
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 let lastState: ViewState | undefined;
 let initializationId = 0;
@@ -78,11 +94,19 @@ app.innerHTML = `
       <div class="map-vignette" aria-hidden="true"></div>
       <div class="map-topline">
         <div class="view-badge"><span class="view-status-dot"></span><strong id="view-mode-label">3D 지형</strong><span class="view-badge-separator"></span><span id="view-base-label">위성 영상</span></div>
-        <button class="button tour-button" id="tour-button" data-map-action disabled>${icon('play')}<span>제주 한 바퀴</span><span class="tour-button-detail">자동 둘러보기</span></button>
+        <div class="tour-controls" data-i18n-ignore>
+          <label for="tour-theme" class="sr-only" id="tour-theme-label">둘러보기 테마</label>
+          <select id="tour-theme" aria-describedby="tour-coverage"><option value="jeju-loop">제주 한 바퀴</option></select>
+          <button class="button tour-button" id="tour-button" data-map-action disabled>${icon('play')}<span>둘러보기 시작</span></button>
+          <span class="sr-only" id="tour-coverage"></span>
+        </div>
       </div>
-      <div class="tour-progress" id="tour-progress" hidden aria-live="polite">
-        <div class="tour-progress-heading"><span class="tour-running-dot"></span><span>제주 한 바퀴</span><strong id="tour-count">1 / 5</strong><button id="tour-stop" aria-label="자동 둘러보기 중지">${icon('close')}</button></div>
-        <div class="tour-stops" id="tour-stops"></div>
+      <div class="tour-panel" id="tour-panel" data-i18n-ignore hidden>
+        <div class="tour-info" id="tour-info"></div>
+        <div class="tour-progress" id="tour-progress" hidden>
+          <div class="tour-progress-heading"><span class="tour-running-dot"></span><span id="tour-title">제주 한 바퀴</span><strong id="tour-count">1 / 5</strong><button id="tour-stop" aria-label="둘러보기 멈춤">${icon('close')}</button></div>
+          <div class="tour-stops" id="tour-stops"></div>
+        </div>
       </div>
       <div class="map-tools" aria-label="지도 조작">
         <div class="navigation-tools control-surface">
@@ -286,6 +310,7 @@ function setMapReady(ready: boolean): void {
   document.querySelectorAll<HTMLButtonElement | HTMLInputElement>('[data-map-action]').forEach((control) => { control.disabled = !ready; });
   renderSelected();
   if (lastState) updateView(lastState);
+  renderTour();
 }
 
 function showMapError(message: string, fatal: boolean): void {
@@ -326,6 +351,10 @@ async function initializeMap(stateOverride?: ViewState): Promise<void> {
         element('map-loading').hidden = true;
         atlas?.setCategory(activeCategory);
         if (atlas) experience?.onMapReady(atlas);
+        if (activeTrail) {
+          atlas?.setTourRoute(activeTrail);
+          atlas?.fitTourRoute(activeTrail);
+        }
         if (pendingFly) {
           atlas?.flyTo(pendingFly);
           pendingFly = undefined;
@@ -350,16 +379,140 @@ async function initializeMap(stateOverride?: ViewState): Promise<void> {
   }
 }
 
+function selectedTourChoice(): TourChoice | null {
+  return tourManifest?.routes.find(choice => choice.id === selectedTour) ?? null;
+}
+
+function renderTourChoices(): void {
+  const selector = element<HTMLSelectElement>('tour-theme');
+  selector.replaceChildren(new Option(tourText('loop'), DEFAULT_TOUR));
+  if (tourManifest) {
+    const group = document.createElement('optgroup');
+    group.label = tourText('olle');
+    for (const choice of tourManifest.routes) {
+      const option = new Option(`${tourLabel(choice)}${choice.available ? '' : ` · ${tourText('missing')}`}`, choice.id);
+      option.disabled = !choice.available;
+      group.append(option);
+    }
+    selector.append(group);
+  } else {
+    const pending = new Option(tourText(manifestFailed ? 'missing' : 'loading'), '');
+    pending.disabled = true;
+    selector.append(pending);
+  }
+  selector.value = selectedTour;
+  element('tour-theme-label').textContent = tourText('theme');
+  selector.title = tourText('theme');
+  element('tour-coverage').textContent = tourText('coverage');
+}
+
+function renderTourInfo(): void {
+  const key = [getLocale(), selectedTour, activeTrail?.properties.id, trailLoading, trailFailed, manifestFailed, mapReady].join('|');
+  if (key === tourInfoKey) return;
+  tourInfoKey = key;
+  const info = element('tour-info');
+  const expanded = info.querySelector('details')?.open ?? false;
+  if (trailLoading) {
+    info.innerHTML = `<p role="status">${html(tourText('loading'))}</p>`;
+  } else if (trailFailed || manifestFailed) {
+    info.innerHTML = `<p role="status">${html(tourText('failed'))}</p><button id="tour-retry" class="tour-inline-button">${html(tourText('retry'))}</button>`;
+    element('tour-retry').addEventListener('click', () => {
+      if (manifestFailed) void initializeTours();
+      else void changeTourTheme(selectedTour);
+    });
+  } else if (activeTrail) {
+    const p = activeTrail.properties;
+    const parts = activeTrail.geometry.coordinates;
+    info.innerHTML = `
+      <div class="tour-route-heading"><strong>${html(tourLabel(p))}</strong><button id="tour-overview" class="tour-inline-button" ${mapReady ? '' : 'disabled'}>${html(tourText('overview'))}</button></div>
+      <p class="tour-route-distance">${html(tourText('mapped'))} ≈ ${(routeDistance(parts) / 1000).toFixed(1)} km · ${parts.length} ${html(tourText('parts'))}</p>
+      <p class="tour-route-note">${html(tourText('incomplete'))}</p>
+      <details ${expanded ? 'open' : ''}><summary>${html(tourText('details'))}</summary>
+        <p>${html(tourText('source'))}: <a href="${html(p.source_url)}" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors · #${p.relation_id}</a> · <a href="${html(p.license_url)}" target="_blank" rel="noopener noreferrer">ODbL</a></p>
+        <p>${html(tourText('fetched'))}: ${html(p.fetched_at.slice(0, 10))}${p.source_updated_at ? `<br>${html(tourText('updated'))}: ${html(p.source_updated_at.slice(0, 10))}` : ''}</p>
+        ${parts.length > 1 ? `<p>${html(tourText('gaps'))}</p>` : ''}
+        ${routeBounds(parts)[1][1] > 33.6 ? `<p>${html(tourText('beyond'))}</p>` : ''}
+        <p>${html(tourText('caution'))}</p>
+        <p>${html(tourText('coverage'))}</p>
+        <a href="https://www.jejuolle.org/trail/kor/" target="_blank" rel="noopener noreferrer">${html(tourText('official'))} ↗</a>
+      </details>`;
+    element('tour-overview').addEventListener('click', () => {
+      stopTour();
+      if (activeTrail) atlas?.fitTourRoute(activeTrail);
+    });
+  } else info.innerHTML = selectedTour === DEFAULT_TOUR ? `<p>${html(tourText('loopHint'))}</p>` : '';
+}
+
 function renderTour(): void {
   const running = tourIndex >= 0;
-  element('tour-button').innerHTML = `${icon(running ? 'stop' : 'play')}<span>${running ? '둘러보기 멈춤' : '제주 한 바퀴'}</span>${running ? '' : '<span class="tour-button-detail">자동 둘러보기</span>'}`;
+  const button = element<HTMLButtonElement>('tour-button');
+  button.innerHTML = `${icon(running ? 'stop' : 'play')}<span>${html(tourText(running ? 'stop' : 'start'))}</span>`;
+  button.disabled = !mapReady || trailLoading;
+  button.setAttribute('aria-label', `${tourLabel(selectedTourChoice())} · ${tourText(running ? 'stop' : 'start')}`);
+  button.title = `${tourText(running ? 'stop' : 'start')}${running ? ' · Esc' : ''}`;
   element('tour-button').classList.toggle('is-running', running);
   element('tour-button').setAttribute('aria-pressed', String(running));
+  element('tour-stop').setAttribute('aria-label', tourText('stop'));
+  element('tour-title').textContent = tourLabel(selectedTourChoice());
+  element('tour-panel').hidden = !running && !activeTrail && !trailLoading && !trailFailed && !manifestFailed;
   element('tour-progress').hidden = !running;
+  renderTourInfo();
   if (running) {
-    element('tour-count').textContent = `${tourIndex + 1} / ${tourStops.length}`;
-    element('tour-stops').innerHTML = tourStops.map((id, index) =>
-      `<span data-i18n-ignore class="${index === tourIndex ? 'is-current' : index < tourIndex ? 'is-visited' : ''}"><i>${index < tourIndex ? icon('check') : index + 1}</i>${placeName(places.find((place) => place.id === id)!)}</span>`).join('');
+    element('tour-stops').classList.toggle('is-trail', !!activeTrail);
+    if (activeTrail) {
+      element('tour-count').textContent = `${Math.floor(trailProgress * 100)}%`;
+      element('tour-stops').innerHTML = `<progress max="1" value="${trailProgress}" aria-label="${html(tourText('mapped'))}"></progress><span>${trailPart + 1} / ${activeTrail.geometry.coordinates.length} ${html(tourText('parts'))} · Esc</span>`;
+    } else {
+      element('tour-count').textContent = `${tourIndex + 1} / ${tourStops.length}`;
+      element('tour-stops').innerHTML = tourStops.map((id, index) =>
+        `<span class="${index === tourIndex ? 'is-current' : index < tourIndex ? 'is-visited' : ''}"><i>${index < tourIndex ? icon('check') : index + 1}</i>${html(placeName(places.find((place) => place.id === id)!))}</span>`).join('');
+    }
+  }
+}
+
+async function initializeTours(): Promise<void> {
+  manifestFailed = false;
+  renderTourChoices();
+  renderTour();
+  try {
+    tourManifest = await loadTourManifest(AbortSignal.timeout(12000));
+  } catch {
+    manifestFailed = true;
+  }
+  renderTourChoices();
+  renderTour();
+}
+
+async function changeTourTheme(id: string, play = false): Promise<void> {
+  stopTour();
+  const choice = tourManifest?.routes.find(route => route.id === id);
+  selectedTour = choice?.available ? choice.id : DEFAULT_TOUR;
+  element<HTMLSelectElement>('tour-theme').value = selectedTour;
+  activeTrail = undefined;
+  trailFailed = false;
+  atlas?.setTourRoute(null);
+  if (selectedTour === DEFAULT_TOUR || !choice) { renderTour(); return; }
+  const controller = new AbortController();
+  trailController = controller;
+  trailLoading = true;
+  renderTour();
+  try {
+    const route = await loadOlleRoute(choice, AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]));
+    if (controller.signal.aborted || selectedTour !== id) return;
+    activeTrail = route;
+    if (mapReady) {
+      atlas?.setTourRoute(route);
+      atlas?.fitTourRoute(route);
+    }
+  } catch {
+    if (!controller.signal.aborted) trailFailed = true;
+  } finally {
+    if (trailController === controller) {
+      trailController = undefined;
+      trailLoading = false;
+      renderTour();
+      if (play && activeTrail && !controller.signal.aborted) startTour();
+    }
   }
 }
 
@@ -380,16 +533,58 @@ function advanceTour(): void {
 }
 
 function stopTour(announce = false): void {
-  if (tourIndex < 0) return;
+  const interrupted = tourIndex >= 0 || trailLoading;
   clearTimeout(tourTimer);
+  if (tourAnimation !== undefined) cancelAnimationFrame(tourAnimation);
+  tourAnimation = undefined;
+  trailController?.abort();
+  trailController = undefined;
+  trailLoading = false;
   tourIndex = -1;
-  atlas?.stop();
+  if (interrupted) atlas?.stop();
   renderTour();
-  if (announce) toast('둘러보기를 멈췄어요. 자유롭게 탐험해 보세요.');
+  if (announce && interrupted) toast(tourText('stopped'));
+}
+
+function startTrailTour(route: OlleRoute): void {
+  const track = createTourTrack(route.geometry.coordinates);
+  const started = performance.now();
+  let lastPaint = -Infinity, lastProgress = -Infinity;
+  trailProgress = 0;
+  trailPart = 0;
+  atlas?.stop();
+  atlas?.setTourRoute(route);
+  setDrawer(false);
+  const tick = (now: number): void => {
+    if (tourIndex < 0 || activeTrail !== route) return;
+    trailProgress = Math.min(1, (now - started) / 90000);
+    // Respect reduced motion with separate still views rather than motion.
+    if (now - lastPaint >= (mapModule?.reducedMotion() ? 1500 : 45) || trailProgress === 1) {
+      const frame = track.at(track.length * trailProgress);
+      atlas?.followTour(frame);
+      trailPart = frame.part;
+      lastPaint = now;
+    }
+    if (now - lastProgress >= 750 || trailProgress === 1) {
+      renderTour();
+      lastProgress = now;
+    }
+    if (trailProgress === 1) {
+      stopTour();
+      toast(tourText('complete'));
+    } else tourAnimation = requestAnimationFrame(tick);
+  };
+  tick(started);
 }
 
 function startTour(): void {
-  if (!mapReady) return;
+  if (!mapReady || trailLoading) return;
+  if (selectedTour !== DEFAULT_TOUR) {
+    if (!activeTrail) { void changeTourTheme(selectedTour, true); return; }
+    tourIndex = 0;
+    startTrailTour(activeTrail);
+    return;
+  }
   activeCategory = 'all';
   search = '';
   element<HTMLInputElement>('place-search').value = '';
@@ -457,6 +652,9 @@ element('layer-trigger').addEventListener('click', () => {
 });
 element('layer-close').addEventListener('click', closeLayerPanel);
 element('tour-button').addEventListener('click', () => tourIndex >= 0 ? stopTour() : startTour());
+element('tour-theme').addEventListener('change', (event) => {
+  void changeTourTheme((event.target as HTMLSelectElement).value);
+});
 element('tour-stop').addEventListener('click', () => stopTour());
 element('share-button').addEventListener('click', shareView);
 element('share-close').addEventListener('click', () => element<HTMLDialogElement>('share-dialog').close());
@@ -501,6 +699,7 @@ document.addEventListener('keydown', (event) => {
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) stopTour(); });
 window.addEventListener('hashchange', () => {
+  stopTour();
   if (mapReady && atlas && mapModule) {
     const state = mapModule.readView();
     atlas.restoreView(state);
@@ -513,7 +712,7 @@ window.matchMedia('(max-width: 760px)').addEventListener('change', () => {
   atlas?.map.resize();
 });
 window.addEventListener('pagehide', () => {
-  clearTimeout(tourTimer);
+  stopTour();
   clearTimeout(toastTimer);
 });
 
@@ -532,7 +731,9 @@ experience = new AtlasExperience({
 window.addEventListener('atlas:locale-change', () => {
   renderPlaces();
   if (!experience?.refreshLocale()) renderSelected();
+  renderTourChoices();
   renderTour();
 });
 initializeI18n(element<HTMLButtonElement>('language-toggle'), toast);
+void initializeTours();
 void initializeMap();

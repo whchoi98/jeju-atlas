@@ -1,4 +1,5 @@
 import { isIP } from 'node:net';
+import { hasCredentialQuery, normalizeOfficialDetails } from './official-details.mjs';
 
 const record = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const controls = /[\x00-\x1f\x7f]/;
@@ -40,7 +41,7 @@ function sourceURL(value) {
     // literals and local hostnames without performing DNS or network requests.
     if (url.username || url.password || !host.includes('.') || isIP(host.replace(/^\[|\]$/g, ''))
       || /(?:^|\.)(?:localhost|local|localdomain|internal|lan|test|invalid)$/.test(host)
-      || host.endsWith('.home.arpa') || url.href.length > 2048) return null;
+      || host.endsWith('.home.arpa') || url.href.length > 2048 || hasCredentialQuery(url)) return null;
     return url.href;
   } catch {
     return null;
@@ -113,6 +114,29 @@ function fieldEvidence(value) {
   return Object.fromEntries(entries);
 }
 
+function officialDetails(value) {
+  let details;
+  try { details = normalizeOfficialDetails(value); } catch { return []; }
+  const result = [];
+  const priority = fact => /hours|time|fee|price|ticket|cost|closed|restdate|holiday|phone|contact|infocenter|parking|access|시간|요금|휴무|전화|문의|주차/i
+    .test(`${fact.key} ${fact.label_ko} ${fact.label_en}`) ? 0 : 1;
+  for (const detail of details) {
+    const compact = {
+      ...detail, title: boundedText(detail.title, 160), address: boundedText(detail.address, 320),
+      website: detail.website && detail.website.length <= 512 ? detail.website : null,
+      overview: boundedText(detail.overview, 512), photos: [],
+      facts: [...detail.facts].sort((a, b) => priority(a) - priority(b)).slice(0, 6).map(fact => ({
+        key: fact.key, label_ko: boundedText(fact.label_ko, 60), label_en: boundedText(fact.label_en, 60),
+        value: boundedText(fact.value, 240),
+      })),
+    };
+    while (JSON.stringify(compact).length > 8192 && compact.facts.length > 2) compact.facts.pop();
+    // Bound the complete additive payload, not only individual field lengths.
+    if (JSON.stringify([...result, compact]).length <= 8192) result.push(compact);
+  }
+  return result;
+}
+
 /**
  * Only call with the exact Catalog.detail result for an accepted marker.
  * Sources describe the enrichment row, not the provenance of each facility.
@@ -131,5 +155,6 @@ export function catalogPlaceInfo(place) {
     business_status: boundedText(place.business_status, 80),
     ...(record(place.field_evidence) ? { field_evidence: fieldEvidence(place.field_evidence) } : {}),
     ...(Object.hasOwn(place, 'registration_note') ? { registration_note: boundedText(place.registration_note, 1000) } : {}),
+    ...(Array.isArray(place.official_details) ? { official_details: officialDetails(place.official_details) } : {}),
   };
 }

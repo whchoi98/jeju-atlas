@@ -100,5 +100,38 @@ class RuntimeChangeScopeTests(unittest.TestCase):
                 self.assertFalse(module.allowed_changes([agent, bad], {"Agent", "Tools"}))
 
 
+class OfficialDetailPolicyTests(unittest.TestCase):
+    def test_only_one_read_only_object_grant_can_be_added(self):
+        bucket = "jeju-3d-data-061525506239-ap-northeast-2"
+        before = {"Type": "AWS::IAM::Policy", "Properties": {
+            "Roles": [{"Ref": "ToolsRole"}],
+            "PolicyDocument": {"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "logs:PutLogEvents", "Resource": "existing"}]},
+        }}
+        import copy
+        after = copy.deepcopy(before)
+        after["Properties"]["PolicyDocument"]["Statement"].append(module.detail_statement(bucket))
+        self.assertTrue(module.detail_policy_only(before, after, bucket))
+        after["Properties"]["PolicyDocument"]["Statement"][-1]["Action"] = "s3:PutObject"
+        self.assertFalse(module.detail_policy_only(before, after, bucket))
+        with self.assertRaises(RuntimeError):
+            module.detail_statement("unrelated-bucket")
+
+    def test_new_archive_files_require_an_explicit_allowlist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            source = path / "source"
+            (source / "ohmyjeju_tools").mkdir(parents=True)
+            target_file = source / "ohmyjeju_tools/official_details.py"
+            target_file.write_text("# new reviewed module")
+            original = path / "original.zip"
+            with zipfile.ZipFile(original, "w") as archive:
+                archive.writestr("main.py", b"unchanged")
+            result = path / "result.zip"
+            module.patch_archive(original, result, source, ("ohmyjeju_tools/official_details.py",))
+            with zipfile.ZipFile(result) as archive:
+                self.assertEqual(archive.read("main.py"), b"unchanged")
+                self.assertEqual(archive.read("ohmyjeju_tools/official_details.py"), target_file.read_bytes())
+
+
 if __name__ == "__main__":
     unittest.main()

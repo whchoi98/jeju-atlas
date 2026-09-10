@@ -230,6 +230,44 @@ html[lang="en"] .sidebar h1 { letter-spacing: -.8px; }
 .tour-stops .is-current i { background: var(--teal); color: white; border-color: var(--teal); }
 .tour-stops .is-visited i { background: #dceee5; color: var(--teal); }
 
+.tour-controls { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tour-controls select {
+  min-width: 0; width: 175px; max-width: 100%; min-height: 37px; padding: 7px 8px;
+  border: 1px solid #ffffffd9; border-radius: 6px; background: #fffffff5;
+  color: var(--ink); font: 600 11px var(--sans); box-shadow: var(--panel-shadow);
+}
+.tour-controls select:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+.tour-controls .tour-button { flex: none; white-space: nowrap; padding-inline: 11px; }
+.tour-panel {
+  position: absolute; top: 76px; right: 82px; z-index: 7; width: 305px;
+  max-height: calc(100% - 240px); overflow: auto; overscroll-behavior: contain;
+  border: 1px solid #ffffffcf; border-radius: 9px; background: #fffffff5;
+  box-shadow: var(--panel-shadow); scrollbar-width: thin;
+}
+.tour-info { padding: 13px 14px; font-size: 10px; line-height: 1.65; color: #526b65; }
+.tour-info:empty { display: none; }
+.tour-info p + p { margin-top: 7px; }
+.tour-route-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tour-route-heading strong { color: var(--ink); font-size: 13px; }
+.tour-inline-button { padding: 5px 7px; border-radius: 4px; color: var(--teal); background: #eaf3ee; font: 600 10px var(--sans); }
+.tour-inline-button:hover { background: #dceee5; }
+.tour-route-distance { color: var(--teal); font-weight: 600; margin-top: 7px; }
+.tour-route-note { font-size: 9px; color: #697870; }
+.tour-info details { margin-top: 9px; padding-top: 8px; border-top: 1px solid #e1eae4; }
+.tour-info summary { cursor: pointer; font-size: 10px; font-weight: 600; color: var(--teal); }
+.tour-info details p { margin-top: 8px; }
+.tour-info a { color: var(--teal); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.tour-info details > a { display: inline-block; margin-top: 8px; }
+.tour-panel .tour-progress { position: static; width: auto; padding: 12px 14px; border-radius: 0; box-shadow: none; background: #f5f9f5; }
+.tour-panel .tour-progress-heading { min-height: 19px; }
+#tour-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tour-panel #tour-count { flex: none; }
+.tour-panel #tour-stop { flex: none; min-width: 24px; min-height: 24px; }
+.tour-stops.is-trail { flex-direction: column; align-items: stretch; gap: 6px; margin-top: 8px; }
+.tour-stops.is-trail::before { display: none; }
+.tour-stops.is-trail progress { accent-color: var(--teal); width: 100%; height: 6px; border: 0; }
+.tour-stops.is-trail > span { display: block; color: #58776d; text-align: right; font-size: 9px; }
+
 .control-surface { border-radius: 7px; background: #fffffffa; border: 1px solid #ffffffbf; box-shadow: var(--panel-shadow); }
 .map-tools { position: absolute; right: 24px; top: 100px; z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 11px; }
 .navigation-tools { width: 43px; display: flex; flex-direction: column; padding: 5px 0; align-items: center; }
@@ -614,6 +652,30 @@ dialog::backdrop { background: #0d302d70; backdrop-filter: blur(5px); }
   .selected-place { padding: 12px; }
   .fly-button { font-size: 8px; padding: 9px; }
   .category-chip { font-size: 10px; padding-inline: 9px; }
+}
+
+@media (max-width: 1180px) and (min-width: 761px) {
+  .tour-controls select { width: 155px; }
+  .tour-controls .tour-button { width: 37px; padding: 8px; }
+  .tour-controls .tour-button > span { display: none; }
+  .tour-panel { right: 76px; width: min(290px, calc(100% - 100px)); }
+}
+
+@media (max-width: 760px) {
+  .map-topline { gap: 8px; }
+  .map-topline .view-badge { flex: none; padding-inline: 8px; gap: 5px; }
+  .map-topline .view-badge-separator, .map-topline #view-base-label { display: none; }
+  .tour-controls { flex: 1; justify-content: flex-end; }
+  .tour-controls select { width: 175px; flex: 0 1 175px; min-height: 36px; font-size: 11px; }
+  .tour-controls .tour-button { width: 36px; min-height: 36px; padding: 8px; justify-content: center; }
+  .tour-controls .tour-button > span { display: none; }
+  .tour-panel { top: 64px; left: 14px; right: 64px; width: auto; max-height: min(46vh, calc(100% - 220px)); }
+  .tour-info { padding: 11px 12px; }
+  .tour-route-heading strong { font-size: 12px; }
+  .tour-route-note { font-size: 10px; }
+  .tour-panel .tour-progress { padding: 10px 12px; }
+  .tour-panel .tour-stops:not(.is-trail) > span { max-width: 20%; text-align: center; overflow-wrap: anywhere; }
+  .map-shell.is-drawer-open .tour-panel { visibility: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {

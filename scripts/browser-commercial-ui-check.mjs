@@ -393,6 +393,8 @@ try {
   await page.locator('[data-catalog-id="fixture-a"]').click();
   await page.locator('#detail-add-trip').waitFor();
   assert.equal(await page.locator('#catalog-detail h2').innerText(), 'Audit Café One');
+  await page.locator('#catalog-reference-details > summary').click();
+  assert.equal(await page.locator('#catalog-reference-details').getAttribute('open'), '');
   assert.equal(await page.locator('[data-evidence-field="lat"]').getAttribute('data-evidence-state'), 'unverified');
   assert.match(await page.locator('[data-evidence-field="facilities.parking"]').innerText(), /Source unconfirmed/);
   assert.match(await page.locator('.hours-table caption').innerText(), /parsed.*Closed days unconfirmed/);

@@ -1,9 +1,10 @@
 import * as maplibregl from 'maplibre-gl';
-import type { Map as MapLibreMap, StyleSpecification } from 'maplibre-gl';
+import type { GeoJSONSource, Map as MapLibreMap, StyleSpecification } from 'maplibre-gl';
 import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { places, type Place } from './places';
 import { icon } from './icons';
 import { getLocale, placeName, t } from './i18n';
+import { routeBounds, type OlleRoute, type TourFrame } from './tours';
 
 // v6 ships a separate module worker. Its default sibling URL is invalid after
 // Vite hashes the main chunk; bundle the worker and its imports explicitly.
@@ -207,6 +208,7 @@ export class AtlasMap {
   private onContextRestored: () => void;
   private contextLost = false;
   private contextRestoring = false;
+  private tourPart = -1;
   private onLocale = () => {
     for (const place of places) {
       const element = this.markers.get(place.id)?.getElement();
@@ -413,6 +415,61 @@ export class AtlasMap {
     for (const place of places) {
       this.markers.get(place.id)?.getElement().classList.toggle('is-filtered', category !== 'all' && category !== place.category);
     }
+  }
+
+  setTourRoute(route: OlleRoute | null): void {
+    const empty = { type: 'FeatureCollection' as const, features: [] };
+    if (!this.map.getSource('olle-tour-route')) {
+      if (!route) return;
+      this.map.addSource('olle-tour-route', {
+        type: 'geojson', data: route,
+        attribution: 'Trails © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors · ODbL</a>',
+      });
+      this.map.addLayer({
+        id: 'olle-tour-casing', type: 'line', source: 'olle-tour-route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#ffffff', 'line-width': 7, 'line-opacity': 0.9 },
+      });
+      this.map.addLayer({
+        id: 'olle-tour-line', type: 'line', source: 'olle-tour-route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#087f9c', 'line-width': 4 },
+      });
+      this.map.addSource('olle-tour-position', { type: 'geojson', data: empty });
+      this.map.addLayer({
+        id: 'olle-tour-position', type: 'circle', source: 'olle-tour-position',
+        paint: { 'circle-radius': 7, 'circle-color': '#e87543', 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 },
+      });
+    }
+    (this.map.getSource('olle-tour-route') as GeoJSONSource).setData(route ?? empty);
+    (this.map.getSource('olle-tour-position') as GeoJSONSource).setData(empty);
+    this.tourPart = -1;
+  }
+
+  fitTourRoute(route: OlleRoute): void {
+    const height = this.map.getContainer().clientHeight;
+    this.map.fitBounds(routeBounds(route.geometry.coordinates), {
+      padding: { top: Math.min(130, height * 0.23), bottom: Math.min(125, height * 0.2), left: 32, right: 70 },
+      maxZoom: 13.5, pitch: this.state.is3D ? 45 : 0, bearing: 0,
+      duration: reducedMotion() ? 0 : 1400,
+    });
+  }
+
+  followTour(frame: TourFrame): void {
+    const source = this.map.getSource('olle-tour-position') as GeoJSONSource | undefined;
+    if (!source) return;
+    source.setData({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: frame.center } });
+    const current = this.map.getBearing();
+    const delta = ((frame.bearing - current + 540) % 360) - 180;
+    const bearing = this.tourPart === frame.part && !reducedMotion() ? current + delta * 0.08 : frame.bearing;
+    this.tourPart = frame.part;
+    // jumpTo is intentional: every animation tick samples the source polyline.
+    // An ease/fly between sparse samples would cut corners or bridge data gaps.
+    this.map.jumpTo({
+      center: frame.center, zoom: smallScreen() ? 14 : 14.5, bearing,
+      pitch: this.state.is3D ? 55 : 0,
+      padding: { top: 0, bottom: 0, left: 0, right: 0 },
+    });
   }
 
   flyTo(place: Place, tour = false): void {

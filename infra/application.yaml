@@ -93,6 +93,18 @@ Parameters:
     Type: String
     Default: arn:aws:bedrock-agentcore:ap-northeast-2:061525506239:runtime/Ohmyjeju_OhmyjejuAgent-7fiRWV5uVi
     AllowedPattern: '^arn:aws:bedrock-agentcore:ap-northeast-2:[0-9]{12}:runtime/[A-Za-z0-9_-]+$'
+  DetailsBucket:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+  MediaBucketDomainName:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^[a-z0-9.-]+\.s3\.[a-z0-9-]+\.amazonaws\.com$'
+  MediaOriginAccessControlId:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^[A-Z0-9]+$'
 
 Rules:
   ViewerDomainRequiresCertificate:
@@ -118,6 +130,7 @@ Conditions:
   HasWebAcl: !Not [!Equals [!Ref WebAclArn, '']]
   HasOriginCertificate: !Not [!Equals [!Ref OriginCertificateArn, '']]
   UseOriginTls: !Equals [!Ref OriginTlsEnabled, 'true']
+  HasDetails: !Not [!Equals [!Ref DetailsBucket, '']]
 
 Resources:
   SessionSecret:
@@ -404,7 +417,10 @@ Resources:
                   - ecr:BatchCheckLayerAvailability
                   - ecr:GetDownloadUrlForLayer
                   - ecr:BatchGetImage
-                Resource: !Ref RepositoryArn
+                Resource:
+                  - !Ref RepositoryArn
+                  # Seoul repository used by the account's automatic GuardDuty sidecar.
+                  - !Sub 'arn:${AWS::Partition}:ecr:${AWS::Region}:914738172881:repository/aws-guardduty-agent-fargate'
               - Effect: Allow
                 Action:
                   - logs:CreateLogStream
@@ -441,6 +457,12 @@ Resources:
               - Effect: Allow
                 Action: s3:GetObject
                 Resource: !Sub 'arn:${AWS::Partition}:s3:::${CatalogBucket}/catalog/catalog.sqlite'
+              - !If
+                - HasDetails
+                - Effect: Allow
+                  Action: s3:GetObject
+                  Resource: !Sub 'arn:${AWS::Partition}:s3:::${DetailsBucket}/place-details/latest.json'
+                - !Ref AWS::NoValue
               - Effect: Allow
                 Action:
                   - bedrock-agentcore:InvokeAgentRuntime
@@ -497,6 +519,13 @@ Resources:
               Value: catalog/catalog.sqlite
             - Name: CATALOG_CACHE_DIR
               Value: /tmp/atlas-catalog
+            - !If
+              - HasDetails
+              - Name: DETAILS_BUCKET
+                Value: !Ref DetailsBucket
+              - !Ref AWS::NoValue
+            - Name: DETAILS_KEY
+              Value: place-details/latest.json
             - Name: MEDIA_ORIGIN
               Value: https://ohmyjeju.whchoi.net
             - Name: GUIDE_RUNTIME_ARN
@@ -773,6 +802,23 @@ Resources:
           return response;
         }
 
+  MediaCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Condition: HasDetails
+    Properties:
+      CachePolicyConfig:
+        Name: jeju-3d-licensed-media
+        Comment: Content-addressed licensed photos. No cookies, query strings or user state.
+        MinTTL: 0
+        DefaultTTL: 31536000
+        MaxTTL: 31536000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: false
+          EnableAcceptEncodingBrotli: false
+          CookiesConfig: {CookieBehavior: none}
+          HeadersConfig: {HeaderBehavior: none}
+          QueryStringsConfig: {QueryStringBehavior: none}
+
   Distribution:
     Type: AWS::CloudFront::Distribution
     DependsOn: OriginRule
@@ -787,6 +833,14 @@ Resources:
         Aliases: !If [HasViewerDomain, [!Ref ViewerDomainName], !Ref AWS::NoValue]
         WebACLId: !If [HasWebAcl, !Ref WebAclArn, !Ref AWS::NoValue]
         Origins:
+          - !If
+            - HasDetails
+            - Id: jeju-media
+              DomainName: !Ref MediaBucketDomainName
+              OriginAccessControlId: !Ref MediaOriginAccessControlId
+              S3OriginConfig:
+                OriginAccessIdentity: ''
+            - !Ref AWS::NoValue
           - Id: jeju-alb
             DomainName: !If [UseOriginTls, !Ref OriginDomainName, !GetAtt LoadBalancer.DNSName]
             OriginCustomHeaders:
@@ -813,6 +867,17 @@ Resources:
               OriginReadTimeout: 30
               OriginKeepaliveTimeout: 5
         CacheBehaviors:
+          - !If
+            - HasDetails
+            - PathPattern: /media/*
+              TargetOriginId: jeju-media
+              ViewerProtocolPolicy: redirect-to-https
+              AllowedMethods: [GET, HEAD]
+              CachedMethods: [GET, HEAD]
+              Compress: false
+              CachePolicyId: !Ref MediaCachePolicy
+              ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
+            - !Ref AWS::NoValue
           - PathPattern: /terrarium/*
             TargetOriginId: jeju-terrain
             ViewerProtocolPolicy: redirect-to-https

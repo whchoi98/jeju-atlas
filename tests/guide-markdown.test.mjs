@@ -68,3 +68,11 @@ test('the reference GFM pipeline supports autolinks, tasks, references and neste
   assert.match(output, /href="https:\/\/example.com\/source"/);
   assert.match(output, /<del>수정 전<\/del>/);
 });
+
+test('seasonal months and opening-hour ranges keep literal tildes', async () => {
+  const output = await renderGuideMarkdown('11~2월 06:00~18:00, 5~8월 04:30~20:00입니다.\n\n~~폐기한 안내~~');
+  assert.match(output, /11~2월 06:00~18:00/);
+  assert.match(output, /5~8월 04:30~20:00/);
+  assert.match(output, /<del>폐기한 안내<\/del>/);
+  assert.equal((output.match(/<del>/g) || []).length, 1);
+});

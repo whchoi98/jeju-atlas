@@ -42,6 +42,25 @@ export type PlacePhoto = {
   source: string;
 };
 export type HoursRow = { day: number; open: string; close: string };
+export type OfficialPlaceDetail = {
+  provider: 'tourapi' | 'visitjeju';
+  provider_id: string;
+  locale: 'ko' | 'en';
+  source_url: string;
+  fetched_at: string;
+  title: string;
+  address: string | null;
+  phone: string | null;
+  website: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  overview: string | null;
+  facts: { key: string; label_ko: string; label_en: string; value: string }[];
+  photos: PlacePhoto[];
+  match: { method: string; distance_m: number | null };
+  age_days?: number | null;
+  stale?: boolean;
+};
 export type PlaceDetail = CatalogPlace & {
   photos: PlacePhoto[];
   hours_week: HoursRow[];
@@ -54,6 +73,7 @@ export type PlaceDetail = CatalogPlace & {
   tips: unknown;
   sources: SourceRecord[];
   enriched_at: string | null;
+  official_details?: OfficialPlaceDetail[];
 };
 export type CatalogStatus = {
   status: 'ready' | 'unavailable';
@@ -103,6 +123,7 @@ export type GuidePlaceInfo = {
   business_status: string | null;
   field_evidence?: FieldEvidenceMap;
   registration_note?: string | null;
+  official_details?: OfficialPlaceDetail[];
 };
 export type GuideMap = {
   answer: string;

@@ -1,0 +1,5 @@
+**
+!Dockerfile.data
+!scripts/
+!scripts/fetch-place-details.py
+!scripts/place_detail_sources.py

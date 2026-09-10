@@ -1,9 +1,12 @@
 """Exercise the CloudFormation request contract without modifying AWS."""
+from copy import deepcopy
 from datetime import datetime, timezone
 import importlib.util
 import json
 from pathlib import Path
+import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 import warnings
@@ -16,6 +19,10 @@ root = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("jeju_deploy", root / "scripts/deploy.py")
 deploy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(deploy)
+verify_spec = importlib.util.spec_from_file_location("jeju_verify", root / "scripts/verify.py")
+verifier = importlib.util.module_from_spec(verify_spec)
+with patch.dict(sys.modules, {"deploy": deploy}):
+    verify_spec.loader.exec_module(verifier)
 
 
 class ChangeSetPlanningTest(unittest.TestCase):
@@ -138,6 +145,195 @@ class ProductionSettingsTest(unittest.TestCase):
         for supported, stable in ((False, True), (True, False), (False, False)):
             with self.subTest(supported=supported, stable=stable), self.assertRaises(ValueError):
                 deploy.validate_readiness_transition("/healthz", "/readyz", supported, stable)
+
+
+class DetailsVerificationTest(unittest.TestCase):
+    def setUp(self):
+        self.environment = {
+            "CATALOG_BUCKET": "catalog-test",
+            "GUIDE_RUNTIME_ARN": "arn:aws:bedrock-agentcore:ap-northeast-2:061525506239:runtime/test",
+            "GUIDE_QUOTA_TABLE": "quota-test",
+        }
+        self.parameters = {
+            "DetailsBucket": "details-test",
+            "MediaBucketDomainName": "details-test.s3.ap-northeast-2.amazonaws.com",
+            "MediaOriginAccessControlId": "OAC-TEST",
+        }
+        self.statements = [
+            {"Effect": "Allow", "Action": "s3:GetObject",
+             "Resource": "arn:aws:s3:::catalog-test/catalog/catalog.sqlite"},
+            {"Effect": "Allow", "Action": ["bedrock-agentcore:InvokeAgentRuntime",
+                                         "bedrock-agentcore:InvokeAgentRuntimeForUser"],
+             "Resource": ["arn:aws:bedrock-agentcore:ap-northeast-2:061525506239:runtime/test",
+                          "arn:aws:bedrock-agentcore:ap-northeast-2:061525506239:runtime/test/runtime-endpoint/DEFAULT"]},
+            {"Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:UpdateItem"],
+             "Resource": "arn:aws:dynamodb:ap-northeast-2:061525506239:table/quota-test"},
+        ]
+        self.details_statement = {
+            "Effect": "Allow", "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::details-test/place-details/latest.json",
+        }
+        self.origin = {
+            "Id": "jeju-media", "DomainName": "details-test.s3.ap-northeast-2.amazonaws.com",
+            "OriginAccessControlId": "OAC-TEST", "S3OriginConfig": {"OriginAccessIdentity": ""},
+            "OriginPath": "", "CustomHeaders": {"Quantity": 0},
+        }
+        self.behavior = {
+            "PathPattern": "/media/*", "TargetOriginId": "jeju-media",
+            "ViewerProtocolPolicy": "redirect-to-https", "Compress": False,
+            "AllowedMethods": {"Quantity": 2, "Items": ["GET", "HEAD"],
+                               "CachedMethods": {"Quantity": 2, "Items": ["GET", "HEAD"]}},
+            "CachePolicyId": "media-cache",
+        }
+        self.oac = {
+            "Name": "media-test", "OriginAccessControlOriginType": "s3",
+            "SigningBehavior": "always", "SigningProtocol": "sigv4",
+        }
+        self.cache = {
+            "Name": "media-test", "MinTTL": 0, "DefaultTTL": 31536000, "MaxTTL": 31536000,
+            "ParametersInCacheKeyAndForwardedToOrigin": {
+                "EnableAcceptEncodingGzip": False, "EnableAcceptEncodingBrotli": False,
+                "CookiesConfig": {"CookieBehavior": "none"},
+                "HeadersConfig": {"HeaderBehavior": "none"},
+                "QueryStringsConfig": {"QueryStringBehavior": "none"},
+            },
+        }
+
+    def iam_result(self, statements, environment=None, details_bucket="", attached=None):
+        def checked(value):
+            def response(**kwargs):
+                self.assertEqual(kwargs["RoleName"], "task-test")
+                return deepcopy(value)
+            return response
+        iam = SimpleNamespace(
+            list_attached_role_policies=checked({"AttachedPolicies": attached or []}),
+            list_role_policies=checked({"PolicyNames": ["task-policy"]}),
+            get_role_policy=checked({"PolicyDocument": {"Statement": statements}}),
+        )
+        return verifier.task_iam_scoped(
+            iam, "task-test", environment or self.environment, details_bucket=details_bucket,
+        )
+
+    def media_result(self, *, origin=None, behavior=None, parameters=None, oac=None, cache=None,
+                     extra_behavior=None, default_origin="jeju-alb"):
+        origin = deepcopy(self.origin if origin is None else origin)
+        behavior = deepcopy(self.behavior if behavior is None else behavior)
+        parameters = self.parameters if parameters is None else parameters
+        config = {
+            "Origins": {"Items": [origin] if origin else []},
+            "DefaultCacheBehavior": {"TargetOriginId": default_origin},
+            "CacheBehaviors": {"Items": ([behavior] if behavior else []) + ([extra_behavior] if extra_behavior else [])},
+        }
+        results = {}
+
+        def read_oac(**kwargs):
+            self.assertEqual(kwargs, {"Id": "OAC-TEST"})
+            self.assertTrue(parameters.get("DetailsBucket"), "No details must not query optional resources")
+            return {"OriginAccessControl": {"Id": "OAC-TEST", "OriginAccessControlConfig": oac or self.oac}}
+
+        def read_cache(**kwargs):
+            self.assertEqual(kwargs, {"Id": "media-cache"})
+            self.assertTrue(parameters.get("DetailsBucket"), "No details must not query optional resources")
+            return {"CachePolicy": {"CachePolicyConfig": cache or self.cache}}
+
+        edge = SimpleNamespace(get_origin_access_control=read_oac, get_cache_policy=read_cache)
+        verifier.verify_media_delivery(edge, config, parameters, lambda name, passed: results.update({name: bool(passed)}))
+        self.assertTrue(results, "The media verification cannot silently skip all checks")
+        return results
+
+    def test_optional_details_require_both_exact_snapshot_and_catalog_getobject(self):
+        environment = {**self.environment, "DETAILS_BUCKET": "details-test", "DETAILS_KEY": "place-details/latest.json"}
+        statements = [*self.statements, self.details_statement]
+        self.assertTrue(self.iam_result(statements, environment, "details-test"))
+        for index in (0, 3):
+            with self.subTest(missing=index):
+                self.assertFalse(self.iam_result(statements[:index] + statements[index + 1:], environment, "details-test"))
+
+    def test_no_details_keeps_catalog_model_quota_scoping_and_rejects_added_access(self):
+        self.assertTrue(self.iam_result(self.statements))
+        for statement in [
+            self.details_statement,
+            {"Effect": "Allow", "Action": "s3:GetObject", "Resource": "arn:aws:s3:::catalog-test/*"},
+            {"Effect": "Allow", "Action": "s3:GetObject", "Resource": "arn:aws:s3:::other/catalog/catalog.sqlite"},
+            {"Effect": "Allow", "Action": "ssm:GetParameters", "Resource": "*"},
+            {"Effect": "Allow", "Action": "bedrock:InvokeModel", "Resource": "*"},
+            {"Effect": "Allow", "Action": "dynamodb:DeleteItem", "Resource": "*"},
+        ]:
+            with self.subTest(action=statement["Action"], resource=statement["Resource"]):
+                self.assertFalse(self.iam_result([*self.statements, statement]))
+        for index in (1, 2):
+            with self.subTest(missing=index):
+                self.assertFalse(self.iam_result(self.statements[:index] + self.statements[index + 1:]))
+        self.assertFalse(self.iam_result(self.statements, attached=[{"PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"}]))
+
+    def test_details_environment_and_permission_cannot_drift_from_stack(self):
+        environment = {**self.environment, "DETAILS_BUCKET": "details-test", "DETAILS_KEY": "place-details/latest.json"}
+        statements = [*self.statements, self.details_statement]
+        for changes, bucket in [
+            ({}, ""), ({"DETAILS_BUCKET": "other"}, "details-test"),
+            ({"DETAILS_BUCKET": ""}, "details-test"), ({"DETAILS_KEY": "place-details/*"}, "details-test"),
+            ({"DETAILS_KEY": ""}, "details-test"),
+        ]:
+            with self.subTest(changes=changes, bucket=bucket):
+                self.assertFalse(self.iam_result(statements, {**environment, **changes}, bucket))
+        for resource in ["arn:aws:s3:::details-test/*", "arn:aws:s3:::details-test/media/*"]:
+            with self.subTest(resource=resource):
+                self.assertFalse(self.iam_result(
+                    [*self.statements, {**self.details_statement, "Resource": resource}], environment, "details-test",
+                ))
+
+    def test_media_accepts_signed_s3_and_shared_one_year_cache(self):
+        self.assertTrue(all(self.media_result().values()))
+
+    def test_no_details_requires_no_media_origin_or_route(self):
+        self.assertTrue(all(self.media_result(origin={}, behavior={}, parameters={}).values()))
+        for origin, behavior in [(self.origin, {}), ({}, self.behavior), (self.origin, self.behavior)]:
+            with self.subTest(origin=bool(origin), behavior=bool(behavior)):
+                self.assertFalse(all(self.media_result(origin=origin, behavior=behavior, parameters={}).values()))
+
+    def test_media_rejects_origin_route_and_request_forwarding_drift(self):
+        for changes in [
+            {"DomainName": "other.s3.ap-northeast-2.amazonaws.com"},
+            {"S3OriginConfig": {"OriginAccessIdentity": "origin-access-identity/cloudfront/legacy"}},
+            {"CustomOriginConfig": {"OriginProtocolPolicy": "http-only"}},
+            {"OriginPath": "/place-details"},
+            {"OriginAccessControlId": ""}, {"OriginAccessControlId": "OTHER"},
+            {"CustomHeaders": {"Quantity": 1, "Items": [{"HeaderName": "X-Jeju-Origin-Verify", "HeaderValue": "test-only"}]}},
+        ]:
+            with self.subTest(origin_change=changes):
+                self.assertFalse(all(self.media_result(origin={**self.origin, **changes}).values()))
+        for changes in [
+            {"TargetOriginId": "jeju-alb"}, {"ViewerProtocolPolicy": "allow-all"},
+            {"PathPattern": "/place-details/*"}, {"OriginRequestPolicyId": "private-api"},
+            {"AllowedMethods": {**self.behavior["AllowedMethods"], "Quantity": 3, "Items": ["GET", "HEAD", "POST"]}},
+            {"Compress": True}, {"CachePolicyId": ""},
+        ]:
+            with self.subTest(behavior_change=changes):
+                self.assertFalse(all(self.media_result(behavior={**self.behavior, **changes}).values()))
+        self.assertFalse(all(self.media_result(default_origin="jeju-media").values()))
+        self.assertFalse(all(self.media_result(extra_behavior={
+            **self.behavior, "PathPattern": "/place-details/*",
+        }).values()))
+
+    def test_media_rejects_unsigned_origins_and_viewer_specific_or_wrong_ttl_caches(self):
+        for changes in [
+            {"SigningBehavior": "never"}, {"SigningBehavior": "no-override"},
+            {"SigningProtocol": "sigv4a"}, {"OriginAccessControlOriginType": "lambda"},
+        ]:
+            with self.subTest(oac_change=changes):
+                self.assertFalse(all(self.media_result(oac={**self.oac, **changes}).values()))
+        for changes in [{"MinTTL": 1}, {"DefaultTTL": 86400}, {"MaxTTL": 63072000}]:
+            with self.subTest(cache_change=changes):
+                self.assertFalse(all(self.media_result(cache={**self.cache, **changes}).values()))
+        for changes in [
+            {"CookiesConfig": {"CookieBehavior": "all"}},
+            {"HeadersConfig": {"HeaderBehavior": "whitelist", "Headers": {"Items": ["Origin"]}}},
+            {"QueryStringsConfig": {"QueryStringBehavior": "all"}}, {"EnableAcceptEncodingGzip": True},
+        ]:
+            with self.subTest(forwarding_change=changes):
+                cache = deepcopy(self.cache)
+                cache["ParametersInCacheKeyAndForwardedToOrigin"].update(changes)
+                self.assertFalse(all(self.media_result(cache=cache).values()))
 
 
 if __name__ == "__main__":

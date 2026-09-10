@@ -1,0 +1,298 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Jeju Atlas official place details and licensed media; private storage and bounded scheduled Fargate collection.
+
+Parameters:
+  DistributionArn:
+    Type: String
+    AllowedPattern: '^arn:aws:cloudfront::[0-9]{12}:distribution/[A-Za-z0-9]+$'
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  WorkerImageUri:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/jeju-3d@sha256:[a-f0-9]{64}$'
+  ScheduleState:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+  CatalogBucket:
+    Type: String
+    Default: ohmyjeju-catalog-061525506239-prod
+  PublicMediaOrigin:
+    Type: String
+    Default: https://jeju-atlas.whchoi.net
+    AllowedPattern: '^https://[a-z0-9.-]+$'
+
+Conditions:
+  HasWorker: !Not [!Equals [!Ref WorkerImageUri, '']]
+
+Resources:
+  DetailsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'jeju-3d-data-${AWS::AccountId}-${AWS::Region}'
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: OldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  DetailsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DetailsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: RequireTLS
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt DetailsBucket.Arn
+              - !Sub '${DetailsBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+          - Sid: CloudFrontMediaOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${DetailsBucket.Arn}/media/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Ref DistributionArn
+
+  MediaOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: jeju-3d-private-media
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  WorkerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: HasWorker
+    Properties:
+      GroupDescription: Jeju Atlas data collector HTTPS egress via existing NAT
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  WorkerLogs:
+    Type: AWS::Logs::LogGroup
+    Condition: HasWorker
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: /ecs/jeju-3d-data
+      RetentionInDays: 14
+
+  WorkerExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: HasWorker
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref AWS::AccountId}
+              ArnLike: {aws:SourceArn: !Sub 'arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:*'}
+      Policies:
+        - PolicyName: DataImageAndLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: '*'
+              - Effect: Allow
+                Action: [ecr:BatchCheckLayerAvailability, ecr:GetDownloadUrlForLayer, ecr:BatchGetImage]
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/jeju-3d'
+                  # Seoul repository used by the account's automatic GuardDuty sidecar.
+                  - !Sub 'arn:${AWS::Partition}:ecr:${AWS::Region}:914738172881:repository/aws-guardduty-agent-fargate'
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt WorkerLogs.Arn
+
+  WorkerRole:
+    Type: AWS::IAM::Role
+    Condition: HasWorker
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref AWS::AccountId}
+              ArnLike: {aws:SourceArn: !Sub 'arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:*'}
+      Policies:
+        - PolicyName: CollectOfficialDetails
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${CatalogBucket}/catalog/catalog.sqlite'
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject]
+                Resource:
+                  - !Sub '${DetailsBucket.Arn}/place-details/*'
+                  - !Sub '${DetailsBucket.Arn}/media/*'
+              - Effect: Allow
+                Action: ssm:GetParameters
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jeju-atlas/visitjeju-api-key'
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jeju-atlas/tourapi-service-key'
+
+  WorkerTask:
+    Type: AWS::ECS::TaskDefinition
+    Condition: HasWorker
+    Properties:
+      Family: jeju-3d-data
+      RequiresCompatibilities: [FARGATE]
+      NetworkMode: awsvpc
+      Cpu: '256'
+      Memory: '512'
+      RuntimePlatform: {CpuArchitecture: ARM64, OperatingSystemFamily: LINUX}
+      ExecutionRoleArn: !GetAtt WorkerExecutionRole.Arn
+      TaskRoleArn: !GetAtt WorkerRole.Arn
+      Volumes:
+        - Name: work
+      ContainerDefinitions:
+        - Name: collector
+          Image: !Ref WorkerImageUri
+          Command: ['--max-places', '900']
+          Essential: true
+          User: '1000:1000'
+          ReadonlyRootFilesystem: true
+          LinuxParameters: {Capabilities: {Drop: [ALL]}}
+          StopTimeout: 120
+          MountPoints:
+            - SourceVolume: work
+              ContainerPath: /tmp
+          Environment:
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: CATALOG_BUCKET
+              Value: !Ref CatalogBucket
+            - Name: DETAILS_BUCKET
+              Value: !Ref DetailsBucket
+            - Name: PUBLIC_MEDIA_ORIGIN
+              Value: !Ref PublicMediaOrigin
+            - Name: DATA_MAX_RUNTIME_SECONDS
+              Value: '900'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref WorkerLogs
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: collector
+              mode: non-blocking
+
+  ScheduleRole:
+    Type: AWS::IAM::Role
+    Condition: HasWorker
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: scheduler.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref AWS::AccountId}
+      Policies:
+        - PolicyName: RunBoundedCollector
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ecs:RunTask
+                Resource: !Ref WorkerTask
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !Sub 'arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jeju-3d'
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: [!GetAtt WorkerRole.Arn, !GetAtt WorkerExecutionRole.Arn]
+                Condition:
+                  StringEquals: {iam:PassedToService: ecs-tasks.amazonaws.com}
+
+  RefreshSchedule:
+    Type: AWS::Scheduler::Schedule
+    Condition: HasWorker
+    Properties:
+      Name: jeju-3d-official-details
+      Description: Daily bounded official place-detail refresh at 03:00 Asia/Seoul.
+      ScheduleExpression: cron(0 3 * * ? *)
+      ScheduleExpressionTimezone: Asia/Seoul
+      FlexibleTimeWindow: {Mode: 'OFF'}
+      State: !Ref ScheduleState
+      Target:
+        Arn: !Sub 'arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jeju-3d'
+        RoleArn: !GetAtt ScheduleRole.Arn
+        RetryPolicy: {MaximumRetryAttempts: 0, MaximumEventAgeInSeconds: 3600}
+        EcsParameters:
+          TaskDefinitionArn: !Ref WorkerTask
+          LaunchType: FARGATE
+          PlatformVersion: LATEST
+          TaskCount: 1
+          NetworkConfiguration:
+            AwsvpcConfiguration:
+              AssignPublicIp: DISABLED
+              Subnets: !Ref PrivateSubnetIds
+              SecurityGroups: [!Ref WorkerSecurityGroup]
+
+Outputs:
+  DetailsBucketName:
+    Value: !Ref DetailsBucket
+  MediaBucketDomainName:
+    Value: !GetAtt DetailsBucket.RegionalDomainName
+  MediaOriginAccessControlId:
+    Value: !Ref MediaOriginAccessControl
+  WorkerTaskDefinitionArn:
+    Condition: HasWorker
+    Value: !Ref WorkerTask
+  WorkerSecurityGroupId:
+    Condition: HasWorker
+    Value: !Ref WorkerSecurityGroup

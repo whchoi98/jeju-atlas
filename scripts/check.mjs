@@ -24,7 +24,7 @@ const steps = [
 
 async function sourceDigest() {
   const digest = createHash('sha256');
-  const files = ['package.json', 'package-lock.json', 'Dockerfile', '.dockerignore', 'index.html', 'vite.config.ts', 'tsconfig.json'];
+  const files = ['package.json', 'package-lock.json', 'Dockerfile', '.dockerignore', 'Dockerfile.data', 'Dockerfile.data.dockerignore', 'index.html', 'vite.config.ts', 'tsconfig.json'];
   async function collect(directory) {
     const entries = await readdir(path.join(root, directory), { withFileTypes: true });
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
@@ -33,7 +33,7 @@ async function sourceDigest() {
       else if (entry.isFile()) files.push(name);
     }
   }
-  for (const directory of ['src', 'server', 'public', 'infra', 'tests', 'scripts']) await collect(directory);
+  for (const directory of ['src', 'shared', 'server', 'public', 'infra', 'tests', 'scripts']) await collect(directory);
   for (const name of files.sort()) {
     // Python imports create caches while checks run. They are not release input.
     if (name.includes('/__pycache__/') || name.endsWith('.pyc')) continue;
