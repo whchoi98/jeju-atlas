@@ -3,6 +3,7 @@ import type { Map as MapLibreMap, StyleSpecification } from 'maplibre-gl';
 import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { places, type Place } from './places';
 import { icon } from './icons';
+import { getLocale, placeName, t } from './i18n';
 
 // v6 ships a separate module worker. Its default sibling URL is invalid after
 // Vite hashes the main chunk; bundle the worker and its imports explicitly.
@@ -204,6 +205,21 @@ export class AtlasMap {
   private representativeSelect: ((place: Place) => void) | undefined;
   private onContextLost: (event: Event) => void;
   private onContextRestored: () => void;
+  private contextLost = false;
+  private contextRestoring = false;
+  private onLocale = () => {
+    for (const place of places) {
+      const element = this.markers.get(place.id)?.getElement();
+      if (!element) continue;
+      element.setAttribute('title', placeName(place));
+      element.setAttribute('aria-label', t(`${placeName(place)} 자세히 보기`));
+      const label = element.querySelector<HTMLElement>('.marker-label');
+      if (label) {
+        label.setAttribute('data-i18n-ignore', '');
+        label.innerHTML = `${placeName(place)}${place.id === 'hallasan' && getLocale() === 'ko' ? '<span class="marker-subtitle">HALLASAN</span>' : ''}`;
+      }
+    }
+  };
 
   constructor(container: HTMLElement, state: ViewState, callbacks: MapCallbacks) {
     this.callbacks = callbacks;
@@ -230,6 +246,7 @@ export class AtlasMap {
     // Public, production-safe browser verification hook. The parent integration
     // can inspect getTerrain(), areTilesLoaded(), queryTerrainElevation(), etc.
     window.__JEJU_MAP__ = this.map;
+    window.addEventListener('atlas:locale-change', this.onLocale);
     this.map.addControl(new maplibregl.AttributionControl({
       compact: false,
       customAttribution: terrainAttribution,
@@ -240,11 +257,17 @@ export class AtlasMap {
 
     this.onContextLost = (event) => {
       event.preventDefault();
-      callbacks.onError('그래픽 연결이 끊겼습니다. 지도를 다시 불러와 주세요.', true);
+      this.contextLost = true;
+      callbacks.onError('그래픽 연결이 끊겼습니다. 복구를 기다리고 있어요. 계속 표시되지 않으면 다시 불러와 주세요.', true);
     };
     this.onContextRestored = () => {
+      this.contextLost = false;
+      this.contextRestoring = true;
+      this.map.once('render', () => {
+        this.contextRestoring = false;
+        this.tryRecovered();
+      });
       this.map.triggerRepaint();
-      callbacks.onRecovered();
     };
     this.map.getCanvas().addEventListener('webglcontextlost', this.onContextLost);
     this.map.getCanvas().addEventListener('webglcontextrestored', this.onContextRestored);
@@ -268,7 +291,7 @@ export class AtlasMap {
       this.updateMarkerDensity();
     });
     this.map.on('idle', () => {
-      if (this.ready && this.failedSources.size === 0) callbacks.onRecovered();
+      this.tryRecovered();
     });
     this.map.on('error', (event) => {
       const sourceId = 'sourceId' in event && typeof event.sourceId === 'string' ? event.sourceId : undefined;
@@ -288,7 +311,7 @@ export class AtlasMap {
     this.map.on('sourcedata', (event) => {
       if (event.isSourceLoaded && event.sourceId) {
         this.failedSources.delete(event.sourceId);
-        if (this.ready && this.failedSources.size === 0 && this.map.areTilesLoaded()) callbacks.onRecovered();
+        this.tryRecovered();
       }
     });
     for (const eventName of ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart'] as const) {
@@ -297,6 +320,13 @@ export class AtlasMap {
       });
     }
     this.map.getCanvas().addEventListener('keydown', () => callbacks.onInteraction());
+  }
+
+  private tryRecovered(): void {
+    if (this.disposed || !this.ready || this.contextLost || this.contextRestoring || this.failedSources.size) return;
+    const needed = ['hillshade-dem', ...(this.state.is3D ? ['terrain-dem'] : []), ...(this.state.basemap === 'satellite' ? ['satellite'] : [])];
+    if (this.map.isStyleLoaded() && this.map.areTilesLoaded()
+      && needed.every(source => this.map.getSource(source) && this.map.isSourceLoaded(source))) this.callbacks.onRecovered();
   }
 
   private addMarkers(): void {
@@ -326,6 +356,7 @@ export class AtlasMap {
       this.markers.set(place.id, marker);
     }
     this.setSelected(this.selection);
+    this.onLocale();
     this.updateMarkerDensity();
   }
 
@@ -450,6 +481,7 @@ export class AtlasMap {
   destroy(): void {
     this.disposed = true;
     clearTimeout(this.loadTimer);
+    window.removeEventListener('atlas:locale-change', this.onLocale);
     this.map.getCanvas().removeEventListener('webglcontextlost', this.onContextLost);
     this.map.getCanvas().removeEventListener('webglcontextrestored', this.onContextRestored);
     for (const marker of this.markers.values()) marker.remove();

@@ -6,6 +6,8 @@ interface GuideRequest {
   message: string;
   conversationId?: string;
   csrfToken?: string;
+  requestId?: string;
+  locale?: 'ko' | 'en';
   signal: AbortSignal;
   onRecovery?: (reason: GuideRecovery) => void;
 }
@@ -24,6 +26,11 @@ export async function requestGuide(
   options: GuideRequest,
   dependencies: RequestDependencies = {},
 ): Promise<Response> {
+  if (options.requestId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(options.requestId)) {
+    throw new ApiError('invalid_request', 400);
+  }
+  if (options.locale !== undefined && options.locale !== 'ko' && options.locale !== 'en') throw new ApiError('invalid_request', 400);
+  const { message, requestId, locale } = options;
   const fetchImpl = dependencies.fetchImpl ?? fetch;
   const refreshSession = dependencies.refreshSession ?? (async () => {
     const config = await getConfig(true);
@@ -44,7 +51,9 @@ export async function requestGuide(
         ...(csrfToken ? { 'X-Atlas-CSRF': csrfToken } : {}),
       },
       body: JSON.stringify({
-        message: options.message,
+        message,
+        ...(requestId ? { request_id: requestId } : {}),
+        ...(locale ? { locale } : {}),
         ...(conversationId ? { conversation_id: conversationId } : {}),
       }),
     });

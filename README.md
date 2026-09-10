@@ -2,9 +2,11 @@
 
 실제 제주 고도·위성 지도와 운영 장소 카탈로그, 여행 코스, AI 가이드를 연결한 한국어 앱입니다.
 
-**배포 주소: [제주 아틀라스 열기](https://d2mznud99i2mdr.cloudfront.net)**
+**배포 주소: [제주 아틀라스 열기](https://jeju-atlas.whchoi.net)** · 기존 CloudFront 주소도 지원합니다.
 
 [AWS 배포 결과와 검증 기록](docs/deployment.md)
+
+[2026-09-10 운영 보강·한영 UI·Sol/Astra 배포 결과](docs/commercial-release-2026-09-10.md) · [AgentCore·Strands 실제 구성](docs/agentcore-components.md)
 
 - 제주 전역과 한라산·성산일출봉·우도 등 12개 지형 바로가기
 - 운영 S3 카탈로그의 6,724곳 검색·분류·주변 탐색과 GPU 클러스터
@@ -14,6 +16,8 @@
 - 즐겨찾기, 코스 순서·체류시간 편집, 직선 연결선, 브라우저 저장과 코스 공유
 - Open-Meteo 날씨·3일 예보와 기존 Ohmyjeju AgentCore AI 가이드
 - 설치형 PWA, 저장한 코스 오프라인 확인, 모바일·키보드·reduced motion 지원
+- 한국어/English 토글, 선택 기억, 화면·추천 질문·AI 답변 언어 연동
+- 저장 자료 백업·검토 후 복원·기기 삭제, 저장 실패와 탭 간 편집 충돌 보호
 
 ## 실행
 
@@ -74,16 +78,18 @@ flowchart LR
 | Registry 스택 | `Jeju3dRegistry` |
 | 앱 스택 | `Jeju3dApp` |
 | ECR / ECS 클러스터 / 서비스 | `jeju-3d` |
-| Fargate | Linux ARM64, 0.25 vCPU, 512 MiB, 기본 태스크 1개 |
+| Fargate | Linux ARM64, 태스크당 0.25 vCPU·512 MiB, 최소 2개·최대 4개 |
 | 컨테이너 | UID/GID 1000, 읽기 전용 루트 파일시스템, Linux capabilities 제거 |
-| 앱 IAM 역할 | 지정 S3 카탈로그 객체 읽기, 지정 AI 런타임 호출, 전용 할당량 테이블 UpdateItem |
+| 앱 IAM 역할 | 지정 S3 카탈로그 객체 읽기, 지정 AI 런타임 호출, 전용 할당량 테이블 GetItem·UpdateItem |
 | 실행 IAM 역할 | 전용 ECR·로그 및 세션 서명 키 주입 |
 | 파일시스템 | 루트 읽기 전용, `/tmp` 볼륨만 카탈로그 갱신용 쓰기 허용 |
 | 배포 이미지 | SHA-256 digest 고정, 불변 ECR 태그 |
 | 로그 | `/ecs/jeju-3d`, 14일 보관 |
 | 실패 처리 | ECS deployment circuit breaker / rollback |
 
-사용자→CloudFront는 HTTPS이며 HTTP는 HTTPS로 리다이렉트합니다. **CloudFront→ALB는 HTTP**입니다. 현재 계정의 Hosted Zone과 실제 공개 DNS 위임이 일치하지 않아 기본 CloudFront 주소를 사용합니다. 원본 구간까지 TLS를 적용하려면 공개 검증이 가능한 도메인과 서울 리전 ACM 인증서로 ALB HTTPS 리스너와 CloudFront origin policy를 함께 변경해야 합니다.
+사용자→CloudFront는 HTTPS이며 HTTP는 HTTPS로 리다이렉트합니다. 사용자 도메인과 us-east-1 인증서를 배포 설정에 보존합니다. **CloudFront→ALB는 아직 HTTP**입니다. 서울 ACM 인증서와 ALB HTTPS 리스너를 준비했으며, 원본 도메인의 공개 CNAME을 게시한 뒤 `OriginTlsEnabled`를 활성화합니다. 현재 계정의 같은 이름 Hosted Zone은 실제 공개 DNS에 위임된 Zone과 다릅니다.
+
+[운영 보강 기준](docs/superpowers/specs/2026-09-10-commercial-readiness.md) · [참고 프로젝트 검토](docs/reference-review.md) · [알람·로그](docs/operations.md) · [용량·비용](docs/capacity-cost.md) · [부하·복구 검사](docs/load-recovery.md)
 
 ## 이미지 보안
 
@@ -131,6 +137,12 @@ python3 scripts/verify.py
 
 기존 앱을 재배포할 때는 `build-push` → `plan-app` → 변경 내용 검토 → `apply-app` → `status-app` → `verify.py` 순서로 실행합니다. 필요한 경우 다음 명령으로 HTML 캐시만 무효화합니다.
 
+`infra/production.json`에 사용자 도메인·인증서·용량·AI 한도와 전환 설정을 관리합니다.
+`build-push`는 Node·Python 테스트, 전체 템플릿 검사, npm 취약점 검사와 빌드를 먼저
+실행합니다. `/readyz`를 지원하지 않는 기존 이미지에서 넘어올 때는 `/healthz`로
+이미지를 먼저 교체하고, 서비스 안정화 후 `TargetHealthPath`를 `/readyz`로 바꿉니다.
+자동 확장 중인 실제 태스크 수를 배포 때 최소값으로 낮추지 않습니다.
+
 ```bash
 python3 scripts/deploy.py invalidate
 ```
@@ -166,7 +178,11 @@ s3://ohmyjeju-catalog-061525506239-prod/catalog/catalog.sqlite
 
 확인 당시 6,724곳은 **OpenStreetMap 6,587곳 + 큐레이션 시드 137곳**입니다. 137곳의 장소 이름은 실제 장소를 바탕으로 하지만 기본 좌표·주소·소개는 공식 대조 검증값으로 취급하지 않습니다. 주간 보강으로 연결된 사진·요일별 시간·인허가 정보는 기본 필드와 출처를 나눠 보여 줍니다.
 
-사진에는 credit/license를 표시하며 KOGL-3·KOGL-4 사진의 원본 비율과 바이트를 유지합니다. 없는 전화·시간·소개를 생성하지 않습니다. `business_status=open`은 **인허가상의 영업/정상 상태**이며, 현재 시각에 문을 열었다는 의미로 표시하지 않습니다.
+사진에는 credit/license를 표시하고 상업 이용이 가능한 허용 목록을 적용합니다. KOGL-2·KOGL-4·NC·불명확한 라이선스는 노출하지 않으며 KOGL-3 원본 URL을 유지하고 파생 썸네일을 만들지 않습니다. 없는 전화·시간·소개를 생성하지 않습니다. `business_status=open`은 **개별 인허가상의 상태**이며, 장소 전체의 운영 여부나 현재 시각의 영업을 확정하지 않습니다.
+
+`field_evidence`로 기본 정보·편의·시간의 출처와 확인 수준을 구분합니다.
+`tourapi_usetime`은 원문 시간의 파싱 결과로 표시하며 요일별 운영과 휴무일이
+독립적으로 확인된 정보로 취급하지 않습니다. [데이터 품질 기록](docs/data-quality.md)
 
 서버는 S3 ETag를 10분마다 확인합니다. 검증된 새 SQLite 파일로 교체하고, 원본 장애 시 마지막 정상 파일을 유지하면서 갱신 지연을 알립니다. 브라우저의 API 응답에는 출처와 데이터 기준일을 남깁니다.
 
@@ -175,6 +191,11 @@ s3://ohmyjeju-catalog-061525506239-prod/catalog/catalog.sqlite
 ## AI와 저장
 
 AI는 기존 Ohmyjeju AgentCore 런타임을 사용합니다. 브라우저는 AWS 자격 증명이나 런타임 ARN을 받지 않으며 서버가 IAM으로 호출합니다.
+
+서울 Global CRIS의 **GPT-5.6 Sol**을 일반 질문에, **GPT-6 Astra**를 일정·코스
+계획에 사용합니다. 한영 토글의 `locale`은 요청마다 고정되어 AgentCore까지
+전달됩니다. 여러 태스크가 DynamoDB의 원자적 사용량·실행 잠금·요청 ID를
+공유하며, 결과가 불명확한 요청을 자동으로 다시 과금 호출하지 않습니다.
 
 질문과 응답 처리는 참조 프로젝트의 대화 세션·마크다운·도구 상태 표시 방식을 반영합니다. 유휴 14분이 지나 대화가 만료되면 같은 질문을 한 번 복구하며, 유효한 대화를 계속할 때는 서명 토큰을 갱신합니다. 이미 과금됐을 수 있는 스트리밍·네트워크 오류와 이용 한도는 자동 재전송하지 않습니다.
 

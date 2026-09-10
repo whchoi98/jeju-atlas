@@ -1,0 +1,13 @@
+{
+  "ViewerDomainName": "jeju-atlas.whchoi.net",
+  "ViewerCertificateArn": "arn:aws:acm:us-east-1:061525506239:certificate/7d53182a-2a2a-4225-a319-4f94030561b7",
+  "DesiredCount": 2,
+  "MinTaskCount": 2,
+  "MaxTaskCount": 4,
+  "GuideDailyLimit": 30,
+  "GuideHourlyLimit": 5,
+  "GuideGlobalConcurrency": 2,
+  "TargetHealthPath": "/readyz",
+  "OriginDomainName": "jeju-atlas-origin.whchoi.net",
+  "OriginTlsEnabled": "false"
+}

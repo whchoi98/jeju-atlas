@@ -48,3 +48,7 @@ test('empty context and bounded messages stay within the guide API contract', ()
   assert.ok(result.length <= 2000);
   assert.ok(result.startsWith('현재 지도 주변'));
 });
+test('a broad or named 2000-character question is not truncated to make unused context space', () => {
+  const question = 'Restaurants near Hallasan? ' + 'x'.repeat(2000 - 'Restaurants near Hallasan? '.length);
+  assert.equal(buildGuideMessage(question, 'Map center 33.4, 126.5.', 'en'), question);
+});

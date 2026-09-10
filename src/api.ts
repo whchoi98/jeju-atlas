@@ -1,4 +1,5 @@
 import type { AppConfig } from '../shared/api-types';
+import { getLocale, t } from './i18n.ts';
 
 export class ApiError extends Error {
   readonly code: string;
@@ -35,12 +36,18 @@ export async function apiJSON<T>(path: string, signal?: AbortSignal): Promise<T>
 }
 
 let configRequest: Promise<AppConfig> | undefined;
-export function getConfig(refresh = false): Promise<AppConfig> {
-  if (!configRequest || refresh) {
-    const request: Promise<AppConfig> = apiJSON<AppConfig>('/api/config').catch((error) => {
+let configFetchedAt = 0;
+let configPending = false;
+export function getConfig(refresh = false, maxAgeMs = 60000): Promise<AppConfig> {
+  if (!configRequest || refresh || (!configPending && Date.now() - configFetchedAt >= maxAgeMs)) {
+    configPending = true;
+    const request: Promise<AppConfig> = apiJSON<AppConfig>('/api/config').then((config) => {
+      if (configRequest === request) configFetchedAt = Date.now();
+      return config;
+    }).catch((error) => {
       if (configRequest === request) configRequest = undefined;
       throw error;
-    });
+    }).finally(() => { if (configRequest === request) configPending = false; });
     configRequest = request;
   }
   return configRequest;
@@ -85,7 +92,7 @@ export function sourceName(source: string | null | undefined): string {
     localdata: '지방행정 인허가', wikimedia: 'Wikimedia Commons', unknown: '정보 없음',
     osm_opening_hours: 'OpenStreetMap 영업시간', tourapi_usetime: 'TourAPI 이용시간',
   };
-  return source ? names[source.toLowerCase()] ?? source : '정보 없음';
+  return t(source ? Object.hasOwn(names, source.toLowerCase()) ? names[source.toLowerCase()] : source : '정보 없음');
 }
 
 export function dateLabel(value: string | null | undefined, time = false): string {
@@ -96,20 +103,21 @@ export function dateLabel(value: string | null | undefined, time = false): strin
   if (!naiveKoreanDateTime && !/(?:Z|[+-]\d{2}:?\d{2})$/i.test(input)) return '정보 없음';
   const date = new Date(naiveKoreanDateTime ? `${input.replace(' ', 'T')}+09:00` : input);
   if (!Number.isFinite(date.getTime())) return '정보 없음';
-  return new Intl.DateTimeFormat('ko-KR', {
+  return new Intl.DateTimeFormat(getLocale() === 'ko' ? 'ko-KR' : 'en-GB', {
     timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
     ...(time ? { hour: '2-digit', minute: '2-digit' } as const : {}),
   }).format(date);
 }
 
 export function categoryName(category: string): string {
-  return ({
+  const names: Record<string, string> = {
     attraction: '명소', nature: '자연', mountain: '산·오름', coast: '해안', island: '섬',
     beach: '해변', food: '음식점', restaurant: '음식점', cafe: '카페', stay: '숙소',
     lodging: '숙소', accommodation: '숙소', hotel: '숙소', shopping: '쇼핑', culture: '문화',
     museum: '박물관', park: '공원', activity: '액티비티', parking: '주차', transport: '교통',
     tourism: '관광', experience: '체험', other: '기타',
-  } as Record<string, string>)[category] ?? category;
+  };
+  return t(Object.hasOwn(names, category) ? names[category] : category);
 }
 
 // Catalog/weather/guide endpoints share this supported service rectangle.
@@ -131,8 +139,8 @@ export function distanceMeters(a: { lat: number; lng: number }, b: { lat: number
 }
 
 export function distanceLabel(meters: number | null | undefined): string {
-  if (meters == null || !Number.isFinite(meters)) return '거리 정보 없음';
-  return meters < 1000 ? `약 ${Math.round(meters / 10) * 10} m` : `약 ${(meters / 1000).toFixed(1)} km`;
+  if (meters == null || !Number.isFinite(meters)) return t('거리 정보 없음');
+  return t(meters < 1000 ? `약 ${Math.round(meters / 10) * 10} m` : `약 ${(meters / 1000).toFixed(1)} km`);
 }
 
 export function publicMessage(value: unknown, fallback: string): string {

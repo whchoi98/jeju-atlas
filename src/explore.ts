@@ -8,6 +8,7 @@ import { GuidePanel } from './guide';
 import { categoryName, distanceLabel, distanceMeters, html } from './api';
 import { initializePWA } from './pwa';
 import { categorySymbol, icon } from './icons';
+import { getLocale, placeName } from './i18n';
 import './explore.css';
 
 interface ExperienceOptions {
@@ -66,7 +67,7 @@ export class AtlasExperience {
     intro.after(tabs, browse, trip, guide);
     const footer = sidebar.querySelector<HTMLElement>('.sidebar-footer')!;
     footer.classList.add('experience-footer');
-    initializePWA(footer, options.notify);
+    initializePWA(footer, options.notify, { isBusy: () => Boolean(this.planner?.hasUnsavedChanges || this.guide?.hasUnsavedWork) });
     const detail = document.createElement('section');
     detail.id = 'catalog-detail'; detail.className = 'catalog-detail'; detail.hidden = true;
     detail.setAttribute('role', 'region'); detail.setAttribute('aria-label', '카탈로그 장소 상세');
@@ -117,6 +118,7 @@ export class AtlasExperience {
       },
       context: () => {
         const center = options.atlas()?.map.getCenter();
+        if (getLocale() === 'en') return `${this.selectedCatalog ? `Selected place ${placeName(this.selectedCatalog)}. ` : ''}${center ? `Map center ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}. ` : ''}${this.tripStops.length ? `My trip ${this.tripStops.map(stop => placeName(stop)).join(', ')}.` : ''}`;
         return `${this.selectedCatalog ? `선택 장소 ${this.selectedCatalog.name}. ` : ''}${center ? `지도 중심 ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}. ` : ''}${this.tripStops.length ? `내 코스 ${this.tripStops.map((stop) => stop.name).join(', ')}.` : ''}`;
       },
     });
@@ -140,6 +142,24 @@ export class AtlasExperience {
     });
     document.getElementById('reset-view')?.addEventListener('click', () => this.catalog.resetFilters(false));
     document.getElementById('brand-home')?.addEventListener('click', () => this.catalog.resetFilters(false));
+    window.addEventListener('beforeunload', event => {
+      if (this.planner.hasUnsavedChanges || this.guide.hasUnsavedWork) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    });
+  }
+
+  manageData(): void {
+    this.showTab('trip');
+    this.options.openDrawer();
+    this.planner.openDataManagement();
+  }
+  refreshLocale(): boolean {
+    if (!this.isCatalogSelection || !this.selectedCatalog) return false;
+    this.renderSelection(this.selectedCatalog);
+    this.layers?.setSelection({ ...this.selectedCatalog, name: placeName(this.selectedCatalog) });
+    return true;
   }
 
   showTab(tab: string): void {
@@ -152,7 +172,7 @@ export class AtlasExperience {
       button.setAttribute('aria-selected', String(selected));
       button.tabIndex = selected ? 0 : -1;
     }
-    this.catalog.closeDetail();
+    this.catalog.closeDetail(false);
   }
 
   onMapReady(atlas: AtlasMap): void {
@@ -220,7 +240,7 @@ export class AtlasExperience {
 
   private renderSelection(place: CatalogPlace | PlaceSnapshot): void {
     const target = document.getElementById('selected-place')!;
-    target.innerHTML = `<div class="selected-place-emblem">${icon(categorySymbol(place.category).icon)}</div><div class="selected-place-info"><div class="selected-eyebrow"><span>${html(categoryName(place.category))}</span><span>·</span><span>기본: ${html(place.source_label)}</span></div><div class="selected-title"><h2>${html(place.name)}</h2></div><p>${html(place.address || '주소 정보 없음')}</p></div><button class="catalog-selection-detail" id="selected-catalog-detail">상세 보기 ${icon('chevron')}</button><button class="fly-button" id="selected-add-trip" aria-label="${html(place.name)} 내 여행에 담기">${icon(this.planner.hasStop(place.id) ? 'check' : 'plus')}<span>내 여행</span></button>`;
+    target.innerHTML = `<div class="selected-place-emblem">${icon(categorySymbol(place.category).icon)}</div><div class="selected-place-info"><div class="selected-eyebrow"><span>${html(categoryName(place.category))}</span><span>·</span><span>기본: ${html(place.source_label)}</span></div><div class="selected-title"><h2 data-i18n-ignore>${html(placeName(place))}</h2></div><p>${html(place.address || '주소 정보 없음')}</p></div><button class="catalog-selection-detail" id="selected-catalog-detail">상세 보기 ${icon('chevron')}</button><button class="fly-button" id="selected-add-trip" aria-label="${html(placeName(place))} 내 여행에 담기">${icon(this.planner.hasStop(place.id) ? 'check' : 'plus')}<span>내 여행</span></button>`;
     target.querySelector('#selected-catalog-detail')!.addEventListener('click', () => void this.catalog.openPlace(place.id, 'geometry' in place ? place : undefined));
     target.querySelector('#selected-add-trip')!.addEventListener('click', () => this.planner.add(this.catalog.selection?.id === place.id ? this.catalog.selection : place));
   }

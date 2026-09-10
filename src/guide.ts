@@ -1,4 +1,4 @@
-import type { GuideMap, GuidePlaceInfo } from '../shared/api-types';
+import type { AppConfig, GuideMap, GuidePlaceInfo } from '../shared/api-types';
 import { ApiError, dateLabel, getConfig, html, isJejuPoint, publicMessage, safeURL, sourceName, withAbort } from './api';
 import { facilityText, hasFacilityRecord, hoursText } from './guide-facts';
 import { splitGuideFrames } from './guide-stream';
@@ -6,17 +6,21 @@ import { requestGuide } from './guide-request';
 import { renderGuideMarkdown } from './guide-markdown';
 import { buildGuideMessage } from './guide-context';
 import { guideEmoji } from './guide-emoji';
+import { getLocale, t } from './i18n';
+import { cleanFieldEvidence, evidenceHTML } from './field-evidence';
 import { icon } from './icons';
 import './guide.css';
 
 type ChatMessage = { role: 'user' | 'assistant'; text: string; emoji?: string; state?: 'writing' | 'done' | 'interrupted' };
 type ToolUse = { name: string | null; label: string };
+const foodWords = /맛집|식당|음식|먹|카페|커피|food|restaurant|eat|cafe|café|coffee/i;
+const familyWords = /아이|어린|가족|유모차|child|kid|family|stroller/i;
 
 function questionEmoji(question: string): string {
-  if (/맛집|식당|음식|먹|카페|커피/.test(question)) return '🍽️';
-  if (/아이|어린|가족|유모차/.test(question)) return '👨‍👩‍👧';
-  if (/비\s*오는|우천|실내|우산/.test(question)) return '☔';
-  if (/오름|숲|자연|산책|해변|산|바다/.test(question)) return '🌿';
+  if (foodWords.test(question)) return '🍽️';
+  if (familyWords.test(question)) return '👨‍👩‍👧';
+  if (/비\s*오는|우천|실내|우산|rain|indoor|umbrella/i.test(question)) return '☔';
+  if (/오름|숲|자연|산책|해변|산|바다|nature|walk|beach|mountain|forest|sea/i.test(question)) return '🌿';
   return '🧭';
 }
 
@@ -48,6 +52,8 @@ export function validateGuideMap(value: unknown): GuideMap | null {
     enriched_at: typeof place.enriched_at === 'string' ? place.enriched_at.slice(0, 60) : null,
     base_note: typeof place.base_note === 'string' ? place.base_note.slice(0, 500) : null,
     business_status: typeof place.business_status === 'string' ? place.business_status.slice(0, 80) : null,
+    field_evidence: cleanFieldEvidence(place.field_evidence),
+    registration_note: typeof place.registration_note === 'string' ? place.registration_note.slice(0, 900) : null,
     sources: Array.isArray(place.sources) ? place.sources.filter((source) => source && typeof source.source === 'string').slice(0, 8)
       .map((source) => ({
         source: source.source.slice(0, 160), url: safeURL(source.url),
@@ -80,6 +86,7 @@ export class GuidePanel {
   private lastQuestion = '';
   private tools: ToolUse[] = [];
   private renderTimer: ReturnType<typeof setTimeout> | undefined;
+  private turn = 0;
   private rendered = new WeakMap<ChatMessage, { text: string; html?: string; state: 'loading' | 'ready' | 'fallback' }>();
 
   constructor(root: HTMLElement, options: {
@@ -93,6 +100,7 @@ export class GuidePanel {
     this.onSelect = options.onSelect;
     root.innerHTML = `
       <div class="panel-intro"><span class="eyebrow">A LOCAL PERSPECTIVE</span><h2>${guideEmoji('🧭')} 어떤 제주를 찾으세요?</h2><p>지역을 지정하지 않으면 제주 전체에서 찾아요.</p></div>
+      <div class="guide-service-controls"><span id="guide-availability" role="status">연결 확인 중</span><button id="guide-refresh" type="button" aria-label="AI 가이드 연결 상태 다시 확인">${icon('reset')}</button><button id="guide-new-chat" type="button" title="현재 화면의 대화를 비우고 새 대화를 시작합니다. 서버 자료와 이용 한도는 유지됩니다.">새 대화</button></div>
       <div class="guide-body">
         <div id="guide-thinking" class="guide-thinking" role="status" hidden>${guideEmoji('🤖')}<strong id="guide-thinking-text">생각 중</strong><span class="guide-thinking-dots" aria-hidden="true">···</span></div>
         <section id="guide-tools" class="guide-tools" aria-label="실행된 도구" hidden><span class="guide-tools-heading">사용 도구</span><div id="guide-tool-list" role="list"></div></section>
@@ -110,11 +118,13 @@ export class GuidePanel {
       event.preventDefault();
       const input = root.querySelector<HTMLTextAreaElement>('#guide-input')!;
       const message = input.value.trim();
-      if (!message || this.running) return;
+      if (!message || this.running || document.documentElement.dataset.shellUpdating === 'true') return;
       input.value = '';
       void this.send(message);
     });
     root.querySelector('#guide-cancel')!.addEventListener('click', () => this.cancel());
+    root.querySelector('#guide-new-chat')!.addEventListener('click', () => this.resetConversation());
+    root.querySelector('#guide-refresh')!.addEventListener('click', () => { void this.refreshAvailability(true); });
     root.querySelector('#guide-followups')!.addEventListener('click', (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-prompt]');
       if (!button) return;
@@ -131,23 +141,66 @@ export class GuidePanel {
         root.querySelector<HTMLFormElement>('#guide-form')!.requestSubmit();
       }
     });
-    void getConfig().then((config) => {
-      this.dailyLimit = config.guide.daily_limit;
-      root.querySelector('#guide-limit')!.textContent = `하루 최대 ${this.dailyLimit}회 · AI 답변은 출처를 함께 확인하세요.`;
-      if (!config.features.guide) this.status('AI 가이드를 현재 사용할 수 없어요. 잠시 후 다시 시도해 주세요.');
-    }).catch(() => this.status('가이드 연결은 질문을 보낼 때 다시 확인합니다.'));
+    void this.refreshAvailability(false);
+    window.addEventListener('atlas:locale-change', () => {
+      this.renderFollowups();
+      this.renderTools();
+    });
     this.renderFollowups();
   }
 
+  get hasUnsavedWork(): boolean {
+    return this.running || Boolean(this.root.querySelector<HTMLTextAreaElement>('#guide-input')?.value.trim());
+  }
+  private applyConfig(config: AppConfig): void {
+    this.dailyLimit = config.guide.daily_limit;
+    this.root.querySelector('#guide-limit')!.textContent = `하루 최대 ${this.dailyLimit}회 · AI 답변은 출처를 함께 확인하세요.`;
+    this.root.querySelector('#guide-availability')!.textContent = config.features.guide ? 'AI 가이드 활성' : 'AI 가이드 일시 중지';
+  }
+  private async refreshAvailability(force: boolean): Promise<void> {
+    const button = this.root.querySelector<HTMLButtonElement>('#guide-refresh')!;
+    button.disabled = true;
+    try {
+      const config = await getConfig(force);
+      this.applyConfig(config);
+      if (!this.running && !config.features.guide) this.status('AI 가이드가 일시 중지되어 있어요. 연결을 다시 확인하거나 잠시 후 질문해 주세요.');
+    } catch {
+      this.root.querySelector('#guide-availability')!.textContent = '연결 확인 필요';
+      if (!this.running) this.status('가이드 연결은 질문을 보낼 때 다시 확인합니다.');
+    } finally { button.disabled = false; }
+  }
+  resetConversation(): void {
+    this.controller?.abort(new DOMException('New conversation', 'AbortError'));
+    this.turn++;
+    this.controller = undefined;
+    clearTimeout(this.renderTimer);
+    this.renderTimer = undefined;
+    this.conversationId = undefined;
+    this.messages = [];
+    this.recommendation = null;
+    this.lastQuestion = '';
+    this.tools = [];
+    this.rendered = new WeakMap();
+    const input = this.root.querySelector<HTMLTextAreaElement>('#guide-input')!;
+    input.value = '';
+    this.setRunning(false);
+    this.renderMessages();
+    this.renderRecommendation();
+    this.status('새 대화를 시작합니다. 이 화면의 대화를 비웠으며 서버 자료와 이용 한도는 유지됩니다.');
+    input.focus();
+  }
+
   private status(message: string): void {
-    this.root.querySelector('#guide-status')!.textContent = message;
+    const translated = t(message);
+    this.root.querySelector('#guide-status')!.textContent = getLocale() === 'en' && /[가-힣]/.test(translated)
+      ? t('제주 정보를 확인하고 있어요.') : translated;
   }
 
   private renderMessages(): void {
     const log = this.root.querySelector<HTMLElement>('#guide-messages')!;
     const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 100;
     log.innerHTML = this.messages.map((message) => {
-      const text = message.text || '제주 정보를 확인하고 있어요…';
+      const text = message.text || t('제주 정보를 확인하고 있어요…');
       let content = `<p>${html(text)}</p>`;
       if (message.role === 'assistant') {
         let cached = this.rendered.get(message);
@@ -170,7 +223,7 @@ export class GuidePanel {
         }
         content = `<div class="guide-markdown" data-markdown-state="${cached?.state ?? 'plain'}">${cached?.html ?? `<p>${html(text)}</p>`}</div>`;
       }
-      return `<article class="chat-message chat-message--${message.role}"><span>${message.role === 'user' ? '나' : `${guideEmoji(message.emoji ?? '🧭')} 제주 가이드`}</span>${content}${message.state === 'interrupted' ? '<small>답변이 중단되었습니다.</small>' : ''}</article>`;
+      return `<article class="chat-message chat-message--${message.role}"><span>${message.role === 'user' ? t('나') : `${guideEmoji(message.emoji ?? '🧭')} ${t('제주 가이드')}`}</span>${content}${message.state === 'interrupted' ? `<small>${t('답변이 중단되었습니다.')}</small>` : ''}</article>`;
     }).join('');
     if (nearBottom || this.running) log.scrollTop = log.scrollHeight;
   }
@@ -189,17 +242,17 @@ export class GuidePanel {
     const typed = this.root.querySelector<HTMLTextAreaElement>('#guide-input')!.value.trim();
     const question = typed || this.lastQuestion;
     const names = !typed ? this.recommendation?.markers.slice(0, 2).map((place) => place.name).join(' · ') : '';
-    const selected = !question ? this.context().match(/선택 장소 (.+?)\. (?:지도 중심|내 코스)/)?.[1] : '';
+    const selected = !question ? this.context().match(/(?:선택 장소|Selected place) (.+?)\. (?:지도 중심|내 코스|Map center|My trip)/)?.[1] : '';
     const subject = (typed || names || question || selected || '').replace(/\s+/g, ' ').replace(/[?!.。]+$/, '').slice(0, 180);
-    const prompt = (detail: string) => `${subject ? `${subject}. ` : ''}${detail}`.slice(0, 2000);
+    const prompt = (detail: string) => `${subject ? `${subject}. ` : ''}${t(detail)}`.slice(0, 2000);
     let suggestions: { label: string; emoji: string; prompt: string }[];
-    if (/맛집|식당|음식|먹|카페|커피/.test(question)) {
+    if (foodWords.test(question)) {
       suggestions = [
         { label: '주차 확인', emoji: '🧭', prompt: prompt('추천 장소의 주차 정보가 확인되는지 알려 주세요.') },
         { label: '이용시간', emoji: '🍽️', prompt: prompt('확인된 이용시간과 출처를 알려 주세요.') },
         { label: '근처 산책', emoji: '🌿', prompt: prompt('함께 들를 가까운 산책 장소를 추천해 주세요.') },
       ];
-    } else if (/아이|어린|가족|유모차/.test(question)) {
+    } else if (familyWords.test(question)) {
       suggestions = [
         { label: '유모차 안내', emoji: '👨‍👩‍👧', prompt: prompt('유모차와 어린이 관련 편의 정보가 확인되는지 알려 주세요.') },
         { label: '실내 대안', emoji: '☔', prompt: prompt('비가 오면 대신 갈 수 있는 실내 장소를 추천해 주세요.') },
@@ -219,7 +272,7 @@ export class GuidePanel {
       ];
     }
     this.root.querySelector('#guide-followups')!.innerHTML = suggestions.map((suggestion) =>
-      `<button type="button" data-prompt="${html(suggestion.prompt)}" title="${html(suggestion.prompt)}">${guideEmoji(suggestion.emoji)}${html(suggestion.label)}</button>`).join('');
+      `<button type="button" data-prompt="${html(t(suggestion.prompt))}" title="${html(t(suggestion.prompt))}">${guideEmoji(suggestion.emoji)}${html(t(suggestion.label))}</button>`).join('');
   }
 
   private recordTool(value: Record<string, unknown>): void {
@@ -236,8 +289,11 @@ export class GuidePanel {
 
   private renderTools(): void {
     this.root.querySelector<HTMLElement>('#guide-tools')!.hidden = !this.tools.length;
-    this.root.querySelector('#guide-tool-list')!.innerHTML = this.tools.map((tool, index) =>
-      `<div class="guide-tool-chip${this.running && index === this.tools.length - 1 ? ' is-current' : ''}" role="listitem" data-tool="${html(tool.name ?? '')}"><span>${html(tool.label)}</span>${tool.name ? `<code>${html(tool.name)}</code>` : ''}</div>`).join('');
+    this.root.querySelector('#guide-tool-list')!.innerHTML = this.tools.map((tool, index) => {
+      const translated = t(tool.label);
+      const label = getLocale() === 'en' && /[가-힣]/.test(translated) ? t('도구 실행') : translated;
+      return `<div class="guide-tool-chip${this.running && index === this.tools.length - 1 ? ' is-current' : ''}" role="listitem" data-tool="${html(tool.name ?? '')}"><span>${html(label)}</span>${tool.name ? `<code>${html(tool.name)}</code>` : ''}</div>`;
+    }).join('');
   }
 
   private setRunning(value: boolean): void {
@@ -257,6 +313,10 @@ export class GuidePanel {
   }
 
   private errorMessage(code: string, status = 0): string {
+    return t(this.errorCopy(code, status));
+  }
+
+  private errorCopy(code: string, status = 0): string {
     const normalized = code.toLowerCase();
     if (/concurr|busy/.test(normalized)) return '다른 요청을 처리하고 있어요. 잠시 후 다시 질문해 주세요.';
     if (/hourly/.test(normalized)) return '한 시간 이용 한도에 도달했어요. 잠시 후 다시 질문해 주세요.';
@@ -305,13 +365,17 @@ export class GuidePanel {
       const recorded = facilities.filter(([, value]) => hasFacilityRecord(value)).length;
       const sources = [...new Set(place.sources.map((source) =>
         `${sourceName(source.source)}${source.observed_at ? ` (${dateLabel(source.observed_at)})` : ''}`))];
-      return `<details class="guide-place-facts"${index === 0 ? ' open' : ''}><summary><span>${html(place.name)}</span><small>${recorded ? `편의 ${recorded}항목 기록` : '편의 정보 미확인'}${place.hours_week.length ? ' · 이용시간 자료 있음' : ''}</small></summary><div>${facilities.length ? `<dl>${facilities.map(([key, value]) => `<dt>${html(labels[key] ?? key)}</dt><dd>${html(facilityText(value))}</dd>`).join('')}</dl>` : '<p>주차·화장실·유모차 이용 정보는 카탈로그에서 확인되지 않았습니다.</p>'}<p>${html(hoursText(place.hours_week, place.hours_source))}${place.hours_week.length ? ` · 출처 ${html(sourceName(place.hours_source))}` : ''}</p>${sources.length ? `<p>보강 자료 출처: ${sources.map(html).join(' · ')}</p>` : ''}${place.enriched_at ? `<p>보강일: ${html(dateLabel(place.enriched_at))}</p>` : ''}${place.base_note ? `<p>${html(place.base_note)}</p>` : ''}${this.onSelect ? `<button data-guide-place="${html(place.id)}">${icon('pin')}장소 상세 보기 ${icon('chevron')}</button>` : ''}</div></details>`;
+      const values = facilities.length ? `<dl>${facilities.map(([key, value]) => `<dt>${html(t(labels[key] ?? key))}</dt><dd>${html(t(facilityText(value)))}${evidenceHTML(place.field_evidence, `facilities.${key}`)}</dd>`).join('')}</dl>` : '<p>주차·화장실·유모차 이용 정보는 카탈로그에서 확인되지 않았습니다.</p>';
+      return `<details class="guide-place-facts"${index === 0 ? ' open' : ''}><summary><span data-i18n-ignore>${html(place.name)}</span><small>${recorded ? `편의 ${recorded}항목 기록` : '편의 정보 미확인'}${place.hours_week.length ? ' · 이용시간 자료 있음' : ''}</small></summary><div>${values}<p>${html(t(hoursText(place.hours_week, place.hours_source)))}${place.hours_week.length ? ` · 출처 ${html(sourceName(place.hours_source))}` : ''}</p>${evidenceHTML(place.field_evidence, 'hours_week')}${sources.length ? `<p>보강 자료 출처: ${sources.map(html).join(' · ')}</p>` : ''}${place.enriched_at ? `<p>보강일: ${html(dateLabel(place.enriched_at))}</p>` : ''}${place.base_note ? `<p>${html(place.base_note)}</p>` : ''}${place.registration_note ? `<p class="guide-registration-note">${html(t(place.registration_note))}</p>` : ''}${this.onSelect ? `<button data-guide-place="${html(place.id)}">${icon('pin')}장소 상세 보기 ${icon('chevron')}</button>` : ''}</div></details>`;
     }).join('')}</section>`;
   }
 
   async send(message: string): Promise<void> {
-    if (this.running || !message.trim()) return;
+    if (this.running || !message.trim() || document.documentElement.dataset.shellUpdating === 'true') return;
+    const turn = ++this.turn;
     message = message.trim().slice(0, 2000);
+    const locale = getLocale();
+    const requestMessage = buildGuideMessage(message, this.context(), locale);
     this.lastQuestion = message;
     this.tools = [];
     this.setRunning(true);
@@ -328,14 +392,19 @@ export class GuidePanel {
     let serverError = false;
     const timer = setTimeout(() => controller.abort(new DOMException('Guide timeout', 'TimeoutError')), 100000);
     try {
-      const config = await withAbort(getConfig(), controller.signal);
+      const requestId = crypto.randomUUID();
+      let config = await withAbort(getConfig(), controller.signal);
+      // A paused configuration must not pin this tab to an old feature flag.
+      if (!config.features.guide) config = await withAbort(getConfig(true), controller.signal);
+      this.applyConfig(config);
       if (!config.features.guide) throw new ApiError('unavailable', 503);
       if (controller.signal.aborted) throw controller.signal.reason;
-      const requestMessage = buildGuideMessage(message, this.context());
       const response = await requestGuide({
         message: requestMessage,
         conversationId: this.conversationId,
         csrfToken: config.guide.csrf_token,
+        requestId,
+        locale,
         signal: controller.signal,
         onRecovery: () => {
           this.conversationId = undefined;
@@ -347,6 +416,7 @@ export class GuidePanel {
       const decoder = new TextDecoder();
       let buffer = '';
       const dispatch = (block: string) => {
+        if (turn !== this.turn || controller.signal.aborted) return;
         const lines = block.split(/\r?\n/);
         const event = lines.find((line) => line.startsWith('event:'))?.slice(6).trim() ?? 'message';
         const data = lines.filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trimStart()).join('\n');
@@ -373,7 +443,7 @@ export class GuidePanel {
           // Preserve the preceding error instead of reporting a completed answer.
           if (serverError) return;
           if (!answer.text && this.recommendation?.answer) answer.text = this.recommendation.answer;
-          if (!answer.text) answer.text = '표시할 답변이 없어요. 원하는 지역이나 활동을 더 구체적으로 알려 주세요.';
+          if (!answer.text) answer.text = t('표시할 답변이 없어요. 원하는 지역이나 활동을 더 구체적으로 알려 주세요.');
           answer.state = 'done';
           this.status('답변을 받았어요. 장소별 출처와 이용 정보를 확인해 주세요.');
         }
@@ -401,9 +471,10 @@ export class GuidePanel {
       if (finished || serverError) await reader.cancel().catch(() => {});
       if (!finished && !serverError) throw new ApiError('interrupted', 502);
     } catch (error) {
+      if (turn !== this.turn) return;
       answer.state = 'interrupted';
       if (controller.signal.aborted && controller.signal.reason?.name === 'AbortError') {
-        const reason = '기다리기를 중지했어요. 이미 시작한 요청은 일일 횟수에 포함될 수 있어요.';
+        const reason = t('기다리기를 중지했어요. 이미 시작한 요청은 일일 횟수에 포함될 수 있어요.');
         this.status(reason);
         if (!answer.text) answer.text = reason;
       } else {
@@ -416,14 +487,14 @@ export class GuidePanel {
       }
     } finally {
       clearTimeout(timer);
-      clearTimeout(this.renderTimer);
-      this.renderTimer = undefined;
-      this.controller = undefined;
-      // The facts panel reduces the log's height after the final text token.
-      // Keep following the current answer through that last layout change.
-      this.renderMessages();
-      this.setRunning(false);
-      this.renderFollowups();
+      if (turn === this.turn) {
+        clearTimeout(this.renderTimer);
+        this.renderTimer = undefined;
+        this.controller = undefined;
+        this.renderMessages();
+        this.setRunning(false);
+        this.renderFollowups();
+      }
     }
   }
 }

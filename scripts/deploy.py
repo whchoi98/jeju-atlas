@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import re
+import socket
 import subprocess
 import tempfile
 import time
@@ -32,6 +34,162 @@ VPC = "vpc-0dfa5610180dfa628"
 PUBLIC = ["subnet-08486a1e618b1991e", "subnet-0c161777c4031c320"]
 PRIVATE = ["subnet-07b1e65682847dce9", "subnet-095297380cd45e1eb"]
 PREFIX = "pl-22a6434b"
+SETTINGS = ROOT / "infra/production.json"
+STACKS = {
+    "bootstrap": BOOTSTRAP, "app": APP, "origin": "Jeju3dOrigin",
+    "edge": "Jeju3dEdge", "operations": "Jeju3dOperations",
+}
+
+
+def validate_settings(values):
+    """Validate non-secret production settings before creating an AWS change set."""
+    integer_bounds = {
+        "DesiredCount": (1, 4), "MinTaskCount": (2, 4), "MaxTaskCount": (2, 4),
+        "GuideDailyLimit": (1, 30), "GuideHourlyLimit": (1, 5), "GuideGlobalConcurrency": (1, 2),
+    }
+    allowed = {
+        "ViewerDomainName", "ViewerCertificateArn", "OriginDomainName",
+        "OriginTlsEnabled", "TargetHealthPath",
+    } | set(integer_bounds)
+    if not isinstance(values, dict) or set(values) - allowed:
+        raise ValueError("Unknown production setting; secrets and networking do not belong here")
+    domain = values.get("ViewerDomainName", "")
+    certificate = values.get("ViewerCertificateArn", "")
+    if not isinstance(domain, str) or not isinstance(certificate, str) or bool(domain) != bool(certificate):
+        raise ValueError("ViewerDomainName and ViewerCertificateArn must be supplied together")
+    if domain and not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}", domain):
+        raise ValueError("ViewerDomainName must be a lowercase DNS hostname")
+    if certificate and not re.fullmatch(rf"arn:aws:acm:us-east-1:{ACCOUNT}:certificate/[a-f0-9-]{{36}}", certificate):
+        raise ValueError("The viewer certificate must belong to this account in us-east-1")
+    result = {
+        "ViewerDomainName": domain, "ViewerCertificateArn": certificate,
+    }
+    for key, bounds in integer_bounds.items():
+        raw = values.get(key, {
+            "DesiredCount": 2, "MinTaskCount": 2, "MaxTaskCount": 4,
+            "GuideDailyLimit": 30, "GuideHourlyLimit": 5, "GuideGlobalConcurrency": 2,
+        }[key])
+        if isinstance(raw, bool) or not re.fullmatch(r"\d+", str(raw)) or not bounds[0] <= int(raw) <= bounds[1]:
+            raise ValueError(f"{key} must be an integer between {bounds[0]} and {bounds[1]}")
+        result[key] = str(raw)
+    if int(result["MinTaskCount"]) > int(result["MaxTaskCount"]):
+        raise ValueError("Minimum capacity cannot exceed maximum capacity")
+    if int(result["DesiredCount"]) > int(result["MaxTaskCount"]):
+        raise ValueError("Desired capacity cannot exceed maximum capacity")
+    if int(result["DesiredCount"]) < int(result["MinTaskCount"]):
+        raise ValueError("Desired capacity cannot be below the configured minimum")
+    origin_domain = values.get("OriginDomainName", "")
+    tls = values.get("OriginTlsEnabled", "false")
+    if not isinstance(origin_domain, str) or origin_domain and not re.fullmatch(r"[a-z0-9-]+\.whchoi\.net", origin_domain):
+        raise ValueError("OriginDomainName must be a public hostname under whchoi.net")
+    if tls not in ("true", "false"):
+        raise ValueError("OriginTlsEnabled must be the string true or false")
+    if tls == "true" and (not origin_domain or origin_domain == domain):
+        raise ValueError("TLS requires a separate public origin hostname pointing directly to the ALB")
+    result.update(OriginDomainName=origin_domain, OriginTlsEnabled=tls)
+    health_path = values.get("TargetHealthPath", "/readyz")
+    if health_path not in ("/readyz", "/healthz"):
+        raise ValueError("TargetHealthPath must be /readyz or /healthz")
+    result["TargetHealthPath"] = health_path
+    return result
+
+
+def validate_live_domain(settings, distribution):
+    """Refuse to remove live aliases merely because they were missing from IaC."""
+    requested = {settings.get("ViewerDomainName")} - {"", None}
+    existing = set(distribution.get("Aliases", {}).get("Items", []))
+    if not existing.issubset(requested):
+        raise ValueError("Production settings would remove a live CloudFront alias; reconcile the domain configuration first")
+
+
+def preserved_desired_count(configured, current, maximum=4):
+    desired = max(int(configured), int(current))
+    if desired > int(maximum):
+        raise ValueError("Current service capacity exceeds the configured maximum; review sizing instead of scaling in during deployment")
+    return str(desired)
+
+
+def validate_readiness_transition(current_path, requested_path, supports_ready, service_stable):
+    if current_path != "/readyz" and requested_path == "/readyz" and not (supports_ready and service_stable):
+        raise ValueError("Deploy the readiness-capable image with /healthz first; switch to /readyz only after the service is stable")
+
+
+def domain_matches(certificate_name, hostname):
+    return certificate_name == hostname or (
+        certificate_name.startswith("*.") and hostname.split(".", 1)[-1] == certificate_name[2:]
+        and hostname.count(".") == certificate_name.count(".")
+    )
+
+
+def assert_domain(session, settings, outputs):
+    if outputs.get("DistributionId"):
+        distribution = session.client("cloudfront").get_distribution_config(
+            Id=outputs["DistributionId"],
+        )["DistributionConfig"]
+        # The response includes the origin secret: only compare public alias fields
+        # in memory, never serialize or print the response.
+        validate_live_domain(settings, distribution)
+    certificate_arn = settings.get("ViewerCertificateArn")
+    if certificate_arn:
+        certificate = session.client("acm", region_name="us-east-1").describe_certificate(
+            CertificateArn=certificate_arn,
+        )["Certificate"]
+        if certificate["Status"] != "ISSUED" or not any(
+            domain_matches(name, settings["ViewerDomainName"])
+            for name in certificate.get("SubjectAlternativeNames", [])
+        ):
+            raise ValueError("The issued viewer certificate must cover the configured hostname")
+
+
+def stack_client(session, kind):
+    return session.client("cloudformation", region_name="us-east-1") if kind == "edge" else session.client("cloudformation")
+
+
+def optional_stack_outputs(session, kind):
+    try:
+        stack = stack_client(session, kind).describe_stacks(StackName=STACKS[kind])["Stacks"][0]
+    except ClientError as error:
+        if "does not exist" in str(error):
+            return {}
+        raise
+    if stack["StackStatus"] not in ("CREATE_COMPLETE", "UPDATE_COMPLETE"):
+        raise RuntimeError(f"{STACKS[kind]} must be stable before planning the app")
+    return {item["OutputKey"]: item["OutputValue"] for item in stack.get("Outputs", [])}
+
+
+def assert_origin_tls(session, params, outputs):
+    certificate_arn = params.get("OriginCertificateArn", "")
+    if certificate_arn:
+        certificate = session.client("acm").describe_certificate(CertificateArn=certificate_arn)["Certificate"]
+        if certificate["Status"] != "ISSUED":
+            raise ValueError("The ALB origin certificate must be issued before it is attached")
+    if params.get("OriginTlsEnabled") == "true":
+        if not certificate_arn or not any(
+            domain_matches(name, params["OriginDomainName"])
+            for name in certificate.get("SubjectAlternativeNames", [])
+        ):
+            raise ValueError("The regional certificate must cover the configured origin domain")
+        canonical, aliases, _ = socket.gethostbyname_ex(params["OriginDomainName"])
+        expected = outputs.get("LoadBalancerDnsName", "").lower()
+        if not expected or canonical.rstrip(".").lower() != expected.rstrip("."):
+            raise ValueError("Public origin DNS must resolve directly to this ALB before enabling HTTPS")
+
+
+def infrastructure_parameters(session, kind):
+    if kind in ("bootstrap", "origin"):
+        return {}
+    outputs = stack_outputs(session.client("cloudformation"), APP)
+    if kind == "edge":
+        return {"DistributionArn": f"arn:aws:cloudfront::{ACCOUNT}:distribution/{outputs['DistributionId']}"}
+    if kind == "operations":
+        return {
+            "ClusterName": outputs["ClusterName"], "ServiceName": outputs["ServiceName"],
+            "AlbFullName": outputs["LoadBalancerArn"].split(":loadbalancer/", 1)[1],
+            "TargetGroupFullName": outputs["TargetGroupArn"].split(":", 5)[5],
+            "LogGroupName": outputs["LogGroupName"],
+            "GuideQuotaTableName": outputs["GuideQuotaTableName"],
+        }
+    raise ValueError("Unexpected infrastructure stack")
 
 
 def emit(value):
@@ -105,7 +263,11 @@ def assert_network(session):
 
 
 def plan(session, kind):
-    cf = session.client("cloudformation")
+    cf = stack_client(session, kind)
+    if kind not in STACKS:
+        raise ValueError("Unexpected stack kind")
+    # A failed or no-op plan must not leave an older change set available to apply.
+    save(f"{kind}-change-set.json", {"stack": STACKS[kind], "status": "PLANNING"})
     if kind == "app":
         assert_network(session)
         image = load("image.json")
@@ -118,27 +280,61 @@ def plan(session, kind):
             "ImageUri": image["imageUri"],
             "RepositoryArn": registry["RepositoryArn"],
             "Release": image["release"],
-            "DesiredCount": "1",
         }
+        settings = validate_settings(json.loads(SETTINGS.read_text()))
+        params.update(settings)
+        edge = optional_stack_outputs(session, "edge")
+        origin = optional_stack_outputs(session, "origin")
+        if edge:
+            params["WebAclArn"] = edge["WebAclArn"]
+        if origin:
+            params["OriginCertificateArn"] = origin["OriginCertificateArn"]
         name, template = APP, ROOT / "infra/application.yaml"
     else:
-        name, template, params = BOOTSTRAP, ROOT / "infra/bootstrap.yaml", {}
+        name, template, params = STACKS[kind], ROOT / f"infra/{kind}.yaml", infrastructure_parameters(session, kind)
     subprocess.run(["cfn-lint", str(template)], check=True, cwd=ROOT)
     try:
         existing = cf.describe_stacks(StackName=name)["Stacks"][0]
         if existing["StackStatus"] == "ROLLBACK_COMPLETE":
             raise RuntimeError("Stack rolled back; inspect events before changing it")
         change_type = "CREATE" if existing["StackStatus"] == "REVIEW_IN_PROGRESS" else "UPDATE"
+        if kind == "app" and change_type == "UPDATE":
+            outputs = {item["OutputKey"]: item["OutputValue"] for item in existing.get("Outputs", [])}
+            # Preserve existing non-secret parameters not overridden by the
+            # checked-in settings (for example a previously deployed WebACL).
+            for item in existing.get("Parameters", []):
+                if item.get("ParameterValue") and item["ParameterValue"] != "****":
+                    params.setdefault(item["ParameterKey"], item["ParameterValue"])
+            assert_domain(session, settings, outputs)
+            assert_origin_tls(session, params, outputs)
+            services = session.client("ecs").describe_services(
+                cluster=outputs["ClusterName"], services=[outputs["ServiceName"]],
+            )["services"]
+            if len(services) != 1:
+                raise RuntimeError("Expected the existing Jeju service before planning an update")
+            params["DesiredCount"] = preserved_desired_count(
+                settings["DesiredCount"], services[0]["desiredCount"], settings["MaxTaskCount"],
+            )
+            if settings["TargetHealthPath"] == "/readyz":
+                target = session.client("elbv2").describe_target_groups(TargetGroupArns=[outputs["TargetGroupArn"]])["TargetGroups"][0]
+                task = session.client("ecs").describe_task_definition(taskDefinition=services[0]["taskDefinition"])["taskDefinition"]
+                env = {item["name"]: item["value"] for item in task["containerDefinitions"][0].get("environment", [])}
+                stable = services[0]["runningCount"] == services[0]["desiredCount"] and not services[0]["pendingCount"]
+                stable = stable and len(services[0]["deployments"]) == 1 and services[0]["deployments"][0].get("rolloutState") == "COMPLETED"
+                validate_readiness_transition(target["HealthCheckPath"], "/readyz", env.get("ATLAS_READY_ENDPOINT") == "true", stable)
     except ClientError as error:
         if "does not exist" not in str(error):
             raise
         change_type = "CREATE"
+    if kind == "app" and change_type == "CREATE":
+        assert_domain(session, settings, {})
+        assert_origin_tls(session, params, {})
     change_name = "jeju-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     created = cf.create_change_set(
         StackName=name,
         ChangeSetName=change_name,
         ChangeSetType=change_type,
-        Description="User-requested Jeju 3D deployment; existing VPC and NAT reused",
+        Description="User-requested Jeju Atlas deployment; existing VPC and NAT reused",
         TemplateBody=template.read_text(),
         Parameters=[{"ParameterKey": key, "ParameterValue": value} for key, value in params.items()],
         Capabilities=["CAPABILITY_IAM"],
@@ -151,6 +347,7 @@ def plan(session, kind):
         time.sleep(2)
     if detail["Status"] == "FAILED":
         if "didn't contain changes" in detail.get("StatusReason", ""):
+            save(f"{kind}-change-set.json", {"stack": name, "status": "NO_CHANGES"})
             emit({"stack": name, "noChanges": True})
             return
         raise RuntimeError(detail.get("StatusReason", "Change set failed"))
@@ -169,7 +366,8 @@ def plan(session, kind):
     ) for change in changes):
         raise RuntimeError("Destructive changes need explicit review; no action executed")
     review = {
-        "stack": name, "changeSetArn": created["Id"], "type": change_type,
+        "stack": name, "changeSetArn": created["Id"], "type": change_type, "status": "REVIEWABLE",
+        "parameters": params,
         "changes": [
             {key: change[key] for key in ["Action", "LogicalResourceId", "ResourceType", "Replacement"] if key in change}
             for change in changes
@@ -180,10 +378,10 @@ def plan(session, kind):
 
 
 def apply(session, kind):
-    cf = session.client("cloudformation")
+    cf = stack_client(session, kind)
     review = load(f"{kind}-change-set.json")
-    if review["stack"] not in [BOOTSTRAP, APP]:
-        raise RuntimeError("Unexpected stack")
+    if review["stack"] != STACKS[kind] or review.get("status") != "REVIEWABLE":
+        raise RuntimeError("Run and review a successful plan for this stack before applying")
     arn = review["changeSetArn"]
     detail = cf.describe_change_set(ChangeSetName=arn)
     if detail["ExecutionStatus"] != "AVAILABLE":
@@ -199,7 +397,7 @@ def build_push(session):
     uri = registry["RepositoryUri"]
     release = "release-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     tag = f"{uri}:{release}"
-    subprocess.run(["node", "--test", "tests/server.test.mjs"], check=True, cwd=ROOT)
+    subprocess.run(["node", "scripts/check.mjs"], check=True, cwd=ROOT)
     subprocess.run(["docker", "build", "--platform", "linux/arm64", "--tag", tag, "."], check=True, cwd=ROOT)
     token = ecr.get_authorization_token()["authorizationData"][0]
     username, password = base64.b64decode(token["authorizationToken"]).decode().split(":", 1)
@@ -216,8 +414,8 @@ def build_push(session):
 
 
 def status(session, kind):
-    cf = session.client("cloudformation")
-    name = APP if kind == "app" else BOOTSTRAP
+    cf = stack_client(session, kind)
+    name = STACKS[kind]
     stack = cf.describe_stacks(StackName=name)["Stacks"][0]
     events = cf.describe_stack_events(StackName=name)["StackEvents"][:12]
     emit({
@@ -235,7 +433,9 @@ def status(session, kind):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["network", "plan-bootstrap", "apply-bootstrap", "status-bootstrap", "build-push", "plan-app", "apply-app", "status-app", "invalidate"])
+    parser.add_argument("action", choices=["network", "build-push", "invalidate"] + [
+        f"{action}-{kind}" for kind in STACKS for action in ["plan", "apply", "status"]
+    ])
     args = parser.parse_args()
     session = connect()
     if args.action == "network":

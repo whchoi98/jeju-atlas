@@ -4,6 +4,7 @@ import { brandMark, icon } from './icons';
 import { categories, formatCoordinates, places, tourStops, type Place } from './places';
 import type { AtlasMap, ViewState } from './map';
 import { AtlasExperience } from './explore';
+import { getLocale, initializeI18n, placeName, t } from './i18n';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let atlas: AtlasMap | undefined;
@@ -33,7 +34,8 @@ app.innerHTML = `
     <div class="header-actions">
       <span class="terrain-tag"><span></span> 실제 지형 · 위성 영상</span>
       <button class="button button--quiet about-button" id="about-button" aria-label="지도 이용 안내">${icon('info')}<span>이용 안내</span></button>
-      <button class="button button--share" id="share-button" data-map-action disabled>${icon('share')}<span>이 뷰 공유</span></button>
+      <button class="button language-toggle" id="language-toggle" type="button" data-i18n-ignore>English</button>
+      <button class="button button--share" id="share-button" aria-label="이 뷰 공유" data-map-action disabled>${icon('share')}<span>이 뷰 공유</span></button>
     </div>
   </header>
   <main class="atlas-layout">
@@ -142,6 +144,7 @@ app.innerHTML = `
     </dl>
     <p class="data-note">위성 영상은 실시간 영상이 아닙니다. 지형 데이터의 해상도에 따라 작은 바위와 건물은 표시되지 않습니다. 장소 좌표는 탐색용 중심점이며 길 안내를 제공하지 않습니다.</p>
     <div class="data-sources"><strong>지도 데이터</strong><span>위성 영상 · Esri World Imagery</span><span>고도 타일 · Mapzen / AWS Terrain Tiles</span><span>육지 고도 · USGS (SRTM / GMTED2010)</span><span>전 지구 지형 · NOAA (ETOPO1)</span><a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">고도 데이터 전체 출처 보기 ↗</a><span>지도 엔진 · MapLibre GL JS</span><span id="emoji-attribution">UI 이모지 · <a href="https://github.com/twitter/twemoji/tree/v14.0.2" target="_blank" rel="noopener noreferrer">Twemoji © Twitter, Inc and other contributors</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a></span><a href="/emoji/LICENSE-GRAPHICS.txt" target="_blank" rel="noopener">이모지 이용허락 전문 ↗</a></div>
+    <details class="device-privacy" id="privacy-help"><summary>자료 보관과 AI 이용</summary><p>코스와 즐겨찾기는 이 브라우저에 저장됩니다. 코스 공유 주소의 # 뒤에는 장소 이름·좌표·순서·체류 시간·출처가 담기며, 주소를 받은 사람이 볼 수 있습니다.</p><p>AI 질문과 필요한 탐색 맥락은 서버를 거쳐 AWS의 기존 AI 런타임에 전달됩니다. 서버는 이용 한도를 관리합니다.</p><p>기기 자료 삭제는 브라우저의 코스·즐겨찾기·이전 정상 저장본에만 적용됩니다. 이미 공유한 주소와 서버에 전송된 자료, 이용 한도용 세션 쿠키는 삭제하지 않습니다.</p><p>새 대화는 현재 화면의 대화를 비우고 새 연결을 시작합니다. 서버 자료를 삭제하는 기능이 아닙니다.</p><button id="about-data" class="button">이 기기의 여행 자료 관리</button></details>
     <button class="button button--primary dialog-start" id="about-start">제주 탐험하기 ${icon('arrow')}</button>
   </dialog>
   <dialog class="share-dialog" id="share-dialog" aria-labelledby="share-title">
@@ -170,7 +173,7 @@ function renderPlaces(): void {
   element('place-list').innerHTML = filtered.length ? filtered.map((place) => `
     <button class="place-card${selected.id === place.id ? ' is-selected' : ''}" data-place="${place.id}" aria-pressed="${selected.id === place.id}">
       ${categoryIcon(place)}
-      <span class="place-card-content"><span class="place-card-title"><strong>${place.name}</strong>${place.id === 'hallasan' ? '<span class="featured-tag">대표 지형</span>' : ''}</span><span class="place-card-description">${place.description}</span><span class="place-card-meta"><span>${categories[place.category]}</span><span class="meta-dot">·</span><span>${place.location}</span></span><span class="place-card-coordinates">${formatCoordinates(place.coordinates)}</span></span>
+      <span class="place-card-content"><span class="place-card-title"><strong data-i18n-ignore>${placeName(place)}</strong>${place.id === 'hallasan' ? '<span class="featured-tag">대표 지형</span>' : ''}</span><span class="place-card-description">${t(place.description)}</span><span class="place-card-meta"><span>${categories[place.category]}</span><span class="meta-dot">·</span><span>${t(place.location)}</span></span><span class="place-card-coordinates">${formatCoordinates(place.coordinates)}</span></span>
       ${icon('chevron', 'place-card-chevron')}
     </button>`).join('') : `<div class="empty-search">${icon('search')}<strong>찾는 장소가 없어요</strong><p>다른 이름을 입력하거나<br>분류를 ‘전체’로 바꿔 보세요.</p><button id="clear-search">검색 초기화</button></div>`;
   element('clear-search')?.addEventListener('click', () => {
@@ -194,8 +197,8 @@ function renderPlaces(): void {
 function renderSelected(): void {
   element('selected-place').innerHTML = `
     <div class="selected-place-emblem">${icon(selected.category)}</div>
-    <div class="selected-place-info"><div class="selected-eyebrow"><span>${categories[selected.category]}</span><span>·</span><span>${selected.location}</span></div><div class="selected-title"><h2>${selected.name}</h2><span>${selected.english}</span></div><p>${selected.description}</p><span class="selected-coordinates">${formatCoordinates(selected.coordinates)}</span></div>
-    <button class="fly-button" id="fly-to-place" ${mapReady ? '' : 'disabled'} aria-label="${selected.name} 가까이 보기">${icon('pin')}<span>가까이 보기</span>${icon('arrow')}</button>
+    <div class="selected-place-info"><div class="selected-eyebrow"><span>${categories[selected.category]}</span><span>·</span><span>${t(selected.location)}</span></div><div class="selected-title"><h2 data-i18n-ignore>${placeName(selected)}</h2><span data-i18n-ignore>${getLocale() === 'en' ? selected.name : selected.english}</span></div><p>${t(selected.description)}</p><span class="selected-coordinates">${formatCoordinates(selected.coordinates)}</span></div>
+    <button class="fly-button" id="fly-to-place" ${mapReady ? '' : 'disabled'} aria-label="${placeName(selected)} 가까이 보기">${icon('pin')}<span>가까이 보기</span>${icon('arrow')}</button>
   `;
   element('fly-to-place').addEventListener('click', () => {
     stopTour();
@@ -209,7 +212,7 @@ function selectPlace(place: Place, fly: boolean, touring = false): void {
   atlas?.setSelected(place.id);
   renderPlaces();
   renderSelected();
-  element('selection-announcement').textContent = `${place.name} 선택. ${place.description}`;
+  element('selection-announcement').textContent = getLocale() === 'en' ? `Selected ${placeName(place)}. ${t(place.description)}` : `${place.name} 선택. ${place.description}`;
   if (fly) {
     if (mapReady) atlas?.flyTo(place, touring);
     else pendingFly = place;
@@ -336,7 +339,9 @@ async function initializeMap(stateOverride?: ViewState): Promise<void> {
       onInteraction: () => stopTour(true),
       onError: showMapError,
       onRecovered: () => {
-        if (mapReady) element('map-notice').hidden = true;
+        if (currentId !== initializationId) return;
+        if (!mapReady) setMapReady(true);
+        element('map-notice').hidden = true;
       },
     });
   } catch (error) {
@@ -354,7 +359,7 @@ function renderTour(): void {
   if (running) {
     element('tour-count').textContent = `${tourIndex + 1} / ${tourStops.length}`;
     element('tour-stops').innerHTML = tourStops.map((id, index) =>
-      `<span class="${index === tourIndex ? 'is-current' : index < tourIndex ? 'is-visited' : ''}"><i>${index < tourIndex ? icon('check') : index + 1}</i>${places.find((place) => place.id === id)!.name}</span>`).join('');
+      `<span data-i18n-ignore class="${index === tourIndex ? 'is-current' : index < tourIndex ? 'is-visited' : ''}"><i>${index < tourIndex ? icon('check') : index + 1}</i>${placeName(places.find((place) => place.id === id)!)}</span>`).join('');
   }
 }
 
@@ -465,6 +470,10 @@ element('about-button').addEventListener('click', () => {
 });
 element('about-close').addEventListener('click', () => element<HTMLDialogElement>('about-dialog').close());
 element('about-start').addEventListener('click', () => element<HTMLDialogElement>('about-dialog').close());
+element('about-data').addEventListener('click', () => {
+  element<HTMLDialogElement>('about-dialog').close();
+  experience?.manageData();
+});
 document.querySelectorAll<HTMLDialogElement>('dialog').forEach((dialog) => {
   dialog.addEventListener('click', (event) => {
     if (event.target === dialog) {
@@ -520,4 +529,10 @@ experience = new AtlasExperience({
   cameraURL: () => atlas && mapModule ? mapModule.cameraURL(atlas.getState()) : window.location.href,
   copyURL,
 });
+window.addEventListener('atlas:locale-change', () => {
+  renderPlaces();
+  if (!experience?.refreshLocale()) renderSelected();
+  renderTour();
+});
+initializeI18n(element<HTMLButtonElement>('language-toggle'), toast);
 void initializeMap();

@@ -28,6 +28,8 @@ const contentTypes = {
 
 export function createAppServer({ root, release = 'local', api, onDiagnostic = () => {} }) {
   const staticRoot = realpathSync(root);
+  let draining = false;
+  let drainPromise;
   const rejectedGuide = (pathname, code, status) => {
     if (pathname !== '/api/guide') return;
     try {
@@ -36,7 +38,7 @@ export function createAppServer({ root, release = 'local', api, onDiagnostic = (
       // A logging failure must not affect the HTTP response.
     }
   };
-  return createServer(async (req, res) => {
+  const server = createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -92,6 +94,11 @@ export function createAppServer({ root, release = 'local', api, onDiagnostic = (
     if (pathname === '/healthz') {
       return reply(200, JSON.stringify({ status: 'ok', service: 'jeju-3d', release }), 'application/json; charset=utf-8');
     }
+    if (pathname === '/readyz') {
+      let ready = false;
+      try { ready = !draining && (!api?.ready || await api.ready()); } catch { /* Not ready on dependency failure. */ }
+      return reply(ready ? 200 : 503, JSON.stringify({ status: ready ? 'ready' : 'not_ready', release }), 'application/json; charset=utf-8');
+    }
     const relativePath = pathname === '/' ? 'index.html' : pathname.slice(1);
     let filename;
     let info;
@@ -126,6 +133,43 @@ export function createAppServer({ root, release = 'local', api, onDiagnostic = (
     res.on('close', () => stream.destroy());
     stream.pipe(res);
   });
+  server.beginDrain = () => {
+    draining = true;
+    api?.beginDrain?.();
+  };
+  server.drain = ({ timeoutMs = 120_000 } = {}) => {
+    if (drainPromise) return drainPromise;
+    server.beginDrain();
+    drainPromise = new Promise((resolve) => {
+      let finished = false;
+      const done = (graceful) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        api?.close?.();
+        resolve(graceful);
+      };
+      const timer = setTimeout(() => {
+        api?.close?.();
+        server.closeAllConnections();
+        server.close(() => {});
+        done(false);
+      }, Math.max(1, Math.min(120_000, timeoutMs)));
+      (async () => {
+        try {
+          await api?.drain?.();
+          await new Promise((closed) => server.close(closed));
+          done(true);
+        } catch {
+          server.closeAllConnections();
+          server.close(() => {});
+          done(false);
+        }
+      })();
+    });
+    return drainPromise;
+  };
+  return server;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
@@ -150,6 +194,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
         await catalog.init();
       }
       api = createApiHandler({ catalog, release, env: process.env, onDiagnostic });
+      await api.init();
     } catch {
       catalog?.close();
       console.error(JSON.stringify({ event: 'startup-error', code: 'API_INITIALIZATION_FAILED' }));
@@ -166,12 +211,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   for (const signal of ['SIGTERM', 'SIGINT']) {
     process.once(signal, () => {
       console.log(JSON.stringify({ event: 'shutdown', signal }));
-      api?.close();
-      server.close(() => {
+      void server.drain({ timeoutMs: Number(process.env.DRAIN_TIMEOUT_MS || 120_000) }).then((graceful) => {
         catalog?.close();
-        process.exit(0);
+        process.exit(graceful ? 0 : 1);
       });
-      setTimeout(() => process.exit(1), 25_000).unref();
     });
   }
 }

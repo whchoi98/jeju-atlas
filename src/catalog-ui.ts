@@ -4,6 +4,8 @@ import type { PlaceSnapshot, TripPlanner } from './trip';
 import { aborted, apiJSON, catalogBounds, categoryName, dateLabel, distanceLabel, distanceMeters, html, isJejuPoint, link, safeURL, sourceName } from './api';
 import { categorySymbol, icon } from './icons';
 import { hoursText } from './guide-facts';
+import { getLocale, placeName, t } from './i18n';
+import { evidenceHTML } from './field-evidence';
 
 interface CatalogOptions {
   center: () => { lng: number; lat: number };
@@ -127,8 +129,31 @@ export class CatalogUI {
     });
     detailRoot.addEventListener('click', (event) => this.detailClick(event));
     window.addEventListener('atlas:saved-change', () => this.updateSavedButtons());
+    window.addEventListener('online', () => {
+      void this.loadStatus();
+      void this.search();
+      if (this.mapReady && this.mapEnabled) void this.loadPoints();
+    });
+    window.addEventListener('atlas:locale-change', () => {
+      if (this.root.querySelector('#catalog-list [data-catalog-id]')) {
+        const list = this.root.querySelector<HTMLElement>('#catalog-list')!;
+        const scroll = list.scrollTop;
+        this.renderList();
+        list.scrollTop = scroll;
+      }
+      if (this.detailRoot.hidden || !this.currentDetail) return;
+      const scroll = this.detailRoot.querySelector<HTMLElement>('.detail-content')?.scrollTop ?? 0;
+      const weather = this.detailRoot.querySelector('#place-weather');
+      const focusedAction = document.activeElement instanceof HTMLElement && this.detailRoot.contains(document.activeElement)
+        ? document.activeElement.dataset.detailAction : undefined;
+      this.renderDetail(this.currentDetail);
+      if (weather) this.detailRoot.querySelector('#place-weather')?.replaceWith(weather);
+      const content = this.detailRoot.querySelector<HTMLElement>('.detail-content');
+      if (content) content.scrollTop = scroll;
+      if (focusedAction) this.detailRoot.querySelector<HTMLElement>(`[data-detail-action="${CSS.escape(focusedAction)}"]`)?.focus({ preventScroll: true });
+    });
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !this.detailRoot.hidden) this.closeDetail();
+      if (event.key === 'Escape' && !this.detailRoot.hidden && !document.querySelector('dialog[open]')) this.closeDetail();
     });
     void this.loadStatus();
     void this.search();
@@ -273,6 +298,7 @@ export class CatalogUI {
   }
 
   async search(): Promise<void> {
+    const restoreRetryFocus = document.activeElement?.id === 'catalog-retry';
     const requestId = ++this.requestId;
     this.searchController?.abort();
     const controller = new AbortController();
@@ -306,6 +332,7 @@ export class CatalogUI {
       this.items = result.items.filter((place) => place && typeof place.id === 'string' && typeof place.name === 'string' && isJejuPoint(place.lng, place.lat)).slice(0, 40);
       if (this.mode !== 'view' && (this.query || this.mode === 'nearby')) this.publishPoints(this.listPoints());
       this.renderList();
+      if (restoreRetryFocus) this.root.querySelector<HTMLButtonElement>('[data-catalog-id]')?.focus({ preventScroll: true });
       this.root.querySelector('#catalog-result-count')!.textContent = `${result.total.toLocaleString('ko-KR')}곳`;
       this.root.querySelector('#catalog-page')!.textContent = result.total ? `${Math.floor(this.offset / 40) + 1} / ${Math.ceil(result.total / 40)}` : '0';
       this.root.querySelector<HTMLButtonElement>('#catalog-prev')!.disabled = this.offset === 0;
@@ -315,6 +342,7 @@ export class CatalogUI {
       if (aborted(error) || controller.signal.aborted) return;
       list.innerHTML = '<div class="feature-empty"><strong>카탈로그에 연결하지 못했어요</strong><p>저장한 코스와 지형 명소는 계속 살펴볼 수 있어요.</p><button id="catalog-retry">다시 시도</button></div>';
       list.querySelector('#catalog-retry')!.addEventListener('click', () => void this.search());
+      if (restoreRetryFocus) list.querySelector<HTMLButtonElement>('#catalog-retry')?.focus({ preventScroll: true });
       this.root.querySelector('#catalog-result-count')!.textContent = '';
     } finally {
       if (requestId === this.requestId) list.setAttribute('aria-busy', 'false');
@@ -326,7 +354,7 @@ export class CatalogUI {
     this.root.querySelector('#catalog-list')!.innerHTML = this.items.map((place) => `
       <button class="catalog-card ${place.id === this.detailId ? 'is-selected' : ''}" data-catalog-id="${html(place.id)}" aria-pressed="${place.id === this.detailId}">
         <span class="catalog-category-dot catalog-category-dot--${categoryColor(place.category)}">${icon(categorySymbol(place.category).icon)}</span>
-        <span><strong>${html(place.name)}</strong><span class="catalog-card-meta">${html(categoryName(place.category))} <span>·</span> ${html(distanceLabel(place.distance_m ?? distanceMeters(center, place)))} 직선</span><span class="catalog-card-address">${html(this.mode === 'view' ? '주소는 상세에서 확인' : place.address || '주소 정보 없음')}</span><span class="catalog-base-source">기본: ${html(place.source_label || sourceName(place.source))}</span></span>${icon('chevron')}
+        <span><strong data-i18n-ignore>${html(placeName(place))}</strong><span class="catalog-card-meta">${html(categoryName(place.category))} <span>·</span> ${html(distanceLabel(place.distance_m ?? distanceMeters(center, place)))} 직선</span><span class="catalog-card-address">${html(this.mode === 'view' ? '주소는 상세에서 확인' : place.address || '주소 정보 없음')}</span><span class="catalog-base-source">기본: ${html(place.source_label || sourceName(place.source))}</span></span>${icon('chevron')}
       </button>`).join('') || '<div class="feature-empty"><strong>조건에 맞는 장소가 없어요</strong><p>검색어와 분류, 지도 범위를 바꿔 보세요.</p></div>';
   }
 
@@ -374,12 +402,13 @@ export class CatalogUI {
     this.detailId = id;
     this.savedFallback = saved;
     this.currentDetail = null;
-    this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (this.detailRoot.hidden) this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const summary = saved ?? this.items.find((place) => place.id === id);
     if (summary) this.options.onSelect(summary);
     this.detailRoot.hidden = false;
+    this.detailRoot.setAttribute('aria-busy', 'true');
     document.querySelector('.map-shell')?.classList.add('is-detail-open');
-    this.detailRoot.innerHTML = `<div class="detail-heading"><div><span class="eyebrow">PLACE NOTES</span><h2 tabindex="-1">${html(summary?.name ?? '장소 정보')}</h2></div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div><div class="feature-empty" role="status">장소의 출처와 상세 정보를 불러오는 중…</div>`;
+    this.detailRoot.innerHTML = `<div class="detail-heading"><div><span class="eyebrow">PLACE NOTES</span><h2 tabindex="-1"${summary ? ' data-i18n-ignore' : ''}>${html(summary ? placeName(summary) : '장소 정보')}</h2></div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div><div class="feature-empty" role="status">장소의 출처와 상세 정보를 불러오는 중…</div>`;
     this.detailRoot.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
     const controller = new AbortController();
     this.detailController = controller;
@@ -388,6 +417,7 @@ export class CatalogUI {
       if (controller.signal.aborted || this.detailId !== id) return;
       if (!isJejuPoint(detail.lng, detail.lat)) throw new Error('Invalid location');
       this.currentDetail = detail;
+      this.detailRoot.setAttribute('aria-busy', 'false');
       if (!summary) this.options.onSelect(detail);
       this.renderDetail(detail);
       this.renderList();
@@ -395,20 +425,31 @@ export class CatalogUI {
     } catch (error) {
       if (aborted(error) || controller.signal.aborted) return;
       this.currentDetail = null;
+      this.detailRoot.setAttribute('aria-busy', 'false');
       if (saved) {
-        this.detailRoot.innerHTML = `<div class="detail-heading"><h2>${html(saved.name)}</h2><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div><div class="detail-content"><p class="detail-base-note">저장한 장소 정보입니다. 현재 상세 정보에 연결하지 못했어요.</p><p>${html(saved.summary || noData)}</p><dl class="detail-basics"><div><dt>주소</dt><dd>${html(saved.address || noData)}</dd></div><div><dt>기본 출처</dt><dd>${html(saved.source_label)}</dd></div><div><dt>정보 기준</dt><dd>${html(dateLabel(saved.updated_at))}</dd></div></dl><p>${html(saved.base_note || '')}</p><button data-detail-action="add" class="button button--primary">내 여행에 담기</button><button data-detail-action="retry" class="button">최신 상세 다시 확인</button></div>`;
+        this.detailRoot.innerHTML = `<div class="detail-heading"><h2 data-i18n-ignore>${html(placeName(saved))}</h2><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div><div class="detail-content"><p class="detail-base-note">저장한 장소 정보입니다. 현재 상세 정보에 연결하지 못했어요.</p><p>${html(saved.summary || noData)}</p><dl class="detail-basics"><div><dt>주소</dt><dd>${html(saved.address || noData)}</dd></div><div><dt>기본 출처</dt><dd>${html(saved.source_label)}</dd></div><div><dt>정보 기준</dt><dd>${html(dateLabel(saved.updated_at))}</dd></div></dl><p>${html(saved.base_note || '')}</p><button data-detail-action="add" class="button button--primary">내 여행에 담기</button><button data-detail-action="retry" class="button">최신 상세 다시 확인</button></div>`;
       } else {
-        this.detailRoot.innerHTML += '<div class="feature-empty"><p>장소 상세를 불러오지 못했어요.</p><button data-detail-action="retry">다시 시도</button></div>';
+        const focusInside = this.detailRoot.contains(document.activeElement);
+        this.detailRoot.querySelector('.feature-empty')?.replaceChildren();
+        const status = this.detailRoot.querySelector<HTMLElement>('.feature-empty')!;
+        status.innerHTML = '<p>장소 상세를 불러오지 못했어요. 연결 상태를 확인한 뒤 다시 시도해 주세요.</p><button class="button" data-detail-action="retry">다시 시도</button>';
+        if (focusInside) status.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
       }
     }
   }
 
-  closeDetail(): void {
+  closeDetail(restoreFocus = true): void {
+    if (this.detailRoot.hidden) return;
     this.detailController?.abort();
     this.weatherController?.abort();
     this.detailRoot.hidden = true;
+    this.detailRoot.setAttribute('aria-busy', 'false');
     document.querySelector('.map-shell')?.classList.remove('is-detail-open');
-    this.previousFocus?.isConnected && this.previousFocus.focus({ preventScroll: true });
+    if (!restoreFocus) return;
+    let target = this.previousFocus?.isConnected ? this.previousFocus : this.root.querySelector<HTMLElement>('#catalog-search');
+    if (target?.closest('[inert]')) this.options.openDrawer();
+    if (!target?.getClientRects().length) target = document.querySelector<HTMLElement>('.sidebar-tabs [aria-selected="true"]');
+    target?.focus({ preventScroll: true });
   }
 
   private sourceList(sources: SourceRecord[]): string {
@@ -416,6 +457,7 @@ export class CatalogUI {
   }
 
   private renderDetail(place: PlaceDetail): void {
+    const focusInside = this.detailRoot.contains(document.activeElement);
     const curated = /curated|seed|큐레이션/i.test(`${place.source} ${place.source_label}`);
     const note = place.base_note || (curated ? '큐레이션 시드의 좌표·주소·소개는 공식 대조 검증 정보가 아닙니다. 보강된 항목의 출처를 각각 확인해 주세요.' : '기본 정보와 아래 보강 정보의 출처를 함께 확인해 주세요.');
     const days = ['월', '화', '수', '목', '금', '토', '일'];
@@ -424,29 +466,32 @@ export class CatalogUI {
     const overviewSources = place.sources.filter((source) => /tourapi|visitjeju|wikimedia/i.test(source.source));
     const businessSources = place.sources.filter((source) => /localdata/i.test(source.source));
     const business = place.business_status === 'open' ? '영업/정상' : place.business_status === 'closed_permanently' ? '폐업' : noData;
+    const parsedHours = place.hours_source === 'tourapi_usetime' || place.field_evidence?.hours_week?.state === 'parsed';
+    const baseEvidence = `<dl class="base-evidence" aria-label="기본 필드별 근거">${[['name', '이름'], ['lat', '위도'], ['lng', '경도'], ['address', '주소'], ['summary', '기본 소개']].map(([path, label]) => `<div><dt>${label}</dt><dd>${evidenceHTML(place.field_evidence, path)}</dd></div>`).join('')}</dl>`;
     this.detailRoot.innerHTML = `
-      <div class="detail-heading"><div><span class="eyebrow">${html(categoryName(place.category))} · PLACE NOTES</span><h2 tabindex="-1">${html(place.name)}</h2>${place.name_en ? `<span class="detail-english">${html(place.name_en)}</span>` : ''}</div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div>
+      <div class="detail-heading"><div><span class="eyebrow">${html(categoryName(place.category))} · PLACE NOTES</span><h2 tabindex="-1" data-i18n-ignore>${html(placeName(place))}</h2>${place.name_en ? `<span class="detail-english" data-i18n-ignore>${html(getLocale() === 'en' ? place.name : place.name_en)}</span>` : ''}</div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div>
       <div class="detail-action-bar"><button id="detail-favorite" data-detail-action="favorite" aria-pressed="${this.options.planner.isFavorite(place.id)}">${icon('pin')}즐겨찾기</button><button id="detail-add-trip" data-detail-action="add">${icon('plus')}내 여행에 담기</button><button data-detail-action="map">${icon('expand')}지도 보기</button></div>
+      <p id="detail-save-status" class="detail-save-status" role="status" hidden></p>
       <div class="detail-related-actions"><button data-detail-action="nearby">${icon('compass')}주변 장소</button><button data-detail-action="category">${icon(categorySymbol(place.category).icon)}${html(categoryName(place.category))} 더 보기</button></div>
       <div class="detail-content">
         <div class="detail-photos">${place.photos.slice(0, 8).map((photo) => {
           const url = safeURL(photo.url);
           return url ? `<figure><img src="${html(url)}" alt="${html(place.name)} · ${html(photo.source)} 제공 사진" loading="lazy" decoding="async"><figcaption>${html(photo.credit || '사진 크레딧 정보 없음')}<span>${html(photo.license || '이용허락 정보 없음')} · ${html(sourceName(photo.source))}${photo.origin_url ? ` · ${link(photo.origin_url, '원본 출처')}` : ''}</span>${/KOGL[- ]?[34]/i.test(photo.license) ? '<span>변경 금지 사진 · 원본 비율로 표시</span>' : ''}</figcaption></figure>` : '';
         }).join('') || '<div class="detail-no-photo">제공된 사진 없음</div>'}</div>
-        <section class="detail-section"><h3>기본 정보 <span>${html(place.source_label || sourceName(place.source))}</span></h3><p class="detail-base-note">${html(note)}</p><p class="detail-overview">${html(place.summary || '기본 소개 정보 없음')}</p><dl class="detail-basics"><div><dt>주소</dt><dd>${html(place.address || noData)}</dd></div><div><dt>전화</dt><dd>${place.phone ? html(place.phone) : noData}</dd></div><div><dt>좌표</dt><dd class="mono">${place.lat.toFixed(5)}° N, ${place.lng.toFixed(5)}° E</dd></div><div><dt>장소 링크</dt><dd>${place.url ? link(place.url, /openstreetmap\.org/i.test(place.url) ? 'OpenStreetMap 원문' : '장소 링크') : noData}</dd></div><div><dt>기본 정보 갱신</dt><dd>${html(dateLabel(place.updated_at))}</dd></div></dl></section>
-        <section class="detail-section"><h3>보강 소개</h3><p class="detail-overview">${html(place.overview || noData)}</p><p class="micro-note">소개 관련 보강 출처: ${overviewSources.map((source) => html(sourceName(source.source))).join(' · ') || noData}</p></section>
-        <section class="detail-section"><h3>요일별 이용시간</h3><table class="hours-table"><caption>${place.hours_source === 'tourapi_usetime' ? '이용시간 문구에서 변환한 참고 시간 · 휴무일 미확인' : '제공된 요일별 이용시간 · 월요일 기준'}</caption><tbody>${days.map((day, index) => {
+        <section class="detail-section"><h3>기본 정보 <span>${html(place.source_label || sourceName(place.source))}</span></h3><p class="detail-base-note">${html(note)}</p>${baseEvidence}<p class="detail-overview">${html(place.summary || t('기본 소개 정보 없음'))}</p><dl class="detail-basics"><div><dt>주소</dt><dd>${html(place.address || noData)}</dd></div><div><dt>전화</dt><dd>${place.phone ? html(place.phone) : noData}</dd></div><div><dt>좌표</dt><dd class="mono">${place.lat.toFixed(5)}° N, ${place.lng.toFixed(5)}° E</dd></div><div><dt>장소 링크</dt><dd>${place.url ? link(place.url, /openstreetmap\.org/i.test(place.url) ? 'OpenStreetMap 원문' : '장소 링크') : noData}</dd></div><div><dt>기본 정보 갱신</dt><dd>${html(dateLabel(place.updated_at))}</dd></div></dl><p class="micro-note">장소 이름·주소·소개는 제공된 원문이 표시될 수 있습니다.</p></section>
+        <section class="detail-section"><h3>보강 소개</h3><p class="detail-overview">${html(place.overview || t(noData))}</p><p class="micro-note">소개 관련 보강 출처: ${overviewSources.map((source) => html(sourceName(source.source))).join(' · ') || noData}</p></section>
+        <section class="detail-section"><h3>요일별 이용시간</h3>${evidenceHTML(place.field_evidence, 'hours_week')}<table class="hours-table"><caption>${parsedHours ? '이용시간 문구에서 변환한 참고 시간 · 휴무일 미확인' : '제공된 요일별 이용시간 · 월요일 기준'}</caption><tbody>${days.map((day, index) => {
           const rows = place.hours_week.filter((row) => row.day === index);
           return `<tr><th scope="row">${day}</th><td>${rows.length ? rows.map((row) => `${html(row.open)} – ${html(row.close)}`).join('<br>') : noData}</td></tr>`;
-        }).join('')}</tbody></table><p class="micro-note">${html(hoursText(place.hours_week, place.hours_source))} · 출처: ${html(sourceName(place.hours_source))}</p><p class="detail-hours-raw">기본 시간 안내: ${html(place.hours || noData)}</p><p class="micro-note">기본 시간 출처: ${html(place.source_label || sourceName(place.source))} · 방문 전 제공처에 확인해 주세요.</p></section>
-        <section class="detail-section"><h3>편의 정보</h3><dl class="facility-grid">${Object.entries(facilities).map(([key, label]) => `<div><dt>${label}</dt><dd>${html(facilityValue[place.facilities[key]] ?? place.facilities[key] ?? noData)}</dd></div>`).join('')}</dl><p class="micro-note">항목별 상세 근거는 아래 보강 출처에서 확인하세요. 제공되지 않은 항목은 정보 없음으로 표시합니다.</p></section>
-        <section class="detail-section"><h3>인허가 정보</h3><p id="business-registration">인허가 상태: ${business}</p><p class="micro-note">해당 인허가 기록의 상태이며 장소 전체의 운영 여부를 확정하지 않습니다. 현재 시각의 영업 여부를 뜻하지 않습니다.</p><ul class="detail-sources">${this.sourceList(businessSources)}</ul></section>
+        }).join('')}</tbody></table>${parsedHours ? '<p class="micro-note">파싱된 시간표이며, 각 요일 운영·휴무일을 독립적으로 확인한 값이 아닙니다.</p>' : ''}<p class="micro-note">${html(t(hoursText(place.hours_week, place.hours_source)))} · 출처: ${html(sourceName(place.hours_source))}</p><p class="detail-hours-raw">${t('기본 시간 안내:')} <span data-i18n-ignore>${html(place.hours || t(noData))}</span></p><p class="micro-note">기본 시간 출처: ${html(place.source_label || sourceName(place.source))} · 방문 전 제공처에 확인해 주세요.</p></section>
+        <section class="detail-section"><h3>편의 정보</h3><dl class="facility-grid">${Object.entries(facilities).map(([key, label]) => `<div><dt>${label}</dt><dd>${html(facilityValue[place.facilities[key]] ?? place.facilities[key] ?? noData)}${evidenceHTML(place.field_evidence, `facilities.${key}`)}</dd></div>`).join('')}</dl><p class="micro-note">항목별 상세 근거는 아래 보강 출처에서 확인하세요. 제공되지 않은 항목은 정보 없음으로 표시합니다.</p></section>
+        <section class="detail-section"><h3>인허가 정보</h3><p id="business-registration">인허가 상태: ${business}</p>${evidenceHTML(place.field_evidence, 'business_status')}<p class="micro-note">${html(place.registration_note || '해당 인허가 기록의 상태이며 장소 전체의 운영 여부를 확정하지 않습니다. 현재 시각의 영업 여부를 뜻하지 않습니다.')}</p><ul class="detail-sources">${this.sourceList(businessSources)}</ul></section>
         <section class="detail-section"><h3>제공된 메뉴</h3>${place.menu.length ? `<ul class="detail-menu">${place.menu.slice(0, 20).map((item) => `<li><strong>${html(item.name)}</strong><span>${item.price_krw == null ? '가격 정보 없음' : `${item.price_krw.toLocaleString('ko-KR')}원`}</span><small>출처 ${html(sourceName(item.source))}</small></li>`).join('')}</ul>` : '<p class="micro-note">메뉴 정보 없음</p>'}</section>
         <section id="place-weather" class="detail-section" aria-live="polite"><h3>이 장소의 날씨</h3><p class="micro-note">현재 날씨와 3일 예보를 확인하는 중…</p></section>
         <section class="detail-section"><h3>보강 출처와 관측일</h3><p class="micro-note">기본 필드의 검증 여부와 보강 항목의 출처는 별개입니다.</p><ul class="detail-sources">${this.sourceList(place.sources)}</ul><p class="micro-note">보강 갱신 ${html(dateLabel(place.enriched_at))}</p></section>
       </div>`;
     this.updateSavedButtons();
-    this.detailRoot.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
+    if (focusInside) this.detailRoot.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
   }
 
   private updateSavedButtons(): void {
@@ -457,9 +502,14 @@ export class CatalogUI {
       const saved = this.options.planner.isFavorite(this.currentDetail.id);
       favorite.setAttribute('aria-pressed', String(saved));
       favorite.classList.toggle('is-saved', saved);
-      favorite.innerHTML = `${icon(saved ? 'check' : 'pin')}${saved ? '저장됨' : '즐겨찾기'}`;
+      favorite.innerHTML = `${icon(saved ? 'check' : 'pin')}${saved ? this.options.planner.isSaved ? '저장됨' : '임시 보관' : '즐겨찾기'}`;
     }
     if (add) add.innerHTML = `${icon(this.options.planner.hasStop(this.currentDetail.id) ? 'check' : 'plus')}${this.options.planner.hasStop(this.currentDetail.id) ? '코스에 담김' : '내 여행에 담기'}`;
+    const notice = this.detailRoot.querySelector<HTMLElement>('#detail-save-status');
+    if (notice) {
+      notice.hidden = this.options.planner.isSaved;
+      notice.textContent = '브라우저에 저장되지 않은 편집본이 있어요. 내 여행의 자료 관리에서 파일로 보관하거나 저장을 다시 시도해 주세요.';
+    }
   }
 
   private detailClick(event: MouseEvent): void {

@@ -3,6 +3,7 @@ import { isIP } from 'node:net';
 const record = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const controls = /[\x00-\x1f\x7f]/;
 const time = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+const evidenceStates = new Set(['unknown', 'unverified', 'source_reported', 'parsed', 'reviewed']);
 
 function boundedText(value, limit) {
   if (typeof value !== 'string') return null;
@@ -16,7 +17,17 @@ function exactText(value, limit) {
 
 function timestamp(value) {
   const text = exactText(value, 40);
-  return text && /^\d{4}-\d{2}-\d{2}(?:T|$)/.test(text) && Number.isFinite(Date.parse(text)) ? text : null;
+  if (!text) return null;
+  const parts = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,9})?)?(?:Z|[+-](\d{2}):(\d{2}))?)?$/.exec(text);
+  if (!parts) return null;
+  const [year, month, day, hour, minute, second, zoneHour, zoneMinute] = parts.slice(1).map((part) => Number(part ?? 0));
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const monthDays = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (year < 1 || month < 1 || month > 12 || day < 1 || day > monthDays[month - 1]
+    || hour > 23 || minute > 59 || second > 59 || zoneHour > 23 || zoneMinute > 59) return null;
+  // LOCALDATA stores source update times without a zone. Preserve the supplied
+  // text; appending Z or converting through Date would invent that information.
+  return text;
 }
 
 function sourceURL(value) {
@@ -83,6 +94,25 @@ function sources(value) {
   return rows;
 }
 
+function fieldEvidence(value) {
+  const entries = [];
+  if (record(value)) {
+    for (const [path, entry] of Object.entries(value)) {
+      if (path.length > 160 || !/^[a-z][a-z0-9_]*(?:\.(?:[a-z][a-z0-9_]*|\d+))*$/i.test(path)
+        || path.split('.').some((part) => ['__proto__', 'constructor', 'prototype'].includes(part))
+        || !record(entry) || !evidenceStates.has(entry.state)) continue;
+      const source = exactText(entry.source, 160);
+      const state = !source && ['source_reported', 'parsed', 'reviewed'].includes(entry.state)
+        ? 'unknown' : entry.state;
+      entries.push([path, {
+        state, source, observed_at: timestamp(entry.observed_at), evidence_url: sourceURL(entry.evidence_url),
+      }]);
+      if (entries.length === 64) break;
+    }
+  }
+  return Object.fromEntries(entries);
+}
+
 /**
  * Only call with the exact Catalog.detail result for an accepted marker.
  * Sources describe the enrichment row, not the provenance of each facility.
@@ -99,5 +129,7 @@ export function catalogPlaceInfo(place) {
     sources: sources(place.sources), base_note: boundedText(place.base_note, 1000),
     // Registration status is preserved without any calculation of "open now".
     business_status: boundedText(place.business_status, 80),
+    ...(record(place.field_evidence) ? { field_evidence: fieldEvidence(place.field_evidence) } : {}),
+    ...(Object.hasOwn(place, 'registration_note') ? { registration_note: boundedText(place.registration_note, 1000) } : {}),
   };
 }

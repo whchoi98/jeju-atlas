@@ -52,7 +52,7 @@ input:disabled { cursor: not-allowed; opacity: .45; }
 a { color: inherit; }
 button, input { touch-action: manipulation; }
 button { -webkit-user-select: none; user-select: none; }
-button:focus-visible, a:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
   outline: 3px solid #269fac;
   outline-offset: 4px;
 }
@@ -91,6 +91,9 @@ h1, h2, p { margin: 0; }
 .header-divider { width: 1px; height: 25px; background: var(--border); }
 .header-tagline { color: var(--basalt); font-size: 12px; font-weight: 400; letter-spacing: -.3px; }
 .header-actions { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.language-toggle { border: 1px solid var(--border); min-width: 57px; color: var(--teal-dark); font-size: 12px; }
+html[lang="en"] .header-tagline { letter-spacing: 0; }
+html[lang="en"] .sidebar h1 { letter-spacing: -.8px; }
 .terrain-tag { display: flex; gap: 7px; align-items: center; color: #64787b; font-size: 11px; white-space: nowrap; margin-right: 10px; }
 .terrain-tag > span { width: 5px; height: 5px; background: var(--teal); border-radius: 50%; }
 .button {
@@ -604,6 +607,9 @@ dialog::backdrop { background: #0d302d70; backdrop-filter: blur(5px); }
   .brand-wordmark strong { font-size: 14px; }
   .brand > svg { width: 32px; height: 32px; }
   .button--share { font-size: 9px; gap: 5px; }
+  .button--share > span { display: none; }
+  .button--share { min-width: 36px; min-height: 36px; padding: 8px; }
+  .language-toggle { min-width: 50px; padding-inline: 7px; font-size: 11px; }
   .selected-title > span { display: none; }
   .selected-place { padding: 12px; }
   .fly-button { font-size: 8px; padding: 9px; }

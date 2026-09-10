@@ -25,6 +25,66 @@ Parameters:
     Default: 1
     MinValue: 1
     MaxValue: 4
+  MinTaskCount:
+    Type: Number
+    Default: 2
+    MinValue: 2
+    MaxValue: 4
+  MaxTaskCount:
+    Type: Number
+    Default: 4
+    MinValue: 2
+    MaxValue: 4
+  GuideDailyLimit:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    MaxValue: 30
+    Description: Shared daily invocation cap. Raising the cost ceiling requires a reviewed application policy change.
+  GuideHourlyLimit:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 5
+  GuideGlobalConcurrency:
+    Type: Number
+    Default: 2
+    MinValue: 1
+    MaxValue: 2
+  TargetHealthPath:
+    Type: String
+    Default: /readyz
+    AllowedValues: [/healthz, /readyz]
+    Description: Use /healthz for the first rollout from a legacy image, then switch to /readyz once all new tasks are healthy.
+  ViewerDomainName:
+    Type: String
+    Default: ''
+    Description: Existing public CNAME for this distribution; DNS is managed outside this stack.
+    AllowedPattern: '^$|^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$'
+  ViewerCertificateArn:
+    Type: String
+    Default: ''
+    Description: Existing issued ACM certificate in us-east-1 covering ViewerDomainName.
+    AllowedPattern: '^$|^arn:aws:acm:us-east-1:[0-9]{12}:certificate/[a-f0-9-]{36}$'
+  WebAclArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:aws:wafv2:us-east-1:[0-9]{12}:global/webacl/jeju-3d[^/]+/[a-f0-9-]{36}$'
+  OriginCertificateArn:
+    Type: String
+    Default: ''
+    Description: Issued regional certificate. Setting it prepares the HTTPS listener before the CloudFront TLS cutover.
+    AllowedPattern: '^$|^arn:aws:acm:ap-northeast-2:[0-9]{12}:certificate/[a-f0-9-]{36}$'
+  OriginDomainName:
+    Type: String
+    Default: ''
+    Description: Public CNAME pointing directly to this ALB, covered by OriginCertificateArn.
+    AllowedPattern: '^$|^[a-z0-9-]+\.whchoi\.net$'
+  OriginTlsEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Enable only after the HTTPS listener is deployed and public origin DNS is verified.
   CatalogBucket:
     Type: String
     Default: ohmyjeju-catalog-061525506239-prod
@@ -34,9 +94,36 @@ Parameters:
     Default: arn:aws:bedrock-agentcore:ap-northeast-2:061525506239:runtime/Ohmyjeju_OhmyjejuAgent-7fiRWV5uVi
     AllowedPattern: '^arn:aws:bedrock-agentcore:ap-northeast-2:[0-9]{12}:runtime/[A-Za-z0-9_-]+$'
 
+Rules:
+  ViewerDomainRequiresCertificate:
+    Assertions:
+      - Assert: !Or
+          - !And
+            - !Equals [!Ref ViewerDomainName, '']
+            - !Equals [!Ref ViewerCertificateArn, '']
+          - !And
+            - !Not [!Equals [!Ref ViewerDomainName, '']]
+            - !Not [!Equals [!Ref ViewerCertificateArn, '']]
+        AssertDescription: Supply the viewer domain and us-east-1 certificate together.
+  OriginTlsRequiresCertificateAndDns:
+    RuleCondition: !Equals [!Ref OriginTlsEnabled, 'true']
+    Assertions:
+      - Assert: !And
+          - !Not [!Equals [!Ref OriginCertificateArn, '']]
+          - !Not [!Equals [!Ref OriginDomainName, '']]
+        AssertDescription: Origin TLS requires a regional certificate and a public ALB hostname.
+
+Conditions:
+  HasViewerDomain: !Not [!Equals [!Ref ViewerDomainName, '']]
+  HasWebAcl: !Not [!Equals [!Ref WebAclArn, '']]
+  HasOriginCertificate: !Not [!Equals [!Ref OriginCertificateArn, '']]
+  UseOriginTls: !Equals [!Ref OriginTlsEnabled, 'true']
+
 Resources:
   SessionSecret:
     Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Description: Jeju Atlas session signing key, separate from the ALB origin key.
       GenerateSecretString:
@@ -48,9 +135,12 @@ Resources:
 
   GuideQuota:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TableName: jeju-3d-guide-quota
       BillingMode: PAY_PER_REQUEST
+      DeletionProtectionEnabled: true
       AttributeDefinitions:
         - AttributeName: id
           AttributeType: S
@@ -68,6 +158,8 @@ Resources:
 
   OriginSecret:
     Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Description: Random ALB origin verification value used only by this CloudFront distribution.
       GenerateSecretString:
@@ -117,6 +209,33 @@ Resources:
         - Key: Project
           Value: jeju-3d
 
+  AlbTlsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: HasOriginCertificate
+    Properties:
+      # The managed CloudFront prefix has weight 55. Two port rules in the same
+      # group would exceed the default 60-rule quota. A second dedicated group
+      # permits a staged TLS cutover without opening an unrelated port range.
+      GroupDescription: Allow HTTPS only from the AWS managed CloudFront origin-facing prefix list.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourcePrefixListId: !Ref CloudFrontPrefixListId
+          Description: CloudFront TLS origin traffic only
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          DestinationSecurityGroupId: !Ref TaskSecurityGroup
+          Description: Forward only to Jeju tasks
+      Tags:
+        - Key: Name
+          Value: jeju-3d-alb-cloudfront-tls
+        - Key: Project
+          Value: jeju-3d
+
   AlbToTaskIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -137,6 +256,7 @@ Resources:
       Subnets: !Ref PublicSubnetIds
       SecurityGroups:
         - !Ref AlbSecurityGroup
+        - !If [HasOriginCertificate, !Ref AlbTlsSecurityGroup, !Ref AWS::NoValue]
       LoadBalancerAttributes:
         - Key: routing.http.drop_invalid_header_fields.enabled
           Value: 'true'
@@ -157,7 +277,7 @@ Resources:
       Port: 8080
       TargetType: ip
       HealthCheckEnabled: true
-      HealthCheckPath: /healthz
+      HealthCheckPath: !Ref TargetHealthPath
       HealthCheckProtocol: HTTP
       HealthCheckPort: traffic-port
       HealthCheckIntervalSeconds: 15
@@ -168,7 +288,7 @@ Resources:
         HttpCode: '200'
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
-          Value: '30'
+          Value: '120'
       Tags:
         - Key: Project
           Value: jeju-3d
@@ -190,6 +310,39 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       ListenerArn: !Ref Listener
+      Priority: 1
+      Conditions:
+        - Field: http-header
+          HttpHeaderConfig:
+            HttpHeaderName: X-Jeju-Origin-Verify
+            Values:
+              - !Sub '{{resolve:secretsmanager:${OriginSecret}:SecretString}}'
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  TlsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: HasOriginCertificate
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      Certificates:
+        - CertificateArn: !Ref OriginCertificateArn
+      DefaultActions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            ContentType: text/plain
+            StatusCode: '403'
+            MessageBody: Forbidden
+
+  TlsOriginRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: HasOriginCertificate
+    Properties:
+      ListenerArn: !Ref TlsListener
       Priority: 1
       Conditions:
         - Field: http-header
@@ -296,7 +449,9 @@ Resources:
                   - !Ref GuideRuntimeArn
                   - !Sub '${GuideRuntimeArn}/runtime-endpoint/DEFAULT'
               - Effect: Allow
-                Action: dynamodb:UpdateItem
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
                 Resource: !GetAtt GuideQuota.Arn
       Tags:
         - Key: Project
@@ -349,9 +504,22 @@ Resources:
             - Name: GUIDE_QUOTA_TABLE
               Value: !Ref GuideQuota
             - Name: GUIDE_DAILY_LIMIT
-              Value: '30'
+              Value: !Ref GuideDailyLimit
+            - Name: GUIDE_HOURLY_LIMIT
+              Value: !Ref GuideHourlyLimit
+            - Name: GUIDE_GLOBAL_CONCURRENCY
+              Value: !Ref GuideGlobalConcurrency
+            - Name: GUIDE_LEASE_MS
+              Value: '120000'
+            - Name: DRAIN_TIMEOUT_MS
+              Value: '115000'
+            - Name: ATLAS_READY_ENDPOINT
+              Value: 'true'
             - Name: PUBLIC_ORIGIN
-              Value: !Sub 'https://${Distribution.DomainName}'
+              Value: !If
+                - HasViewerDomain
+                - !Sub 'https://${ViewerDomainName}'
+                - !Sub 'https://${Distribution.DomainName}'
           Secrets:
             - Name: ATLAS_SESSION_SECRET
               ValueFrom: !Ref SessionSecret
@@ -359,7 +527,7 @@ Resources:
             - SourceVolume: catalog-cache
               ContainerPath: /tmp
               ReadOnly: false
-          StopTimeout: 30
+          StopTimeout: 120
           HealthCheck:
             Command:
               - CMD
@@ -394,6 +562,7 @@ Resources:
       LaunchType: FARGATE
       PlatformVersion: LATEST
       DesiredCount: !Ref DesiredCount
+      AvailabilityZoneRebalancing: ENABLED
       EnableExecuteCommand: false
       EnableECSManagedTags: true
       PropagateTags: SERVICE
@@ -417,6 +586,42 @@ Resources:
       Tags:
         - Key: Project
           Value: jeju-3d
+
+  ScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      ServiceNamespace: ecs
+      ScalableDimension: ecs:service:DesiredCount
+      ResourceId: !Sub 'service/${Cluster}/${Service.Name}'
+      MinCapacity: !Ref MinTaskCount
+      MaxCapacity: !Ref MaxTaskCount
+      RoleARN: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService'
+
+  CpuScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: jeju-3d-cpu
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 60
+        ScaleOutCooldown: 60
+        ScaleInCooldown: 300
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+
+  MemoryScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: jeju-3d-memory
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 70
+        ScaleOutCooldown: 60
+        ScaleInCooldown: 300
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageMemoryUtilization
 
   CachePolicy:
     Type: AWS::CloudFront::CachePolicy
@@ -579,16 +784,18 @@ Resources:
         HttpVersion: http2and3
         PriceClass: PriceClass_200
         DefaultRootObject: index.html
+        Aliases: !If [HasViewerDomain, [!Ref ViewerDomainName], !Ref AWS::NoValue]
+        WebACLId: !If [HasWebAcl, !Ref WebAclArn, !Ref AWS::NoValue]
         Origins:
           - Id: jeju-alb
-            DomainName: !GetAtt LoadBalancer.DNSName
+            DomainName: !If [UseOriginTls, !Ref OriginDomainName, !GetAtt LoadBalancer.DNSName]
             OriginCustomHeaders:
               - HeaderName: X-Jeju-Origin-Verify
                 HeaderValue: !Sub '{{resolve:secretsmanager:${OriginSecret}:SecretString}}'
             CustomOriginConfig:
               HTTPPort: 80
               HTTPSPort: 443
-              OriginProtocolPolicy: http-only
+              OriginProtocolPolicy: !If [UseOriginTls, https-only, http-only]
               OriginReadTimeout: 30
               OriginKeepaliveTimeout: 5
               OriginSSLProtocols:
@@ -677,14 +884,23 @@ Resources:
             ErrorCachingMinTTL: 0
           - ErrorCode: 504
             ErrorCachingMinTTL: 0
-        ViewerCertificate:
-          CloudFrontDefaultCertificate: true
+        ViewerCertificate: !If
+          - HasViewerDomain
+          - AcmCertificateArn: !Ref ViewerCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
       Tags:
         - Key: Project
           Value: jeju-3d
 
 Outputs:
   ApplicationUrl:
+    Value: !If
+      - HasViewerDomain
+      - !Sub 'https://${ViewerDomainName}'
+      - !Sub 'https://${Distribution.DomainName}'
+  CloudFrontUrl:
     Value: !Sub 'https://${Distribution.DomainName}'
   DistributionId:
     Value: !Ref Distribution
@@ -696,8 +912,12 @@ Outputs:
     Value: !Ref LoadBalancer
   LoadBalancerDnsName:
     Value: !GetAtt LoadBalancer.DNSName
+  AlbFullName:
+    Value: !GetAtt LoadBalancer.LoadBalancerFullName
   TargetGroupArn:
     Value: !Ref TargetGroup
+  TargetGroupFullName:
+    Value: !GetAtt TargetGroup.TargetGroupFullName
   AlbSecurityGroupId:
     Value: !Ref AlbSecurityGroup
   TaskSecurityGroupId:
@@ -714,3 +934,10 @@ Outputs:
     Value: !Ref CatalogBucket
   GuideQuotaTableName:
     Value: !Ref GuideQuota
+  OriginTlsEnabled:
+    Value: !Ref OriginTlsEnabled
+  OriginDomainName:
+    Value: !Ref OriginDomainName
+  AlbTlsSecurityGroupId:
+    Condition: HasOriginCertificate
+    Value: !Ref AlbTlsSecurityGroup

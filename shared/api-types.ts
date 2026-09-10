@@ -1,4 +1,11 @@
 export type LatLng = { lat: number; lng: number };
+export type FieldEvidence = {
+  state: 'unknown' | 'unverified' | 'source_reported' | 'parsed' | 'reviewed';
+  source: string | null;
+  observed_at: string | null;
+  evidence_url: string | null;
+};
+export type FieldEvidenceMap = Record<string, FieldEvidence>;
 export type SourceRecord = {
   source: string;
   url: string | null;
@@ -24,6 +31,7 @@ export type CatalogPlace = LatLng & {
   phone: string | null;
   hours: string | null;
   distance_m: number | null;
+  field_evidence?: FieldEvidenceMap;
 };
 export type PlacePhoto = {
   url: string;
@@ -42,6 +50,7 @@ export type PlaceDetail = CatalogPlace & {
   overview: string | null;
   menu: { name: string; price_krw: number | null; source: string | null }[];
   business_status: string | null;
+  registration_note?: string | null;
   tips: unknown;
   sources: SourceRecord[];
   enriched_at: string | null;
@@ -92,6 +101,8 @@ export type GuidePlaceInfo = {
   sources: SourceRecord[];
   base_note: string | null;
   business_status: string | null;
+  field_evidence?: FieldEvidenceMap;
+  registration_note?: string | null;
 };
 export type GuideMap = {
   answer: string;

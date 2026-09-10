@@ -6,8 +6,52 @@ interface InstallPrompt extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export function initializePWA(root: HTMLElement, notify: (message: string) => void): void {
-  root.innerHTML = `<div id="connection-status" role="status">코스와 즐겨찾기는 이 브라우저에 저장해요.</div><button id="pwa-install" hidden>${icon('plus')}앱으로 설치</button><span id="pwa-status" class="sr-only"></span>`;
+export function initializePWA(root: HTMLElement, notify: (message: string) => void, options: { isBusy?: () => boolean } = {}): void {
+  root.innerHTML = `<div id="connection-status" role="status">코스와 즐겨찾기는 이 브라우저에 저장해요.</div><button id="pwa-install" hidden>${icon('plus')}앱으로 설치</button><button id="pwa-retry" hidden>앱 저장 재시도</button><span id="pwa-status" class="sr-only"></span>`;
+  const banner = document.createElement('section');
+  banner.id = 'pwa-update';
+  banner.className = 'pwa-update';
+  banner.hidden = true;
+  banner.setAttribute('aria-label', '앱 업데이트');
+  banner.innerHTML = '<p id="pwa-update-status" role="status">새 버전이 준비됐어요. 저장된 코스는 유지됩니다.</p><button id="pwa-update-apply" class="button button--primary">새 버전 적용</button>';
+  document.body.append(banner);
+  const updateStatus = (message: string) => { banner.querySelector('#pwa-update-status')!.textContent = message; };
+  let workers: ServiceWorkerContainer | undefined;
+  try { if (window.isSecureContext && 'serviceWorker' in navigator) workers = navigator.serviceWorker; }
+  catch { /* Some embedded/private browsers deny storage-backed APIs. */ }
+  let registration: ServiceWorkerRegistration | undefined;
+  let registering = false;
+  let pendingReload = false;
+  let hadController = Boolean(workers?.controller);
+  let reloading = false;
+  let releaseTimer: ReturnType<typeof setTimeout> | undefined;
+  let lockedReview: string | undefined;
+  const busy = () => Boolean(options.isBusy?.());
+  const release = () => {
+    clearTimeout(releaseTimer);
+    lockedReview = undefined;
+    delete document.documentElement.dataset.shellUpdating;
+  };
+  const reload = () => {
+    if (reloading) return;
+    reloading = true;
+    location.reload();
+  };
+  const offer = () => {
+    if (!registration?.waiting || !workers?.controller) return;
+    banner.hidden = false;
+    updateStatus('새 버전이 준비됐어요. 적용 전에 모든 탭의 작성·저장 상태를 확인합니다.');
+  };
+  banner.querySelector('#pwa-update-apply')!.addEventListener('click', () => {
+    if (busy()) {
+      updateStatus('작성 중인 질문을 보내거나 비우고, 편집 중인 자료를 저장·내보낸 뒤 적용해 주세요.');
+      return;
+    }
+    if (pendingReload) { reload(); return; }
+    if (!registration?.waiting) { void register(true); return; }
+    updateStatus('다른 탭의 질문과 편집 상태를 확인하고 있어요.');
+    registration.waiting.postMessage({ type: 'ATLAS_APPLY_UPDATE' });
+  });
   const offline = document.createElement('div');
   offline.id = 'offline-notice';
   offline.className = 'offline-notice';
@@ -20,7 +64,7 @@ export function initializePWA(root: HTMLElement, notify: (message: string) => vo
       ? '코스와 즐겨찾기는 이 브라우저에 저장해요.'
       : '오프라인 · 저장한 코스와 장소를 확인하세요.';
   };
-  window.addEventListener('online', update);
+  window.addEventListener('online', () => { update(); void register(true); });
   window.addEventListener('offline', update);
   update();
   let prompt: InstallPrompt | undefined;
@@ -41,20 +85,64 @@ export function initializePWA(root: HTMLElement, notify: (message: string) => vo
     } catch { notify('브라우저 메뉴에서 홈 화면에 추가할 수 있어요.'); }
   });
   window.addEventListener('appinstalled', () => { install.hidden = true; prompt = undefined; });
-  if ('serviceWorker' in navigator && window.isSecureContext) {
-    void getConfig().then(async (config) => {
+  async function register(refresh = false): Promise<void> {
+    if (!workers || registering || !navigator.onLine) return;
+    registering = true;
+    const retry = root.querySelector<HTMLButtonElement>('#pwa-retry')!;
+    retry.disabled = true;
+    try {
+      const config = await getConfig(refresh);
       if (!config.features.pwa) return;
-      // The parent build creates sw.js. It caches the application shell only;
-      // this frontend never requests bulk/offline map tile or API caching.
-      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      if (!registration) {
+        registration = await workers.register('/sw.js', { scope: '/', updateViaCache: 'none' });
+        const watch = () => {
+          const installing = registration?.installing;
+          installing?.addEventListener('statechange', () => {
+            if (installing.state === 'installed') offer();
+          });
+        };
+        registration.addEventListener('updatefound', watch);
+        watch();
+      } else if (refresh) await registration.update();
       root.querySelector('#pwa-status')!.textContent = '앱 셸 저장 기능을 사용할 수 있습니다.';
-      registration.addEventListener('updatefound', () => {
-        registration.installing?.addEventListener('statechange', () => {
-          if (registration.waiting && navigator.serviceWorker.controller) notify('새 버전이 준비됐어요. 다음에 앱을 열면 적용됩니다.');
-        });
-      });
-    }).catch(() => {
+      retry.hidden = true;
+      offer();
+    } catch {
       root.querySelector('#pwa-status')!.textContent = '앱 셸 저장 기능을 현재 사용할 수 없습니다.';
+      retry.hidden = false;
+    } finally { registering = false; retry.disabled = false; }
+  }
+  root.querySelector('#pwa-retry')!.addEventListener('click', () => { void register(true); });
+  if (workers) {
+    workers.addEventListener('message', event => {
+      const data = event.data;
+      if (data?.type === 'ATLAS_UPDATE_CHECK' && typeof data.id === 'string' && data.id.length < 100) {
+        const isBusy = busy();
+        if (!isBusy) {
+          lockedReview = data.id;
+          document.documentElement.dataset.shellUpdating = 'true';
+          clearTimeout(releaseTimer);
+          releaseTimer = setTimeout(release, 12000);
+        }
+        event.source?.postMessage({ type: 'ATLAS_UPDATE_STATE', id: data.id, busy: isBusy });
+      } else if (data?.type === 'ATLAS_UPDATE_RELEASE' && data.id === lockedReview) release();
+      else if (data?.type === 'ATLAS_UPDATE_COMMIT' && data.id === lockedReview) {
+        updateStatus('새 버전을 적용하고 있어요.');
+      } else if (data?.type === 'ATLAS_UPDATE_BLOCKED') {
+        release();
+        banner.hidden = false;
+        updateStatus('다른 탭에 작성 중인 자료가 있거나 상태를 확인하지 못했어요. 해당 탭에서 작업을 마치거나 탭을 닫고 다시 적용해 주세요.');
+      }
     });
+    workers.addEventListener('controllerchange', () => {
+      if (!hadController) { hadController = true; offer(); return; }
+      if (busy()) {
+        release();
+        pendingReload = true;
+        banner.hidden = false;
+        updateStatus('새 버전이 연결됐어요. 작성 중인 자료를 보관한 뒤 적용해 주세요.');
+      } else reload();
+    });
+    void register();
   }
 }

@@ -1,0 +1,295 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Jeju3dEdge - CloudFront WAF, private-field-free standard logging V2, and edge alarms. Deploy in us-east-1.
+
+Parameters:
+  DistributionArn:
+    Type: String
+    Description: Existing same-account Jeju3dApp distribution ARN. This stack does not own the distribution.
+    AllowedPattern: '^arn:aws:cloudfront::[0-9]{12}:distribution/[A-Za-z0-9]+$'
+  ApiRequestsPer5Minutes:
+    Type: Number
+    Default: 2000
+    MinValue: 10
+    MaxValue: 2000000000
+    Description: Per-IP API request limit over 300 seconds. Terrain and static asset paths are excluded.
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+    AllowedValues: [14, 30]
+
+Rules:
+  EdgeRegion:
+    Assertions:
+      - Assert: !Equals [!Ref AWS::Region, us-east-1]
+        AssertDescription: CloudFront WAF and standard logging V2 must be configured in us-east-1.
+
+Resources:
+  WebAcl:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: jeju-3d-edge
+      Description: Common protections and an API-only rate limit. Request sampling is disabled.
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        SampledRequestsEnabled: false
+        MetricName: jeju-3d-edge
+      Rules:
+        - Name: ApiRateLimit
+          Priority: 0
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              AggregateKeyType: IP
+              EvaluationWindowSec: 300
+              Limit: !Ref ApiRequestsPer5Minutes
+              ScopeDownStatement:
+                ByteMatchStatement:
+                  FieldToMatch:
+                    UriPath: {}
+                  PositionalConstraint: STARTS_WITH
+                  SearchString: /api/
+                  TextTransformations:
+                    - Priority: 0
+                      Type: URL_DECODE
+                    - Priority: 1
+                      Type: NORMALIZE_PATH
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            SampledRequestsEnabled: false
+            MetricName: ApiRateLimit
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+              # The managed rule's 8 KB threshold is below the BFF's 16 KB cap.
+              # Keep the parser's existing limit; count only this managed rule.
+              RuleActionOverrides:
+                - Name: SizeRestrictions_BODY
+                  ActionToUse:
+                    Count: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            SampledRequestsEnabled: false
+            MetricName: AWSManagedRulesCommonRuleSet
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  EdgeAccessLogs:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub '${AWS::StackName}-cloudfront-access'
+      LogGroupClass: STANDARD
+      RetentionInDays: !Ref LogRetentionDays
+      # Resource-scoped policy: no account-wide log-group resource wildcard.
+      # SourceArn follows the documented CloudWatch Logs V2 delivery context.
+      ResourcePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudFrontVendedLogDelivery
+            Effect: Allow
+            Principal:
+              Service: delivery.logs.amazonaws.com
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${AWS::StackName}-cloudfront-access:log-stream:*'
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  CloudFrontDeliverySource:
+    Type: AWS::Logs::DeliverySource
+    Properties:
+      Name: jeju-3d-cloudfront-access
+      ResourceArn: !Ref DistributionArn
+      LogType: ACCESS_LOGS
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  CloudFrontDeliveryDestination:
+    Type: AWS::Logs::DeliveryDestination
+    Properties:
+      Name: jeju-3d-cloudfront-cwl
+      # LogGroup.Arn ends in :*. Delivery needs the actual group ARN.
+      DestinationResourceArn: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${EdgeAccessLogs}'
+      OutputFormat: json
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  CloudFrontAccessDelivery:
+    Type: AWS::Logs::Delivery
+    Properties:
+      DeliverySourceName: !Ref CloudFrontDeliverySource
+      DeliveryDestinationArn: !GetAtt CloudFrontDeliveryDestination.Arn
+      # Mandatory explicit allowlist. Never fall back to the service's full
+      # default set, which includes cookies, IPs, user agents, queries and URIs.
+      RecordFields:
+        - date
+        - time
+        - sc-status
+        - sc-bytes
+        - time-taken
+        - time-to-first-byte
+        - x-edge-location
+        - x-edge-result-type
+        - x-edge-response-result-type
+        - x-edge-detailed-result-type
+        - cache-behavior-path-pattern
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  EdgeNotifications:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: jeju-3d-edge-alarms
+      DisplayName: Jeju Atlas edge alarms
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  EdgeNotificationPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref EdgeNotifications
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudWatchAlarmPublish
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref EdgeNotifications
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-*'
+
+  CloudFront5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-cloudfront-5xx'
+      AlarmDescription: CloudFront 5xx rate >= 5 percent in two of three five-minute periods, including terrain-origin failures.
+      Namespace: AWS/CloudFront
+      MetricName: 5xxErrorRate
+      Dimensions:
+        - Name: DistributionId
+          Value: !Select [1, !Split ['/', !Ref DistributionArn]]
+        - Name: Region
+          Value: Global
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref EdgeNotifications
+      OKActions:
+        - !Ref EdgeNotifications
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  EdgeDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Ref AWS::StackName
+      DashboardBody: !Sub
+        - |
+          {
+            "start": "-PT6H",
+            "periodOverride": "inherit",
+            "widgets": [
+              {
+                "type": "text", "x": 0, "y": 0, "width": 24, "height": 2,
+                "properties": {
+                  "markdown": "# Jeju Atlas edge\nDistribution ${DistributionId}. Rate limiting covers only /api/*; request sampling is off. Alarm topic has no subscribers until the owner configures them."
+                }
+              },
+              {
+                "type": "metric", "x": 0, "y": 2, "width": 12, "height": 6,
+                "properties": {
+                  "title": "CloudFront viewer requests", "region": "${AWS::Region}",
+                  "view": "timeSeries", "stat": "Sum", "period": 300,
+                  "metrics": [
+                    ["AWS/CloudFront", "Requests", "DistributionId", "${DistributionId}", "Region", "Global"]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 12, "y": 2, "width": 12, "height": 6,
+                "properties": {
+                  "title": "CloudFront error rates (%)", "region": "${AWS::Region}",
+                  "view": "timeSeries", "stat": "Average", "period": 300,
+                  "metrics": [
+                    ["AWS/CloudFront", "5xxErrorRate", "DistributionId", "${DistributionId}", "Region", "Global"],
+                    ["AWS/CloudFront", "4xxErrorRate", "DistributionId", "${DistributionId}", "Region", "Global"]
+                  ],
+                  "annotations": {"horizontal": [{"label": "5xx alarm threshold", "value": 5}]}
+                }
+              },
+              {
+                "type": "metric", "x": 0, "y": 8, "width": 12, "height": 6,
+                "properties": {
+                  "title": "WAF allowed and blocked requests", "region": "${AWS::Region}",
+                  "view": "timeSeries", "stat": "Sum", "period": 300,
+                  "metrics": [
+                    ["AWS/WAFV2", "AllowedRequests", "WebACL", "jeju-3d-edge", "Rule", "ALL"],
+                    ["AWS/WAFV2", "BlockedRequests", "WebACL", "jeju-3d-edge", "Rule", "ALL"]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 12, "y": 8, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Selected-field access log ingestion", "region": "${AWS::Region}",
+                  "view": "timeSeries", "stat": "Sum", "period": 300,
+                  "metrics": [
+                    ["AWS/Logs", "IncomingLogEvents", "LogGroupName", "${AWS::StackName}-cloudfront-access"]
+                  ]
+                }
+              }
+            ]
+          }
+        - DistributionId: !Select [1, !Split ['/', !Ref DistributionArn]]
+
+Outputs:
+  WebAclArn:
+    Description: Parent must set the existing distribution's DistributionConfig.WebACLId to this ARN.
+    Value: !GetAtt WebAcl.Arn
+  EdgeAccessLogGroupName:
+    Value: !Ref EdgeAccessLogs
+  EdgeDeliveryId:
+    Value: !GetAtt CloudFrontAccessDelivery.DeliveryId
+  EdgeNotificationTopicArn:
+    Description: No subscribers are created by this stack.
+    Value: !Ref EdgeNotifications
+  EdgeDashboardName:
+    Value: !Ref EdgeDashboard

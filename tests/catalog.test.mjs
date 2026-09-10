@@ -215,30 +215,118 @@ test('missing enrichment stays null or empty without fabricated descriptions or 
   }
 });
 
-test('photos preserve credited originals, drop KOGL 3/4 thumbnails and reject unsafe or unlicensed URLs', async (t) => {
+test('commercial photos preserve KOGL 3 originals and exclude noncommercial or unsafe entries', async (t) => {
   const { catalog } = await local(t, { extras: { 'osm:cafe': { photos: [
     { url: '/media/original.jpg', thumb_url: '/media/thumb.webp', origin_url: 'https://example.org/original.jpg',
       credit: '한국관광공사', license: 'KOGL-3', source: 'tourapi' },
-    { url: 'https://example.org/four.jpg', thumb_url: 'https://example.org/four-thumb.jpg',
+    { url: 'https://example.org/four.jpg', thumb_url: 'https://example.org/four-thumb.jpg', origin_url: 'https://example.org/four.jpg',
       credit: '작가', license: 'KOGL-4', source: 'tourapi' },
     { url: '/media/allowed.jpg', thumb_url: '/media/allowed-thumb.webp', origin_url: 'https://example.org/allowed.jpg',
       credit: '사진가', license: 'CC-BY-4.0', source: 'commons' },
-    { url: 'javascript:alert(1)', credit: '작가', license: 'KOGL-1', source: 'tourapi' },
-    { url: 'data:image/png;base64,aaaa', credit: '작가', license: 'KOGL-1', source: 'tourapi' },
-    { url: '//evil.example/a.jpg', credit: '작가', license: 'KOGL-1', source: 'tourapi' },
-    { url: 'https://example.org/unknown.jpg', credit: '작가', license: 'unknown', source: 'tourapi' },
-    { url: 'https://example.org/uncredited.jpg', credit: '', license: 'KOGL-1', source: 'tourapi' },
-    { url: '/media/../not-media.jpg', credit: '작가', license: 'KOGL-1', source: 'tourapi' },
+    { url: 'javascript:alert(1)', origin_url: 'https://example.org/a.jpg', credit: '작가', license: 'KOGL-1', source: 'tourapi' },
+    { url: 'data:image/png;base64,aaaa', origin_url: 'https://example.org/a.jpg', credit: '작가', license: 'KOGL-1', source: 'tourapi' },
+    { url: '//evil.example/a.jpg', origin_url: 'https://example.org/a.jpg', credit: '작가', license: 'KOGL-1', source: 'tourapi' },
+    { url: 'https://example.org/unknown.jpg', origin_url: 'https://example.org/a.jpg', credit: '작가', license: 'unknown', source: 'tourapi' },
+    { url: 'https://example.org/uncredited.jpg', origin_url: 'https://example.org/a.jpg', credit: '', license: 'KOGL-1', source: 'tourapi' },
+    { url: '/media/../not-media.jpg', origin_url: 'https://example.org/a.jpg', credit: '작가', license: 'KOGL-1', source: 'tourapi' },
   ] } } });
   assert.deepEqual(catalog.detail('osm:cafe').photos, [
     { url: 'https://ohmyjeju.whchoi.net/media/original.jpg', thumb_url: null,
       origin_url: 'https://example.org/original.jpg', credit: '한국관광공사', license: 'KOGL-3', source: 'tourapi' },
-    { url: 'https://example.org/four.jpg', thumb_url: null, origin_url: null,
-      credit: '작가', license: 'KOGL-4', source: 'tourapi' },
     { url: 'https://ohmyjeju.whchoi.net/media/allowed.jpg',
       thumb_url: 'https://ohmyjeju.whchoi.net/media/allowed-thumb.webp',
       origin_url: 'https://example.org/allowed.jpg', credit: '사진가', license: 'CC-BY-4.0', source: 'commons' },
   ]);
+});
+
+test('commercial eligibility fails closed without rejecting recognized photos for missing separate proof', async (t) => {
+  const base = { url: '/media/photo.jpg', origin_url: 'https://example.org/photo.jpg', credit: '사진가', source: 'tourapi' };
+  const rejected = ['KOGL-2', 'KOGL-4', 'CC-BY-NC-4.0', 'CC-BY-NC-SA-4.0', 'unrestricted', 'curated', 'future-license'];
+  const allowed = ['KOGL-1', 'KOGL-3', 'CC-BY-4.0', 'CC-BY-SA-2.0', 'CC-BY-SA-3.0', 'CC-BY-SA-4.0', 'CC0', 'PD'];
+  const { catalog } = await local(t, { extras: { 'osm:cafe': {
+    photos: [...rejected, ...allowed].map(license => ({ ...base, license })),
+  } } });
+  assert.deepEqual(catalog.detail('osm:cafe').photos.map(photo => photo.license), allowed);
+});
+
+test('photos require a safe original URL and status counts only places with served photos', async (t) => {
+  const valid = { origin_url: 'https://example.org/original.jpg', credit: '한국관광공사', license: 'KOGL-3', source: 'tourapi' };
+  const { catalog } = await local(t, { meta: { photos_count: '99' }, extras: {
+    'seed:peak': { photos: [{ ...valid, url: '/media/noncommercial.jpg', license: 'KOGL-2' }] },
+    'osm:cafe': { photos: [
+      { ...valid, url: '/media/no-origin.jpg', origin_url: null },
+      { ...valid, url: '/media/unsafe-origin.jpg', origin_url: 'javascript:alert(1)' },
+      { ...valid, url: '/media/local-origin.jpg', origin_url: '/media/source.jpg' },
+      valid,
+    ] },
+    'not-a-place': { photos: [valid] },
+  } });
+  assert.deepEqual(catalog.detail('seed:peak').photos, []);
+  assert.deepEqual(catalog.detail('osm:cafe').photos.map(photo => [photo.url, photo.origin_url, photo.thumb_url]), [
+    ['https://example.org/original.jpg', 'https://example.org/original.jpg', null],
+  ]);
+  assert.equal(catalog.status().photos_count, 1);
+});
+
+test('field evidence never upgrades a seed or rewrites it to a nearby same-name OSM record', async (t) => {
+  const { catalog, path } = await local(t, { append: [
+    { id: 'osm:node/999', name: '성산일출봉', category: '관광지', lat: 33.45801, lng: 126.94201, tags: ['풍경'] },
+  ] });
+  const before = await readFile(path);
+  const seed = catalog.detail('seed:peak');
+  const osm = catalog.detail('osm:node/999');
+  assert.deepEqual([seed.id, seed.name, seed.lat, seed.lng], ['seed:peak', '성산일출봉', 33.458, 126.942]);
+  assert.deepEqual([osm.id, osm.name, osm.lat, osm.lng], ['osm:node/999', '성산일출봉', 33.45801, 126.94201]);
+  assert.equal(catalog.search({ q: '성산일출봉' }).total, 2);
+  for (const field of ['name', 'lat', 'lng', 'address', 'summary', 'tags']) {
+    assert.deepEqual(seed.field_evidence?.[field], {
+      state: 'unverified', source: 'sample', observed_at: null, evidence_url: null,
+    });
+  }
+  assert.deepEqual(osm.field_evidence?.lat, {
+    state: 'source_reported', source: 'OpenStreetMap', observed_at: null,
+    evidence_url: 'https://www.openstreetmap.org/node/999',
+  });
+  assert.deepEqual(osm.field_evidence?.address, {
+    state: 'unknown', source: null, observed_at: null, evidence_url: null,
+  });
+  assert.ok(catalog.search({ q: '일출봉' }).items.every(p => Object.values(p.field_evidence).every(e => e.state !== 'reviewed')));
+  assert.deepEqual(await readFile(path), before);
+});
+
+test('field evidence keeps mixed-source amenities unattributed and explicitly labels parsed hours', async (t) => {
+  const { catalog } = await local(t);
+  const seed = catalog.detail('seed:peak');
+  for (const field of ['facilities.parking', 'facilities.wheelchair', 'facilities.restroom', 'overview', 'business_status']) {
+    assert.deepEqual(seed.field_evidence?.[field], {
+      state: 'unknown', source: null, observed_at: null, evidence_url: null,
+    }, field);
+  }
+  assert.deepEqual(seed.facilities, { parking: 'yes', wheelchair: 'unknown' });
+  assert.deepEqual(seed.field_evidence.hours_week, {
+    state: 'parsed', source: 'tourapi_usetime', observed_at: null, evidence_url: null,
+  });
+  assert.equal(seed.field_evidence['menu.0.name'].state, 'source_reported');
+  assert.equal(seed.field_evidence['menu.0.name'].source, 'tourapi');
+  assert.equal(seed.field_evidence['menu.0.price_krw'].state, 'unknown');
+  assert.match(seed.registration_note, /인허가/);
+  assert.match(seed.registration_note, /장소 전체.*현재 시각/);
+  assert.equal(seed.business_status, 'open');
+  assert.equal('open_now' in seed, false);
+});
+
+test('a populated schedule without its own source remains unknown despite official sources on the record', async (t) => {
+  const { catalog } = await local(t, { extras: { 'osm:cafe': {
+    hours_week: [{ day: 0, open: '10:00', close: '18:00' }],
+    sources: [{ source: 'tourapi', observed_at: '2026-09-08T00:00:00Z', license: 'KOGL-1' }],
+    business_status: 'closed_permanently',
+  } } });
+  const detail = catalog.detail('osm:cafe');
+  assert.equal(detail.field_evidence?.hours_week.state, 'unknown');
+  assert.equal(detail.field_evidence.hours_week.source, null);
+  assert.equal(detail.field_evidence.hours_week.observed_at, null);
+  assert.equal(detail.business_status, 'closed_permanently');
+  assert.match(detail.registration_note, /확정하지 않습니다/);
 });
 
 test('invalid, empty, incomplete or inconsistent snapshots never become an empty ready catalog', async (t) => {
@@ -458,4 +546,62 @@ test('malformed enrichment values cannot leak unsafe links or violate nullable A
     { source: 'tourapi', url: null, observed_at: '2025-12-15 16:15:28', license: 'KOGL-1' },
   ]);
   assert.deepEqual(detail.tips, { note: '원문 팁', observed_at: null });
+});
+
+test('catalog audit reports raw and commercial photo counts deterministically without changing the snapshot', async (t) => {
+  let auditCatalog;
+  try { ({ auditCatalog } = await import('../scripts/audit-catalog.mjs')); }
+  catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; }
+  assert.equal(typeof auditCatalog, 'function', 'Read-only catalog audit must be implemented');
+  const photo = { url: '/media/photo.jpg', origin_url: 'https://example.org/photo.jpg', credit: '사진가', source: 'tourapi' };
+  const { path, dir } = await fixture(t, { extras: {
+    'osm:cafe': {
+      photos: [{ ...photo, license: 'KOGL-2' }],
+      sources: [{ source: 'localdata', observed_at: '2025-12-15 16:15:28', license: 'unrestricted' }],
+    },
+    'osm:near': { photos: [{ ...photo, license: 'KOGL-3' }] },
+  } });
+  const before = await readFile(path);
+  const beforeStat = await stat(path);
+  const report = await auditCatalog(path);
+  assert.equal(report.places.total, 9);
+  assert.deepEqual(report.places.by_source, { OpenStreetMap: 8, sample: 1 });
+  assert.equal(report.photos.raw_entries, 2);
+  assert.equal(report.photos.served_entries, 1);
+  assert.equal(report.photos.blocked_entries, 1);
+  assert.equal(report.photos.raw_places, 2);
+  assert.equal(report.photos.served_places, 1);
+  assert.equal(report.photos.noncommercial_entries, 1);
+  assert.equal(report.photos.noncommercial_places, 1);
+  assert.equal(report.photos.served_noncommercial_entries, 0);
+  assert.deepEqual(report.photos.by_license['KOGL-3'], { entries: 1, places: 1, served_entries: 1 });
+  assert.equal(report.provenance.non_reviewed_places, 9);
+  assert.equal(report.provenance.reviewed_places, 0);
+  assert.equal(report.provenance.reviewed_fields, 0);
+  assert.equal(report.provenance.legacy_source_timestamps, 1);
+  assert.equal(report.provenance.preserved_legacy_source_timestamps, 1);
+  assert.equal(report.schedules.parsed_places, 1);
+  assert.equal(report.schedules.identical_seven_day_schedules, 0);
+  assert.deepEqual(await auditCatalog(path), report);
+  assert.deepEqual(await readFile(path), before);
+  assert.equal((await stat(path)).mtimeMs, beforeStat.mtimeMs);
+  assert.deepEqual(await readdir(dir), ['fixture.sqlite']);
+  const cli = spawnSync(process.execPath, [
+    fileURLToPath(new URL('../scripts/audit-catalog.mjs', import.meta.url)), path,
+  ], { encoding: 'utf8' });
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.deepEqual(JSON.parse(cli.stdout), report);
+});
+
+test('catalog audit fails explicitly for an invalid local snapshot', async (t) => {
+  const { dir } = await fixture(t);
+  const invalid = join(dir, 'invalid.sqlite');
+  await writeFile(invalid, 'not a database');
+  const cli = spawnSync(process.execPath, [
+    fileURLToPath(new URL('../scripts/audit-catalog.mjs', import.meta.url)), invalid,
+  ], { encoding: 'utf8' });
+  assert.equal(cli.status, 1);
+  assert.match(cli.stderr, /Catalog audit failed/);
+  assert.equal(cli.stdout, '');
+  assert.equal(await readFile(invalid, 'utf8'), 'not a database');
 });

@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Jeju Atlas regional public ACM certificate for ALB origin TLS. Existing public DNS validation is reused; no DNS records are created.
+
+Parameters:
+  CertificateDomainName:
+    Type: String
+    Default: '*.whchoi.net'
+    AllowedValues:
+      - '*.whchoi.net'
+    Description: Same domain as the existing validated viewer certificate; ACM DNS validation tokens work across Regions.
+
+Resources:
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      DomainName: !Ref CertificateDomainName
+      ValidationMethod: DNS
+      CertificateTransparencyLoggingPreference: ENABLED
+      Tags:
+        - Key: Name
+          Value: jeju-3d-alb-origin
+        - Key: Project
+          Value: jeju-3d
+
+Outputs:
+  OriginCertificateArn:
+    Value: !Ref Certificate
+  CertificateDomainName:
+    Value: !Ref CertificateDomainName

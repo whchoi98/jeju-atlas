@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { gzip } from 'node:zlib';
 import { promisify } from 'node:util';
 import { createSessions } from './sessions.mjs';
+import { AdmissionError, createAdmission } from './admission.mjs';
 import { createWeatherService, inJeju } from './weather.mjs';
 import {
   GuideError, createGuideHandler, createAgentInvoker, createDynamoQuotaConsumer, emitGuideDiagnostic,
@@ -10,6 +11,18 @@ import {
 const compress = promisify(gzip);
 const BODY_LIMIT = 16 * 1024;
 const PUBLIC_CACHE = 'public, max-age=60';
+const CATALOG_BUILD_MAX_AGE_MS = 14 * 86_400_000;
+
+function catalogBuildTimestamp(value) {
+  if (typeof value !== 'string' || value.length > 40 || /\s/.test(value)
+    || !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,9})?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(value)) {
+    return NaN;
+  }
+  // Date.parse can normalize impossible days; verify the calendar date too.
+  const calendar = new Date(`${value.slice(0, 10)}T00:00:00Z`);
+  if (!Number.isFinite(calendar.getTime()) || calendar.toISOString().slice(0, 10) !== value.slice(0, 10)) return NaN;
+  return Date.parse(value);
+}
 
 class ApiError extends Error {
   constructor(status, code, message) {
@@ -187,6 +200,7 @@ export function createApiHandler({
   heartbeatMs = 8000, deadlineMs = 90_000, maxActors = 10_000,
   weatherOptions = {},
   onDiagnostic = () => {},
+  admission: injectedAdmission,
 } = {}) {
   if (!Number.isSafeInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 1000) {
     throw new Error('GUIDE_DAILY_LIMIT must be an integer between 1 and 1000');
@@ -195,7 +209,13 @@ export function createApiHandler({
   const sessions = createSessions({ secret: signingSecret, clock });
   const allowedOrigin = configuredOrigin(publicOrigin);
   const enabled = Boolean(allowedOrigin && (invokeEvents || env.GUIDE_RUNTIME_ARN)
-    && (consumeQuota || env.GUIDE_QUOTA_TABLE));
+    && (injectedAdmission || consumeQuota || env.GUIDE_QUOTA_TABLE));
+  const admission = injectedAdmission || (env.GUIDE_QUOTA_TABLE && !consumeQuota ? createAdmission({
+    table: env.GUIDE_QUOTA_TABLE, region: env.AWS_REGION || 'ap-northeast-2', clock, dailyLimit,
+    hourlyLimit: Number(env.GUIDE_HOURLY_LIMIT || 5),
+    globalConcurrency: Number(env.GUIDE_GLOBAL_CONCURRENCY || 2),
+    leaseMs: Number(env.GUIDE_LEASE_MS || 120_000),
+  }) : undefined);
   const agent = invokeEvents || createAgentInvoker({
     runtimeArn: env.GUIDE_RUNTIME_ARN, region: env.AWS_REGION || 'ap-northeast-2',
   });
@@ -204,8 +224,24 @@ export function createApiHandler({
   });
   const guide = createGuideHandler({
     sessions, catalog, consumeQuota: quota, invokeEvents: agent, clock, heartbeatMs, deadlineMs, maxActors, onDiagnostic,
+    admission, requestHashKey: signingSecret,
   });
   const weather = createWeatherService({ fetch: fetchImpl, clock, ...weatherOptions });
+  let draining = false;
+  let initialized = false;
+  let catalogHeartbeat;
+  const reportCatalogStatus = () => {
+    let stale = 1;
+    try {
+      const status = catalog?.status();
+      const builtAt = catalogBuildTimestamp(status?.built_at);
+      const now = clock();
+      const age = now - builtAt;
+      stale = status?.status === 'ready' && status.stale === false
+        && Number.isFinite(now) && Number.isFinite(builtAt) && age >= 0 && age <= CATALOG_BUILD_MAX_AGE_MS ? 0 : 1;
+    } catch { /* Unreadable state is unavailable; never log storage details. */ }
+    emitGuideDiagnostic(onDiagnostic, { event: 'catalog_status', stale });
+  };
 
   async function api(req, res, url = new URL(req.url, 'http://localhost')) {
     res.setHeader('Cache-Control', 'no-store');
@@ -228,6 +264,7 @@ export function createApiHandler({
         });
       }
       if (path === '/api/guide') {
+        if (draining) throw new GuideError(503, 'guide_unavailable');
         const session = sessions.readCookie(req.headers.cookie);
         const proof = req.headers['x-atlas-csrf'];
         const originMatches = allowedOrigin && req.headers.origin === allowedOrigin;
@@ -302,22 +339,42 @@ export function createApiHandler({
         res.destroy();
         return;
       }
-      const failure = error instanceof ApiError || error instanceof GuideError
+      const failure = error instanceof AdmissionError ? new GuideError(error.status, error.code)
+        : error instanceof ApiError || error instanceof GuideError
         ? error : error instanceof RangeError || (error?.statusCode === 400 && error?.code === 'CATALOG_BAD_QUERY')
           ? invalidQuery() : new ApiError(503, 'service_unavailable', '서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       if (url.pathname === '/api/guide') {
-        emitGuideDiagnostic(onDiagnostic, { event: 'guide_rejected', code: failure.code, status: failure.status });
+        emitGuideDiagnostic(onDiagnostic, {
+          event: 'guide_rejected', code: failure.code, status: failure.status,
+          ...(req.guideRequestId ? { request_id: req.guideRequestId } : {}),
+        });
       }
       if (failure.status === 429) res.setHeader('Retry-After', failure.code === 'hourly_limit' ? '3600' : '60');
+      if (error instanceof AdmissionError && error.retryAfter) res.setHeader('Retry-After', String(error.retryAfter));
       await sendJson(req, res, failure.status, { error: { code: failure.code, message: failure.message } });
     }
   }
+  // A shared quota outage disables AI admission, not healthy map/catalog tasks.
+  api.ready = async () => !draining && (!catalog || catalog.status().status === 'ready');
+  api.init = async () => {
+    if (!(await api.ready()) || draining) throw new Error('API dependencies unavailable');
+    if (initialized) return;
+    initialized = true;
+    reportCatalogStatus();
+    catalogHeartbeat = setInterval(reportCatalogStatus, 60_000);
+    catalogHeartbeat.unref?.();
+  };
+  api.beginDrain = () => { draining = true; guide.beginDrain(); };
+  api.drain = () => { api.beginDrain(); return guide.drain(); };
   api.close = () => {
+    draining = true;
+    clearInterval(catalogHeartbeat);
     guide.close();
     weather.close();
     // Only close transports created by this factory; injected ones belong to their caller.
     if (!invokeEvents) agent.close();
     if (!consumeQuota) quota.close();
+    if (!injectedAdmission) admission?.close();
   };
   return api;
 }

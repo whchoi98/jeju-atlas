@@ -1,0 +1,439 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Jeju3dOperations - regional health, error, capacity and application alarms. Existing Jeju3dApp resources are passed as parameters.
+
+Parameters:
+  ClusterName:
+    Type: String
+    AllowedPattern: '^[A-Za-z0-9_-]{1,255}$'
+  ServiceName:
+    Type: String
+    AllowedPattern: '^[A-Za-z0-9_-]{1,255}$'
+  AlbFullName:
+    Type: String
+    Description: LoadBalancer.LoadBalancerFullName, not its ARN or short name.
+    AllowedPattern: '^app/[A-Za-z0-9-]+/[a-f0-9]+$'
+  TargetGroupFullName:
+    Type: String
+    Description: TargetGroup.TargetGroupFullName, not its ARN or short name.
+    AllowedPattern: '^targetgroup/[A-Za-z0-9-]+/[a-f0-9]+$'
+  LogGroupName:
+    Type: String
+    Description: Existing application log group. Its retention and ownership remain in Jeju3dApp.
+    AllowedPattern: '^[.\-_/#A-Za-z0-9]{1,512}$'
+  GuideQuotaTableName:
+    Type: String
+    AllowedPattern: '^[A-Za-z0-9_.-]{3,255}$'
+  MinimumHealthyTargets:
+    Type: Number
+    Default: 2
+    MinValue: 2
+    MaxValue: 100
+    Description: Required healthy target count; two tasks are the commercial minimum.
+  TargetP95Seconds:
+    Type: Number
+    Default: 2
+    MinValue: 0.1
+    MaxValue: 30
+    Description: ALB time to target response headers, not SSE answer completion.
+  GuideFailureThreshold:
+    Type: Number
+    Default: 3
+    MinValue: 1
+    MaxValue: 1000
+    Description: Operational guide failures per five minutes, excluding expected 4xx and client cancellations.
+
+Rules:
+  OperationsRegion:
+    Assertions:
+      - Assert: !Equals [!Ref AWS::Region, ap-northeast-2]
+        AssertDescription: Jeju3dApp and its native service metrics are in ap-northeast-2.
+
+Resources:
+  Notifications:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: jeju-3d-operations-alarms
+      DisplayName: Jeju Atlas operations alarms
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  NotificationPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref Notifications
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudWatchAlarmPublish
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref Notifications
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-*'
+
+  HealthyTargetsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-healthy-targets'
+      AlarmDescription: Fewer than the required healthy app target count for three minutes, or health metrics missing.
+      Namespace: AWS/ApplicationELB
+      MetricName: HealthyHostCount
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !Ref AlbFullName
+        - Name: TargetGroup
+          Value: !Ref TargetGroupFullName
+      Statistic: Minimum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 3
+      Threshold: !Ref MinimumHealthyTargets
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref Notifications
+      OKActions:
+        - !Ref Notifications
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  Alb5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-alb-5xx'
+      AlarmDescription: ALB generated at least 10 HTTP 5xx responses in five minutes.
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_ELB_5XX_Count
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !Ref AlbFullName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref Notifications
+      OKActions:
+        - !Ref Notifications
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  Target5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-target-5xx'
+      AlarmDescription: Application targets generated at least 10 HTTP 5xx responses in five minutes. SSE errors use the guide diagnostic metric.
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_Target_5XX_Count
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !Ref AlbFullName
+        - Name: TargetGroup
+          Value: !Ref TargetGroupFullName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref Notifications
+      OKActions:
+        - !Ref Notifications
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  TargetLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-target-headers-p95'
+      AlarmDescription: p95 time to target response headers is elevated. This excludes SSE body streaming duration and is not AI completion latency.
+      Namespace: AWS/ApplicationELB
+      MetricName: TargetResponseTime
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !Ref AlbFullName
+        - Name: TargetGroup
+          Value: !Ref TargetGroupFullName
+      ExtendedStatistic: p95
+      EvaluateLowSampleCountPercentile: ignore
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: !Ref TargetP95Seconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref Notifications
+      OKActions:
+        - !Ref Notifications
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  CpuHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-cpu-high'
+      AlarmDescription: ECS service average CPU is at least 80 percent for fifteen minutes.
+      Namespace: AWS/ECS
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref ClusterName
+        - Name: ServiceName
+          Value: !Ref ServiceName
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 3
+      Threshold: 80
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref Notifications
+      OKActions:
+        - !Ref Notifications
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  MemoryHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-memory-high'
+      AlarmDescription: ECS service average memory is at least 85 percent for fifteen minutes.
+      Namespace: AWS/ECS
+      MetricName: MemoryUtilization
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref ClusterName
+        - Name: ServiceName
+          Value: !Ref ServiceName
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 3
+      Threshold: 85
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref Notifications
+      OKActions:
+        - !Ref Notifications
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  QuotaWriteThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-quota-write-throttle'
+      AlarmDescription: DynamoDB quota-table writes are throttled. Expected conditional daily-limit denials are excluded.
+      Namespace: AWS/DynamoDB
+      MetricName: WriteThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref GuideQuotaTableName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref Notifications
+      OKActions:
+        - !Ref Notifications
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  GuideFailureMetric:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      FilterName: !Sub '${AWS::StackName}-guide-failures'
+      LogGroupName: !Ref LogGroupName
+      FilterPattern: '{ ($.event = "guide_stream_error") || (($.event = "guide_rejected") && ($.status >= 500)) }'
+      MetricTransformations:
+        - MetricNamespace: !Sub 'JejuAtlas/Operations/${AWS::StackName}'
+          MetricName: GuideFailures
+          MetricValue: '1'
+          DefaultValue: 0
+          Unit: Count
+
+  GuideFailuresAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: GuideFailureMetric
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-guide-failures'
+      AlarmDescription: Guide stream or pre-invocation service failures reached the five-minute threshold. Expected 4xx and cancellations are excluded.
+      Namespace: !Sub 'JejuAtlas/Operations/${AWS::StackName}'
+      MetricName: GuideFailures
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: !Ref GuideFailureThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref Notifications
+      OKActions:
+        - !Ref Notifications
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  CatalogStateMetric:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      FilterName: !Sub '${AWS::StackName}-catalog-state'
+      LogGroupName: !Ref LogGroupName
+      # Parent emits numeric 0/1 every minute. No default zero: unrelated logs
+      # must not conceal a missing catalog heartbeat.
+      FilterPattern: '{ ($.event = "catalog_status") && (($.stale = 0) || ($.stale = 1)) }'
+      MetricTransformations:
+        - MetricNamespace: !Sub 'JejuAtlas/Operations/${AWS::StackName}'
+          MetricName: CatalogStale
+          MetricValue: $.stale
+          Unit: Count
+
+  CatalogStaleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: CatalogStateMetric
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-catalog-stale'
+      AlarmDescription: Catalog is stale/unavailable, or its numeric catalog_status heartbeat is absent, in two of three minutes.
+      Namespace: !Sub 'JejuAtlas/Operations/${AWS::StackName}'
+      MetricName: CatalogStale
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref Notifications
+      OKActions:
+        - !Ref Notifications
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  OperationsDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Ref AWS::StackName
+      DashboardBody: !Sub |
+        {
+          "start": "-PT6H",
+          "periodOverride": "inherit",
+          "widgets": [
+            {
+              "type": "text", "x": 0, "y": 0, "width": 24, "height": 2,
+              "properties": {
+                "markdown": "# Jeju Atlas operations\n${ClusterName} / ${ServiceName}. Minimum healthy targets: ${MinimumHealthyTargets}. SNS has no subscribers. Catalog gauge requires one numeric catalog_status heartbeat per minute."
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 2, "width": 12, "height": 6,
+              "properties": {
+                "title": "Healthy targets (minimum across ALB nodes)", "region": "${AWS::Region}",
+                "view": "timeSeries", "stat": "Minimum", "period": 60,
+                "metrics": [
+                  ["AWS/ApplicationELB", "HealthyHostCount", "LoadBalancer", "${AlbFullName}", "TargetGroup", "${TargetGroupFullName}"]
+                ],
+                "annotations": {"horizontal": [{"label": "Required healthy targets", "value": ${MinimumHealthyTargets}}]}
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 2, "width": 12, "height": 6,
+              "properties": {
+                "title": "ECS service CPU and memory (%)", "region": "${AWS::Region}",
+                "view": "timeSeries", "stat": "Average", "period": 300,
+                "metrics": [
+                  ["AWS/ECS", "CPUUtilization", "ClusterName", "${ClusterName}", "ServiceName", "${ServiceName}"],
+                  ["AWS/ECS", "MemoryUtilization", "ClusterName", "${ClusterName}", "ServiceName", "${ServiceName}"]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 8, "width": 12, "height": 6,
+              "properties": {
+                "title": "ALB and target 5xx responses", "region": "${AWS::Region}",
+                "view": "timeSeries", "stat": "Sum", "period": 300,
+                "metrics": [
+                  ["AWS/ApplicationELB", "HTTPCode_ELB_5XX_Count", "LoadBalancer", "${AlbFullName}"],
+                  ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", "${AlbFullName}", "TargetGroup", "${TargetGroupFullName}"]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 8, "width": 12, "height": 6,
+              "properties": {
+                "title": "p95 response headers (seconds; not SSE completion)", "region": "${AWS::Region}",
+                "view": "timeSeries", "stat": "p95", "period": 300,
+                "metrics": [
+                  ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${AlbFullName}", "TargetGroup", "${TargetGroupFullName}"]
+                ],
+                "annotations": {"horizontal": [{"label": "Header latency threshold", "value": ${TargetP95Seconds}}]}
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 14, "width": 8, "height": 6,
+              "properties": {
+                "title": "Guide operational failures", "region": "${AWS::Region}",
+                "view": "timeSeries", "stat": "Sum", "period": 300,
+                "metrics": [
+                  ["JejuAtlas/Operations/${AWS::StackName}", "GuideFailures"]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 8, "y": 14, "width": 8, "height": 6,
+              "properties": {
+                "title": "Catalog stale/unavailable (0=current, 1=stale; missing alarms)", "region": "${AWS::Region}",
+                "view": "timeSeries", "stat": "Maximum", "period": 60,
+                "metrics": [
+                  ["JejuAtlas/Operations/${AWS::StackName}", "CatalogStale"]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 16, "y": 14, "width": 8, "height": 6,
+              "properties": {
+                "title": "Quota-table write throttles", "region": "${AWS::Region}",
+                "view": "timeSeries", "stat": "Sum", "period": 300,
+                "metrics": [
+                  ["AWS/DynamoDB", "WriteThrottleEvents", "TableName", "${GuideQuotaTableName}"]
+                ]
+              }
+            }
+          ]
+        }
+
+Outputs:
+  NotificationTopicArn:
+    Description: No subscribers are created by this stack.
+    Value: !Ref Notifications
+  OperationsDashboardName:
+    Value: !Ref OperationsDashboard
+  ApplicationMetricNamespace:
+    Value: !Sub 'JejuAtlas/Operations/${AWS::StackName}'

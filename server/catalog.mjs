@@ -11,11 +11,22 @@ const MAX_BYTES = 32 * 1024 * 1024;
 const MAX_POINTS = 20000;
 const ATTRIBUTION = '장소 데이터 © OpenStreetMap contributors (ODbL) · 큐레이션 데이터 오마이제주';
 const BASE_NOTE = '큐레이션 원자료의 기본 좌표·주소·소개는 공식 자료와 독립적으로 대조 검증되지 않았습니다. 보강 정보의 출처는 별도로 표시합니다.';
-const LICENSES = new Set([
-  'KOGL-1', 'KOGL-2', 'KOGL-3', 'KOGL-4', 'CC-BY-SA-2.0', 'CC-BY-SA-3.0',
-  'CC-BY-SA-4.0', 'CC-BY-4.0', 'CC0', 'PD', 'unrestricted', 'curated',
+const REGISTRATION_NOTE = '연결된 인허가 자료의 상태이며, 장소 전체의 운영 여부나 현재 시각의 영업 여부를 확정하지 않습니다.';
+// A recognized photo's own license, credit and original URL are sufficient here.
+// Generic provenance labels such as "curated" are not commercial photo licenses.
+const COMMERCIAL_PHOTO_LICENSES = new Set([
+  'KOGL-1', 'KOGL-3', 'CC-BY-SA-2.0', 'CC-BY-SA-3.0',
+  'CC-BY-SA-4.0', 'CC-BY-4.0', 'CC0', 'PD',
 ]);
-const NO_DERIVATIVES = new Set(['KOGL-3', 'KOGL-4']);
+const NO_DERIVATIVES = new Set(['KOGL-3']);
+const BASE_EVIDENCE_FIELDS = [
+  'name', 'name_en', 'category', 'lat', 'lng', 'address', 'summary', 'tags',
+  'url', 'phone', 'hours', 'region', 'avg_stay_min',
+];
+const FACILITY_FIELDS = [
+  'parking', 'credit_card', 'pet', 'kid_friendly', 'wheelchair',
+  'restroom', 'wifi', 'outdoor_seating', 'reservation',
+];
 const PLACE_COLUMNS = [
   'rid', 'id', 'name', 'name_en', 'category', 'lat', 'lng', 'address', 'summary',
   'tags', 'source', 'url', 'phone', 'hours', 'updated_at', 'region', 'avg_stay_min',
@@ -93,9 +104,60 @@ function safeUrl(value, mediaOrigin) {
   }
 }
 
+function evidence(state = 'unknown', source = null, evidenceUrl = null) {
+  // Neither built_at nor a row's updated_at is an observation of each field.
+  return { state, source, observed_at: null, evidence_url: evidenceUrl };
+}
+
+function supplied(value) {
+  return value !== null && value !== undefined && value !== ''
+    && (!Array.isArray(value) || value.length > 0);
+}
+
+function baseEvidence(place) {
+  let origin = null;
+  if (place.source === 'OpenStreetMap') {
+    const ref = /^osm:((?:node|way|relation)\/\d+)$/.exec(place.id)?.[1];
+    if (ref) origin = `https://www.openstreetmap.org/${ref}`;
+    else if (/^https?:\/\/(?:www\.)?openstreetmap\.org\/(?:node|way|relation)\/\d+\/?$/.test(place.url ?? '')) {
+      origin = place.url;
+    }
+  }
+  const state = place.source === 'OpenStreetMap' ? 'source_reported' : 'unverified';
+  return Object.fromEntries(BASE_EVIDENCE_FIELDS.map((key) => [
+    key, supplied(place[key]) ? evidence(state, place.source, origin) : evidence(),
+  ]));
+}
+
+function detailEvidence(place, extra) {
+  const fields = { ...place.field_evidence };
+  // place_extra.sources is record-level provenance. Its order and official
+  // provider names cannot identify the owner of a flat facility/overview/status.
+  for (const key of ['facilities', 'overview', 'business_status', 'menu', 'tips']) fields[key] = evidence();
+  for (const key of new Set([...FACILITY_FIELDS, ...Object.keys(extra.facilities)])) {
+    if (/^[a-z][a-z0-9_]*$/i.test(key) && !['constructor', 'prototype'].includes(key)) {
+      fields[`facilities.${key}`] = evidence();
+    }
+  }
+  fields.hours_week = extra.hours_week.length && extra.hours_source
+    ? evidence(extra.hours_source === 'tourapi_usetime' ? 'parsed' : 'source_reported', extra.hours_source)
+    : evidence();
+  extra.menu.forEach((item, index) => {
+    for (const key of ['name', 'price_krw']) {
+      fields[`menu.${index}.${key}`] = item.source && supplied(item[key])
+        ? evidence('source_reported', item.source) : evidence();
+    }
+  });
+  extra.photos.forEach((photo, index) => {
+    fields[`photos.${index}`] = photo.source
+      ? evidence('source_reported', photo.source, photo.origin_url) : evidence();
+  });
+  return fields;
+}
+
 /** @returns {import('../shared/api-types.ts').CatalogPlace} */
 function place(row, distance = null) {
-  return {
+  const result = {
     id: row.id, name: row.name, name_en: text(row.name_en), category: row.category,
     lat: row.lat, lng: row.lng, address: text(row.address), summary: text(row.summary) ?? '',
     tags: array(row.tags).filter((tag) => typeof tag === 'string'),
@@ -106,17 +168,20 @@ function place(row, distance = null) {
     phone: text(row.phone), hours: text(row.hours),
     distance_m: distance === null ? null : Math.round(distance),
   };
+  return { ...result, field_evidence: baseEvidence(result) };
 }
 
 function photos(raw, mediaOrigin) {
   return array(raw).flatMap((photo) => {
-    if (!object(photo) || !LICENSES.has(photo.license) || !text(photo.credit)) return [];
+    if (!object(photo) || !COMMERCIAL_PHOTO_LICENSES.has(photo.license) || !text(photo.credit)) return [];
+    const origin = safeUrl(photo.origin_url);
+    if (!origin) return [];
     const url = safeUrl(photo.url ?? photo.origin_url, mediaOrigin);
     if (!url) return [];
     return [{
-      // Preserve the stored original/mirror URL. KOGL 3/4 never acquire a derivative URL.
+      // Preserve the stored original/mirror URL. KOGL 3 never acquires a derivative URL.
       url, thumb_url: NO_DERIVATIVES.has(photo.license) ? null : safeUrl(photo.thumb_url, mediaOrigin),
-      origin_url: safeUrl(photo.origin_url, mediaOrigin), credit: text(photo.credit),
+      origin_url: origin, credit: text(photo.credit),
       license: photo.license, source: text(photo.source) ?? '',
     }];
   });
@@ -141,6 +206,7 @@ function extraFields(row, mediaOrigin) {
       .map((item) => ({ name: text(item.name), price_krw: nonnegative(item.price_krw), source: text(item.source) })),
     // This is a registration state, never a calculation of whether the place is open now.
     business_status: text(extra.business_status), tips: json(extra.tips, null),
+    registration_note: text(extra.business_status) ? REGISTRATION_NOTE : null,
     sources: array(extra.sources).filter((source) => object(source) && text(source.source)).map((source) => ({
       source: text(source.source), url: safeUrl(source.url),
       observed_at: text(source.observed_at), license: text(source.license),
@@ -161,7 +227,7 @@ function requireTable(db, schema, table, columns) {
   if (columns.some((column) => !found.has(column))) throw new Error(`Invalid catalog schema: ${table}`);
 }
 
-function openSnapshot(path) {
+function openSnapshot(path, mediaOrigin) {
   const info = statSync(path);
   if (!info.isFile() || info.size === 0 || info.size > MAX_BYTES) throw new Error('Invalid catalog file size');
   const db = new DatabaseSync(path, {
@@ -204,11 +270,14 @@ function openSnapshot(path) {
     if (bySource.OpenStreetMap && !/OpenStreetMap.*ODbL/.test(attribution)) attribution += ` · ${ATTRIBUTION}`;
     const countMetric = (value) => Number.isSafeInteger(Number(value)) && Number(value) >= 0
       ? Number(value) : 0;
+    const photosCount = hasExtra ? db.prepare(`
+      SELECT e.photos FROM place_extra e JOIN places p ON p.id = e.id WHERE e.photos IS NOT NULL
+    `).all().filter((row) => photos(row.photos, mediaOrigin).length > 0).length : 0;
     return {
       db, hasExtra, categoryIds: new Set(categories.map((category) => category.id)),
       stats: {
         total, by_source: bySource, categories, built_at: text(meta.built_at), attribution,
-        photos_count: hasExtra ? countMetric(meta.photos_count) : 0,
+        photos_count: photosCount,
         hours_week_count: hasExtra ? countMetric(meta.hours_week_count) : 0,
       },
     };
@@ -284,7 +353,7 @@ export class Catalog {
   async _initialize() {
     try {
       if (this._localPath) {
-        this._replace(openSnapshot(this._localPath));
+        this._replace(openSnapshot(this._localPath, this._mediaOrigin));
         this._success();
         this._initialized = true;
         return this.status();
@@ -293,7 +362,7 @@ export class Catalog {
       await mkdir(this._cacheDir, { recursive: true, mode: 0o700 });
       if (this._closed) throw unavailable();
       try {
-        this._replace(openSnapshot(this._cachePath));
+        this._replace(openSnapshot(this._cachePath, this._mediaOrigin));
       } catch {
         // A missing or invalid cache may only be replaced by a validated download.
       }
@@ -373,7 +442,7 @@ export class Catalog {
       });
       await pipeline(body, cap, createWriteStream(part, { flags: 'wx', mode: 0o600 }), { signal });
       if (!received || (expected !== undefined && received !== expected)) throw new Error('Incomplete catalog download');
-      candidate = openSnapshot(part);
+      candidate = openSnapshot(part, this._mediaOrigin);
       signal.throwIfAborted();
       if (this._closed) throw unavailable();
       await rename(part, this._cachePath);
@@ -506,8 +575,10 @@ export class Catalog {
     if (typeof id !== 'string' || !id || id.length > 512 || id.includes('\0')) throw fail('Invalid catalog place id');
     const row = db.prepare('SELECT * FROM places WHERE id = ?').get(id);
     if (!row) return null;
-    const extra = hasExtra ? db.prepare('SELECT * FROM place_extra WHERE id = ?').get(id) : null;
-    return { ...place(row), ...extraFields(extra, this._mediaOrigin) };
+    const rawExtra = hasExtra ? db.prepare('SELECT * FROM place_extra WHERE id = ?').get(id) : null;
+    const base = place(row);
+    const extra = extraFields(rawExtra, this._mediaOrigin);
+    return { ...base, ...extra, field_evidence: detailEvidence(base, extra) };
   }
 
   close() {

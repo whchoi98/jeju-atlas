@@ -8,7 +8,7 @@ import re
 import sys
 
 import requests
-from deploy import ACCOUNT, APP, LOCAL, PREFIX, PRIVATE, PUBLIC, VPC, assert_network, connect, emit, load, save, stack_outputs
+from deploy import ACCOUNT, APP, LOCAL, PREFIX, PRIVATE, PUBLIC, VPC, SETTINGS, assert_network, connect, emit, load, save, stack_outputs, validate_settings
 
 
 def verify():
@@ -20,6 +20,7 @@ def verify():
     edge = session.client("cloudfront")
     outputs = stack_outputs(cf, APP)
     image = load("image.json")
+    settings = validate_settings(json.loads(SETTINGS.read_text()))
     checks = []
 
     def check(name, condition, detail=None):
@@ -41,6 +42,7 @@ def verify():
     check("No shared network resources created or managed", not any(r["ResourceType"] in forbidden for r in resources))
 
     service = ecs.describe_services(cluster=outputs["ClusterName"], services=[outputs["ServiceName"]])["services"][0]
+    check("Service maintains the configured minimum capacity", service["desiredCount"] >= int(settings["MinTaskCount"]))
     check("Fargate service stable", service["runningCount"] == service["desiredCount"] and service["pendingCount"] == 0
           and all(d.get("rolloutState") == "COMPLETED" for d in service["deployments"]),
           {"desired": service["desiredCount"], "running": service["runningCount"], "pending": service["pendingCount"]})
@@ -70,6 +72,9 @@ def verify():
         "dynamodb:UpdateItem": {
             f"arn:aws:dynamodb:ap-northeast-2:{ACCOUNT}:table/{environment.get('GUIDE_QUOTA_TABLE')}"
         },
+        "dynamodb:GetItem": {
+            f"arn:aws:dynamodb:ap-northeast-2:{ACCOUNT}:table/{environment.get('GUIDE_QUOTA_TABLE')}"
+        },
     }
     seen_actions = set()
     policies_scoped = not attached
@@ -93,11 +98,18 @@ def verify():
     check("Session secret injected without plaintext environment", "ATLAS_SESSION_SECRET" not in environment
           and any(item["name"] == "ATLAS_SESSION_SECRET" and item["valueFrom"].startswith("arn:aws:secretsmanager:")
                   for item in container.get("secrets", [])))
-    check("Guide daily cap configured", environment.get("GUIDE_DAILY_LIMIT") == "30")
+    check("Guide fleet limits configured", environment.get("GUIDE_DAILY_LIMIT") == settings["GuideDailyLimit"]
+          and environment.get("GUIDE_HOURLY_LIMIT") == settings["GuideHourlyLimit"]
+          and environment.get("GUIDE_GLOBAL_CONCURRENCY") == settings["GuideGlobalConcurrency"])
+    check("Graceful shutdown precedes the ECS stop deadline", container.get("stopTimeout") == 120
+          and 90_000 < int(environment.get("DRAIN_TIMEOUT_MS", "0")) < 120_000)
 
     task_arns = ecs.list_tasks(cluster=outputs["ClusterName"], serviceName=outputs["ServiceName"], desiredStatus="RUNNING")["taskArns"]
     tasks = ecs.describe_tasks(cluster=outputs["ClusterName"], tasks=task_arns)["tasks"] if task_arns else []
     check("Container health checks passing", bool(tasks) and all(t.get("healthStatus") == "HEALTHY" for t in tasks))
+    check("Healthy tasks span two availability zones", len({
+        task.get("availabilityZone") for task in tasks if task.get("healthStatus") == "HEALTHY"
+    } - {None}) >= 2)
     eni_ids = [
         detail["value"] for task in tasks for attachment in task.get("attachments", [])
         for detail in attachment.get("details", []) if detail["name"] == "networkInterfaceId"
@@ -138,9 +150,18 @@ def verify():
     distribution = edge.get_distribution(Id=outputs["DistributionId"])["Distribution"]
     check("CloudFront deployed", distribution["Status"] == "Deployed", distribution["Status"])
     config = distribution["DistributionConfig"]
+    check("Confirmed custom domain and certificate are preserved",
+          config.get("Aliases", {}).get("Items") == [settings["ViewerDomainName"]]
+          and config.get("ViewerCertificate", {}).get("ACMCertificateArn") == settings["ViewerCertificateArn"])
+    check("Dedicated WAF protects the distribution",
+          "/webacl/jeju-3d-edge/" in config.get("WebACLId", ""))
     check("Viewers redirected to HTTPS", config["DefaultCacheBehavior"]["ViewerProtocolPolicy"] == "redirect-to-https")
     origin = next(item for item in config["Origins"]["Items"] if item["Id"] == "jeju-alb")
-    check("CloudFront origin is this ALB", origin["DomainName"] == outputs["LoadBalancerDnsName"])
+    use_tls = settings["OriginTlsEnabled"] == "true"
+    check("CloudFront uses the configured ALB origin", origin["DomainName"] == (
+        settings["OriginDomainName"] if use_tls else outputs["LoadBalancerDnsName"]))
+    check("Origin protocol matches the staged TLS configuration",
+          origin["CustomOriginConfig"]["OriginProtocolPolicy"] == ("https-only" if use_tls else "http-only"))
     terrain_origin = next((item for item in config["Origins"]["Items"] if item["Id"] == "jeju-terrain"), None)
     check("Terrain origin uses HTTPS and receives no ALB secret", bool(terrain_origin)
           and terrain_origin["DomainName"] == "elevation-tiles-prod.s3.us-east-1.amazonaws.com"
@@ -202,6 +223,18 @@ def verify():
     health_data = health.json() if health.status_code == 200 else {}
     check("Live health reports the deployed release", health_data.get("status") == "ok" and health_data.get("release") == image["release"], health_data)
     check("Health is never cached", health.headers.get("Cache-Control") == "no-store")
+    readiness = requests.get(url + "/readyz", timeout=30)
+    check("Catalog readiness is healthy and never cached", readiness.status_code == 200
+          and readiness.headers.get("Cache-Control") == "no-store")
+    for host in dict.fromkeys([f"https://{settings['ViewerDomainName']}", outputs.get("CloudFrontUrl", url)]):
+        browser = requests.Session()
+        configuration = browser.get(host + "/api/config", timeout=30)
+        proof = configuration.json().get("guide", {}).get("csrf_token", "")
+        validation = browser.post(host + "/api/guide", json={"message": "", "locale": "en"},
+                                  headers={"Origin": host, "X-Atlas-CSRF": proof}, timeout=20)
+        check("Both served origins accept the app proof before model invocation",
+              configuration.status_code == 200 and validation.status_code == 400
+              and validation.json().get("error", {}).get("code") == "invalid_message", {"host": host})
     asset = re.search(r'src="(/assets/[^"]+\.js)"', root.text)
     if asset:
         asset_url = url + asset.group(1)
