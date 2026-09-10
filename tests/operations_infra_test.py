@@ -281,7 +281,9 @@ class OperationsInfrastructureTests(unittest.TestCase):
     def test_log_metrics_use_safe_events_and_cannot_hide_missing_catalog_heartbeats(self):
         template = self.load("operations.yaml")
         filters = resources_of(template, "AWS::Logs::MetricFilter")
-        self.assertEqual(len(filters), 2)
+        baseline_filters = {name: item for name, item in filters.items() if "Condition" not in item}
+        self.assertEqual(len(baseline_filters), 2)
+        self.assertEqual(filters["OfficialDetailsStateMetric"]["Condition"], "MonitorOfficialDetails")
         by_metric = {}
         for item in filters.values():
             properties = item["Properties"]

@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Jeju Atlas fixed origin Host for validated HTTPS; Lambda@Edge must deploy in us-east-1.
+
+Parameters:
+  AlbDomainName:
+    Type: String
+    AllowedPattern: '^jeju-3d-alb-[0-9]+\.ap-northeast-2\.elb\.amazonaws\.com$'
+  CanonicalHostName:
+    Type: String
+    AllowedPattern: '^jeju-atlas\.whchoi\.net$'
+  CodeRevision:
+    Type: String
+    AllowedPattern: '^[a-f0-9]{20}$'
+
+Resources:
+  OriginLogs:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: /jeju-3d/edge-origin
+      RetentionInDays: 14
+      Tags:
+        - {Key: Project, Value: jeju-3d}
+        - {Key: Component, Value: edge-origin}
+
+  OriginHostRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com, edgelambda.amazonaws.com]
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: OnlyOwnRegionalLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:*:${AWS::AccountId}:log-group:/jeju-3d/edge-origin:*'
+      Tags:
+        - {Key: Project, Value: jeju-3d}
+
+  OriginHostFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: jeju-3d-origin-host
+      Description: Set only the validated origin Host; never log or inspect request bodies.
+      Runtime: nodejs22.x
+      Architectures: [x86_64]
+      Handler: index.handler
+      MemorySize: 128
+      Timeout: 5
+      Role: !GetAtt OriginHostRole.Arn
+      LoggingConfig:
+        LogFormat: JSON
+        ApplicationLogLevel: ERROR
+        SystemLogLevel: WARN
+        LogGroup: !Ref OriginLogs
+      Code:
+        ZipFile: !Sub |
+          'use strict';
+          const expectedOrigin = '${AlbDomainName}';
+          const canonicalHost = '${CanonicalHostName}';
+          exports.handler = async (event) => {
+            const cf = event && event.Records && event.Records.length === 1 && event.Records[0].cf;
+            const request = cf && cf.request;
+            const origin = request && request.origin && request.origin.custom;
+            if (!cf || !cf.config || cf.config.eventType !== 'origin-request' ||
+                !request || !request.headers || !origin || origin.domainName !== expectedOrigin ||
+                origin.protocol !== 'https' || origin.port !== 443) {
+              throw new Error('Unexpected origin configuration');
+            }
+            request.headers.host = [{ key: 'Host', value: canonicalHost }];
+            return request;
+          };
+      Tags:
+        - {Key: Project, Value: jeju-3d}
+
+  OriginHostVersion:
+    Type: AWS::Lambda::Version
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      FunctionName: !Ref OriginHostFunction
+      Description: !Ref CodeRevision
+
+Outputs:
+  OriginHostFunctionVersionArn:
+    Value: !Ref OriginHostVersion
+  AlbDomainName:
+    Value: !Ref AlbDomainName
+  CanonicalHostName:
+    Value: !Ref CanonicalHostName
+  LogGroupName:
+    Value: !Ref OriginLogs

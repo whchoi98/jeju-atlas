@@ -232,8 +232,9 @@ export function createApiHandler({
   let catalogHeartbeat;
   const reportCatalogStatus = () => {
     let stale = 1;
+    let status;
     try {
-      const status = catalog?.status();
+      status = catalog?.status();
       const builtAt = catalogBuildTimestamp(status?.built_at);
       const now = clock();
       const age = now - builtAt;
@@ -241,6 +242,19 @@ export function createApiHandler({
         && Number.isFinite(now) && Number.isFinite(builtAt) && age >= 0 && age <= CATALOG_BUILD_MAX_AGE_MS ? 0 : 1;
     } catch { /* Unreadable state is unavailable; never log storage details. */ }
     emitGuideDiagnostic(onDiagnostic, { event: 'catalog_status', stale });
+    let configured = false;
+    let detailsStale = 1;
+    try {
+      // Catalog exposes this field only when the optional loader is configured.
+      // Keep its health independent of the base catalog and task readiness.
+      configured = Object.hasOwn(status ?? {}, 'official_details_status');
+      if (configured) {
+        const details = status.official_details_status;
+        detailsStale = details?.status === 'ready' && details.stale === false
+          && Number.isSafeInteger(details.record_count) && details.record_count > 0 ? 0 : 1;
+      }
+    } catch { /* A broken optional status is unhealthy; never log its payload. */ }
+    if (configured) emitGuideDiagnostic(onDiagnostic, { event: 'official_details_status', stale: detailsStale });
   };
 
   async function api(req, res, url = new URL(req.url, 'http://localhost')) {

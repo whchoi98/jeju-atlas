@@ -8,6 +8,7 @@
   "GuideHourlyLimit": 5,
   "GuideGlobalConcurrency": 2,
   "TargetHealthPath": "/readyz",
-  "OriginDomainName": "jeju-atlas-origin.whchoi.net",
-  "OriginTlsEnabled": "false"
+  "OriginDomainName": "",
+  "OriginTlsEnabled": "true",
+  "OriginTlsMode": "canonical-host"
 }

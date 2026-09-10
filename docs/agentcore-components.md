@@ -1,26 +1,26 @@
 # 실제 AgentCore 구성
 
-2026-09-10 서울 리전 `AgentCore-Ohmyjeju-default`의 공식 상세 연동 후속 배포
-기준입니다. **Agent 버전 20, Tools 버전 11이 배포되어 READY**입니다.
-이 준비 상태만으로 새 웹 이미지의 실서비스 종합 검증 완료를 뜻하지는 않습니다.
-웹 배포 확인 범위는 [배포 현황](deployment.md),
-실제 검증 결과는 [최종 배포 확인](details-olle-release-2026-09-10.md)에 구분합니다.
+2026-09-10 서울 리전 `AgentCore-Ohmyjeju-default`의 현재 구성입니다.
+**Agent 버전 22, Tools 버전 12가 배포되어 READY**입니다.
+관측 콘텐츠 제거 후 실제 Astra 영어 요청도 확인했습니다. 전체 배포 범위와
+남은 운영 항목은 [최신 운영 검증](commercial-completion-audit-2026-09-10.md),
+웹 이미지·태스크는 [배포 현황](deployment.md)을 기준으로 합니다.
 
 | 구성 | 실제 구현 |
 |---|---|
-| Agent Runtime | `Ohmyjeju_OhmyjejuAgent` — 버전 20, READY; HTTP, Python, Strands Agent, SSE 답변 |
-| Tools Runtime | `Ohmyjeju_OhmyjejuTools` — 버전 11, READY; MCP 서버, 정확한 이름 우선 검색과 Atlas 공식 상세 S3 읽기 |
+| Agent Runtime | `Ohmyjeju_OhmyjejuAgent` — 버전 22, READY; HTTP, Python, Strands Agent, SSE 답변 |
+| Tools Runtime | `Ohmyjeju_OhmyjejuTools` — 버전 12, READY; MCP 서버, 정확한 이름 우선 검색과 Atlas 공식 상세 S3 읽기 |
 | Gateway | `OhmyjejuGateway`와 Tools Runtime 대상 1개 |
 | Memory | `Ohmyjeju_OhmyjejuAgentMemory`, ACTIVE |
 | 인증 | Fargate의 Runtime 호출과 Agent의 Gateway 호출에 AWS IAM 사용 |
-| 관측 | Runtime 실행 로그·도구/응답 이벤트, Fargate 진단 로그·CloudWatch 알람 |
+| 관측 | 질문·답변 콘텐츠를 제거한 Runtime 메타데이터, Fargate 진단 로그·CloudWatch 알람 |
 
 Strands는 AgentCore 안에서 도구 호출과 대화를 실행하는 개발 프레임워크입니다.
 모델 선택, 도구 사용, 대화/메모리 연결과 스트리밍 처리에 실제로 사용됩니다.
 
 ```text
 브라우저의 한영 선택
-  → CloudFront / Public ALB
+  → CloudFront → HTTPS / Public ALB
   → Private ECS Fargate (서명 세션·공통 사용량 제한)
   → AgentCore HTTP Runtime (Strands)
       → 서울 Bedrock Global CRIS
@@ -56,6 +56,23 @@ TourAPI·VisitJeju API 키는 SSM SecureString에 보관하며, **전용 데이�
 상업 이용이 허용된 `media/` 객체만 CloudFront S3 OAC로 제공합니다.
 사진 이용조건·언어별 상세·수집 갱신 정책은
 [공식 장소 상세와 올레길](official-details-olle.md)을 참고합니다.
+
+## 관측 로그와 개인정보
+
+Agent 22·Tools 12에는 모델·도구 관측 필드에 질문·답변 콘텐츠를 싣지 않도록 한
+수정이 배포됐습니다. 2026-09-10 20:27 UTC에 시작한 실제 **Astra 영어 일정 요청은
+53.433초**에 완료됐습니다. 검사 시간대의 관측 이벤트 2,275건에서 입력 표식,
+질문, 답변 일부가 검출되지 않았으며 **모델·도구 이름과 토큰 수는 남아 있습니다.**
+이는 해당 요청·시간 구간의 검사 결과이며 모든 과거 로그의 삭제를 확인한 것은 아닙니다.
+[실제 개인정보 관측 검사](../.local/guide-privacy-live.json)
+
+다음 두 CloudWatch Runtime 로그 그룹에 **14일 보관**을 적용했습니다.
+
+- `/aws/bedrock-agentcore/runtimes/Ohmyjeju_OhmyjejuAgent-7fiRWV5uVi-DEFAULT`
+- `/aws/bedrock-agentcore/runtimes/Ohmyjeju_OhmyjejuTools-BzugIP8Xga-DEFAULT`
+
+근거: [보관 기간 적용 결과](../.local/runtime-log-retention-applied.json).
+이 보관 정책은 아래 AgentCore Memory의 단기 이벤트·장기 기억과 구분합니다.
 
 ## 대화 기억과 보관
 

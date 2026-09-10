@@ -1,5 +1,6 @@
 """The model release must leave every unrelated deployed archive member intact."""
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -26,7 +27,7 @@ class ModelArchiveTests(unittest.TestCase):
         with zipfile.ZipFile(original, "w") as archive:
             for name in module.FILES:
                 archive.writestr(name, b"# old source\n")
-            archive.writestr("main.py", b"UNCHANGED MAIN")
+            archive.writestr("support/unchanged.py", b"UNCHANGED SUPPORT")
             archive.writestr("dependency/binary.so", b"\x00\x01\xffUNCHANGED")
             archive.writestr("model/__pycache__/load.cpython-314.pyc", b"STALE")
             with warnings.catch_warnings():
@@ -42,7 +43,7 @@ class ModelArchiveTests(unittest.TestCase):
             with zipfile.ZipFile(target) as result, zipfile.ZipFile(original) as before:
                 for name in module.FILES:
                     self.assertEqual(result.read(name), (source / name).read_bytes())
-                for name in ("main.py", "dependency/binary.so"):
+                for name in ("support/unchanged.py", "dependency/binary.so"):
                     self.assertEqual(result.read(name), before.read(name))
                 self.assertNotIn("model/__pycache__/load.cpython-314.pyc", result.namelist())
 
@@ -131,6 +132,35 @@ class OfficialDetailPolicyTests(unittest.TestCase):
             with zipfile.ZipFile(result) as archive:
                 self.assertEqual(archive.read("main.py"), b"unchanged")
                 self.assertEqual(archive.read("ohmyjeju_tools/official_details.py"), target_file.read_bytes())
+
+
+class PrivacyReleaseTests(unittest.TestCase):
+    def test_capture_controls_and_matching_independent_guards_are_required(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            source = project / "app/OhmyjejuAgent"
+            agent_guard = source / "ohmyjeju_agent/privacy.py"
+            tools_guard = project / "app/OhmyjejuTools/ohmyjeju_tools/privacy.py"
+            config_path = project / "agentcore/agentcore.json"
+            for path in (agent_guard, tools_guard, config_path):
+                path.parent.mkdir(parents=True, exist_ok=True)
+            agent_guard.write_text("# same guard")
+            tools_guard.write_text("# same guard")
+            config = {"runtimes": [
+                {"name": name, "envVars": [{"name": key, "value": value} for key, value in module.PRIVACY.items()]}
+                for name in ("OhmyjejuAgent", "OhmyjejuTools")
+            ]}
+            config_path.write_text(json.dumps(config))
+            module.validate_privacy_source(source, True)
+            config["runtimes"][0]["envVars"][0]["value"] = "true"
+            config_path.write_text(json.dumps(config))
+            with self.assertRaisesRegex(RuntimeError, "disable content capture"):
+                module.validate_privacy_source(source, True)
+            config["runtimes"][0]["envVars"][0]["value"] = "false"
+            config_path.write_text(json.dumps(config))
+            tools_guard.write_text("# incompatible guard")
+            with self.assertRaisesRegex(RuntimeError, "must not diverge"):
+                module.validate_privacy_source(source, True)
 
 
 if __name__ == "__main__":

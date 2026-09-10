@@ -4,21 +4,52 @@
 
 서비스 주소는 `https://jeju-atlas.whchoi.net`이며 기존 CloudFront 주소도 유지합니다.
 현재 용량 설정은 **최소 2개·최대 4개 태스크**입니다. 최신 버전과 증거는
-[공식 상세·올레길 배포 확인](details-olle-release-2026-09-10.md)을 기준으로 합니다.
+[운영 검증 종합 기록](commercial-completion-audit-2026-09-10.md)을 기준으로 합니다.
 
-| 공식 상세·올레길 후속 배포 | 확인 내용 |
+| 현재 배포 | 확인 내용 |
 |---|---|
-| 웹 릴리스 | `release-20260910T180902Z` |
-| 이미지 digest | `sha256:0ef30ebd2d916a26fcc53eeee47a92c5483c55aef408c836e5a49c25880f671b` |
-| 태스크 정의 | `jeju-3d:10` |
-| 앱 스택 | 2026-09-10 18:17:03 UTC `UPDATE_COMPLETE` |
-| Agent / Tools | 버전 20 / 11, READY — [구성 설명](agentcore-components.md) |
-| 실서비스 검증 | 인프라·HTTP 61개, 올레길 8개, 사진·상세·실제 AI 6개 통과 |
+| 웹 릴리스 | `release-20260910T202150Z` |
+| 이미지 digest | `sha256:18fb0b1fa57b1ee5552eec9e9db34717c23319c28fc6e6e78bbfc45a939a54b9` |
+| 태스크 정의 | `jeju-3d:11` |
+| 원본 HTTPS | 2026-09-10 19:38 UTC 배포 완료, `OriginTlsEnabled=true`, `OriginTlsMode=canonical-host` |
+| 원본 Host 함수 | us-east-1 `jeju-3d-origin-host:1` |
+| Agent / Tools | 버전 22 / 12, READY — [구성 설명](agentcore-components.md) |
+| 수집 이미지 | `data-release-20260910T195513Z`, `sha256:b21f3acd4f5b54054168993cb64de2f81d7ee1d2dba817e68389be57e56e665d` |
+| 수집 태스크 | `jeju-3d-data:3`; 실제 실행 exit code 0, 부분 수집 완료 |
+| 인프라·HTTP | 78개 통과 |
+| 최종 회귀 검사 | Node 247개·Python 150개와 빌드 통과 |
 
-앱 스택 상태는 [최종 배포 상태](../.local/final-app-status.log)에 근거합니다.
-롤링 업데이트의 인프라 완료와 실서비스 검증 완료는 구분합니다.
+근거: [인프라·HTTP](../.local/verification.json),
+[최종 빌드 검사](../.local/operations-final-image-build.log),
+[원본 TLS 전환 시각](../.local/origin-tls-status.log),
+[수집 작업](../.local/data-health-smoke.json).
+
+원본 함수는 기본 동작과 `/api/catalog/*`, `/api/*`에만 연결됩니다.
+ALB DNS에 HTTPS로 연결하며 Host를 `jeju-atlas.whchoi.net`으로 고정하므로
+**별도 원본 DNS 게시 대기는 해소됐습니다.**
+`/assets/*`, `/media/*`, `/terrarium/*`에는 이 함수를 연결하지 않습니다.
+
+공유 자산 버킷은 `jeju-3d-assets-061525506239-ap-northeast-2`,
+OAC는 `E2W270OBXMQ1S2`이며 `/assets/*`로 제공합니다. 현재·이전 이미지
+3개에 필요한 19개 자산의 HTTP 200·SHA-256 일치와 직접 S3 접근 차단·
+매니페스트 비공개를 [검증했습니다](../.local/shared-assets-verification.json).
+
+실제 Astra 영어 요청은 53.433초에 완료됐으며 검사 시간대 로그에 입력 표식·질문·
+답변 일부가 검출되지 않았습니다. 모델·도구 이름과 토큰 수는 남습니다.
+두 Runtime 로그 그룹에 14일 보관을 적용했습니다.
+[개인정보 검사](../.local/guide-privacy-live.json) · [보관 정책](../.local/runtime-log-retention-applied.json)
+
+최종 부하 검사는 50개 세션·500 GET, 오류 0건, p50 41.702ms·p95 275.421ms·
+최대 502.158ms입니다. [측정 범위](load-recovery.md)는 HTTP 검사에 한정합니다.
+공식 상세의 실제 `stale=0`은 확인했지만 제공처 실패 3건은 실제 `ALARM`이며,
+완료 누락 알람은 20:35 UTC에 `INSUFFICIENT_DATA`였습니다.
+[데이터 알람과 마지막 정상 자료 유지](operations.md#공식-상세와-수집-작업)를 함께 확인해야 합니다.
+
+실제 이미지의 로컬 롤백 예행연습과 AWS 검토 가능 계획까지 준비했으며
+**운영 롤백은 실행하지 않았습니다.** 운영 알림 수신자·월 예산과 경보 기준·
+사업자/서비스 연락처가 남아 있고 `main` 병합은 명시적 승인 후 진행합니다.
 기능·수집 범위는 [공식 장소 상세와 올레길](official-details-olle.md),
-후속 검증 결과는 [최종 배포 확인](details-olle-release-2026-09-10.md)에 남깁니다.
+이전 릴리스의 결과는 [과거 공식 상세·올레길 기록](details-olle-release-2026-09-10.md)에 보존합니다.
 
 ## 초기 배포 이력 — 2026-09-10 02:09 UTC까지의 과거 기록
 
@@ -98,7 +129,7 @@ VPC: **`cc-on-bedrock-vpc` — `vpc-0dfa5610180dfa628`**
 4. ECS TCP 8080은 ALB 보안 그룹만 허용합니다. 태스크는 비루트 사용자와 읽기 전용 루트 파일시스템으로 실행하며, `/tmp`만 SQLite 캐시용 쓰기 볼륨입니다.
 5. 태스크 역할은 지정된 S3 카탈로그 객체 읽기, 지정된 AgentCore 런타임과 DEFAULT 엔드포인트 호출, 전용 할당량 테이블 조건부 업데이트만 허용합니다.
 
-**당시 CloudFront→ALB 구간은 HTTP였습니다.** 당시에는 기본 CloudFront 주소를 사용했습니다. 이후 사용자 도메인과 서울 ACM·ALB HTTPS 리스너를 구성했으며, 원본 HTTPS 전환에 남은 DNS 작업은 [운영 보강 기록](commercial-release-2026-09-10.md#남아-있는-운영-의존성)을 참고합니다.
+**당시 CloudFront→ALB 구간은 HTTP였습니다.** 당시에는 기본 CloudFront 주소를 사용했습니다. 이후 HTTPS 전환 상태는 [위 최신 배포 확인 범위](#최신-배포-확인-범위)를 참고합니다.
 
 고도 요청 `/terrarium/*`는 별도 동작으로 **CloudFront→기존 공개 S3 원본(HTTPS)** 경로를 사용합니다. ALB/Fargate를 통과하지 않고 ALB 원본 검증 헤더도 전달하지 않습니다. 위성 영상은 기존 Esri 경로를 유지합니다.
 

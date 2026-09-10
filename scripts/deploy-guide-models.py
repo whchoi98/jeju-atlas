@@ -22,10 +22,19 @@ from deploy import connect, LOCAL, load, save, stack_outputs
 
 STACK = "AgentCore-Ohmyjeju-default"
 NAME = "Ohmyjeju_OhmyjejuAgent"
-FILES = ("model/load.py", "ohmyjeju_agent/routing.py", "ohmyjeju_agent/prompts/system.md")
+FILES = (
+    "main.py", "model/load.py", "mcp_client/client.py",
+    "ohmyjeju_agent/routing.py", "ohmyjeju_agent/prompts/system.md",
+    "ohmyjeju_agent/privacy.py", "ohmyjeju_agent/prefetch.py",
+    "ohmyjeju_agent/streaming.py", "ohmyjeju_agent/tool_budget.py",
+)
 TOOLS_NAME = "Ohmyjeju_OhmyjejuTools"
-TOOLS_FILES = ("ohmyjeju_tools/places.py", "ohmyjeju_tools/official_details.py")
-NEW_FILES = {"ohmyjeju_tools/official_details.py"}
+TOOLS_FILES = ("main.py", "ohmyjeju_tools/places.py", "ohmyjeju_tools/official_details.py", "ohmyjeju_tools/privacy.py")
+NEW_FILES = {"ohmyjeju_tools/official_details.py", "ohmyjeju_agent/privacy.py", "ohmyjeju_tools/privacy.py"}
+PRIVACY = {
+    "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "false",
+    "OTEL_SEMCONV_STABILITY_OPT_IN": "gen_ai_unredacted_attributes=",
+}
 MODELS = {
     "OHMYJEJU_MODEL_ROUTING": "auto",
     "OHMYJEJU_MODEL_FAST": "global.openai.gpt-5.6-sol",
@@ -167,8 +176,27 @@ def detail_policy_only(before, after, bucket):
     return expected == after
 
 
+def validate_privacy_source(source, include_tools):
+    """Environment controls and code guards must travel in the same release."""
+    project = source.parent.parent
+    config = json.loads((project / "agentcore/agentcore.json").read_text())
+    expected = {"OhmyjejuAgent", "OhmyjejuTools"} if include_tools else {"OhmyjejuAgent"}
+    selected = [runtime for runtime in config["runtimes"] if runtime["name"] in expected]
+    if {runtime["name"] for runtime in selected} != expected:
+        raise RuntimeError("The selected runtimes are missing from the canonical configuration")
+    for runtime in selected:
+        values = {item["name"]: item["value"] for item in runtime.get("envVars", [])}
+        if any(values.get(key) != value for key, value in PRIVACY.items()):
+            raise RuntimeError("The canonical runtime configuration must disable content capture")
+    if include_tools and (source / "ohmyjeju_agent/privacy.py").read_bytes() != (
+        source.parent / "OhmyjejuTools/ohmyjeju_tools/privacy.py"
+    ).read_bytes():
+        raise RuntimeError("Independent runtime privacy guards must not diverge")
+
+
 def plan(session, source, include_tools=False, details_bucket=None):
     save("guide-model-change-set.json", {"stack": STACK, "status": "PLANNING"})
+    validate_privacy_source(source, include_tools)
     cf = session.client("cloudformation")
     control = session.client("bedrock-agentcore-control")
     s3 = session.client("s3")
@@ -213,6 +241,7 @@ def plan(session, source, include_tools=False, details_bucket=None):
         key = f"{sha}.zip"
         properties = updated["Resources"][logical]["Properties"]
         properties["AgentRuntimeArtifact"]["CodeConfiguration"]["Code"]["S3"]["Prefix"] = key
+        properties["EnvironmentVariables"].update(PRIVACY)
         if name == NAME:
             properties["EnvironmentVariables"].update(MODELS)
         elif details_bucket:
@@ -265,7 +294,7 @@ def plan(session, source, include_tools=False, details_bucket=None):
         TemplateBody=body,
         Parameters=[{"ParameterKey": item["ParameterKey"], "UsePreviousValue": True} for item in stack.get("Parameters", [])],
         Capabilities=["CAPABILITY_IAM"],
-        Description="Jeju guide: Seoul Global CRIS models, exact anchors and official place details",
+        Description="Jeju guide: metadata-only telemetry, Seoul Global CRIS models and official place details",
     )
     while True:
         detail = cf.describe_change_set(ChangeSetName=change["Id"])
@@ -281,6 +310,7 @@ def plan(session, source, include_tools=False, details_bucket=None):
         "stack": STACK, "runtimes": runtimes,
         "changeSetArn": change["Id"], "status": "REVIEWABLE",
         "models": MODELS,
+        "privacy": PRIVACY,
         "detailsBucket": details_bucket, "detailPolicies": detail_policies,
         "source": str(source.resolve()),
         "rollbackTemplate": str(baseline_path),
@@ -290,16 +320,50 @@ def plan(session, source, include_tools=False, details_bucket=None):
     print(json.dumps(review, ensure_ascii=False))
 
 
+def configure_logs(session):
+    """Apply bounded retention only to the two runtimes owned by this stack."""
+    cf = session.client("cloudformation")
+    control = session.client("bedrock-agentcore-control")
+    logs = session.client("logs")
+    resources = cf.list_stack_resources(StackName=STACK)["StackResourceSummaries"]
+    configured = []
+    for resource in resources:
+        if resource["ResourceType"] != "AWS::BedrockAgentCore::Runtime":
+            continue
+        runtime_id = resource["PhysicalResourceId"].rsplit("/", 1)[-1]
+        runtime = control.get_agent_runtime(agentRuntimeId=runtime_id)
+        if runtime.get("agentRuntimeName") not in (NAME, TOOLS_NAME):
+            raise RuntimeError("Refusing to change an unrelated runtime log group")
+        group_name = f"/aws/bedrock-agentcore/runtimes/{runtime_id}-DEFAULT"
+        groups = logs.describe_log_groups(logGroupNamePrefix=group_name)["logGroups"]
+        group = next(item for item in groups if item["logGroupName"] == group_name)
+        before = group.get("retentionInDays")
+        if before is None or before > 14:
+            logs.put_retention_policy(logGroupName=group_name, retentionInDays=14)
+        actual = next(item for item in logs.describe_log_groups(logGroupNamePrefix=group_name)["logGroups"]
+                      if item["logGroupName"] == group_name)
+        if not actual.get("retentionInDays") or actual["retentionInDays"] > 14:
+            raise RuntimeError("Runtime log retention was not applied")
+        configured.append({"name": group_name, "beforeDays": before, "retentionDays": actual["retentionInDays"],
+                           "createdAtMilliseconds": group["creationTime"]})
+    if len(configured) != 2:
+        raise RuntimeError("Expected exactly the owned Agent and Tools runtime log groups")
+    save("runtime-log-retention-applied.json", configured)
+    print(json.dumps({"runtimeLogGroups": configured}))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["plan", "apply", "status"])
+    parser.add_argument("action", choices=["plan", "apply", "status", "configure-logs"])
     parser.add_argument("--source", type=Path)
     parser.add_argument("--include-tools", action="store_true", help="Include reviewed place lookup and official-detail modules in the existing Tools runtime.")
     parser.add_argument("--details-bucket", help="Allow Tools to read the owned official-detail snapshot only.")
     args = parser.parse_args()
     session = connect()
     cf = session.client("cloudformation")
-    if args.action == "plan":
+    if args.action == "configure-logs":
+        configure_logs(session)
+    elif args.action == "plan":
         if not args.source:
             parser.error("--source must point to the reviewed OhmyjejuAgent source directory")
         plan(session, args.source, args.include_tools, args.details_bucket)

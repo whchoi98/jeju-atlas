@@ -4,13 +4,15 @@
 
 **배포 주소: [제주 아틀라스 열기](https://jeju-atlas.whchoi.net)** · 기존 CloudFront 주소도 지원합니다.
 
-[AWS 배포 결과와 검증 기록](docs/deployment.md)
+[최신 운영 검증·남은 항목](docs/commercial-completion-audit-2026-09-10.md) · [현재 배포 상태](docs/deployment.md)
 
-[2026-09-10 운영 보강·한영 UI·Sol/Astra 배포 결과](docs/commercial-release-2026-09-10.md) · [AgentCore·Strands 실제 구성](docs/agentcore-components.md)
+현재 웹은 `release-20260910T202150Z` / `jeju-3d:11`, Agent·Tools는 **22 / 12, READY**입니다.
+CloudFront→ALB HTTPS는 2026-09-10 **19:38 UTC 배포 완료**했으며 원본 DNS 전환 대기는 없습니다.
+인프라·HTTP 78개, Node 247개·Python 150개와 빌드가 통과했습니다. 상세 증거와 남은 운영자 결정은 최신 검증 문서를 기준으로 합니다.
 
-[공식 장소 상세 수집·갤러리·올레길 테마](docs/official-details-olle.md)
+[AgentCore·Strands 구성](docs/agentcore-components.md) · [공식 상세·갤러리·올레길](docs/official-details-olle.md)
 
-[최신 배포·실제 AI·올레길 검증 결과](docs/details-olle-release-2026-09-10.md)
+과거 릴리스 기록: [초기 운영 보강·한영 UI](docs/commercial-release-2026-09-10.md) · [공식 상세·올레길](docs/details-olle-release-2026-09-10.md)
 
 - 제주 전역과 한라산·성산일출봉·우도 등 12개 지형 바로가기
 - 운영 S3 카탈로그의 6,724곳 검색·분류·주변 탐색과 GPU 클러스터
@@ -62,9 +64,11 @@ node server/server.mjs
 ```mermaid
 flowchart LR
     Browser["브라우저"] -->|HTTPS| CF["CloudFront"]
-    CF -->|HTTP · 검증 헤더| SG["CloudFront Prefix List SG"]
-    SG --> ALB["Public ALB · 2개 AZ"]
+    CF -->|"기본·API 원본 요청"| Host["Lambda@Edge · canonical Host"]
+    Host -->|"HTTPS · 검증 헤더"| ALB["Public ALB · CloudFront Prefix List · 2개 AZ"]
     ALB -->|TCP 8080 · ALB SG만 허용| ECS["Private ECS Fargate · ARM64"]
+    CF -->|"/assets/* · OAC"| Assets["비공개 S3 · 버전별 공유 자산"]
+    CF -->|"/media/* · OAC"| Media["비공개 S3 · 허용된 원본 사진"]
     ECS -->|기존 기본 경로| NAT["기존 NAT Gateway"]
     ECS -->|읽기 전용·ETag 확인| Catalog["기존 운영 S3 카탈로그"]
     ECS -->|IAM·서버 사용자 식별| Agent["기존 Ohmyjeju AgentCore"]
@@ -75,23 +79,29 @@ flowchart LR
 
 서울 리전의 기존 `cc-on-bedrock-vpc`를 사용합니다. Public ALB는 AWS 관리 CloudFront 원본 Prefix List만 수신하며, 일치하는 원본 검증 헤더가 없는 요청은 403으로 거절합니다. Fargate는 Private 서브넷에 배치하고 Public IP를 할당하지 않습니다.
 
-새 VPC·서브넷·NAT Gateway·라우트 테이블·공유 보안 그룹·DNS 레코드를 만들거나 변경하지 않습니다. 기존 ECR/CloudWatch VPC Endpoint도 사용 가능합니다.
+기존 VPC·서브넷·NAT Gateway·라우트 테이블을 재사용하며 공유 네트워크를 변경하지 않습니다. 기존 ECR/CloudWatch VPC Endpoint도 사용 가능합니다.
 
 | 항목 | 구성 |
 |---|---|
 | Registry 스택 | `Jeju3dRegistry` |
 | 앱 스택 | `Jeju3dApp` |
+| 원본 TLS / 공유 자산 스택 | `Jeju3dOriginRouting`(us-east-1) / `Jeju3dStatic`(서울) |
 | ECR / ECS 클러스터 / 서비스 | `jeju-3d` |
 | Fargate | Linux ARM64, 태스크당 0.25 vCPU·512 MiB, 최소 2개·최대 4개 |
 | 컨테이너 | UID/GID 1000, 읽기 전용 루트 파일시스템, Linux capabilities 제거 |
-| 앱 IAM 역할 | 지정 S3 카탈로그 객체 읽기, 지정 AI 런타임 호출, 전용 할당량 테이블 GetItem·UpdateItem |
+| 앱 IAM 역할 | 지정 카탈로그·공식 상세·올레길 S3 객체 읽기, 지정 AI 런타임 호출, 전용 할당량 테이블 GetItem·UpdateItem |
 | 실행 IAM 역할 | 전용 ECR·로그 및 세션 서명 키 주입 |
 | 파일시스템 | 루트 읽기 전용, `/tmp` 볼륨만 카탈로그 갱신용 쓰기 허용 |
 | 배포 이미지 | SHA-256 digest 고정, 불변 ECR 태그 |
-| 로그 | `/ecs/jeju-3d`, 14일 보관 |
+| 로그 | 앱·CloudFront 허용 필드·Agent/Tools Runtime 로그 14일 보관 |
 | 실패 처리 | ECS deployment circuit breaker / rollback |
 
-사용자→CloudFront는 HTTPS이며 HTTP는 HTTPS로 리다이렉트합니다. 사용자 도메인과 us-east-1 인증서를 배포 설정에 보존합니다. **CloudFront→ALB는 아직 HTTP**입니다. 서울 ACM 인증서와 ALB HTTPS 리스너를 준비했으며, 원본 도메인의 공개 CNAME을 게시한 뒤 `OriginTlsEnabled`를 활성화합니다. 현재 계정의 같은 이름 Hosted Zone은 실제 공개 DNS에 위임된 Zone과 다릅니다.
+사용자→CloudFront와 CloudFront→ALB는 HTTPS입니다. `OriginTlsEnabled=true`,
+`OriginTlsMode=canonical-host`를 사용합니다. us-east-1의
+`jeju-3d-origin-host:1`이 기본 동작과 `/api/catalog/*`, `/api/*`의 원본 요청에서만
+Host를 인증서 이름 `jeju-atlas.whchoi.net`으로 고정합니다. 연결 대상은 ALB DNS이며
+별도 원본 CNAME이 필요하지 않습니다. 본문은 함수에 전달하지 않습니다.
+`/assets/*`, `/media/*`, `/terrarium/*`에는 이 함수를 연결하지 않습니다.
 
 [운영 보강 기준](docs/superpowers/specs/2026-09-10-commercial-readiness.md) · [참고 프로젝트 검토](docs/reference-review.md) · [알람·로그](docs/operations.md) · [용량·비용](docs/capacity-cost.md) · [부하·복구 검사](docs/load-recovery.md)
 
@@ -151,7 +161,17 @@ python3 scripts/verify.py
 python3 scripts/deploy.py invalidate
 ```
 
-`dist/assets`의 파일명은 콘텐츠 hash를 포함합니다. HTML은 재검증하고, hash가 붙은 JS/CSS/worker는 장기 캐시합니다. 지도 뷰의 상태는 URL fragment에 저장하여 공유하며 CloudFront cache key에는 포함되지 않습니다.
+`/assets/*`는 비공개 버킷 `jeju-3d-assets-061525506239-ap-northeast-2`의 공유 자산으로
+연결하며 OAC `E2W270OBXMQ1S2`로 서명합니다. `build-push`는 해당 스택이 있으면
+정확한 이미지 digest에서 자산을 추출·게시하고, `plan-app`은 이미지 매니페스트를 확인합니다.
+기존 자산을 덮어쓰거나 삭제하지 않아 롤링 배포 중 이전 HTML의 참조를 유지합니다.
+현재와 이전 이미지 **3개에 필요한 19개 자산의 HTTP 200·SHA-256 일치**,
+직접 S3 접근 차단·매니페스트 비공개를 [검증했습니다](.local/shared-assets-verification.json).
+
+HTML은 재검증하고 hash가 붙은 JS/CSS/worker는 1년 immutable 캐시합니다.
+지도 상태는 URL fragment에 저장하며 CloudFront cache key에 포함하지 않습니다.
+롤백은 [승인 이미지 절차](docs/rollback.md)를 따릅니다. 실제 이미지의 로컬 예행연습과
+AWS 검토 가능 계획까지 확인했으며 **운영 롤백은 실행하지 않았습니다.**
 
 원본 검증 값은 Secrets Manager에서 생성합니다. 스크립트·이미지·출력 파일에 값을 저장하지 않습니다. ECR 로그인 정보는 별도 임시 Docker 설정에만 전달하고 이미지 푸시 후 삭제합니다.
 
@@ -201,6 +221,12 @@ AI는 기존 Ohmyjeju AgentCore 런타임을 사용합니다. 브라우저는 AW
 전달됩니다. 여러 태스크가 DynamoDB의 원자적 사용량·실행 잠금·요청 ID를
 공유하며, 결과가 불명확한 요청을 자동으로 다시 과금 호출하지 않습니다.
 
+Agent 22·Tools 12는 관측 로그의 질문·답변 콘텐츠를 제거한 버전입니다.
+실제 Astra 영어 일정 요청은 **53.433초**에 완료됐고, 검사 시간대의 로그에서
+입력 표식·질문·답변 일부가 검출되지 않았습니다. 모델·도구 이름과 토큰 수는 남습니다.
+두 Runtime 로그 그룹에 **14일 보관**을 적용했으며 AgentCore Memory의 보관과는 별개입니다.
+[개인정보 관측 검사와 보관 범위](docs/agentcore-components.md#관측-로그와-개인정보)
+
 질문과 응답 처리는 참조 프로젝트의 대화 세션·마크다운·도구 상태 표시 방식을 반영합니다. 유휴 14분이 지나 대화가 만료되면 같은 질문을 한 번 복구하며, 유효한 대화를 계속할 때는 서명 토큰을 갱신합니다. 이미 과금됐을 수 있는 스트리밍·네트워크 오류와 이용 한도는 자동 재전송하지 않습니다.
 
 AI 응답은 강조·목록·표·코드·안전한 링크 등 GFM 마크다운으로 표시합니다. 준비 중 상태와 실제 사용 도구를 보여주고, 하단 추천 질문 말풍선은 입력·대화 맥락에 따라 갱신합니다. 말풍선은 입력창을 채우며 모델 호출을 자동으로 추가하지 않습니다. 화면과 지도 라벨은 자체 제공하는 나눔스퀘어 글꼴을 사용합니다.
@@ -229,11 +255,17 @@ PWA는 현재 빌드의 앱 셸만 저장합니다. API 응답·고도 타일·�
 
 ## 검증
 
+현재 릴리스의 인프라·HTTP **78개**, Node **247개**, Python **150개**와 빌드가
+통과했습니다. 최종 부하 검사는 **50개 세션·500 GET, 오류 0건**,
+p50 **41.702ms**, p95 **275.421ms**, 최대 **502.158ms**입니다.
+짧은 HTTP 검사 결과이며 지속 처리 용량·지도 FPS·AI 완료 지연을 뜻하지 않습니다.
+[검사 범위와 복구 기록](docs/load-recovery.md)에서 과거 측정과 구분합니다.
+
 ```bash
 node --test --test-concurrency=1 tests/*.test.mjs
 python3 -m unittest discover -s tests -p '*_test.py'
 npm run build
-cfn-lint infra/bootstrap.yaml infra/application.yaml
+cfn-lint infra/*.yaml
 python3 scripts/verify-terrain-cache.py --rounds 3
 ```
 
@@ -271,24 +303,25 @@ node scripts/browser-guide-live-check.mjs https://d2mznud99i2mdr.cloudfront.net 
 
 ## 비용과 운영 범위
 
-730시간/월, 기본 태스크 1개, 서울 리전 On-Demand 단가 기준:
+서울 ARM Fargate 0.25 vCPU·0.5 GB 태스크를 월 730시간 실행하면
+CPU·메모리만 **최소 2개 약 USD 16.58/월**, 최대 4개 상시 실행 시 약 USD 33.16/월입니다.
+ALB·공인 IPv4·NAT 처리량·CloudFront·S3·WAF·로그·알람·수집 작업·AI 비용은 별도입니다.
+예전 태스크 1개 기준 USD 35–45 예시는 현재 구성의 총액 견적으로 사용하지 않습니다.
 
-| 항목 | 월 기준 |
-|---|---:|
-| Fargate 0.25 vCPU / 0.5 GiB ARM64 | 약 $8.29 |
-| ALB 시간당 비용 | 약 $16.43 |
-| ALB 공인 IPv4 최소 2개 | 약 $7.30 |
-| 고정성 비용 합계 | 약 $32.02 |
+원본 Host 함수의 Lambda@Edge 요율은 요청 **USD 0.60/100만 건**,
+실행 **USD 0.00005001/GB-second**입니다. 128 MB·10ms를 가정한
+ALB 원본 요청 100만 건은 약 **USD 0.6625**이며 실행 시간 실측값이나 전체 AWS 비용이 아닙니다.
+캐시 적중 및 S3 자산·사진·고도 요청에는 이 함수가 실행되지 않습니다.
+[용량·비용 기준](docs/capacity-cost.md)에 계산 가정과 근거를 남깁니다.
 
-ALB LCU, CloudFront 요청·전송, ECR, 로그, Secrets Manager, NAT 추가 데이터 처리량은 별도입니다. 소규모 사용은 **월 $35–45 정도**로 예상하며 실제 사용량·세금·할인·크레딧에 따라 달라집니다. 기존 NAT Gateway의 시간당 비용을 새로 추가하지 않습니다.
+AI 하루 30회는 요청 입장 한도이며 금액 상한이 아닙니다. CloudFront 로그는
+개인 식별 필드를 제외한 허용 목록으로 수집합니다. 공식 상세 heartbeat는 `stale=0`을
+확인했지만 VisitJeju 일부 목록 실패는 실제 알람으로 관측됐으며 마지막 정상 자료를 유지합니다.
+[알람 현황](docs/operations.md)을 함께 확인해야 합니다.
 
-고도 캐시 도입 후 타일 전송도 이 계정의 CloudFront 사용량에 포함됩니다. 2026-09-09 AWS Price List API 기준 아시아 태평양 그룹의 첫 10TB 구간은 $0.12/GB, HTTPS 요청은 $1.20/100만 건, CloudFront Functions는 무료 구간 초과 시 $0.10/100만 실행입니다. 예를 들어 **추가 100GB + HTTPS 100만 건 + 함수 100만 실행은 약 $13.30**이며, 무료 구간·할인·세금은 미반영입니다.
-
-카탈로그·AI 기능은 세션 키 보관, S3 읽기, DynamoDB 요청, AgentCore·모델 호출 요금이 추가됩니다. 새 카탈로그 버킷이나 AI 런타임을 만들지 않습니다. 일일 호출 상한은 요청 횟수 상한이며 고정 금액 예산을 뜻하지 않습니다. 할당량 테이블은 만료되는 카운터만 저장하므로 PITR 백업을 켜지 않습니다.
-
-태스크 1개를 사용하는 기본 구성입니다. 배포 시 일시적으로 2개 태스크가 실행될 수 있습니다. 상시 다중 태스크 이중화는 구성하지 않았습니다. CloudWatch 앱 로그는 활성화하지만 비용을 고려해 CloudFront/ALB 요청 로그와 별도 KMS 키는 만들지 않습니다.
-
-인프라 보안 검사에서 오류는 없어야 합니다. 기본 CloudFront 인증서/TLS 정책, HTTP origin, 요청 로그 비활성화, AWS 기본 암호화, 전용 리소스 이름, ECR 인증의 필수 wildcard, HTTPS outbound에 관한 cfn-nag 경고는 이 구성의 의도된 범위입니다.
+운영 알림 수신자, 월 예산·경보 기준, 사업자·서비스 연락처는 운영자 입력이 남아 있습니다.
+SNS 구독과 실제 수신 확인이 필요하며, `main` 병합은 명시적 승인 후 진행합니다.
+이 문서의 배포·검사 통과는 해당 운영 항목까지 완료됐다는 뜻이 아닙니다.
 
 ## 데이터 출처와 한계
 
@@ -307,7 +340,7 @@ ALB LCU, CloudFront 요청·전송, ECR, 로그, Secrets Manager, NAT 추가 데
 ## 파일 구성
 
 ```text
-src/                    지도·장소·한국어 UI
+src/                    지도·장소·한국어/English UI
 public/                 정적 자산
 server/                 정적 HTTP·SQLite 카탈로그·날씨·보호된 AI API
 shared/api-types.ts     브라우저·서버 응답 계약
@@ -320,4 +353,7 @@ docs/                   설계·구현 계획·배포 결과
 
 ## 정리
 
-서비스가 더 이상 필요하지 않을 때 앱 스택을 삭제하면 CloudFront, ALB, ECS 및 앱 전용 보안 그룹이 정리됩니다. CloudFront 비활성화·삭제는 시간이 걸릴 수 있습니다. ECR 저장소와 CloudWatch 로그 그룹은 실수로 삭제하지 않도록 `Retain`으로 설정되어 있으므로 별도 보관 여부를 결정해야 합니다. 기존 VPC·서브넷·NAT는 이 앱 스택의 소유 리소스가 아닙니다.
+서비스가 더 이상 필요하지 않을 때 앱 스택 삭제와 별도 운영·데이터·공유 자산·원본
+라우팅 스택의 정리를 함께 계획해야 합니다. ECR·로그·S3와 게시된 함수 버전에는
+보존 설정이 있으며, CloudFront 연결 해제·삭제에는 시간이 걸릴 수 있습니다.
+기존 VPC·서브넷·NAT와 AgentCore는 앱 스택의 소유 리소스가 아닙니다.

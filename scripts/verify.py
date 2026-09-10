@@ -112,6 +112,109 @@ def verify_media_delivery(edge, config, parameters, check):
           and key.get("EnableAcceptEncodingGzip") is False and not key.get("EnableAcceptEncodingBrotli", False))
 
 
+def verify_assets_delivery(edge, config, parameters, check):
+    """Hashed build assets must be independent of the selected ECS task revision."""
+    domain = parameters.get("AssetsBucketDomainName", "")
+    origins = [item for item in config["Origins"]["Items"] if item["Id"] == "jeju-assets"]
+    routes = [item for item in config.get("CacheBehaviors", {}).get("Items", [])
+              if item.get("PathPattern") == "/assets/*"]
+    if not domain:
+        check("Shared asset route is absent when not configured", not origins and not routes)
+        return
+    origin = origins[0] if len(origins) == 1 else {}
+    route = routes[0] if len(routes) == 1 else {}
+    oac_id = parameters.get("AssetsOriginAccessControlId", "")
+    check("Build assets use the selected private S3 origin without ALB credentials",
+          origin.get("DomainName") == domain and bool(oac_id)
+          and origin.get("OriginAccessControlId") == oac_id
+          and origin.get("S3OriginConfig", {}).get("OriginAccessIdentity") == ""
+          and not origin.get("CustomOriginConfig")
+          and not origin.get("CustomHeaders", {}).get("Items"))
+    control = edge.get_origin_access_control(Id=oac_id)["OriginAccessControl"]["OriginAccessControlConfig"] if oac_id else {}
+    check("Build asset OAC signs every S3 request",
+          control.get("OriginAccessControlOriginType") == "s3"
+          and control.get("SigningBehavior") == "always" and control.get("SigningProtocol") == "sigv4")
+    check("Only GET and HEAD build asset requests reach shared storage",
+          route.get("TargetOriginId") == "jeju-assets"
+          and route.get("ViewerProtocolPolicy") == "redirect-to-https"
+          and set(route.get("AllowedMethods", {}).get("Items", [])) == {"GET", "HEAD"}
+          and not route.get("OriginRequestPolicyId")
+          and not route.get("LambdaFunctionAssociations", {}).get("Items"))
+    cache = edge.get_cache_policy(Id=route["CachePolicyId"])["CachePolicy"]["CachePolicyConfig"] if route.get("CachePolicyId") else {}
+    key = cache.get("ParametersInCacheKeyAndForwardedToOrigin", {})
+    check("Versioned build assets have a one-year public cache without user state",
+          cache.get("MinTTL") == 0 and cache.get("DefaultTTL") == 31536000 and cache.get("MaxTTL") == 31536000
+          and key.get("CookiesConfig", {}).get("CookieBehavior") == "none"
+          and key.get("HeadersConfig", {}).get("HeaderBehavior") == "none"
+          and key.get("QueryStringsConfig", {}).get("QueryStringBehavior") == "none"
+          and key.get("EnableAcceptEncodingGzip") is True and key.get("EnableAcceptEncodingBrotli") is True)
+
+
+def verify_origin_routing(edge, config, parameters, settings, outputs, check):
+    """Verify DNS or canonical-Host TLS without reading request bodies or secrets."""
+    mode = settings.get("OriginTlsMode", "dns")
+    use_tls = settings["OriginTlsEnabled"] == "true"
+    canonical = use_tls and mode == "canonical-host"
+    check("Origin TLS mode matches the deployed parameters", mode in ("dns", "canonical-host")
+          and parameters.get("OriginTlsMode", "dns") == mode
+          and parameters.get("OriginTlsEnabled", "false") == settings["OriginTlsEnabled"])
+    origin = next((item for item in config["Origins"]["Items"] if item["Id"] == "jeju-alb"), {})
+    expected_domain = settings["OriginDomainName"] if use_tls and not canonical else outputs["LoadBalancerDnsName"]
+    check("CloudFront uses the configured ALB origin", origin.get("DomainName") == expected_domain)
+    check("Origin protocol matches the staged TLS configuration",
+          origin.get("CustomOriginConfig", {}).get("OriginProtocolPolicy") == ("https-only" if use_tls else "http-only"))
+    version = parameters.get("OriginHostFunctionVersionArn", "")
+    if canonical:
+        check("Canonical Host TLS uses the selected viewer identity and a published owned function",
+              bool(settings.get("ViewerDomainName"))
+              and parameters.get("ViewerDomainName") == settings["ViewerDomainName"]
+              and bool(parameters.get("ViewerCertificateArn")) and bool(parameters.get("OriginCertificateArn"))
+              and re.fullmatch(rf"arn:aws:lambda:us-east-1:{ACCOUNT}:function:jeju-3d-origin-host:[1-9][0-9]*", version) is not None)
+
+    policies = {}
+
+    def request_policy(behavior):
+        policy_id = behavior.get("OriginRequestPolicyId")
+        if not policy_id:
+            return {}
+        if policy_id not in policies:
+            policies[policy_id] = edge.get_origin_request_policy(Id=policy_id)["OriginRequestPolicy"]["OriginRequestPolicyConfig"]
+        return policies[policy_id]
+
+    behaviors = [config["DefaultCacheBehavior"], *config.get("CacheBehaviors", {}).get("Items", [])]
+    alb_paths = [item.get("PathPattern") for item in behaviors if item.get("TargetOriginId") == "jeju-alb"]
+    check("Only default and the two API behaviors reach the ALB",
+          len(alb_paths) == 3 and set(alb_paths) == {None, "/api/catalog/*", "/api/*"})
+    for behavior in behaviors:
+        path = behavior.get("PathPattern", "default")
+        associations = behavior.get("LambdaFunctionAssociations", {}).get("Items", [])
+        if behavior.get("TargetOriginId") != "jeju-alb":
+            check(f"No origin Host routing on {path}", not associations and not behavior.get("OriginRequestPolicyId"))
+            continue
+        check(f"Origin Host Lambda association matches mode on {path}",
+              len(associations) == 1 and associations[0].get("EventType") == "origin-request"
+              and associations[0].get("LambdaFunctionARN") == version
+              and associations[0].get("IncludeBody", False) is False if canonical else not associations)
+        policy = request_policy(behavior)
+        headers = policy.get("HeadersConfig", {})
+        forwarded = {name.lower() for name in headers.get("Headers", {}).get("Items", [])}
+        if path == "/api/*":
+            expected = {"origin", "content-type", "accept", "x-atlas-csrf"} | ({"host"} if canonical else set())
+            check("Private API retains session proof, query strings and POST body forwarding",
+                  headers.get("HeaderBehavior") == "whitelist" and forwarded == expected
+                  and policy.get("CookiesConfig", {}).get("CookieBehavior") == "all"
+                  and policy.get("QueryStringsConfig", {}).get("QueryStringBehavior") == "all"
+                  and "POST" in behavior.get("AllowedMethods", {}).get("Items", [])
+                  and behavior.get("CachePolicyId") == "4135ea2d-6df8-44a3-9df3-4b5a84be39ad")
+        elif canonical:
+            check(f"Public Host forwarding excludes cookies and query strings on {path}",
+                  headers.get("HeaderBehavior") == "whitelist" and forwarded == {"host"}
+                  and policy.get("CookiesConfig", {}).get("CookieBehavior") == "none"
+                  and policy.get("QueryStringsConfig", {}).get("QueryStringBehavior") == "none")
+        else:
+            check(f"Public origin request policy remains unchanged on {path}", not behavior.get("OriginRequestPolicyId"))
+
+
 def verify():
     session = connect()
     cf = session.client("cloudformation")
@@ -226,12 +329,9 @@ def verify():
           "/webacl/jeju-3d-edge/" in config.get("WebACLId", ""))
     check("Viewers redirected to HTTPS", config["DefaultCacheBehavior"]["ViewerProtocolPolicy"] == "redirect-to-https")
     origin = next(item for item in config["Origins"]["Items"] if item["Id"] == "jeju-alb")
-    use_tls = settings["OriginTlsEnabled"] == "true"
-    check("CloudFront uses the configured ALB origin", origin["DomainName"] == (
-        settings["OriginDomainName"] if use_tls else outputs["LoadBalancerDnsName"]))
-    check("Origin protocol matches the staged TLS configuration",
-          origin["CustomOriginConfig"]["OriginProtocolPolicy"] == ("https-only" if use_tls else "http-only"))
+    verify_origin_routing(edge, config, parameters, settings, outputs, check)
     verify_media_delivery(edge, config, parameters, check)
+    verify_assets_delivery(edge, config, parameters, check)
     terrain_origin = next((item for item in config["Origins"]["Items"] if item["Id"] == "jeju-terrain"), None)
     check("Terrain origin uses HTTPS and receives no ALB secret", bool(terrain_origin)
           and terrain_origin["DomainName"] == "elevation-tiles-prod.s3.us-east-1.amazonaws.com"
@@ -316,7 +416,16 @@ def verify():
     else:
         check("Versioned assets present", False)
     missing = requests.get(url + "/assets/does-not-exist.js", timeout=30)
-    check("Missing asset returns 404", missing.status_code == 404)
+    if parameters.get("AssetsBucketDomainName"):
+        # S3 intentionally returns 403 for absent keys without ListBucket.
+        # The OAC receives GetObject only; do not add listing permission merely
+        # to expose object existence or turn errors into a successful app shell.
+        check("Missing shared asset is denied without exposing a bucket listing",
+              missing.status_code == 403 and "AccessDenied" in missing.text)
+        missing_page = requests.get(url + "/does-not-exist.js", timeout=30)
+        check("Missing ALB static path still returns 404", missing_page.status_code == 404)
+    else:
+        check("Missing asset returns 404", missing.status_code == 404)
     catalog_response = requests.get(url + "/api/catalog/status", timeout=30)
     catalog_data = catalog_response.json() if catalog_response.status_code == 200 else {}
     check("Live service catalog includes enriched and OSM data", catalog_data.get("total", 0) >= 6000

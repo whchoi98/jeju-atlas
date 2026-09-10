@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { isIP } from 'node:net';
 
 const MAX_BYTES = 16 * 1024 * 1024;
+const MAX_RECORD_AGE_MS = 14 * 86_400_000;
 const MEDIA_ORIGIN = 'https://jeju-atlas.whchoi.net';
 const LICENSES = new Set(['KOGL-1', 'KOGL-3', 'CC-BY-SA-2.0', 'CC-BY-SA-3.0', 'CC-BY-SA-4.0', 'CC-BY-4.0', 'CC0', 'PD']);
 const PROVIDER_DOMAINS = {
@@ -178,7 +179,7 @@ export function normalizeOfficialDetails(value, { mediaOrigin = MEDIA_ORIGIN, no
     const age = now - Date.parse(row.fetched_at);
     // Retrieval age is not a claim that the provider's content was reviewed.
     row.age_days = Number.isFinite(age) && age >= 0 ? Math.floor(age / 86400_000) : null;
-    row.stale = row.age_days === null || age > 14 * 86400_000;
+    row.stale = row.age_days === null || age > MAX_RECORD_AGE_MS;
     const key = `${row.provider}:${row.provider_id}:${row.locale}`;
     if (!seen.has(key)) { seen.add(key); result.push(row); }
     if (result.length === 4) break;
@@ -382,11 +383,21 @@ export class OfficialDetailsLoader {
   status() {
     const data = this._closed ? null : this._snapshot;
     const rows = data ? Object.values(data.records) : [];
+    const recordCount = rows.reduce((count, items) => count + items.length, 0);
+    const now = this._clock();
+    // A 304 or a metadata-only publication renews transport metadata, not the
+    // actual provider observations. Recompute age even between refreshes.
+    const overdue = rows.some(items => items.some(row => {
+      const fetchedAt = Date.parse(row.fetched_at);
+      const age = now - fetchedAt;
+      return !Number.isFinite(now) || !Number.isFinite(fetchedAt) || age < 0 || age > MAX_RECORD_AGE_MS;
+    }));
     return {
-      status: data ? 'ready' : 'unavailable', stale: this._stale || !data,
+      status: data ? 'ready' : 'unavailable',
+      stale: this._stale || !data || recordCount === 0 || overdue,
       generated_at: data?.generated_at ?? null, refreshed_at: this._refreshedAt,
       place_count: rows.filter(items => items.length).length,
-      record_count: rows.reduce((count, items) => count + items.length, 0),
+      record_count: recordCount,
       last_error: this._lastError ? { ...this._lastError } : null,
     };
   }

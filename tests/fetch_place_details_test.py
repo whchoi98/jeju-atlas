@@ -251,11 +251,16 @@ class CollectorTests(unittest.TestCase):
                 if params["locale"] == "kr" and params["category"] == "c4":
                     return {"items": [{"contentsid": "complete"}], "pageCount": 1}
                 return {"items": [], "pageCount": 0}
-        with patch.object(worker.time, "sleep"), redirect_stdout(io.StringIO()):
+        output = io.StringIO()
+        with patch.object(worker.time, "sleep"), redirect_stdout(output):
             rows, failures = worker.collect_lists(Lists())
         self.assertEqual([row["contentid"] for row in rows["tourapi"]], ["999"])
         self.assertEqual([row["contentsid"] for row in rows["visitjeju"]], ["complete"])
         self.assertEqual(len(failures), 2)
+        event = next(json.loads(line) for line in output.getvalue().splitlines()
+                     if json.loads(line)["event"] == "source_lists")
+        self.assertEqual(event["provider_failures"], len(failures))
+        self.assertIs(type(event["provider_failures"]), int)
         self.assertFalse(worker.provider_complete_for({"category": "관광지"}, "tourapi", failures))
         self.assertTrue(worker.provider_complete_for({"category": "맛집"}, "tourapi", failures))
         self.assertFalse(worker.provider_complete_for({"category": "관광지"}, "visitjeju", failures))
@@ -275,11 +280,13 @@ class CollectorTests(unittest.TestCase):
                     return visit_page(1, ["complete"], total=1, pages=1)
                 return {"items": [], "pageCount": 0}
         fetcher = Lists()
-        with patch.object(worker.time, "sleep"), redirect_stdout(io.StringIO()):
+        output = io.StringIO()
+        with patch.object(worker.time, "sleep"), redirect_stdout(output):
             lists, failures = worker.collect_lists(fetcher)
         self.assertEqual([row["contentsid"] for row in lists["visitjeju"]], ["complete"])
         self.assertEqual(fetcher.attempts, 2)
         self.assertEqual(failures, [])
+        self.assertEqual(json.loads(output.getvalue().splitlines()[-1])["provider_failures"], 0)
 
     def test_incomplete_or_conflicting_pagination_cannot_produce_a_unique_match(self):
         candidate = {"contentid": "1", "contenttypeid": "12", "title": "비자림", "mapy": "33.45", "mapx": "126.5"}
@@ -429,10 +436,11 @@ class CollectorTests(unittest.TestCase):
             args = SimpleNamespace(catalog=catalog, bucket="fixture", publish=False, media_origin="https://atlas.example.test",
                                    curated_only=False, only_missing=False, place_id=[], max_places=1, output=path / "output.json")
             empty = {"tourapi": [], "visitjeju": [], "visitjeju_en": []}
+            output = io.StringIO()
             with patch.object(worker.boto3, "Session", return_value=Session()), \
-                 patch.object(worker, "collect_lists", return_value=(empty, [])), \
+                 patch.object(worker, "collect_lists", return_value=(empty, [])) as source_lists, \
                  patch.object(worker.signal, "signal"), patch.object(worker.signal, "setitimer"), \
-                 patch.dict(worker.os.environ, {"AWS_REGION": "ap-northeast-2"}), redirect_stdout(io.StringIO()):
+                 patch.dict(worker.os.environ, {"AWS_REGION": "ap-northeast-2"}), redirect_stdout(output):
                 start = worker.iso_now()
                 worker.run(args)
                 first = json.loads(args.output.read_text())
@@ -442,12 +450,36 @@ class CollectorTests(unittest.TestCase):
                 self.assertEqual(first["records"], previous["records"])
                 self.assertEqual(first["coverage"]["updated_places"], 0)
                 self.assertEqual(first["coverage"]["attempted_places"], 1)
+                completion = json.loads(output.getvalue().splitlines()[-1])
+                self.assertEqual(completion["event"], "collection_complete")
+                self.assertIs(completion["metadata_only"], True)
+                self.assertEqual(completion["provider_failures"], 0)
+                self.assertNotIn("collection_failed", output.getvalue())
                 s3.snapshot = first
+                source_lists.return_value = (empty, [
+                    {"provider": "tourapi", "locale": "kr", "category": "12", "code": "read_timeout"},
+                ])
                 worker.run(args)
                 second = json.loads(args.output.read_text())
                 self.assertEqual(set(second["last_attempt"]), {"a", "b"})
                 self.assertEqual(second["records"], previous["records"])
                 self.assertNotIn("fixture-secret", json.dumps(second))
+                completion = json.loads(output.getvalue().splitlines()[-1])
+                self.assertIs(completion["metadata_only"], True)
+                self.assertEqual(completion["provider_failures"], 1)
+                self.assertIs(type(completion["provider_failures"]), int)
+                s3.snapshot = second
+                args.max_places = 2
+                source_lists.return_value = ({**empty, "visitjeju": [{
+                    "contentsid": "sample-a", "title": "a",
+                    "contentscd": {"value": "c1", "label": "관광지"},
+                    "latitude": 33.45, "longitude": 126.5,
+                }]}, [])
+                worker.run(args)
+                completion = json.loads(output.getvalue().splitlines()[-1])
+                self.assertIs(completion["metadata_only"], False)
+                self.assertEqual(completion["provider_failures"], 0)
+                self.assertEqual(completion["coverage"]["updated_places"], 1)
 
     def test_publishing_cannot_overwrite_a_concurrent_collection(self):
         writes = []

@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import argparse
 import base64
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -22,6 +24,7 @@ import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +41,8 @@ SETTINGS = ROOT / "infra/production.json"
 STACKS = {
     "bootstrap": BOOTSTRAP, "app": APP, "origin": "Jeju3dOrigin",
     "edge": "Jeju3dEdge", "operations": "Jeju3dOperations", "data": "Jeju3dData",
+    "origin-routing": "Jeju3dOriginRouting", "tls-probe": "Jeju3dTlsProbe",
+    "static": "Jeju3dStatic",
 }
 
 
@@ -49,7 +54,7 @@ def validate_settings(values):
     }
     allowed = {
         "ViewerDomainName", "ViewerCertificateArn", "OriginDomainName",
-        "OriginTlsEnabled", "TargetHealthPath",
+        "OriginTlsEnabled", "OriginTlsMode", "TargetHealthPath",
     } | set(integer_bounds)
     if not isinstance(values, dict) or set(values) - allowed:
         raise ValueError("Unknown production setting; secrets and networking do not belong here")
@@ -80,13 +85,18 @@ def validate_settings(values):
         raise ValueError("Desired capacity cannot be below the configured minimum")
     origin_domain = values.get("OriginDomainName", "")
     tls = values.get("OriginTlsEnabled", "false")
+    tls_mode = values.get("OriginTlsMode", "dns")
     if not isinstance(origin_domain, str) or origin_domain and not re.fullmatch(r"[a-z0-9-]+\.whchoi\.net", origin_domain):
         raise ValueError("OriginDomainName must be a public hostname under whchoi.net")
     if tls not in ("true", "false"):
         raise ValueError("OriginTlsEnabled must be the string true or false")
-    if tls == "true" and (not origin_domain or origin_domain == domain):
+    if tls_mode not in ("dns", "canonical-host"):
+        raise ValueError("OriginTlsMode must be dns or canonical-host")
+    if tls == "true" and tls_mode == "dns" and (not origin_domain or origin_domain == domain):
         raise ValueError("TLS requires a separate public origin hostname pointing directly to the ALB")
-    result.update(OriginDomainName=origin_domain, OriginTlsEnabled=tls)
+    if tls == "true" and tls_mode == "canonical-host" and not domain:
+        raise ValueError("Canonical origin TLS requires the existing viewer domain and certificate")
+    result.update(OriginDomainName=origin_domain, OriginTlsEnabled=tls, OriginTlsMode=tls_mode)
     health_path = values.get("TargetHealthPath", "/readyz")
     if health_path not in ("/readyz", "/healthz"):
         raise ValueError("TargetHealthPath must be /readyz or /healthz")
@@ -142,7 +152,7 @@ def assert_domain(session, settings, outputs):
 
 
 def stack_client(session, kind):
-    return session.client("cloudformation", region_name="us-east-1") if kind == "edge" else session.client("cloudformation")
+    return session.client("cloudformation", region_name="us-east-1") if kind in ("edge", "origin-routing") else session.client("cloudformation")
 
 
 def optional_stack_outputs(session, kind):
@@ -164,11 +174,38 @@ def assert_origin_tls(session, params, outputs):
         if certificate["Status"] != "ISSUED":
             raise ValueError("The ALB origin certificate must be issued before it is attached")
     if params.get("OriginTlsEnabled") == "true":
+        use_host = params.get("OriginTlsMode", "dns") == "canonical-host"
+        identity = params["ViewerDomainName"] if use_host else params["OriginDomainName"]
         if not certificate_arn or not any(
-            domain_matches(name, params["OriginDomainName"])
+            domain_matches(name, identity)
             for name in certificate.get("SubjectAlternativeNames", [])
         ):
             raise ValueError("The regional certificate must cover the configured origin domain")
+        if use_host:
+            routing = optional_stack_outputs(session, "origin-routing")
+            arn = params.get("OriginHostFunctionVersionArn")
+            if (not arn or routing.get("OriginHostFunctionVersionArn") != arn
+                    or routing.get("AlbDomainName") != outputs.get("LoadBalancerDnsName")
+                    or routing.get("CanonicalHostName") != identity):
+                raise ValueError("The immutable origin function must match this ALB and certificate identity")
+            config = session.client("cloudfront").get_distribution_config(Id=outputs["DistributionId"])["DistributionConfig"]
+            origin = next(item for item in config["Origins"]["Items"] if item["Id"] == "jeju-alb")
+            behaviors = [config["DefaultCacheBehavior"], *config.get("CacheBehaviors", {}).get("Items", [])]
+            relevant = [item for item in behaviors if item["TargetOriginId"] == "jeju-alb"]
+            live = (origin["DomainName"] == outputs["LoadBalancerDnsName"]
+                    and origin["CustomOriginConfig"]["OriginProtocolPolicy"] == "https-only"
+                    and len(relevant) == 3 and all(any(
+                        row["LambdaFunctionARN"] == arn and row["EventType"] == "origin-request" and not row.get("IncludeBody")
+                        for row in item.get("LambdaFunctionAssociations", {}).get("Items", [])
+                    ) for item in relevant))
+            if not live:
+                proof_path = LOCAL / "tls-probe-verification.json"
+                proof = json.loads(proof_path.read_text()) if proof_path.exists() else {}
+                if (not proof.get("passed") or proof.get("functionVersionArn") != arn
+                        or proof.get("albDomainName") != outputs["LoadBalancerDnsName"]
+                        or proof.get("canonicalHostName") != identity):
+                    raise ValueError("Verify the isolated canonical-host HTTPS probe before changing production")
+            return
         canonical, aliases, _ = socket.gethostbyname_ex(params["OriginDomainName"])
         expected = outputs.get("LoadBalancerDnsName", "").lower()
         if not expected or canonical.rstrip(".").lower() != expected.rstrip("."):
@@ -179,15 +216,35 @@ def infrastructure_parameters(session, kind):
     if kind in ("bootstrap", "origin"):
         return {}
     outputs = stack_outputs(session.client("cloudformation"), APP)
-    if kind == "edge":
+    if kind in ("edge", "static"):
         return {"DistributionArn": f"arn:aws:cloudfront::{ACCOUNT}:distribution/{outputs['DistributionId']}"}
+    if kind == "origin-routing":
+        settings = validate_settings(json.loads(SETTINGS.read_text()))
+        values = {"AlbDomainName": outputs["LoadBalancerDnsName"], "CanonicalHostName": settings["ViewerDomainName"]}
+        body = (ROOT / "infra/origin-routing.yaml").read_bytes() + json.dumps(values, sort_keys=True).encode()
+        values["CodeRevision"] = hashlib.sha256(body).hexdigest()[:20]
+        return values
+    if kind == "tls-probe":
+        routing = optional_stack_outputs(session, "origin-routing")
+        edge = optional_stack_outputs(session, "edge")
+        if not routing or not edge or routing["AlbDomainName"] != outputs["LoadBalancerDnsName"]:
+            raise ValueError("Prepare the owned origin function and WAF before the TLS probe")
+        secret = session.client("cloudformation").describe_stack_resource(
+            StackName=APP, LogicalResourceId="OriginSecret")["StackResourceDetail"]["PhysicalResourceId"]
+        return {
+            "AlbDomainName": outputs["LoadBalancerDnsName"],
+            "OriginHostFunctionVersionArn": routing["OriginHostFunctionVersionArn"],
+            "OriginSecretArn": secret, "WebAclArn": edge["WebAclArn"],
+        }
     if kind == "operations":
+        data = optional_stack_outputs(session, "data")
         return {
             "ClusterName": outputs["ClusterName"], "ServiceName": outputs["ServiceName"],
             "AlbFullName": outputs["LoadBalancerArn"].split(":loadbalancer/", 1)[1],
             "TargetGroupFullName": outputs["TargetGroupArn"].split(":", 5)[5],
             "LogGroupName": outputs["LogGroupName"],
             "GuideQuotaTableName": outputs["GuideQuotaTableName"],
+            "OfficialDetailsEnabled": "true" if data.get("WorkerTaskDefinitionArn") else "false",
         }
     if kind == "data":
         assert_network(session)
@@ -195,6 +252,9 @@ def infrastructure_parameters(session, kind):
             "DistributionArn": f"arn:aws:cloudfront::{ACCOUNT}:distribution/{outputs['DistributionId']}",
             "VpcId": VPC, "PrivateSubnetIds": ",".join(PRIVATE),
         }
+        operations = optional_stack_outputs(session, "operations")
+        if operations:
+            values["DataNotificationsTopicArn"] = operations["NotificationTopicArn"]
         if (LOCAL / "data-image.json").is_file():
             values["WorkerImageUri"] = load("data-image.json")["imageUri"]
         settings_path = ROOT / "infra/data-settings.json"
@@ -277,7 +337,7 @@ def assert_network(session):
     emit({"network": "verified", "subnets": network})
 
 
-def plan(session, kind):
+def plan(session, kind, overrides=None):
     cf = stack_client(session, kind)
     if kind not in STACKS:
         raise ValueError("Unexpected stack kind")
@@ -301,10 +361,20 @@ def plan(session, kind):
         edge = optional_stack_outputs(session, "edge")
         origin = optional_stack_outputs(session, "origin")
         data = optional_stack_outputs(session, "data")
+        routing = optional_stack_outputs(session, "origin-routing")
+        assets = optional_stack_outputs(session, "static")
         if edge:
             params["WebAclArn"] = edge["WebAclArn"]
         if origin:
             params["OriginCertificateArn"] = origin["OriginCertificateArn"]
+        if routing:
+            params["OriginHostFunctionVersionArn"] = routing["OriginHostFunctionVersionArn"]
+        if assets:
+            require_asset_manifest(session, assets["AssetsBucketName"], image["imageUri"])
+            params.update({
+                "AssetsBucketDomainName": assets["AssetsBucketDomainName"],
+                "AssetsOriginAccessControlId": assets["AssetsOriginAccessControlId"],
+            })
         if data:
             params.update({
                 "DetailsBucket": data["DetailsBucketName"],
@@ -314,6 +384,10 @@ def plan(session, kind):
         name, template = APP, ROOT / "infra/application.yaml"
     else:
         name, template, params = STACKS[kind], ROOT / f"infra/{kind}.yaml", infrastructure_parameters(session, kind)
+    if overrides:
+        if kind != "tls-probe" or overrides != {"Enabled": "false"}:
+            raise ValueError("Only the owned probe disable operation accepts a parameter override")
+        params.update(overrides)
     subprocess.run(["cfn-lint", str(template)], check=True, cwd=ROOT)
     try:
         existing = cf.describe_stacks(StackName=name)["Stacks"][0]
@@ -386,6 +460,8 @@ def plan(session, kind):
     # path. Other replacements and removals need explicit operator review.
     if any(change["Action"] == "Remove" or (
         change.get("Replacement") == "True" and change["ResourceType"] != "AWS::ECS::TaskDefinition"
+        and not (kind == "origin-routing" and change["ResourceType"] == "AWS::Lambda::Version"
+                 and change["LogicalResourceId"] == "OriginHostVersion")
     ) for change in changes):
         raise RuntimeError("Destructive changes need explicit review; no action executed")
     review = {
@@ -400,6 +476,32 @@ def plan(session, kind):
     emit(review)
 
 
+def prepare_edge_log_groups(session):
+    """Precreate this function's log group with retention, never grant group creation to the function."""
+    regions = [item["RegionName"] for item in session.client("ec2").describe_regions()["Regions"]
+               if item["RegionName"] != "us-east-1"]
+    name = "/jeju-3d/edge-origin"
+
+    def prepare(region):
+        logs = session.client("logs", region_name=region,
+                              config=Config(connect_timeout=5, read_timeout=10, retries={"total_max_attempts": 2}))
+        existing = [item for item in logs.describe_log_groups(logGroupNamePrefix=name)["logGroups"]
+                    if item["logGroupName"] == name]
+        if existing:
+            tags = logs.list_tags_log_group(logGroupName=name).get("tags", {})
+            if tags.get("Project") != "jeju-3d" or tags.get("Component") != "edge-origin":
+                raise ValueError(f"Refusing to take over an existing log group in {region}")
+        else:
+            logs.create_log_group(logGroupName=name, tags={"Project": "jeju-3d", "Component": "edge-origin"})
+        logs.put_retention_policy(logGroupName=name, retentionInDays=14)
+        return region
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        prepared = list(pool.map(prepare, regions))
+    save("origin-routing-log-groups.json", {"logGroupName": name, "retentionInDays": 14, "regions": sorted(prepared)})
+    emit({"edgeLogGroups": len(prepared), "retentionInDays": 14})
+
+
 def apply(session, kind):
     cf = stack_client(session, kind)
     review = load(f"{kind}-change-set.json")
@@ -409,6 +511,8 @@ def apply(session, kind):
     detail = cf.describe_change_set(ChangeSetName=arn)
     if detail["ExecutionStatus"] != "AVAILABLE":
         raise RuntimeError(f"Change set is not available: {detail['ExecutionStatus']}")
+    if kind == "origin-routing":
+        prepare_edge_log_groups(session)
     cf.execute_change_set(ChangeSetName=arn)
     emit({"started": review["stack"], "changeSet": arn})
 
@@ -437,7 +541,40 @@ def build_push(session, data_worker=False):
     result = ecr.describe_images(repositoryName="jeju-3d", imageIds=[{"imageTag": release}])["imageDetails"][0]
     image = {"release": release, "tag": tag, "digest": result["imageDigest"], "imageUri": f"{uri}@{result['imageDigest']}"}
     save("data-image.json" if data_worker else "image.json", image)
+    if not data_worker:
+        assets = optional_stack_outputs(session, "static")
+        if assets:
+            subprocess.run([
+                "python3", "scripts/publish-assets.py", "--image-uri", image["imageUri"],
+                "--bucket", assets["AssetsBucketName"], "--execute",
+            ], check=True, cwd=ROOT)
     emit(image)
+
+
+def require_asset_manifest(session, bucket, image_uri):
+    """A manifest is committed only after every asset has an immutable S3 copy."""
+    if bucket != f"jeju-3d-assets-{ACCOUNT}-{REGION}" or not re.fullmatch(
+        rf"{ACCOUNT}\.dkr\.ecr\.{REGION}\.amazonaws\.com/jeju-3d@sha256:[a-f0-9]{{64}}", image_uri
+    ):
+        raise ValueError("Unexpected shared asset bucket or image")
+    key = "releases/" + image_uri.split("@sha256:", 1)[1] + ".json"
+    body = session.client("s3", config=Config(connect_timeout=3, read_timeout=10,
+                                            retries={"total_max_attempts": 1})).get_object(Bucket=bucket, Key=key)["Body"]
+    try:
+        raw = body.read(2 * 1024 * 1024 + 1)
+    finally:
+        body.close()
+    if len(raw) > 2 * 1024 * 1024:
+        raise ValueError("The asset release manifest is too large")
+    manifest = json.loads(raw)
+    entries = manifest.get("assetsSHA")
+    if (manifest.get("version") != 1 or manifest.get("imageUri") != image_uri
+            or not isinstance(entries, dict) or not 1 <= len(entries) <= 1024
+            or any(not name.startswith("assets/") or ".." in name.split("/") or "\\" in name
+                   or not isinstance(digest, str) or not re.fullmatch("[a-f0-9]{64}", digest)
+                   for name, digest in entries.items())):
+        raise ValueError("Publish the complete selected image's shared assets before planning deployment")
+    return manifest
 
 
 def status(session, kind):
@@ -458,21 +595,48 @@ def status(session, kind):
         emit({"outputs": outputs})
 
 
+def delete_tls_probe(session):
+    cf = session.client("cloudformation")
+    stack = cf.describe_stacks(StackName=STACKS["tls-probe"])["Stacks"][0]
+    if stack["StackStatus"] not in ("CREATE_COMPLETE", "UPDATE_COMPLETE"):
+        raise ValueError("The owned probe stack must be stable")
+    outputs = {item["OutputKey"]: item["OutputValue"] for item in stack["Outputs"]}
+    app = stack_outputs(cf, APP)
+    if outputs["DistributionId"] == app["DistributionId"]:
+        raise ValueError("Never delete the production distribution")
+    resources = cf.list_stack_resources(StackName=STACKS["tls-probe"])["StackResourceSummaries"]
+    if any(item["ResourceType"] not in ("AWS::CloudFront::Distribution", "AWS::CloudFront::OriginRequestPolicy")
+           for item in resources):
+        raise ValueError("Unexpected resources in the temporary probe")
+    distribution = session.client("cloudfront").get_distribution(Id=outputs["DistributionId"])["Distribution"]
+    config = distribution["DistributionConfig"]
+    if (distribution["Status"] != "Deployed" or config["Enabled"] or config["Aliases"]["Quantity"]
+            or config["Comment"] != "Jeju Atlas temporary canonical-host HTTPS verification"):
+        raise ValueError("Disable and verify the owned probe before deleting it")
+    cf.delete_stack(StackName=STACKS["tls-probe"])
+    emit({"deleting": STACKS["tls-probe"]})
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["network", "build-push", "build-data-push", "invalidate"] + [
+    parser.add_argument("action", choices=["network", "build-push", "build-data-push", "invalidate",
+                                          "plan-tls-probe-disable", "delete-tls-probe"] + [
         f"{action}-{kind}" for kind in STACKS for action in ["plan", "apply", "status"]
     ])
     args = parser.parse_args()
     session = connect()
     if args.action == "network":
         assert_network(session)
+    elif args.action == "plan-tls-probe-disable":
+        plan(session, "tls-probe", overrides={"Enabled": "false"})
+    elif args.action == "delete-tls-probe":
+        delete_tls_probe(session)
     elif args.action.startswith("plan-"):
-        plan(session, args.action.split("-")[1])
+        plan(session, args.action.split("-", 1)[1])
     elif args.action.startswith("apply-"):
-        apply(session, args.action.split("-")[1])
+        apply(session, args.action.split("-", 1)[1])
     elif args.action.startswith("status-"):
-        status(session, args.action.split("-")[1])
+        status(session, args.action.split("-", 1)[1])
     elif args.action == "build-push":
         build_push(session)
     elif args.action == "build-data-push":

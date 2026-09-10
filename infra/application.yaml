@@ -84,7 +84,17 @@ Parameters:
     Type: String
     Default: 'false'
     AllowedValues: ['true', 'false']
-    Description: Enable only after the HTTPS listener is deployed and public origin DNS is verified.
+    Description: Enable only after the HTTPS listener and selected origin routing mode are verified.
+  OriginTlsMode:
+    Type: String
+    Default: dns
+    AllowedValues: [dns, canonical-host]
+    Description: Use verified origin DNS, or the ALB DNS with a canonical Host rewritten by Lambda@Edge.
+  OriginHostFunctionVersionArn:
+    Type: String
+    Default: ''
+    Description: Verified published us-east-1 version of the owned origin Host function.
+    AllowedPattern: '^$|^arn:aws:lambda:us-east-1:061525506239:function:jeju-3d-origin-host:[1-9][0-9]*$'
   CatalogBucket:
     Type: String
     Default: ohmyjeju-catalog-061525506239-prod
@@ -105,8 +115,26 @@ Parameters:
     Type: String
     Default: ''
     AllowedPattern: '^$|^[A-Z0-9]+$'
+  AssetsBucketDomainName:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^jeju-3d-assets-[0-9]{12}-ap-northeast-2\.s3\.ap-northeast-2\.amazonaws\.com$'
+  AssetsOriginAccessControlId:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^[A-Z0-9]+$'
 
 Rules:
+  SharedAssetsRequireBucketAndOac:
+    Assertions:
+      - Assert: !Or
+          - !And
+            - !Equals [!Ref AssetsBucketDomainName, '']
+            - !Equals [!Ref AssetsOriginAccessControlId, '']
+          - !And
+            - !Not [!Equals [!Ref AssetsBucketDomainName, '']]
+            - !Not [!Equals [!Ref AssetsOriginAccessControlId, '']]
+        AssertDescription: Provide the private shared asset bucket and its OAC together.
   ViewerDomainRequiresCertificate:
     Assertions:
       - Assert: !Or
@@ -118,19 +146,36 @@ Rules:
             - !Not [!Equals [!Ref ViewerCertificateArn, '']]
         AssertDescription: Supply the viewer domain and us-east-1 certificate together.
   OriginTlsRequiresCertificateAndDns:
-    RuleCondition: !Equals [!Ref OriginTlsEnabled, 'true']
+    RuleCondition: !And
+      - !Equals [!Ref OriginTlsEnabled, 'true']
+      - !Equals [!Ref OriginTlsMode, dns]
     Assertions:
       - Assert: !And
           - !Not [!Equals [!Ref OriginCertificateArn, '']]
           - !Not [!Equals [!Ref OriginDomainName, '']]
         AssertDescription: Origin TLS requires a regional certificate and a public ALB hostname.
+  CanonicalHostRequiresCertificateAndFunction:
+    RuleCondition: !And
+      - !Equals [!Ref OriginTlsEnabled, 'true']
+      - !Equals [!Ref OriginTlsMode, canonical-host]
+    Assertions:
+      - Assert: !And
+          - !Not [!Equals [!Ref OriginCertificateArn, '']]
+          - !Not [!Equals [!Ref ViewerDomainName, '']]
+          - !Not [!Equals [!Ref ViewerCertificateArn, '']]
+          - !Not [!Equals [!Ref OriginHostFunctionVersionArn, '']]
+        AssertDescription: Canonical Host TLS requires the regional certificate, viewer domain/certificate and a published Host function version.
 
 Conditions:
   HasViewerDomain: !Not [!Equals [!Ref ViewerDomainName, '']]
   HasWebAcl: !Not [!Equals [!Ref WebAclArn, '']]
   HasOriginCertificate: !Not [!Equals [!Ref OriginCertificateArn, '']]
   UseOriginTls: !Equals [!Ref OriginTlsEnabled, 'true']
+  UseCanonicalHost: !And
+    - !Equals [!Ref OriginTlsEnabled, 'true']
+    - !Equals [!Ref OriginTlsMode, canonical-host]
   HasDetails: !Not [!Equals [!Ref DetailsBucket, '']]
+  HasSharedAssets: !Not [!Equals [!Ref AssetsBucketDomainName, '']]
 
 Resources:
   SessionSecret:
@@ -690,6 +735,22 @@ Resources:
           QueryStringsConfig:
             QueryStringBehavior: all
 
+  HostOnlyOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Condition: UseCanonicalHost
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: jeju-3d-origin-host-only
+        Comment: Forward Host for canonical origin TLS without adding viewer state to public requests.
+        CookiesConfig:
+          CookieBehavior: none
+        HeadersConfig:
+          HeaderBehavior: whitelist
+          Headers:
+            - Host
+        QueryStringsConfig:
+          QueryStringBehavior: none
+
   ApiOriginRequestPolicy:
     Type: AWS::CloudFront::OriginRequestPolicy
     Properties:
@@ -705,6 +766,7 @@ Resources:
             - Content-Type
             - Accept
             - X-Atlas-CSRF
+            - !If [UseCanonicalHost, Host, !Ref AWS::NoValue]
         QueryStringsConfig:
           QueryStringBehavior: all
 
@@ -819,6 +881,23 @@ Resources:
           HeadersConfig: {HeaderBehavior: none}
           QueryStringsConfig: {QueryStringBehavior: none}
 
+  AssetsCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Condition: HasSharedAssets
+    Properties:
+      CachePolicyConfig:
+        Name: jeju-3d-versioned-assets
+        Comment: Shared content-addressed build assets remain available across task and release changes.
+        MinTTL: 0
+        DefaultTTL: 31536000
+        MaxTTL: 31536000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          CookiesConfig: {CookieBehavior: none}
+          HeadersConfig: {HeaderBehavior: none}
+          QueryStringsConfig: {QueryStringBehavior: none}
+
   Distribution:
     Type: AWS::CloudFront::Distribution
     DependsOn: OriginRule
@@ -834,6 +913,14 @@ Resources:
         WebACLId: !If [HasWebAcl, !Ref WebAclArn, !Ref AWS::NoValue]
         Origins:
           - !If
+            - HasSharedAssets
+            - Id: jeju-assets
+              DomainName: !Ref AssetsBucketDomainName
+              OriginAccessControlId: !Ref AssetsOriginAccessControlId
+              S3OriginConfig:
+                OriginAccessIdentity: ''
+            - !Ref AWS::NoValue
+          - !If
             - HasDetails
             - Id: jeju-media
               DomainName: !Ref MediaBucketDomainName
@@ -842,7 +929,10 @@ Resources:
                 OriginAccessIdentity: ''
             - !Ref AWS::NoValue
           - Id: jeju-alb
-            DomainName: !If [UseOriginTls, !Ref OriginDomainName, !GetAtt LoadBalancer.DNSName]
+            DomainName: !If
+              - UseCanonicalHost
+              - !GetAtt LoadBalancer.DNSName
+              - !If [UseOriginTls, !Ref OriginDomainName, !GetAtt LoadBalancer.DNSName]
             OriginCustomHeaders:
               - HeaderName: X-Jeju-Origin-Verify
                 HeaderValue: !Sub '{{resolve:secretsmanager:${OriginSecret}:SecretString}}'
@@ -878,6 +968,17 @@ Resources:
               CachePolicyId: !Ref MediaCachePolicy
               ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
             - !Ref AWS::NoValue
+          - !If
+            - HasSharedAssets
+            - PathPattern: /assets/*
+              TargetOriginId: jeju-assets
+              ViewerProtocolPolicy: redirect-to-https
+              AllowedMethods: [GET, HEAD]
+              CachedMethods: [GET, HEAD]
+              Compress: true
+              CachePolicyId: !Ref AssetsCachePolicy
+              ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
+            - !Ref AWS::NoValue
           - PathPattern: /terrarium/*
             TargetOriginId: jeju-terrain
             ViewerProtocolPolicy: redirect-to-https
@@ -904,6 +1005,13 @@ Resources:
               - HEAD
             Compress: true
             CachePolicyId: !Ref CatalogCachePolicy
+            OriginRequestPolicyId: !If [UseCanonicalHost, !Ref HostOnlyOriginRequestPolicy, !Ref AWS::NoValue]
+            LambdaFunctionAssociations: !If
+              - UseCanonicalHost
+              - - EventType: origin-request
+                  IncludeBody: false
+                  LambdaFunctionARN: !Ref OriginHostFunctionVersionArn
+              - !Ref AWS::NoValue
             ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
           - PathPattern: /api/*
             TargetOriginId: jeju-alb
@@ -923,6 +1031,12 @@ Resources:
             # AWS-managed CachingDisabled, verified through ListCachePolicies.
             CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
             OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
+            LambdaFunctionAssociations: !If
+              - UseCanonicalHost
+              - - EventType: origin-request
+                  IncludeBody: false
+                  LambdaFunctionARN: !Ref OriginHostFunctionVersionArn
+              - !Ref AWS::NoValue
             ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
         DefaultCacheBehavior:
           TargetOriginId: jeju-alb
@@ -935,6 +1049,13 @@ Resources:
             - HEAD
           Compress: true
           CachePolicyId: !Ref CachePolicy
+          OriginRequestPolicyId: !If [UseCanonicalHost, !Ref HostOnlyOriginRequestPolicy, !Ref AWS::NoValue]
+          LambdaFunctionAssociations: !If
+            - UseCanonicalHost
+            - - EventType: origin-request
+                IncludeBody: false
+                LambdaFunctionARN: !Ref OriginHostFunctionVersionArn
+            - !Ref AWS::NoValue
           ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
         CustomErrorResponses:
           - ErrorCode: 403
@@ -1001,6 +1122,11 @@ Outputs:
     Value: !Ref GuideQuota
   OriginTlsEnabled:
     Value: !Ref OriginTlsEnabled
+  OriginTlsMode:
+    Value: !Ref OriginTlsMode
+  OriginHostFunctionVersionArn:
+    Condition: UseCanonicalHost
+    Value: !Ref OriginHostFunctionVersionArn
   OriginDomainName:
     Value: !Ref OriginDomainName
   AlbTlsSecurityGroupId:

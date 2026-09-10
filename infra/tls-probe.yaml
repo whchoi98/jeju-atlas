@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Temporary Jeju Atlas HTTPS origin verification. No custom DNS or application changes.
+
+Parameters:
+  AlbDomainName:
+    Type: String
+    AllowedPattern: '^jeju-3d-alb-[0-9]+\.ap-northeast-2\.elb\.amazonaws\.com$'
+  OriginHostFunctionVersionArn:
+    Type: String
+    AllowedPattern: '^arn:aws:lambda:us-east-1:061525506239:function:jeju-3d-origin-host:[1-9][0-9]*$'
+  OriginSecretArn:
+    Type: String
+    AllowedPattern: '^arn:aws:secretsmanager:ap-northeast-2:061525506239:secret:.+$'
+  WebAclArn:
+    Type: String
+    AllowedPattern: '^arn:aws:wafv2:us-east-1:061525506239:global/webacl/jeju-3d-edge/.+$'
+  Enabled:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+
+Conditions:
+  ProbeEnabled: !Equals [!Ref Enabled, 'true']
+
+Resources:
+  RequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: jeju-3d-tls-probe
+        Comment: Only the headers required to test canonical Host and existing API proofs.
+        CookiesConfig: {CookieBehavior: all}
+        QueryStringsConfig: {QueryStringBehavior: all}
+        HeadersConfig:
+          HeaderBehavior: whitelist
+          Headers: [Host, Origin, Content-Type, Accept, X-Atlas-CSRF]
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: Jeju Atlas temporary canonical-host HTTPS verification
+        Enabled: !If [ProbeEnabled, true, false]
+        IPV6Enabled: true
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+        WebACLId: !Ref WebAclArn
+        DefaultRootObject: index.html
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+        Origins:
+          - Id: jeju-alb
+            DomainName: !Ref AlbDomainName
+            OriginCustomHeaders:
+              - HeaderName: X-Jeju-Origin-Verify
+                HeaderValue: !Sub '{{resolve:secretsmanager:${OriginSecretArn}:SecretString}}'
+            CustomOriginConfig:
+              HTTPSPort: 443
+              HTTPPort: 80
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+              OriginReadTimeout: 30
+        DefaultCacheBehavior:
+          TargetOriginId: jeju-alb
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          OriginRequestPolicyId: !Ref RequestPolicy
+          Compress: false
+          LambdaFunctionAssociations:
+            - EventType: origin-request
+              IncludeBody: false
+              LambdaFunctionARN: !Ref OriginHostFunctionVersionArn
+
+Outputs:
+  DistributionId:
+    Value: !Ref Distribution
+  ProbeUrl:
+    Value: !Sub 'https://${Distribution.DomainName}'

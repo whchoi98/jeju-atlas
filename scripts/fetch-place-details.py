@@ -267,7 +267,7 @@ def collect_lists(fetcher):
             lists[output_key] = []
             failures.append({"provider": provider, "locale": locale, "category": "all", "code": str(error)})
     emit("source_lists", tourapi=len(lists["tourapi"]), visitjeju=len(lists["visitjeju"]),
-         visitjeju_en=len(lists["visitjeju_en"]), failures=failures)
+         visitjeju_en=len(lists["visitjeju_en"]), failures=failures, provider_failures=len(failures))
     return lists, failures
 
 
@@ -510,6 +510,7 @@ def run(args):
                                "photo_count": sum(len(item.get("photos", [])) for items in records.values() for item in items)},
                   "collection": {"partial": bool(failures) or attempted < len(places) or time.monotonic() >= fetcher.deadline,
                                  "metadata_only": updated == 0,
+                                 "provider_failures": len(failures),
                                  "failures": failures[:100], "calls": dict(fetcher.calls)}}
         raw = json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode()
         if len(raw) > MAX_SNAPSHOT_BYTES:
@@ -523,7 +524,9 @@ def run(args):
                 raise SourceFailure("missing_output_bucket")
             publish_snapshot(s3, args.bucket, raw, previous.get("_etag"))
         emit("collection_complete", published=args.publish, coverage=result["coverage"],
-             partial=result["collection"]["partial"], calls=dict(fetcher.calls), media_bytes=budget["bytes"])
+             partial=result["collection"]["partial"], metadata_only=result["collection"]["metadata_only"],
+             provider_failures=result["collection"]["provider_failures"],
+             calls=dict(fetcher.calls), media_bytes=budget["bytes"])
 
 
 def main():

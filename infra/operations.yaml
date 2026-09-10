@@ -41,12 +41,20 @@ Parameters:
     MinValue: 1
     MaxValue: 1000
     Description: Operational guide failures per five minutes, excluding expected 4xx and client cancellations.
+  OfficialDetailsEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Monitor official provider record freshness when official details are enabled in the application.
 
 Rules:
   OperationsRegion:
     Assertions:
       - Assert: !Equals [!Ref AWS::Region, ap-northeast-2]
         AssertDescription: Jeju3dApp and its native service metrics are in ap-northeast-2.
+
+Conditions:
+  MonitorOfficialDetails: !Equals [!Ref OfficialDetailsEnabled, 'true']
 
 Resources:
   Notifications:
@@ -76,7 +84,13 @@ Resources:
               StringEquals:
                 aws:SourceAccount: !Ref AWS::AccountId
               ArnLike:
-                aws:SourceArn: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-*'
+                # This stack owns the shared topic policy. Data alarms use the
+                # same topic without another stack replacing its policy.
+                aws:SourceArn:
+                  - !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-*'
+                  - !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:Jeju3dData-provider-failures'
+                  - !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:Jeju3dData-collection-failed'
+                  - !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:Jeju3dData-collection-missing'
 
   HealthyTargetsAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -322,6 +336,46 @@ Resources:
       AlarmDescription: Catalog is stale/unavailable, or its numeric catalog_status heartbeat is absent, in two of three minutes.
       Namespace: !Sub 'JejuAtlas/Operations/${AWS::StackName}'
       MetricName: CatalogStale
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref Notifications
+      OKActions:
+        - !Ref Notifications
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  OfficialDetailsStateMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: MonitorOfficialDetails
+    Properties:
+      FilterName: !Sub '${AWS::StackName}-official-details-state'
+      LogGroupName: !Ref LogGroupName
+      # The app derives stale from provider record age (>14 days) or
+      # unavailability, not a snapshot's generated_at. Unrelated app logs and
+      # catalog_status must never supply a default healthy value here.
+      FilterPattern: '{ ($.event = "official_details_status") && (($.stale = 0) || ($.stale = 1)) }'
+      MetricTransformations:
+        - MetricNamespace: !Sub 'JejuAtlas/Operations/${AWS::StackName}'
+          MetricName: OfficialDetailsStale
+          MetricValue: $.stale
+          Unit: Count
+
+  OfficialDetailsStaleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: MonitorOfficialDetails
+    DependsOn: OfficialDetailsStateMetric
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-official-details-stale'
+      AlarmDescription: Official provider records are older than 14 days or unavailable, or their numeric official_details_status heartbeat is absent, in two of three minutes. Independent of base catalog health.
+      Namespace: !Sub 'JejuAtlas/Operations/${AWS::StackName}'
+      MetricName: OfficialDetailsStale
       Statistic: Maximum
       Period: 60
       EvaluationPeriods: 3

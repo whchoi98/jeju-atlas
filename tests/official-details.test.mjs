@@ -93,6 +93,65 @@ test('local official snapshot retains real multilingual details, source context 
   assert.deepEqual(await readdir(directory), ['details.json']);
 });
 
+test('C7: provider dates expire even after a 304 or metadata-only refresh', async t => {
+  const directory = await temporary(t);
+  let now = NOW;
+  let mode = 'initial';
+  const boundary = new Date(NOW - 14 * 86_400_000).toISOString();
+  const records = { 'seed:peak': [record(), record({ locale: 'en', fetched_at: boundary })] };
+  const details = loader(t, {
+    bucket: 'test-details', cacheDir: directory, clock: () => now, refreshMs: 0,
+    s3Client: { async send() {
+      if (mode === '304') throw Object.assign(new Error('304'), { name: 'NotModified' });
+      const data = {
+        ...snapshot(records), generated_at: new Date(now).toISOString(),
+        last_attempt: { 'seed:peak': new Date(now).toISOString() },
+        collection: { metadata_only: true },
+      };
+      return { Body: Readable.from([Buffer.from(JSON.stringify(data))]), ETag: `"${mode}"` };
+    } },
+  });
+  await details.init();
+  assert.equal(details.status().stale, false, 'exactly fourteen days is within the window');
+  now++;
+  assert.equal(details.status().stale, true, 'status must age without another download');
+  assert.equal(details.status().status, 'ready', 'old facts remain available');
+  mode = '304';
+  await details.refreshIfNeeded();
+  assert.equal(details.status().stale, true, 'a healthy transport does not renew provider dates');
+  mode = 'metadata-only';
+  await details.refreshIfNeeded();
+  assert.equal(details.status().generated_at, new Date(now).toISOString());
+  assert.equal(details.status().refreshed_at, new Date(now).toISOString());
+  assert.equal(details.status().stale, true, 'new metadata cannot hide a retained old provider');
+  assert.equal(details.get('seed:peak')[1].fetched_at, boundary);
+  assert.equal(details.get('seed:peak')[0].fetched_at, record().fetched_at);
+});
+
+test('C7: unavailable, empty, future and old records are unhealthy independently of generated_at', async t => {
+  const directory = await temporary(t);
+  const absent = loader(t, { localPath: join(directory, 'absent.json') });
+  assert.equal(absent.status().stale, true);
+  await absent.init();
+  assert.equal(absent.status().status, 'unavailable');
+  const cases = [
+    [{}, true, 'ready'],
+    [{ 'seed:peak': [] }, true, 'ready'],
+    [{ 'seed:peak': [record({ fetched_at: new Date(NOW + 1).toISOString() })] }, true, 'ready'],
+    [{ 'seed:peak': [record({ fetched_at: new Date(NOW - 14 * 86_400_000 - 1).toISOString() })] }, true, 'ready'],
+    [{ 'seed:peak': [record({ fetched_at: undefined })] }, true, 'unavailable'],
+    [{ 'seed:peak': [record({ fetched_at: '2026-09-10T21:00:00+09:00' })] }, false, 'ready'],
+  ];
+  for (const [index, [records, stale, expectedStatus]] of cases.entries()) {
+    const path = join(directory, `health-${index}.json`);
+    await writeFile(path, JSON.stringify({ ...snapshot(records), generated_at: '2020-01-01T00:00:00Z' }));
+    const details = loader(t, { localPath: path });
+    await details.init();
+    assert.equal(details.status().stale, stale, `case ${index}`);
+    assert.equal(details.status().status, expectedStatus, `case ${index}`);
+  }
+});
+
 test('TourAPI KO and VisitJeju KO/EN retain source-language facts with one merged photo', async t => {
   const directory = await temporary(t);
   const localPath = await sqlite(t, directory);

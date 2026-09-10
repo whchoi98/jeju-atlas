@@ -17,6 +17,13 @@ Parameters:
     Type: String
     Default: DISABLED
     AllowedValues: [ENABLED, DISABLED]
+  DataNotificationsTopicArn:
+    Type: String
+    Default: ''
+    AllowedValues:
+      - ''
+      - arn:aws:sns:ap-northeast-2:061525506239:jeju-3d-operations-alarms
+    Description: Optional existing Jeju3dOperations topic in the owned Seoul account. Empty disables notification actions, not alarm evaluation. No subscriptions are created.
   CatalogBucket:
     Type: String
     Default: ohmyjeju-catalog-061525506239-prod
@@ -27,6 +34,8 @@ Parameters:
 
 Conditions:
   HasWorker: !Not [!Equals [!Ref WorkerImageUri, '']]
+  HasDataNotifications: !Not [!Equals [!Ref DataNotificationsTopicArn, '']]
+  HasScheduledWorker: !And [!Condition HasWorker, !Equals [!Ref ScheduleState, ENABLED]]
 
 Resources:
   DetailsBucket:
@@ -120,6 +129,125 @@ Resources:
     Properties:
       LogGroupName: /ecs/jeju-3d-data
       RetentionInDays: 14
+
+  ProviderFailuresMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: HasWorker
+    Properties:
+      FilterName: !Sub '${AWS::StackName}-provider-failures'
+      LogGroupName: !Ref WorkerLogs
+      FilterPattern: '{ ($.event = "collection_complete") && ($.provider_failures >= 0) }'
+      MetricTransformations:
+        - MetricNamespace: !Sub 'JejuAtlas/Data/${AWS::StackName}'
+          MetricName: ProviderFailures
+          MetricValue: $.provider_failures
+          Unit: Count
+
+  ProviderFailuresAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasWorker
+    DependsOn: ProviderFailuresMetric
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-provider-failures'
+      AlarmDescription: At least one official list or detail fetch failed during a completed collection. Existing data may be preserved.
+      Namespace: !Sub 'JejuAtlas/Data/${AWS::StackName}'
+      MetricName: ProviderFailures
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasDataNotifications, [!Ref DataNotificationsTopicArn], !Ref AWS::NoValue]
+      OKActions: !If [HasDataNotifications, [!Ref DataNotificationsTopicArn], !Ref AWS::NoValue]
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  CollectionFailuresMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: HasWorker
+    Properties:
+      FilterName: !Sub '${AWS::StackName}-collection-failed'
+      LogGroupName: !Ref WorkerLogs
+      FilterPattern: '{ $.event = "collection_failed" }'
+      MetricTransformations:
+        - MetricNamespace: !Sub 'JejuAtlas/Data/${AWS::StackName}'
+          MetricName: CollectionFailures
+          MetricValue: '1'
+          Unit: Count
+
+  CollectionFailuresAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasWorker
+    DependsOn: CollectionFailuresMetric
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-collection-failed'
+      AlarmDescription: An official-details collector reported collection_failed. Quiet periods between scheduled or manual jobs are expected.
+      Namespace: !Sub 'JejuAtlas/Data/${AWS::StackName}'
+      MetricName: CollectionFailures
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasDataNotifications, [!Ref DataNotificationsTopicArn], !Ref AWS::NoValue]
+      OKActions: !If [HasDataNotifications, [!Ref DataNotificationsTopicArn], !Ref AWS::NoValue]
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  CollectionCompletionsMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: HasWorker
+    Properties:
+      FilterName: !Sub '${AWS::StackName}-collection-complete'
+      LogGroupName: !Ref WorkerLogs
+      # A completed job counts even when zero records changed or old data was
+      # deliberately preserved. Freshness and provider failures have own alarms.
+      FilterPattern: '{ $.event = "collection_complete" }'
+      MetricTransformations:
+        - MetricNamespace: !Sub 'JejuAtlas/Data/${AWS::StackName}'
+          MetricName: CollectionCompletions
+          MetricValue: '1'
+          Unit: Count
+
+  CollectionMissingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasScheduledWorker
+    DependsOn: CollectionCompletionsMetric
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-collection-missing'
+      AlarmDescription: No collection_complete event in the last 48 completed hourly periods while the daily schedule is enabled. New metric filters have no historical events until the first completed job.
+      # Fill idle hours explicitly so sparse-metric lookback cannot reuse an
+      # older success. All 48 hours must lack a completion before alarming.
+      Metrics:
+        - Id: completions
+          MetricStat:
+            Metric:
+              Namespace: !Sub 'JejuAtlas/Data/${AWS::StackName}'
+              MetricName: CollectionCompletions
+            Period: 3600
+            Stat: Sum
+            Unit: Count
+          ReturnData: false
+        - Id: completion_hours
+          Expression: FILL(completions, 0)
+          Label: Collection completions per hour
+          ReturnData: true
+      EvaluationPeriods: 48
+      DatapointsToAlarm: 48
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions: !If [HasDataNotifications, [!Ref DataNotificationsTopicArn], !Ref AWS::NoValue]
+      OKActions: !If [HasDataNotifications, [!Ref DataNotificationsTopicArn], !Ref AWS::NoValue]
+      Tags:
+        - Key: Project
+          Value: jeju-3d
 
   WorkerExecutionRole:
     Type: AWS::IAM::Role

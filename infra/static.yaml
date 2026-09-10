@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Retained private Jeju web assets and production CloudFront OAC. No compute or shared networking.
+
+Parameters:
+  DistributionArn:
+    Type: String
+    Description: Existing production Jeju3dApp CloudFront distribution ARN.
+    AllowedPattern: '^arn:aws:cloudfront::061525506239:distribution/[A-Z0-9]+$'
+
+Rules:
+  OwnedRegionalStack:
+    Assertions:
+      - Assert: !Equals [!Ref AWS::AccountId, '061525506239']
+        AssertDescription: Use the existing Jeju account.
+      - Assert: !Equals [!Ref AWS::Region, ap-northeast-2]
+        AssertDescription: Store assets in the existing application region.
+
+Resources:
+  AssetsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'jeju-3d-assets-${AWS::AccountId}-${AWS::Region}'
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+        - Key: Purpose
+          Value: immutable-web-assets
+
+  AssetsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AssetsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: RequireTLS
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt AssetsBucket.Arn
+              - !Sub '${AssetsBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+          - Sid: ProductionCloudFrontAssetsOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${AssetsBucket.Arn}/assets/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Ref DistributionArn
+
+  AssetsOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: jeju-3d-private-assets
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+Outputs:
+  AssetsBucketName:
+    Value: !Ref AssetsBucket
+  AssetsBucketDomainName:
+    Value: !GetAtt AssetsBucket.RegionalDomainName
+  AssetsOriginAccessControlId:
+    Value: !Ref AssetsOriginAccessControl
