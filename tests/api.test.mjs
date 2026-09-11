@@ -134,6 +134,7 @@ test('config verifies secure host-only sessions without exposing runtime setting
     version: 'api-test',
     features: { catalog: true, guide: false, planner: true, pwa: true, routing: false },
     guide: { daily_limit: 30 },
+    kakao: { enabled: false },
     routing: {
       enabled: false,
       modes: ['walk', 'car'],

@@ -48,7 +48,7 @@
 | `AWS::CloudFront::OriginAccessControl` — `MediaOriginAccessControl`, `AssetsOriginAccessControl` | `infra/data.yaml`, `infra/static.yaml`, `infra/application.yaml` | `09-https-edge.md` | `always`/`sigv4` 서명과 S3 origin 연결 확인. `/media/*`, `/assets/*` 내용·MIME·checksum 검증 | 실습. 앱은 다른 실습 스택의 OAC ID를 입력으로 소비 |
 | 릴리스별 정적 자산과 SHA-256 manifest | `scripts/publish-assets.py`, `scripts/deploy.py: require_asset_manifest`, `scripts/verify-shared-assets.py` | `08-web.md`, `09-https-edge.md`, `12-validation.md` | 실제 이미지에서 추출한 자산을 먼저 게시하고 manifest를 마지막에 기록. 현재·이전 HTML이 참조하는 파일의 HTTP 응답·hash 확인 | 실습 버킷의 릴리스 공유 자산. 과거 객체를 빌드마다 삭제하지 않음 |
 | `AWS::SecretsManager::Secret` — `SessionSecret`, `OriginSecret` | `infra/application.yaml`, `server/sessions.mjs` | `08-web.md`, `09-https-edge.md`, `13-cleanup.md` | 세션 서명 키와 ALB 검증 키 분리. ECS 비밀 주입 및 CloudFormation 동적 참조 연결을 값 노출 없이 확인 | 실습·보존. 제공처 API 키와도 별개 |
-| SSM Parameter Store SecureString | `scripts/fetch-place-details.py: KEY_PATHS`, `infra/data.yaml: WorkerRole` | `02-aws-environment.md`, `10-enrichment.md`, `13-cleanup.md` | 원본 경로는 `/jeju-atlas/tourapi-service-key`, `/jeju-atlas/visitjeju-api-key`. 팀 사본 경로·수집 역할 읽기 권한 확인; 웹·Guide·Tools에 키를 배포하지 않음 | 사전 준비한 팀 전용 항목. 기존 YAML에 `AWS::SSM::Parameter` 생성 리소스 없음 |
+| SSM Parameter Store SecureString | `scripts/fetch-place-details.py: KEY_PATHS`, `infra/data.yaml: WorkerRole`, `infra/application.yaml: KakaoRestApiKeyParameter` | `02-aws-environment.md`, `10-enrichment.md`, `13-cleanup.md` | TourAPI·VisitJeju 키는 수집 역할만 사용. 선택한 카카오 REST 키는 참가자 전용 `kakao-rest-api-key`를 ECS secrets로 주입하고 실행 역할은 해당 ARN만 읽음. 브라우저·Guide·Tools에 제공처 키를 보내지 않음 | 사전 준비한 팀 전용 항목. 기존 YAML에 `AWS::SSM::Parameter` 생성 리소스 없음 |
 | `AWS::DynamoDB::Table` — `GuideQuota` | `infra/application.yaml`, `server/admission.mjs`, `server/api.mjs` | `08-web.md`, `11-operations.md`, `13-cleanup.md` | on-demand, 암호화, `expiresAt` TTL, 삭제 보호 확인. 여러 웹 태스크의 조건부 입장·동시 실행 lease·중복 request ID 거절 검사 | 실습·보존. 호출 한도 저장소이며 장소 카탈로그 DB가 아님 |
 
 ## 실제 Atlas AgentCore
@@ -175,6 +175,6 @@ Memory의 `EventExpiryDuration: 30`은 단기 이벤트 설정이다. 추출된 
 - **GuardDuty 배포**: ECS 실행 역할의 AWS 관리 sidecar 저장소 읽기 grant와 과거 계정 관측만 있다. `AWS::GuardDuty::*` 선언은 없다. 계정에서 자동 삽입된다면 리허설 때 실제 동작·추가 용량을 확인하며 임의로 켜거나 끄지 않는다.
 - **Inspector 활성화 완료**: ECR `ScanOnPush`만으로 계정 enhanced scanning/지속 검사 활성화를 입증하지 않는다. 과거 “발견 0건”은 새 이미지 결과가 아니다.
 - **API Gateway, Route 53 hosted zone/record, NAT/VPC endpoint, RDS, OpenSearch, Kinesis/Firehose, 별도 KMS key, AWS Budgets**: 이 템플릿들의 생성 리소스가 아니다. 지원 기능이나 ARN 이름으로 추측하지 않는다.
-- **AgentCore API-key/OAuth credential provider**: Gateway target의 `GATEWAY_IAM_ROLE`과 구분한다. 현재 Atlas의 외부 API 키는 수집 작업의 SSM 경계에 있다.
+- **AgentCore API-key/OAuth credential provider**: Gateway target의 `GATEWAY_IAM_ROLE`과 구분한다. 관광정보 키는 수집 작업의 SSM 경계, 선택한 카카오 REST 키는 웹 ECS의 비밀 주입 경계에 있으며 AgentCore credential provider를 생성하지 않는다.
 
 `scripts/check.mjs`는 Node/Python 회귀·cfn-lint·npm audit·앱 빌드를 실행한다. npm audit는 패키지 registry 통신이 필요하고 결과/빌드 파일을 작성하므로 “완전 오프라인·읽기 전용”이라고 부르지 않는다. `scripts/verify.py`와 live 브라우저·개인정보·복구 도구는 별도의 클라우드/네트워크 검사다. 교재 작성 중의 소스 검토만으로 이 검사들이 통과했다고 표시하지 않는다.

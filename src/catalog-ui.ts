@@ -6,6 +6,8 @@ import { categorySymbol, icon } from './icons';
 import { hoursText } from './guide-facts';
 import { getLocale, placeName, t } from './i18n';
 import { evidenceHTML } from './field-evidence';
+import { KakaoDetails } from './kakao-details';
+import './kakao-details.css';
 
 interface CatalogOptions {
   center: () => { lng: number; lat: number };
@@ -131,11 +133,13 @@ export class CatalogUI {
   private photoIndex = 0;
   private photoItems: PlacePhoto[] = [];
   private officialProvider: OfficialPlaceDetail['provider'] = 'tourapi';
+  private kakaoDetails: KakaoDetails;
 
   constructor(root: HTMLElement, detailRoot: HTMLElement, options: CatalogOptions) {
     this.root = root;
     this.detailRoot = detailRoot;
     this.options = options;
+    this.kakaoDetails = new KakaoDetails(() => this.detailRoot.hidden ? null : this.detailRoot.querySelector('#kakao-place-details'));
     root.innerHTML = `
       <div class="catalog-status-line"><span id="catalog-total">서비스 카탈로그 연결 중</span><button id="catalog-refresh" aria-label="카탈로그 새로고침">${icon('reset')}</button></div>
       <label class="search-field catalog-search-field">${icon('search')}<span class="sr-only">전체 카탈로그 장소 검색</span><input id="catalog-search" type="search" placeholder="이름, 지역, 찾고 싶은 장소" maxlength="160" autocomplete="off"></label>
@@ -248,6 +252,8 @@ export class CatalogUI {
       const referenceOpen = this.detailRoot.querySelector<HTMLDetailsElement>('#catalog-reference-details')?.open;
       const focusedAction = document.activeElement instanceof HTMLElement && this.detailRoot.contains(document.activeElement)
         ? document.activeElement.dataset.detailAction : undefined;
+      const focusedKakao = document.activeElement instanceof HTMLElement && this.detailRoot.contains(document.activeElement)
+        ? document.activeElement.dataset.kakaoFocus : undefined;
       this.renderDetail(this.currentDetail);
       const reference = this.detailRoot.querySelector<HTMLDetailsElement>('#catalog-reference-details');
       if (reference) reference.open = Boolean(referenceOpen);
@@ -255,6 +261,7 @@ export class CatalogUI {
       const content = this.detailRoot.querySelector<HTMLElement>('.detail-content');
       if (content) content.scrollTop = scroll;
       if (focusedAction) this.detailRoot.querySelector<HTMLElement>(`[data-detail-action="${CSS.escape(focusedAction)}"]`)?.focus({ preventScroll: true });
+      if (focusedKakao) this.detailRoot.querySelector<HTMLElement>(`[data-kakao-focus="${CSS.escape(focusedKakao)}"]`)?.focus({ preventScroll: true });
     });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && !this.detailRoot.hidden && !document.querySelector('dialog[open]')) this.closeDetail();
@@ -503,7 +510,7 @@ export class CatalogUI {
   async openPlace(id: string, saved?: PlaceSnapshot): Promise<void> {
     this.detailController?.abort();
     this.weatherController?.abort();
-    if (this.detailId !== id) { this.photoIndex = 0; this.officialProvider = 'tourapi'; }
+    if (this.detailId !== id) { this.photoIndex = 0; this.officialProvider = 'tourapi'; this.kakaoDetails.clear(); }
     this.detailId = id;
     this.savedFallback = saved;
     this.currentDetail = null;
@@ -544,6 +551,7 @@ export class CatalogUI {
   }
 
   closeDetail(restoreFocus = true): void {
+    this.kakaoDetails.clear();
     if (this.detailRoot.hidden) return;
     this.detailController?.abort();
     this.weatherController?.abort();
@@ -708,6 +716,7 @@ export class CatalogUI {
       <div class="detail-related-actions"><button data-detail-action="nearby">${icon('compass')}주변 장소</button><button data-detail-action="category">${icon(categorySymbol(place.category).icon)}${html(categoryName(place.category))} 더 보기</button></div>
       <div class="detail-content">
         ${this.renderGallery(place)}
+        <section id="kakao-place-details" class="kakao-details" hidden tabindex="-1" aria-labelledby="kakao-details-title" aria-live="polite" data-kakao-focus="panel" data-i18n-ignore></section>
         ${official.length ? this.renderOfficialDetails(place) : this.renderCatalogVisitInfo(place)}
         <details id="catalog-reference-details" class="catalog-reference-details"><summary>${t('카탈로그 기록과 출처')}</summary>
         <section class="detail-section"><h3>기본 정보 <span>${html(place.source_label || sourceName(place.source))}</span></h3><p class="detail-base-note">${html(note)}</p>${baseEvidence}<p class="detail-overview">${html(place.summary || t('기본 소개 정보 없음'))}</p><dl class="detail-basics"><div><dt>주소</dt><dd>${html(place.address || noData)}</dd></div><div><dt>전화</dt><dd>${place.phone ? phoneHTML(place.phone) : noData}</dd></div><div><dt>좌표</dt><dd class="mono">${place.lat.toFixed(5)}° N, ${place.lng.toFixed(5)}° E</dd></div><div><dt>장소 링크</dt><dd>${place.url ? link(place.url, /openstreetmap\.org/i.test(place.url) ? 'OpenStreetMap 원문' : '장소 링크') : noData}</dd></div><div><dt>기본 정보 갱신</dt><dd>${html(dateLabel(place.updated_at))}</dd></div></dl><p class="micro-note">장소 이름·주소·소개는 제공된 원문이 표시될 수 있습니다.</p></section>
@@ -723,6 +732,7 @@ export class CatalogUI {
         </details>
         <section id="place-weather" class="detail-section" aria-live="polite"><h3>이 장소의 날씨</h3><p class="micro-note">현재 날씨와 3일 예보를 확인하는 중…</p></section>
       </div>`;
+    this.kakaoDetails.show(place);
     this.updateSavedButtons();
     if (focusInside) this.detailRoot.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
   }
@@ -765,6 +775,7 @@ export class CatalogUI {
     }
     if (action === 'close' || action === 'back') { this.closeDetail(); return; }
     if (action === 'retry') { void this.openPlace(this.detailId, this.savedFallback); return; }
+    if (action === 'kakao-retry') { this.kakaoDetails.retry(); return; }
     if (action === 'weather') { if (this.currentDetail) void this.loadWeather(this.currentDetail); return; }
     const place = this.currentDetail ?? this.savedFallback;
     if (!place) return;

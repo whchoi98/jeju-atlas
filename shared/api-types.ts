@@ -154,4 +154,5 @@ export type AppConfig = {
   features: { catalog: boolean; guide: boolean; planner: boolean; pwa: boolean; routing: boolean };
   guide: { daily_limit: number; csrf_token?: string };
   routing: RoutingConfig;
+  kakao?: { enabled: boolean; csrf_token?: string };
 };

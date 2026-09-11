@@ -89,7 +89,7 @@
       <span class="nav-number">09</span>
       <span class="nav-title">도메인·HTTPS·엣지 구성</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="10 공식 정보와 주간 보강 Visit Jeju·TourAPI·올레길·사진의 출처를 유지하며 보강합니다. 키 입력 수집 이미지와 Schedule 결과 해석 올레길과 웹 확인 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="10 공식 정보와 주간 보강 Visit Jeju·TourAPI·올레길·사진의 출처를 유지하며 보강합니다. 키 입력 수집 이미지와 Schedule 결과 해석 올레길과 웹 확인 선택 실습 · 카카오 장소 정보 AI CLI 프롬프트 카드">
     <a class="chapter-link" href="../chapters/10-enrichment.html" data-chapter-link="10-enrichment">
       <span class="nav-number">10</span>
       <span class="nav-title">공식 정보와 주간 보강</span>
@@ -339,9 +339,9 @@
 </tr>
 <tr>
 <td>SSM Parameter Store SecureString</td>
-<td><code>scripts/fetch-place-details.py: KEY_PATHS</code>, <code>infra/data.yaml: WorkerRole</code></td>
+<td><code>scripts/fetch-place-details.py: KEY_PATHS</code>, <code>infra/data.yaml: WorkerRole</code>, <code>infra/application.yaml: KakaoRestApiKeyParameter</code></td>
 <td><code>02-aws-environment.md</code>, <code>10-enrichment.md</code>, <code>13-cleanup.md</code></td>
-<td>원본 경로는 <code>/jeju-atlas/tourapi-service-key</code>, <code>/jeju-atlas/visitjeju-api-key</code>. 팀 사본 경로·수집 역할 읽기 권한 확인; 웹·Guide·Tools에 키를 배포하지 않음</td>
+<td>TourAPI·VisitJeju 키는 수집 역할만 사용. 선택한 카카오 REST 키는 참가자 전용 <code>kakao-rest-api-key</code>를 ECS secrets로 주입하고 실행 역할은 해당 ARN만 읽음. 브라우저·Guide·Tools에 제공처 키를 보내지 않음</td>
 <td>사전 준비한 팀 전용 항목. 기존 YAML에 <code>AWS::SSM::Parameter</code> 생성 리소스 없음</td>
 </tr>
 <tr>
@@ -1041,7 +1041,7 @@
 <li><strong>GuardDuty 배포</strong>: ECS 실행 역할의 AWS 관리 sidecar 저장소 읽기 grant와 과거 계정 관측만 있다. <code>AWS::GuardDuty::*</code> 선언은 없다. 계정에서 자동 삽입된다면 리허설 때 실제 동작·추가 용량을 확인하며 임의로 켜거나 끄지 않는다.</li>
 <li><strong>Inspector 활성화 완료</strong>: ECR <code>ScanOnPush</code>만으로 계정 enhanced scanning/지속 검사 활성화를 입증하지 않는다. 과거 “발견 0건”은 새 이미지 결과가 아니다.</li>
 <li><strong>API Gateway, Route 53 hosted zone/record, NAT/VPC endpoint, RDS, OpenSearch, Kinesis/Firehose, 별도 KMS key, AWS Budgets</strong>: 이 템플릿들의 생성 리소스가 아니다. 지원 기능이나 ARN 이름으로 추측하지 않는다.</li>
-<li><strong>AgentCore API-key/OAuth credential provider</strong>: Gateway target의 <code>GATEWAY_IAM_ROLE</code>과 구분한다. 현재 Atlas의 외부 API 키는 수집 작업의 SSM 경계에 있다.</li>
+<li><strong>AgentCore API-key/OAuth credential provider</strong>: Gateway target의 <code>GATEWAY_IAM_ROLE</code>과 구분한다. 관광정보 키는 수집 작업의 SSM 경계, 선택한 카카오 REST 키는 웹 ECS의 비밀 주입 경계에 있으며 AgentCore credential provider를 생성하지 않는다.</li>
 </ul>
 <p><code>scripts/check.mjs</code>는 Node/Python 회귀·cfn-lint·npm audit·앱 빌드를 실행한다. npm audit는 패키지 registry 통신이 필요하고 결과/빌드 파일을 작성하므로 “완전 오프라인·읽기 전용”이라고 부르지 않는다. <code>scripts/verify.py</code>와 live 브라우저·개인정보·복구 도구는 별도의 클라우드/네트워크 검사다. 교재 작성 중의 소스 검토만으로 이 검사들이 통과했다고 표시하지 않는다.</p></div>
 

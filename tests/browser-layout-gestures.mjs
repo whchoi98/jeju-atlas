@@ -123,6 +123,27 @@ try {
     await page.screenshot({ path: resolve(output, 'guide-desktop.png') });
     return metrics;
   });
+  await check('Collapsing and restoring the sidebar preserves the AI tab, draft and answer', async () => {
+    const answerBefore = await page.locator('#guide-messages').innerText();
+    await page.locator('#guide-input').fill('사이드바 복원 검사');
+    await page.locator('#sidebar-toggle').click();
+    await canvasReady();
+    assert.equal(await page.locator('#sidebar-toggle').getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.locator('#place-drawer').evaluate(node => node.inert), true);
+    assert.ok(await page.evaluate(() => window.__JEJU_MAP__.getContainer().clientWidth >= innerWidth - 1));
+    await page.locator('#sidebar-toggle').click();
+    await canvasReady();
+    assert.equal(await page.locator('#tab-guide').getAttribute('aria-selected'), 'true');
+    assert.equal(await page.locator('#guide-input').inputValue(), '사이드바 복원 검사');
+    assert.equal(await page.locator('#guide-messages').innerText(), answerBefore);
+    await page.locator('#guide-input').fill('');
+    await page.locator('#sidebar-toggle').click();
+    await page.keyboard.press('/');
+    await canvasReady();
+    assert.equal(await page.locator('#sidebar-toggle').getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('#place-drawer').evaluate(node => node.inert), false);
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'catalog-search');
+  });
 
   await page.locator('#tab-trip').click();
   await check('Walking and driving cards are compact and remain selectable', async () => {
@@ -221,6 +242,8 @@ try {
     assert.ok(await page.locator('#guide-input').isVisible());
     assert.equal(await page.locator('#guide-followups button').count(), 3);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    assert.equal(await page.locator('#sidebar-toggle').isVisible(), false);
+    assert.equal(await page.locator('#place-drawer').evaluate(node => node.inert), false);
     await page.screenshot({ path: resolve(output, 'guide-mobile.png') });
   });
   const touchContext = await browser.newContext({

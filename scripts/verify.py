@@ -377,6 +377,32 @@ def verify():
     check("Session secret injected without plaintext environment", "ATLAS_SESSION_SECRET" not in environment
           and any(item["name"] == "ATLAS_SESSION_SECRET" and item["valueFrom"].startswith("arn:aws:secretsmanager:")
                   for item in container.get("secrets", [])))
+    kakao_parameter = parameters.get("KakaoRestApiKeyParameter", "")
+    kakao_secrets = [item for item in container.get("secrets", []) if item["name"] == "KAKAO_REST_API_KEY"]
+    expected_kakao_arn = f"arn:aws:ssm:{REGION}:{ACCOUNT}:parameter{kakao_parameter}" if kakao_parameter else ""
+    check("Kakao credential is optional and injected only as a secret reference",
+          "KAKAO_REST_API_KEY" not in environment and (
+              kakao_secrets == [{"name": "KAKAO_REST_API_KEY", "valueFrom": expected_kakao_arn}]
+              if kakao_parameter else not kakao_secrets))
+    if kakao_parameter:
+        check("Kakao has its own bounded provider budget",
+              environment.get("KAKAO_DAILY_LIMIT") == parameters.get("KakaoDailyLimit")
+              and 1 <= int(environment.get("KAKAO_DAILY_LIMIT", "0")) <= 1000)
+        execution_role = taskdef["executionRoleArn"].split("/")[-1]
+        ssm_resources = set()
+        ssm_actions = set()
+        for policy_name in iam.list_role_policies(RoleName=execution_role)["PolicyNames"]:
+            policy = iam.get_role_policy(RoleName=execution_role, PolicyName=policy_name)["PolicyDocument"]
+            for statement in policy.get("Statement", []):
+                actions = statement.get("Action", [])
+                if isinstance(actions, str):
+                    actions = [actions]
+                if statement.get("Effect") == "Allow" and any(action.startswith("ssm:") for action in actions):
+                    ssm_actions.update(action for action in actions if action.startswith("ssm:"))
+                    resources = statement.get("Resource", [])
+                    ssm_resources.update([resources] if isinstance(resources, str) else resources)
+        check("Execution role reads only the selected Kakao parameter",
+              ssm_actions == {"ssm:GetParameters"} and ssm_resources == {expected_kakao_arn})
     check("Guide fleet limits configured", environment.get("GUIDE_DAILY_LIMIT") == settings["GuideDailyLimit"]
           and environment.get("GUIDE_HOURLY_LIMIT") == settings["GuideHourlyLimit"]
           and environment.get("GUIDE_GLOBAL_CONCURRENCY") == settings["GuideGlobalConcurrency"])

@@ -74,6 +74,17 @@ Parameters:
     Default: 2
     MinValue: 1
     MaxValue: 2
+  KakaoRestApiKeyParameter:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^/jeju-atlas/kakao-rest-api-key$'
+    Description: Optional owned SSM SecureString name; never a key value.
+  KakaoDailyLimit:
+    Type: Number
+    Default: 1000
+    MinValue: 1
+    MaxValue: 1000
+    Description: Fleet-wide daily Kakao HTTP request cap, separate from AI usage.
   TargetHealthPath:
     Type: String
     Default: /readyz
@@ -238,6 +249,7 @@ Conditions:
   HasDetails: !Not [!Equals [!Ref DetailsBucket, '']]
   HasSharedAssets: !Not [!Equals [!Ref AssetsBucketDomainName, '']]
   RoutingEnabled: !Not [!Equals [!Ref RoutingImageUri, '']]
+  HasKakao: !Not [!Equals [!Ref KakaoRestApiKeyParameter, '']]
 
 Resources:
   SessionSecret:
@@ -536,6 +548,12 @@ Resources:
               - Effect: Allow
                 Action: secretsmanager:GetSecretValue
                 Resource: !Ref SessionSecret
+              - !If
+                - HasKakao
+                - Effect: Allow
+                  Action: ssm:GetParameters
+                  Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${KakaoRestApiKeyParameter}'
+                - !Ref AWS::NoValue
       Tags:
         - Key: Project
           Value: jeju-3d
@@ -647,6 +665,8 @@ Resources:
               Value: !Ref GuideRuntimeArn
             - Name: GUIDE_QUOTA_TABLE
               Value: !Ref GuideQuota
+            - Name: KAKAO_DAILY_LIMIT
+              Value: !Ref KakaoDailyLimit
             - Name: GUIDE_DAILY_LIMIT
               Value: !Ref GuideDailyLimit
             - Name: GUIDE_HOURLY_LIMIT
@@ -677,6 +697,11 @@ Resources:
           Secrets:
             - Name: ATLAS_SESSION_SECRET
               ValueFrom: !Ref SessionSecret
+            - !If
+              - HasKakao
+              - Name: KAKAO_REST_API_KEY
+                ValueFrom: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${KakaoRestApiKeyParameter}'
+              - !Ref AWS::NoValue
           MountPoints:
             - SourceVolume: catalog-cache
               ContainerPath: /tmp

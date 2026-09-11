@@ -74,6 +74,36 @@ Schedule 활성화만으로 첫 수집이 이미 완료됐다고 기록하지 �
 Data 스택의 미디어 정책과 실제 Distribution이 맞지 않으면 S3를 공개하는 대신
 08장의 데이터 정책 연결을 다시 확인합니다.
 
+## 선택 실습 · 카카오 장소 정보
+
+카카오 Developers에서 실습 앱의 **카카오맵 사용 설정을 ON**으로 바꾸고 REST API 키를 준비합니다.
+키 종류를 혼동하지 않습니다. 이 기능은 ECS의 REST 조회이므로 JavaScript·네이티브 앱 키는 사용하지 않습니다.
+
+```bash
+python3 workshop/scripts/lab.py set-secret --provider kakao --config "$ATLAS_CONFIG" --execute
+```
+
+참가자 앱의 `infra/production.json`에 `KakaoRestApiKeyParameter`를
+`/jeju-atlas-lab-<참가자>/kakao-rest-api-key`로, `KakaoDailyLimit`를 `1000` 이하로 설정합니다.
+JSON에는 키 값이 아닌 내 SSM 경로만 넣습니다. 진행자가 준비한 서로 다른 프로젝트의 키를 공유하지 않습니다.
+
+```bash
+python3 workshop/scripts/lab.py run build-push --config "$ATLAS_CONFIG" --execute
+python3 workshop/scripts/lab.py run plan-app --config "$ATLAS_CONFIG" --execute
+python3 workshop/scripts/lab.py run apply-app --config "$ATLAS_CONFIG" --execute
+python3 workshop/scripts/lab.py run status-app --config "$ATLAS_CONFIG" --execute
+```
+
+계획에서 실행 역할의 `ssm:GetParameters`가 내 파라미터 ARN 한 개로 제한되고,
+웹 컨테이너에는 ECS secrets로 전달되는지 확인합니다. 브라우저 설정·JS·로그에 키가 없어야 합니다.
+장소 상세의 카카오 카드에서 이름·주소·전화·상세 링크·조회 시각을 확인합니다.
+기존 장소 ID·지도 좌표·샘플 근거와 공식 관광정보를 덮어쓰지 않습니다.
+
+동일한 이름의 다른 지점이나 불완전한 검색 결과는 확정 연결하지 않습니다.
+카카오 Local은 사진·후기·영업시간을 제공하지 않으므로 추가 방문 정보는 카카오 상세 페이지로 연결합니다.
+조회는 별도의 일일 한도와 동시 실행 제한을 사용하며, 카카오 결과는 DB·PWA 캐시에 저장하지 않습니다.
+API 인증이나 제공처가 실패해도 기존 장소 상세는 읽을 수 있어야 합니다.
+
 - [ ] 숨김 입력으로 내 SSM 경로에 키를 저장했습니다.
 - [ ] 전용 worker와 주간 Schedule을 구성했습니다.
 - [ ] 최소 한 번의 실제 수집 결과·로그·갱신 시점을 확인했습니다.

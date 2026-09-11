@@ -124,11 +124,13 @@ def validate_settings(values):
     integer_bounds = {
         "DesiredCount": (1, 4), "MinTaskCount": (2, 4), "MaxTaskCount": (2, 4),
         "GuideDailyLimit": (1, 30), "GuideHourlyLimit": (1, 5), "GuideGlobalConcurrency": (1, 2),
+        "KakaoDailyLimit": (1, 1000),
     }
     allowed = {
         "ViewerDomainName", "ViewerCertificateArn", "OriginDomainName",
         "OriginTlsEnabled", "OriginTlsMode", "TargetHealthPath",
         "RoutingEnabled", "TaskCpu", "TaskMemory", "RoutingMemory",
+        "KakaoRestApiKeyParameter",
     } | set(integer_bounds)
     if not isinstance(values, dict) or set(values) - allowed:
         raise ValueError("Unknown production setting; secrets and networking do not belong here")
@@ -143,10 +145,15 @@ def validate_settings(values):
     result = {
         "ViewerDomainName": domain, "ViewerCertificateArn": certificate,
     }
+    kakao_parameter = values.get("KakaoRestApiKeyParameter", "")
+    if kakao_parameter not in ("", "/jeju-atlas/kakao-rest-api-key"):
+        raise ValueError("KakaoRestApiKeyParameter must reference the owned SecureString, never a key value")
+    result["KakaoRestApiKeyParameter"] = kakao_parameter
     for key, bounds in integer_bounds.items():
         raw = values.get(key, {
             "DesiredCount": 2, "MinTaskCount": 2, "MaxTaskCount": 4,
             "GuideDailyLimit": 30, "GuideHourlyLimit": 5, "GuideGlobalConcurrency": 2,
+            "KakaoDailyLimit": 1000,
         }[key])
         if isinstance(raw, bool) or not re.fullmatch(r"\d+", str(raw)) or not bounds[0] <= int(raw) <= bounds[1]:
             raise ValueError(f"{key} must be an integer between {bounds[0]} and {bounds[1]}")
@@ -190,6 +197,18 @@ def validate_settings(values):
             raise ValueError("Unsupported routing container memory limit")
         result["RoutingMemory"] = memory
     return result
+
+
+def assert_kakao_parameter(session, settings):
+    """Check metadata only; the deployer never reads the provider key value."""
+    name = settings.get("KakaoRestApiKeyParameter")
+    if not name:
+        return
+    rows = session.client("ssm").describe_parameters(ParameterFilters=[
+        {"Key": "Name", "Option": "Equals", "Values": [name]},
+    ])["Parameters"]
+    if len(rows) != 1 or rows[0].get("Name") != name or rows[0].get("Type") != "SecureString":
+        raise ValueError("Create the owned Kakao SecureString before enabling this feature")
 
 
 def validate_live_domain(settings, distribution):
@@ -446,6 +465,7 @@ def plan(session, kind, overrides=None):
             "Release": image["release"],
         }
         settings = validate_settings(json.loads(SETTINGS.read_text()))
+        assert_kakao_parameter(session, settings)
         params.update({key: value for key, value in settings.items() if key != "RoutingEnabled"})
         # Never fall back to the reference runtime/catalog on a new app deployment.
         params.update(atlas_agent_parameters())

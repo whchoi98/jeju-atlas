@@ -36,6 +36,9 @@ export class AtlasExperience {
   private isCatalogSelection = false;
   private activeTab = 'explore';
   private panelResizeFrame: number | undefined;
+  private desktopSidebarCollapsed = false;
+  private readonly mobileViewport = window.matchMedia('(max-width: 760px)');
+  private readonly sidebarToggle = document.createElement('button');
 
   constructor(options: ExperienceOptions) {
     this.options = options;
@@ -161,6 +164,20 @@ export class AtlasExperience {
         document.querySelector<HTMLButtonElement>(`#tab-${order[next]}`)!.focus();
       });
     });
+    this.sidebarToggle.id = 'sidebar-toggle';
+    this.sidebarToggle.className = 'button sidebar-toggle';
+    this.sidebarToggle.type = 'button';
+    this.sidebarToggle.setAttribute('aria-controls', 'place-drawer');
+    this.sidebarToggle.setAttribute('data-i18n-ignore', '');
+    this.sidebarToggle.innerHTML = icon('chevron');
+    document.querySelector('.app-header')!.prepend(this.sidebarToggle);
+    this.sidebarToggle.addEventListener('click', () => this.setSidebarCollapsed(!this.desktopSidebarCollapsed));
+    this.mobileViewport.addEventListener('change', () => {
+      this.updateSidebarVisibility();
+      this.resizeMapForSidebar();
+    });
+    window.addEventListener('atlas:locale-change', () => this.updateSidebarToggle());
+    this.updateSidebarVisibility();
     window.addEventListener('atlas:saved-change', () => {
       if (this.isCatalogSelection && this.selectedCatalog) this.renderSelection(this.selectedCatalog);
     });
@@ -193,6 +210,7 @@ export class AtlasExperience {
 
   showTab(tab: string): void {
     if (!['explore', 'trip', 'guide'].includes(tab)) return;
+    this.setSidebarCollapsed(false);
     const guideTransition = (this.activeTab === 'guide') !== (tab === 'guide');
     this.activeTab = tab;
     document.body.dataset.activePanel = tab;
@@ -204,7 +222,45 @@ export class AtlasExperience {
       button.tabIndex = selected ? 0 : -1;
     }
     this.catalog.closeDetail(false);
-    if (!guideTransition || matchMedia('(max-width: 760px)').matches) return;
+    if (guideTransition && !this.mobileViewport.matches) this.resizeMapForSidebar();
+  }
+
+  private setSidebarCollapsed(collapsed: boolean): void {
+    if (this.mobileViewport.matches || this.desktopSidebarCollapsed === collapsed) return;
+    this.desktopSidebarCollapsed = collapsed;
+    this.updateSidebarVisibility();
+    this.resizeMapForSidebar();
+  }
+
+  private updateSidebarToggle(): void {
+    const collapsed = !this.mobileViewport.matches && this.desktopSidebarCollapsed;
+    const label = getLocale() === 'en'
+      ? collapsed ? 'Expand sidebar' : 'Collapse sidebar'
+      : collapsed ? '사이드바 펼치기' : '사이드바 접기';
+    this.sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+    this.sidebarToggle.setAttribute('aria-label', label);
+    this.sidebarToggle.title = label;
+  }
+
+  private updateSidebarVisibility(): void {
+    const mobile = this.mobileViewport.matches;
+    const collapsed = !mobile && this.desktopSidebarCollapsed;
+    const drawer = document.getElementById('place-drawer')!;
+    const drawerToggle = document.getElementById('drawer-toggle')!;
+    this.updateSidebarToggle();
+    if ((collapsed && drawer.contains(document.activeElement))
+      || (!mobile && document.activeElement === drawerToggle)) {
+      this.sidebarToggle.focus({ preventScroll: true });
+    }
+    // Only gate the aside; the existing drawer owns its mobile content's inert state.
+    drawer.inert = collapsed;
+    if (collapsed) drawer.setAttribute('aria-hidden', 'true');
+    else drawer.removeAttribute('aria-hidden');
+    document.body.dataset.sidebarCollapsed = String(collapsed);
+    if (mobile && document.activeElement === this.sidebarToggle) drawerToggle.focus({ preventScroll: true });
+  }
+
+  private resizeMapForSidebar(): void {
     if (this.panelResizeFrame !== undefined) cancelAnimationFrame(this.panelResizeFrame);
     // Let the map's container observer resize first; repair only a stale canvas.
     this.panelResizeFrame = requestAnimationFrame(() => {

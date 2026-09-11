@@ -10,6 +10,12 @@
 
 Visit Jeju와 TourAPI 키 값은 요구하거나 읽지 말고 학습자가 자기 터미널의 set-secret 숨김 입력으로 저장하도록 안내하세요. 수집 이미지·내 SSM 경로·내 카탈로그와 미디어 origin을 확인하여 Data와 Schedule을 구성하세요. 실제 수집 결과, 라이선스, provenance, 미확인 필드를 확인하세요. 빈 운영 정보나 시설을 생성하지 마세요.
 
+카카오 선택 실습을 진행하면 `set-secret --provider kakao`로 REST API 키를 숨김 입력받고,
+참가자 앱의 `KakaoRestApiKeyParameter`에는 참가자 전용 SSM 경로만 넣으세요.
+카카오맵 서비스 활성화, 실행 역할의 정확한 파라미터 읽기 권한, 별도 조회 한도와 실제 상세 카드를 확인하세요.
+이름·분류·위치가 모호한 결과를 확정 연결하거나 원래 지도 좌표·출처를 바꾸지 마세요.
+사진·후기·영업시간을 Local API가 제공한다고 설명하지 마세요.
+
 교재는 `$ATLAS_REPO/workshop/chapters/10-enrichment.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.
 원본 교재·소스는 읽기만 하고, 코드 변경은 생성된 실습 작업 공간에서 수행하세요.

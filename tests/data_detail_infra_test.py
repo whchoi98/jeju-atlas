@@ -66,7 +66,7 @@ class DataInfrastructureTests(unittest.TestCase):
             with self.subTest(role=role_name):
                 statements = [statement for policy in resources[role_name]["Properties"]["Policies"]
                               for statement in policy["PolicyDocument"]["Statement"]]
-                pull = [item for item in statements if "ecr:BatchGetImage" in item["Action"]]
+                pull = [item for item in statements if "ecr:BatchGetImage" in item.get("Action", [])]
                 self.assertEqual(len(pull), 1)
                 self.assertEqual(set(pull[0]["Action"]), {
                     "ecr:BatchGetImage", "ecr:BatchCheckLayerAvailability", "ecr:GetDownloadUrlForLayer",

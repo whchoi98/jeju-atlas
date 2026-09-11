@@ -174,7 +174,8 @@ def configure_domain(config, args):
 
 def set_provider_secret(config, args):
     names = resource_names(config)
-    suffix = {"visitjeju": "visitjeju-api-key", "tourapi": "tourapi-service-key"}[args.provider]
+    suffix = {"visitjeju": "visitjeju-api-key", "tourapi": "tourapi-service-key",
+              "kakao": "kakao-rest-api-key"}[args.provider]
     name = "/" + names["project"] + "/" + suffix
     emit({"parameter": name, "type": "SecureString", "valueWillBePrinted": False})
     if not require_execute(args, "set-provider-secret"):
@@ -358,7 +359,7 @@ def main():
     domain.add_argument("--viewer-certificate", required=True)
     domain.add_argument("--execute", action="store_true")
     secret = commands.add_parser("set-secret", parents=[common])
-    secret.add_argument("--provider", choices=["visitjeju", "tourapi"], required=True)
+    secret.add_argument("--provider", choices=["visitjeju", "tourapi", "kakao"], required=True)
     secret.add_argument("--execute", action="store_true")
     args = parser.parse_args()
     if args.action == "init-ec2":

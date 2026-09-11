@@ -1,6 +1,18 @@
 // Registered interface copy only. Source descriptions and proper names are
 // preserved; placeName() uses a provider's name_en when available.
 export const en: Record<string, string> = {
+  '카카오 방문 정보': 'Kakao visiting information',
+  '카카오 방문 정보를 불러오는 중…': 'Loading Kakao visiting information…',
+  '카카오 방문 정보를 불러오지 못했어요. 기본 장소 정보는 계속 볼 수 있어요.': 'Kakao visiting information could not load. The main place details are still available.',
+  '카카오 정보 다시 시도': 'Retry Kakao information',
+  '카카오 등록 정보로, 별도 검토되지 않았습니다.': 'Reported by Kakao; not independently reviewed.',
+  '추가 방문 정보는 카카오맵에서 확인해 주세요.': 'See Kakao Map for more visiting information.',
+  '카카오맵에서 자세히 보기': 'View details on Kakao Map',
+  '카카오에서 연결할 장소를 찾지 못했어요.': 'No matching place was found on Kakao.',
+  '장소를 한 곳으로 특정하지 못했어요.': 'No single place could be confidently linked.',
+  '이 장소는 카카오 방문 정보를 제공하기 어려워요.': 'Kakao visiting information is unavailable for this place.',
+  '카카오맵에서 장소 찾기': 'Search for this place on Kakao Map',
+  '장소 이름으로 검색합니다. 같은 장소인지 확인해 주세요.': 'Searches by place name. Check that the result is the same place.',
   '관광정보 제공처 안내': 'Tourism provider information',
   '정보 제공처': 'Information provider',
   '최근 갱신이 지연된 제공처 자료입니다. 이용 전 제공처에 확인해 주세요.': 'This provider record is overdue for refresh. Confirm visiting information with the provider.',

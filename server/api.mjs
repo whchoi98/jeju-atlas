@@ -5,6 +5,8 @@ import { createSessions } from './sessions.mjs';
 import { AdmissionError, createAdmission } from './admission.mjs';
 import { createWeatherService, inJeju } from './weather.mjs';
 import { createRoutingService, RoutingError } from './routing.mjs';
+import { createKakaoService, KakaoError } from './kakao.mjs';
+import { createKakaoQuota, KakaoQuotaError } from './kakao-quota.mjs';
 import {
   GuideError, createGuideHandler, createAgentInvoker, createDynamoQuotaConsumer, emitGuideDiagnostic,
 } from './guide.mjs';
@@ -203,7 +205,7 @@ export function createApiHandler({
   dailyLimit = Number(env.GUIDE_DAILY_LIMIT || 30),
   consumeQuota, invokeEvents, fetch: fetchImpl = globalThis.fetch, clock = Date.now,
   heartbeatMs = 8000, deadlineMs = 90_000, maxActors = 10_000,
-  weatherOptions = {}, routingOptions = {},
+  weatherOptions = {}, routingOptions = {}, kakaoOptions = {},
   onDiagnostic = () => {},
   admission: injectedAdmission,
 } = {}) {
@@ -244,6 +246,35 @@ export function createApiHandler({
     routing = createRoutingService();
   }
   const routingEnabled = Boolean(allowedOrigin && routing.enabled);
+  let kakao;
+  let kakaoQuota;
+  try {
+    kakaoQuota = kakaoOptions.consumeBudget || createKakaoQuota({
+      table: env.GUIDE_QUOTA_TABLE, dailyLimit: Number(env.KAKAO_DAILY_LIMIT || 1000),
+      region: env.AWS_REGION || 'ap-northeast-2', clock,
+    });
+    kakao = createKakaoService({
+      ...kakaoOptions, key: env.KAKAO_REST_API_KEY, clock,
+      fetch: kakaoOptions.fetch || fetchImpl, consumeBudget: kakaoQuota,
+    });
+  } catch {
+    if (!kakaoOptions.consumeBudget) kakaoQuota?.close?.();
+    kakaoQuota = undefined;
+    kakao = createKakaoService();
+  }
+  const kakaoEnabled = Boolean(allowedOrigin && catalog && kakao.enabled
+    && (kakaoOptions.consumeBudget || env.GUIDE_QUOTA_TABLE));
+  const kakaoActors = new Map();
+  const takeKakaoSlot = actorId => {
+    const now = clock();
+    for (const [actor, times] of kakaoActors) if (times.at(-1) <= now - 60_000) kakaoActors.delete(actor);
+    const recent = (kakaoActors.get(actorId) || []).filter(time => time > now - 60_000);
+    if (recent.length >= 20 || (!kakaoActors.has(actorId) && kakaoActors.size >= maxActors)) {
+      throw new KakaoError('kakao_busy');
+    }
+    recent.push(now);
+    kakaoActors.set(actorId, recent);
+  };
   const routingActors = new Map();
   const takeRoutingSlot = actorId => {
     const now = clock();
@@ -313,7 +344,44 @@ export function createApiHandler({
             ...(routingEnabled && !draining ? { csrf_token: sessions.csrfToken(session.actorId) } : {}),
             modes: ['walk', 'car'], source: routing.source,
           },
+          kakao: {
+            enabled: kakaoEnabled && !draining,
+            ...(kakaoEnabled && !draining ? { csrf_token: sessions.csrfToken(session.actorId) } : {}),
+          },
         });
+      }
+      if (path === '/api/kakao/place') {
+        if (draining || !kakaoEnabled) throw new KakaoError('kakao_unavailable');
+        const params = queryParams(url, ['id']);
+        const id = stringParam(params, 'id', 128);
+        if (!id) throw invalidQuery();
+        const session = sessions.readCookie(req.headers.cookie);
+        if (!session) {
+          sessions.issueCookie(res);
+          throw new ApiError(401, 'session_required', '페이지를 새로고침한 뒤 다시 요청해 주세요.');
+        }
+        if (!sessions.verifyCsrf(req.headers['x-atlas-csrf'], session.actorId)) {
+          throw new ApiError(403, 'csrf_invalid', '요청 연결 확인이 만료되었습니다. 연결을 갱신해 주세요.');
+        }
+        await catalog.refreshIfNeeded();
+        if (catalog.status().status !== 'ready') throw new KakaoError('kakao_unavailable');
+        const place = catalog.detail(id);
+        if (!place) throw new ApiError(404, 'not_found', '장소를 찾을 수 없습니다.');
+        takeKakaoSlot(session.actorId);
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        const disconnected = () => { if (!res.writableEnded) abort(); };
+        req.once('aborted', abort);
+        res.once('close', disconnected);
+        try {
+          if (req.aborted || res.destroyed) abort();
+          const result = await kakao.lookup(place, { signal: controller.signal });
+          if (controller.signal.aborted) return;
+          return await sendJson(req, res, 200, result);
+        } finally {
+          req.off('aborted', abort);
+          res.off('close', disconnected);
+        }
       }
       if (path === '/api/routes' || path === '/api/elevation') {
         const unavailableCode = path === '/api/routes' ? 'routing_unavailable' : 'elevation_unavailable';
@@ -428,6 +496,7 @@ export function createApiHandler({
       }
       const failure = error instanceof AdmissionError ? new GuideError(error.status, error.code)
         : error instanceof ApiError || error instanceof GuideError || error instanceof RoutingError
+          || error instanceof KakaoError || error instanceof KakaoQuotaError
         ? error : error instanceof RangeError || (error?.statusCode === 400 && error?.code === 'CATALOG_BAD_QUERY')
           ? invalidQuery() : new ApiError(503, 'service_unavailable', '서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       if (url.pathname === '/api/guide') {
@@ -451,7 +520,7 @@ export function createApiHandler({
     catalogHeartbeat = setInterval(reportCatalogStatus, 60_000);
     catalogHeartbeat.unref?.();
   };
-  api.beginDrain = () => { draining = true; guide.beginDrain(); routing.close(); };
+  api.beginDrain = () => { draining = true; guide.beginDrain(); routing.close(); kakao.close(); };
   api.drain = () => { api.beginDrain(); return guide.drain(); };
   api.close = () => {
     draining = true;
@@ -459,6 +528,9 @@ export function createApiHandler({
     guide.close();
     weather.close();
     routing.close();
+    kakao.close();
+    if (!kakaoOptions.consumeBudget) kakaoQuota?.close?.();
+    kakaoActors.clear();
     routingActors.clear();
     // Only close transports created by this factory; injected ones belong to their caller.
     if (!invokeEvents) agent.close();

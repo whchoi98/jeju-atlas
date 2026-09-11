@@ -1,5 +1,14 @@
+.app-header .sidebar-toggle { display: none; flex: 0 0 44px; width: 44px; min-height: 44px; padding: 10px; border: 1px solid var(--interactive-border); }
+.sidebar-toggle > .icon { width: 20px; height: 20px; }
+.sidebar-toggle[aria-expanded="true"] > .icon { transform: rotate(180deg); }
 @media (min-width: 761px) {
+  .app-header .sidebar-toggle { display: inline-flex; }
   body.has-catalog[data-active-panel="guide"] { --sidebar-width: clamp(360px, 38vw, 520px); }
+  body.has-catalog[data-sidebar-collapsed="true"] { --sidebar-width: 0px; }
+  body.has-catalog[data-sidebar-collapsed="true"] .sidebar { min-width: 0; visibility: hidden; border-right: 0; }
+}
+@media (min-width: 761px) and (max-width: 1000px) {
+  .has-catalog .header-divider, .has-catalog .header-tagline { display: none; }
 }
 .has-catalog .sidebar-intro { padding: 14px 20px 10px; }
 .has-catalog .sidebar-intro h1 { font-size: clamp(16px, 1.25vw, 18px); line-height: 1.4; margin-top: 6px; letter-spacing: -.5px; white-space: nowrap; }

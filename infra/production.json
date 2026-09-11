@@ -7,6 +7,8 @@
   "GuideDailyLimit": 30,
   "GuideHourlyLimit": 5,
   "GuideGlobalConcurrency": 2,
+  "KakaoRestApiKeyParameter": "/jeju-atlas/kakao-rest-api-key",
+  "KakaoDailyLimit": 1000,
   "RoutingEnabled": "true",
   "TaskCpu": 512,
   "TaskMemory": 1024,
