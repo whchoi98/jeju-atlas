@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="작은 Runtime으로 생성·로컬 실행·배포·호출을 연습합니다.">
+  <title>AgentCore CLI 첫 배포 · Jeju Atlas 워크숍</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/mark.svg">
+  <script src="../assets/theme.js"></script>
+  <link rel="stylesheet" href="../assets/reader.css">
+  <script src="../assets/reader.js" defer></script>
+</head>
+<body id="top" data-course-key="8235ee42a9ab6388" data-page-kind="chapters" data-current-chapter="04-agentcore-cli">
+  <a class="skip-link" href="#main-content">본문으로 바로 가기</a>
+  <aside class="sidebar" id="course-nav" aria-label="워크숍 목차">
+    <div class="sidebar-brand">
+      <a class="brand" href="../index.html" aria-label="Jeju Atlas 워크숍 전체 과정">
+        <img src="../assets/mark.svg" width="42" height="42" alt="">
+        <span><strong>Jeju Atlas</strong><span>배포 워크숍</span></span>
+      </a>
+      <button class="icon-button mobile-only js-only" type="button" data-nav-close aria-label="목차 닫기"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
+    </div>
+    <div class="nav-search js-only">
+      <label class="sr-only" for="chapter-search">챕터와 참고 자료의 제목·주제 검색</label>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="chapter-search" type="search" placeholder="제목·주제 검색" autocomplete="off" spellcheck="false" aria-controls="chapter-navigation">
+      <kbd aria-hidden="true">/</kbd>
+    </div>
+    <p class="search-result sr-only" data-search-result role="status" aria-live="polite"></p>
+    <nav class="chapter-navigation" id="chapter-navigation" aria-label="전체 과정과 챕터">
+      <a class="overview-link" href="../index.html">전체 과정<span aria-hidden="true">00 — 13</span></a>
+      <section class="nav-group" data-nav-group aria-label="1일 차">
+        <h2><span>DAY 1</span><span>3시간 40분</span></h2>
+        <ol><li data-nav-entry data-search="00 완성할 서비스와 실습 흐름 현재 에셋, 전체 아키텍처와 완료 기준을 확인합니다. 완성 모습 두 AgentCore 배포 배포 순서 완료 기준">
+    <a class="chapter-link" href="00-orientation.html" data-chapter-link="00-orientation">
+      <span class="nav-number">00</span>
+      <span class="nav-title">완성할 서비스와 실습 흐름</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="01 개발 도구와 CLI 설치 Node·Python·Docker·AWS CLI·AgentCore CLI·Codex를 준비합니다. 저장소와 Node Python·uv·AWS CLI·Docker AgentCore CLI와 Codex Codex 로그인 확인과 복구">
+    <a class="chapter-link" href="01-setup.html" data-chapter-link="01-setup">
+      <span class="nav-number">01</span>
+      <span class="nav-title">개발 도구와 CLI 설치</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="02 AWS 계정과 기존 네트워크 계정·참가자 이름을 정하고 VPC·서브넷·NAT를 확인합니다. 계정과 참가자 이름 설정 생성 기존 네트워크 검색 파생 이름">
+    <a class="chapter-link" href="02-aws-environment.html" data-chapter-link="02-aws-environment">
+      <span class="nav-number">02</span>
+      <span class="nav-title">AWS 계정과 기존 네트워크</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="03 Codex로 실습용 에셋 구성 독립 작업 공간에서 프롬프트·변경 검토·실행을 익힙니다. 작업 공간 생성 Codex 실행 dry-run, plan, apply 비대화형 실행">
+    <a class="chapter-link" href="03-codex.html" data-chapter-link="03-codex">
+      <span class="nav-number">03</span>
+      <span class="nav-title">Codex로 실습용 에셋 구성</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="04 AgentCore CLI 첫 배포 작은 Runtime으로 생성·로컬 실행·배포·호출을 연습합니다. 1. CLI 입문 Runtime과 실제 Atlas의 경계 2. 실제 create 명령의 모양 확인 3. 독립 프로젝트 준비 4. 의존성 설치와 로컬 검증 5. 로컬 HTTP 실행과 호출 6. 교육용 AWS 계정에서 배포 7. 원격 호출·상태·로그 8. 확인 과제와 진단 9. 소유 자원 정리 공식 근거와 검증 기록">
+    <a class="chapter-link" href="04-agentcore-cli.html" aria-current="page" data-chapter-link="04-agentcore-cli">
+      <span class="nav-number">04</span>
+      <span class="nav-title">AgentCore CLI 첫 배포</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="05 컨테이너 저장소와 장소 데이터 ECR·비공개 S3를 준비하고 샘플·OSM 카탈로그를 만듭니다. ECR 생성 CloudFront 없이 비공개 데이터 버킷 생성 카탈로그 생성·게시 데이터 의미">
+    <a class="chapter-link" href="05-foundation-and-data.html" data-chapter-link="05-foundation-and-data">
+      <span class="nav-number">05</span>
+      <span class="nav-title">컨테이너 저장소와 장소 데이터</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide·Tools·Gateway·Memory와 Strands를 배포합니다. 구성 새 의존성 ZIP 앱 코드 패키징·배포 모델 설정 재개">
+    <a class="chapter-link" href="06-atlas-agentcore.html" data-chapter-link="06-atlas-agentcore">
+      <span class="nav-number">06</span>
+      <span class="nav-title">제주 가이드 AgentCore 배포</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li></ol>
+      </section><section class="nav-group" data-nav-group aria-label="2일 차">
+        <h2><span>DAY 2</span><span>4시간 35분</span></h2>
+        <ol><li data-nav-entry data-search="07 실제 경로와 고도 데이터 Valhalla·OSM·HGT로 도보·차량 경로 이미지를 빌드합니다. 입력 자료 라우터 이미지 웹 연결">
+    <a class="chapter-link" href="07-routing.html" data-chapter-link="07-routing">
+      <span class="nav-number">07</span>
+      <span class="nav-title">실제 경로와 고도 데이터</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="08 3D 지도 웹과 Fargate 배포 Public ALB와 Private Fargate에 지도·가이드·라우터를 연결합니다. 빌드 앱 계획 첫 접속 실제 Distribution으로 데이터 정책 연결 문제 해결">
+    <a class="chapter-link" href="08-web.html" data-chapter-link="08-web">
+      <span class="nav-number">08</span>
+      <span class="nav-title">3D 지도 웹과 Fargate 배포</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="09 도메인·HTTPS·엣지 구성 ACM·WAF·S3 OAC·Lambda@Edge와 고도 캐시를 구성합니다. 도메인과 viewer 인증서 서울 origin 인증서 WAF와 공유 자산 Lambda@Edge와 독립 HTTPS probe 확인과 문제 해결">
+    <a class="chapter-link" href="09-https-edge.html" data-chapter-link="09-https-edge">
+      <span class="nav-number">09</span>
+      <span class="nav-title">도메인·HTTPS·엣지 구성</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="10 공식 정보와 주간 보강 Visit Jeju·TourAPI·올레길·사진의 출처를 유지하며 보강합니다. 키 입력 수집 이미지와 Schedule 결과 해석 올레길과 웹 확인">
+    <a class="chapter-link" href="10-enrichment.html" data-chapter-link="10-enrichment">
+      <span class="nav-number">10</span>
+      <span class="nav-title">공식 정보와 주간 보강</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="11 관측·보안·운영 제어 CloudWatch·SNS·할당량·이미지 검사·개인정보 보호를 확인합니다. 운영 스택 확인할 지표 호출 한도와 모델 권한 로그와 개인정보 이미지와 네트워크">
+    <a class="chapter-link" href="11-operations.html" data-chapter-link="11-operations">
+      <span class="nav-number">11</span>
+      <span class="nav-title">관측·보안·운영 제어</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="12 서비스 검증과 문제 해결 한영 AI·3D 지도·실제 경로·스트리밍·복구 기준을 검증합니다. 자동 검사 실제 화면 실제 AI 질문 문제 구분 복구 기준">
+    <a class="chapter-link" href="12-validation.html" data-chapter-link="12-validation">
+      <span class="nav-number">12</span>
+      <span class="nav-title">서비스 검증과 문제 해결</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="13 실습 자원 정리 공유 네트워크를 보존하고 실습 스택과 잔존 자원을 정리합니다. CLI 입문 프로젝트 Atlas 스택 계획 보존 및 수동 자원 확인 마지막 점검">
+    <a class="chapter-link" href="13-cleanup.html" data-chapter-link="13-cleanup">
+      <span class="nav-number">13</span>
+      <span class="nav-title">실습 자원 정리</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li></ol>
+      </section>
+      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="AWS 자원·기술 전체 매핑 장 연결표 기반·저장소·비밀값 실제 Atlas AgentCore 웹 컴퓨팅·로드 밸런싱 HTTPS·캐시·엣지 공식 데이터 작업·관측 지도·라우팅·데이터·사용자 화면 조건과 제외 범위">
+    <a class="reference-link" href="../reference/resources.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">AWS 자원·기술 전체 매핑</span>
+
+    </a></li><li data-nav-entry data-search="진행자 준비 가이드 행사 전 팀·계정·네트워크 준비 FULL HTTPS와 모델·제공처 접근 새 빌드와 선택 제공 아티팩트 첫 설치와 배포기 사용 경계 이틀 진행안과 AWS 대기 여러 팀의 quota·비용 관리 정리 순서와 남는 자원 로컬 검증과 클라우드 리허설 구분 부모 작업과 리허설에서 확인할 공백">
+    <a class="reference-link" href="../reference/facilitator.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">진행자 준비 가이드</span>
+
+    </a></li><li data-nav-entry data-search="카탈로그 생성과 출처 선택: 공개 OpenStreetMap 자료 추가 오프라인 OSM fixture 재생 호환성 확인과 후속 공식 보강">
+    <a class="reference-link" href="../reference/catalog-bootstrap.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">카탈로그 생성과 출처</span>
+
+    </a></li></ul></section>
+      <p class="search-empty" data-search-empty hidden>검색 결과가 없습니다.<br>다른 제목이나 주제를 입력하세요.</p>
+    </nav>
+    <div class="reading-progress">
+      <div class="progress-label"><span>나의 읽기 기록</span><strong data-progress-count>0 / 14 읽음</strong></div>
+      <progress data-reading-progress max="14" value="0" aria-label="읽은 챕터 수"></progress>
+      <p data-storage-note>이 브라우저에만 저장됩니다.<br>AWS 배포 상태를 나타내지 않습니다.</p>
+      <button class="text-button js-only" type="button" data-reset-progress hidden>읽기 기록 초기화</button>
+    </div>
+  </aside>
+  <button class="nav-backdrop" type="button" data-nav-backdrop aria-label="목차 닫기" tabindex="-1" hidden></button>
+  <div class="workspace" data-workspace>
+    <header class="topbar">
+      <div class="topbar-leading"><button class="toolbar-button mobile-only js-only" type="button" data-nav-toggle aria-controls="course-nav" aria-expanded="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>목차</span></button>
+        <nav class="breadcrumb" aria-label="현재 위치"><a href="../index.html">워크숍</a><span aria-hidden="true">/</span><span>CHAPTER 04</span></nav>
+      </div>
+      <div class="toolbar js-only"><button class="toolbar-button" type="button" data-theme-toggle aria-label="어두운 화면으로 전환" aria-pressed="false"><span class="theme-moon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14a8 8 0 0 1-10-10 8 8 0 1 0 10 10Z"/></svg></span><span class="theme-sun"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></span><span data-theme-label>다크</span></button><button class="toolbar-button" type="button" data-print><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4V8h16v9h-3M7 14h10v7H7Z"/><path d="M16 11h1"/></svg><span>인쇄</span></button></div>
+    </header>
+    <main id="main-content" tabindex="-1">
+      <noscript><p class="noscript-note">목차와 본문은 그대로 읽을 수 있습니다. 검색·코드 복사·읽기 기록은 JavaScript를 켜면 사용할 수 있습니다.</p></noscript>
+      <div class="article-layout">
+    <article class="lesson" aria-labelledby="heading-04--agentcore-cli로-runtime-생명주기-익히기">
+      <header class="lesson-header">
+        <p class="eyebrow"><span class="chapter-stamp">04</span>DAY 1<span class="meta-separator">/</span>40분 실습</p>
+        <h1 id="heading-04--agentcore-cli로-runtime-생명주기-익히기">AgentCore CLI로 Runtime 생명주기 익히기</h1>
+        <p class="lesson-summary">작은 Runtime으로 생성·로컬 실행·배포·호출을 연습합니다.</p>
+        <div class="lesson-location"><span>5 / 14번째 챕터</span><span class="lesson-read-state" data-chapter-state>아직 읽지 않음</span></div>
+      </header>
+      <div class="prose">
+<p>이 장에서는 <strong>모델을 호출하지 않는 HTTP Runtime 하나</strong>로 생성 → 검증 → 로컬 실행 →
+배포 → 호출 → 로그 → 정리 순서를 익힌다. 답변 생성이나 여행 추천의 품질을 확인하는 단계는
+뒤의 실제 Atlas AgentCore 실습에서 다룬다.</p>
+<p>완료 기준은 같은 입력에 같은 JSON을 받는 것, 내 프로젝트가 소유하는 AWS 자원을 설명하는 것,
+로컬 정의 제거와 AWS 자원 제거를 구분하는 것이다.</p>
+<blockquote>
+<p>이 교재의 제작 검증은 로컬에서 수행했다. <code>create</code>, <code>validate</code>, 로컬 HTTP 실행,
+Python 테스트와 CDK synth를 실제 확인했다. AWS 배포·원격 Runtime 호출·CloudWatch 조회·
+AWS 삭제를 실행했다는 뜻은 아니다. 클라우드 단계의 관찰 결과는 참가자가 자신의 계정에서
+기록한다. 명령 표면은 <code>@aws/agentcore</code> <strong>0.28.1</strong> 기준이다.</p>
+</blockquote>
+<h2 id="heading-1-cli-입문-runtime과-실제-atlas의-경계">1. CLI 입문 Runtime과 실제 Atlas의 경계</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col">항목</th>
+<th scope="col">이 장의 CLI 프로젝트</th>
+<th scope="col">뒤에서 배포하는 실제 Atlas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>목적</td>
+<td>Runtime 생명주기와 HTTP 입출력 확인</td>
+<td>제주 가이드와 애플리케이션 기능 실행</td>
+</tr>
+<tr>
+<td>Runtime</td>
+<td>참가자 전용 <code>AtlasCliTeam01_Warmup</code></td>
+<td>별도의 Guide·Tools Runtime</td>
+</tr>
+<tr>
+<td>실행 코드</td>
+<td><code>BedrockAgentCoreApp</code>의 결정론적 Python 함수</td>
+<td>Atlas에 포함된 실제 에이전트·도구 코드</td>
+</tr>
+<tr>
+<td>모델</td>
+<td>호출하지 않음, 모델 권한도 부여하지 않음</td>
+<td>Atlas Guide의 Global CRIS Sol/Astra 설정 유지</td>
+</tr>
+<tr>
+<td>Gateway·Memory</td>
+<td>생성하지 않음</td>
+<td>실제 Atlas 배포 절차에서 별도로 생성</td>
+</tr>
+<tr>
+<td>인프라</td>
+<td>CodeZip Runtime, 실행 역할, 로그 정책</td>
+<td>Guide/Tools/Gateway/Memory와 애플리케이션 전체 인프라</td>
+</tr>
+<tr>
+<td>배포 소유자</td>
+<td>이 CLI 프로젝트의 CDK 스택</td>
+<td>별도의 Atlas 실습 배포 스택</td>
+</tr>
+<tr>
+<td>정리</td>
+<td>이 프로젝트의 정의·스택·로그만</td>
+<td>Atlas 정리 장의 해당 스택·보존 자원</td>
+</tr>
+</tbody>
+</table></div>
+<p>CLI가 Gateway나 Memory를 지원하지 않는다는 의미는 아니다. 입문 과제를 단일 Runtime으로
+제한한 것이다. 이 프로젝트를 Atlas의 운영 설정으로 바꾸거나 실제 Guide 코드를 복사하지 않는다.
+특히 Codex 인증과 AWS에서 사용하는 Bedrock 모델 설정은 서로 다른 설정이다.</p>
+<p><code>PUBLIC</code>은 이 Runtime의 네트워크 모드다. 인바운드 인증은 <code>AWS_IAM</code>이다.
+이 모듈은 VPC, NAT, 보안 그룹, API Gateway, ECR, ECS를 만들지 않는다.</p>
+<h2 id="heading-2-실제-create-명령의-모양-확인">2. 실제 <code>create</code> 명령의 모양 확인</h2>
+<p>Node 24, Python 3.14, uv, AWS CLI, AgentCore CLI 0.28.1을 준비한다.
+CLI가 아직 없다면 환경 준비 장에서 <code>npm install -g @aws/agentcore@0.28.1</code>로 설치한다.
+<code>agentcore --version</code> 결과가 <code>0.28.1</code>인지 확인한다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-1">node --version
+agentcore --version
+agentcore create --help
+</code></pre></div>
+<p>0.28.1에서 인자 없이 생성하면 harness 경로가 기본이다. 입문 HTTP Runtime에 필요한
+프로젝트 구조를 보기 위해서는 아래처럼 <strong>빈 프로젝트</strong>를 생성할 수 있다.
+아래 경로와 이름은 관찰용이며, 다음 절의 실습 프로젝트와 분리되어 있다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-2">AGENTCORE_CONFIG_DIR=/tmp/atlas-cli-create-exercise/.cli-config \
+AGENTCORE_TELEMETRY_DISABLED=1 \
+agentcore create \
+  --project-name AtlasCliCreate01 \
+  --no-agent \
+  --output-dir /tmp/atlas-cli-create-exercise \
+  --skip-git \
+  --skip-python-setup \
+  --skip-install \
+  --json
+</code></pre></div>
+<p>성공 JSON의 <code>projectPath</code>는 <code>/tmp/atlas-cli-create-exercise/AtlasCliCreate01</code>이다.
+<code>--output-dir</code>은 <strong>프로젝트의 부모 디렉터리</strong>다. 생성한 프로젝트의 다음 두 파일을 읽어 본다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-3">cat /tmp/atlas-cli-create-exercise/AtlasCliCreate01/agentcore/agentcore.json
+cat /tmp/atlas-cli-create-exercise/AtlasCliCreate01/agentcore/aws-targets.json
+</code></pre></div>
+<p>관찰할 내용은 <code>managedBy: "CDK"</code>, <code>runtimes: []</code>, 비어 있는 배포 대상이다.
+<code>--no-agent</code>는 모델 없는 HTTP 코드를 자동으로 넣어 주는 옵션이 아니다.
+다음 절의 준비기가 이 구조에 검증된 HTTP 코드, 정확한 계정·리전, 고정 의존성과
+실습용 권한을 넣는다. 관찰용 scaffold를 실행하거나 배포할 필요는 없다.</p>
+<h2 id="heading-3-독립-프로젝트-준비">3. 독립 프로젝트 준비</h2>
+<p>원본 <code>jeju-atlas</code> 루트에서 실행한다. 이름은 참가자별로 달라야 한다.
+02장에서 확인한 계정과 참가자 이름을 그대로 사용한다.
+이 시점에는 AWS 인증이나 모델 권한 없이 파일을 생성할 수 있다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-4">cd "$ATLAS_REPO"
+python3 workshop/scripts/lab.py cli-prepare --config "$ATLAS_CONFIG" --execute
+</code></pre></div>
+<p><code>lab.py cli-prepare</code>는 <code>$ATLAS_CLI</code>를 최종 프로젝트 경로로 삼아 <code>workshop/cli/prepare.py</code>를 호출한다. 독립적으로 준비기를 사용할 때 그 <code>--output</code>은 <strong>최종 프로젝트 디렉터리</strong>다. 이미 존재하는 디렉터리는
+비어 있어도 거부하며 <code>--force</code> 옵션은 없다. <code>AtlasCli</code> 접두사 뒤에 영문·숫자 1~15자를
+붙이고, <code>prod</code>, <code>shared</code>, <code>live</code>, <code>reference</code>, <code>default</code>가 들어간 이름은 쓰지 않는다.
+참조 저장소 내부나 심볼릭 링크를 통한 출력도 거부한다.
+0.28.1 ZIP packager의 경로 처리에 맞춰 출력 경로에는 영문·숫자·<code>/</code>·<code>-</code>·<code>_</code>·<code>.</code>만 사용한다.
+원본 저장소 안에 보관하려면 <code>workshop/.local/</code> 또는 <code>.local/workshop/</code> 아래의 새 경로를 쓴다.</p>
+<p>이 준비기는 지정한 번들 파일만 읽는다. <code>agentcore-cli</code> 저장소, 기존 배포 출력,
+<code>.env</code>, 인증 파일, 설치된 전역 CLI를 복사하거나 읽지 않는다.
+AWS 호출·패키지 설치·모델 호출·배포도 수행하지 않는다.
+출력의 <code>deploymentPerformed: false</code>를 확인한다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">text</span><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="text 코드 복사">복사</button></div><pre tabindex="0" aria-label="text 코드"><code class="language-text" id="code-5">atlas-cli-Team01/
+├── .atlas-cli-workshop.json       # 계정·프로젝트·스택 소유권
+├── .cli-config/config.json        # 이 실습만의 CLI 설정
+├── AGENTS.md                      # Codex 작업 경계
+├── activate.sh                    # 인증 값 없는 실습 환경 설정
+├── toolchain.json                 # 도구 버전
+├── app/warmup/
+│   ├── main.py                    # BedrockAgentCoreApp HTTP entrypoint
+│   ├── pyproject.toml             # 배포 패키지 의존성 전체 고정
+│   ├── uv.lock
+│   └── tests/test_main.py
+├── agentcore/
+│   ├── agentcore.json
+│   ├── aws-targets.json
+│   └── cdk/                       # 독립 CDK 앱과 package-lock.json
+└── checks/check_synth.py          # 합성 결과의 자원·권한 검사
+</code></pre></div>
+<p>이제 생성된 디렉터리만 작업 공간으로 연다. Codex에는
+<span class="source-reference" title="소스 저장소에서 확인: ../prompts/04-agentcore-cli.md">이 장의 프롬프트 카드 <small>소스 참고</small></span>를 전달한다.
+원본 저장소나 참조 저장소를 Codex의 추가 작업 폴더로 지정하지 않는다.</p>
+<h2 id="heading-4-의존성-설치와-로컬-검증">4. 의존성 설치와 로컬 검증</h2>
+<p>이 장의 나머지 명령은 생성된 프로젝트 루트에서 시작한다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-6" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-6">cd "$ATLAS_CLI"
+source ./activate.sh
+agentcore --version
+npm --prefix agentcore/cdk ci --ignore-scripts
+
+cd app/warmup
+uv sync --python 3.14 --frozen
+uv run --frozen python -m unittest discover -s tests -v
+cd ../..
+
+agentcore validate --json
+npm --prefix agentcore/cdk run synth
+python3 checks/check_synth.py
+</code></pre></div>
+<p><code>source ./activate.sh</code>는 각 터미널에서 실행한다. CLI 전역 설정 위치를 생성 프로젝트 안의
+<code>.cli-config/</code>로 바꾸며 다음을 유지한다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col">설정</th>
+<th scope="col">이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>disableDependencyManagement: true</code></td>
+<td>CLI가 고정 버전을 자동으로 바꾸지 않게 함</td>
+</tr>
+<tr>
+<td><code>disableTransactionSearch: true</code></td>
+<td>CLI 배포 중 계정 단위 Transaction Search 자동 설정 방지</td>
+</tr>
+<tr>
+<td><code>AGENTCORE_TELEMETRY_DISABLED=1</code></td>
+<td>CLI 사용 telemetry 비활성화</td>
+</tr>
+<tr>
+<td><code>instrumentation.enableOtel: false</code></td>
+<td>Runtime을 <code>opentelemetry-instrument</code>로 감싸지 않음</td>
+</tr>
+<tr>
+<td><code>OTEL_SDK_DISABLED=true</code></td>
+<td>SDK telemetry 비활성화</td>
+</tr>
+<tr>
+<td><code>OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=false</code></td>
+<td>입력·답변 내용 수집 비활성화</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>uv.lock</code>은 로컬 환경을 고정한다. 0.28.1의 CodeZip packager는
+<code>uv pip install -r pyproject.toml</code>을 사용하므로, 이 예제는 배포 시에도 같은 버전이 쓰이도록
+<code>pyproject.toml</code>에 전이 의존성까지 고정했다. <code>package-lock.json</code>은 CDK 의존성을 고정한다.
+처음 설치하거나 ARM64 휠을 처음 묶을 때는 공개 패키지 저장소 접속이 필요하다.</p>
+<p>기대 관찰은 다음과 같다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col">실행</th>
+<th scope="col">기대 관찰</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Python 테스트</td>
+<td>결정론적 응답·네트워크 차단·입력 제한·로그 내용 검사 3개 통과</td>
+</tr>
+<tr>
+<td><code>agentcore validate --json</code></td>
+<td><code>{"success":true}</code></td>
+</tr>
+<tr>
+<td><code>npm … run synth</code></td>
+<td>로컬 CodeZip 및 <code>agentcore/cdk/cdk.out/</code>의 CloudFormation 템플릿 생성</td>
+</tr>
+<tr>
+<td><code>python3 checks/check_synth.py</code></td>
+<td><code>runtimeCount: 1</code>, <code>resourceCount: 3</code>, <code>modelPermissions: 0</code>, <code>deployed: false</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>템플릿의 Runtime 이름은 <code>AtlasCliTeam01_Warmup</code>, Python 버전은 <code>PYTHON_3_14</code>,
+entrypoint는 <code>["main.py"]</code>이다. 실행 역할과 정책도 같은 스택에서 만든다.
+로그 쓰기는 <code>/aws/bedrock-agentcore/runtimes/AtlasCliTeam01_Warmup-*</code>에 한정한다.
+<code>logs:DescribeLogGroups</code>는 개별 ARN을 지원하지 않는 조회 작업이어서 <code>Resource: "*"</code>를 유지한다.
+모델 호출, X-Ray, 계정 단위 로그 정책 변경 권한은 부여하지 않는다.</p>
+<p>검증기는 계정·리전·프로젝트 경계 변경, 다른 Runtime/Memory/Gateway 추가,
+운영 역할 연결과 외부 코드 경로를 거부한다. 이는 실수 방지 장치이며 IAM 권한 경계의
+대체재는 아니다. <strong>synth 성공은 배포 성공, AWS 권한 검증, 리소스 생성 완료를 뜻하지 않는다.</strong></p>
+<h2 id="heading-5-로컬-http-실행과-호출">5. 로컬 HTTP 실행과 호출</h2>
+<p>터미널 A에서 실행한다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-7" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-7">cd "$ATLAS_CLI"
+source ./activate.sh
+agentcore dev \
+  --runtime Warmup \
+  --port 8080 \
+  --skip-deploy \
+  --no-traces \
+  --no-browser \
+  --logs
+</code></pre></div>
+<p><code>--skip-deploy</code>를 반드시 유지한다. CLI의 dev 흐름은 필요한 리소스 배포를 자동으로
+준비할 수 있으므로, 이 단계에서는 이를 건너뛴다. <code>--no-traces</code>는 로컬 trace 수집도 끈다.</p>
+<p>같은 프로젝트를 연 터미널 B에서 호출한다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-8" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-8">cd "$ATLAS_CLI"
+source ./activate.sh
+curl --fail --silent http://127.0.0.1:8080/ping
+agentcore dev "제주에서 CLI 연결 확인" --runtime Warmup --port 8080
+curl --fail --silent http://127.0.0.1:8080/invocations \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"제주에서 CLI 연결 확인"}'
+</code></pre></div>
+<p>응답 JSON에서 다음 값을 확인한다. CLI 자체의 표시 형식과 응답 envelope는 명령마다 다를 수 있다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">json</span><button type="button" class="copy-button js-only" data-copy-code="code-9" aria-label="json 코드 복사">복사</button></div><pre tabindex="0" aria-label="json 코드"><code class="language-json" id="code-9">{
+  "project": "AtlasCliTeam01",
+  "mode": "deterministic",
+  "message": "AgentCore CLI Runtime 연결을 확인했습니다.",
+  "echo": "제주에서 CLI 연결 확인",
+  "modelInvoked": false
+}
+</code></pre></div>
+<p>같은 입력을 두 번 보내도 결과는 같다. <code>/ping</code>은 상태 확인용이고 <code>/invocations</code>가 함수 호출
+경로다. 입력은 <code>{"prompt":"문자열"}</code>이며 512자 이하로 제한한다.
+잘못된 입력에는 <code>error: "invalid_prompt"</code>를 담은 JSON을 반환한다.
+애플리케이션 로그에는 <code>warmup_complete</code>, 프로젝트와 글자 수만 남긴다.
+터미널에 직접 표시되는 응답의 <code>echo</code>와 telemetry에 내용을 수집하는 것은 구분한다.</p>
+<p>서버는 터미널 A의 <code>Ctrl+C</code>로 종료한다. 이 과정에는 Bedrock 모델 호출이 없다.</p>
+<h2 id="heading-6-교육용-aws-계정에서-배포">6. 교육용 AWS 계정에서 배포</h2>
+<p>여기부터는 실제 AWS 자원과 비용이 발생할 수 있다. 다음 조건이 갖추어져야 한다.</p>
+<ol>
+<li>명시적으로 선택한 교육용 AWS profile의 계정이 <code>.atlas-cli-workshop.json</code>과 같다.</li>
+<li>리전은 <code>ap-northeast-2</code>이고, 담당자가 준비한 기본 CDK bootstrap 버전이 30 이상이다.</li>
+<li>참가자는 이 스택의 CloudFormation 배포, 소유 실행 역할 생성·전달, bootstrap 자산 사용,
+Runtime 생성·호출·조회, 소유 로그 조회에 필요한 권한이 있다.</li>
+<li>새 스택 이름과 Runtime 접두사를 다른 참가자나 운영 배포가 사용하지 않는다.</li>
+</ol>
+<p>모델 ID나 제공자 API 키는 필요 없다. 이 예제에서 모델 접근을 추가해 해결할 문제도 없다.
+AWS profile 이름은 자신의 교육 환경에 맞게 설정한다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-10" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-10">source ./activate.sh
+export AWS_PROFILE=workshop-team01
+aws sts get-caller-identity --query Account --output text
+cat .atlas-cli-workshop.json
+</code></pre></div>
+<p>계정이 다르면 여기서 멈춘다. 계정이 맞는 경우 다음 기존 bootstrap 버전을 조회한다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-11" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-11">aws ssm get-parameter \
+  --name /cdk-bootstrap/hnb659fds/version \
+  --region ap-northeast-2 \
+  --query Parameter.Value \
+  --output text
+</code></pre></div>
+<p>파라미터가 없거나 값이 30 미만이면 담당자의 환경 준비가 필요하다.
+CLI가 bootstrap 생성·업그레이드를 제안해도 이 모듈에서 공유 스택 변경을 승인하지 않는다.</p>
+<p>로컬 검증이 통과한 프로젝트에서 배포한다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-12" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-12">agentcore deploy --target default
+</code></pre></div>
+<p>확인 화면에서는 <code>AgentCore-AtlasCliTeam01-default</code>, 지정한 계정,
+<code>ap-northeast-2</code>가 맞는지 확인한다. 최초 실습에서는 <code>--yes</code>로 확인을 생략하지 않는다.
+배포 성공 후 CLI가 <code>agentcore/.cli/</code>에 기록한 상태와 실제 AWS 상태를 다음 명령으로 확인한다.
+그 디렉터리는 참가자의 로컬 상태이므로 다른 팀과 공유하지 않는다.</p>
+<h2 id="heading-7-원격-호출상태로그">7. 원격 호출·상태·로그</h2>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-13" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-13">agentcore status --target default --runtime Warmup --json
+agentcore invoke "제주에서 CLI 연결 확인" \
+  --runtime Warmup \
+  --target default \
+  --json
+agentcore logs --runtime Warmup --since 10m --limit 30 --json
+</code></pre></div>
+<p>기대 관찰은 내 Runtime ARN과 상태, 로컬과 같은 결정론적 JSON,
+CloudWatch의 <code>warmup_complete</code> 로그다. 로그에는 도착 지연이 있을 수 있다.
+<code>logs</code>에는 0.28.1 기준 <code>--target</code> 옵션이 없다. 이 예제는 단일 배포 대상만 허용한다.
+운영 Runtime ID를 명령에 복사하지 않는다.</p>
+<p>명령별 역할은 다음과 같다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col">명령</th>
+<th scope="col">다루는 대상</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create</code></td>
+<td>로컬 CLI 프로젝트 scaffold</td>
+</tr>
+<tr>
+<td><code>validate</code></td>
+<td>로컬 <code>agentcore/</code> 설정</td>
+</tr>
+<tr>
+<td><code>dev --skip-deploy …</code></td>
+<td>로컬 HTTP 서버 또는 실행 중인 로컬 서버 호출</td>
+</tr>
+<tr>
+<td><code>deploy --target default</code></td>
+<td>해당 CLI 프로젝트의 CDK 배포</td>
+</tr>
+<tr>
+<td><code>invoke --runtime Warmup …</code></td>
+<td>배포된 Runtime endpoint</td>
+</tr>
+<tr>
+<td><code>status --runtime Warmup …</code></td>
+<td>로컬 정의와 배포 상태</td>
+</tr>
+<tr>
+<td><code>logs --runtime Warmup …</code></td>
+<td>해당 Runtime의 CloudWatch 로그</td>
+</tr>
+<tr>
+<td><code>remove agent --name Warmup …</code></td>
+<td>로컬 Runtime 정의 제거</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>agentcore dev "문장"</code>과 <code>agentcore invoke "문장"</code>의 호출 대상이 다르다는 점을 확인한다.</p>
+<h2 id="heading-8-확인-과제와-진단">8. 확인 과제와 진단</h2>
+<ul>
+<li>응답의 <code>echo</code>를 한 번 바꿔 보고, 실제 모델 추론을 거친 결과가 아님을 코드로 설명한다.</li>
+<li><code>agentcore.json</code>, <code>aws-targets.json</code>, <code>cdk.out/</code>가 각각 무엇을 기록하는지 설명한다.</li>
+<li>로그 ARN의 프로젝트 접두사와 <code>DescribeLogGroups</code>의 예외를 찾는다.</li>
+<li>로컬 테스트 결과와 실제 AWS 배포 결과를 별도 항목으로 기록한다.</li>
+</ul>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col">증상</th>
+<th scope="col">확인할 것</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agentcore create</code>가 harness를 만듦</td>
+<td>0.28.1 기본 동작이다. 관찰용 생성은 <code>--no-agent</code>를 사용한다.</td>
+</tr>
+<tr>
+<td>기존 디렉터리라 준비기가 거부함</td>
+<td>새로운 <code>--output</code>을 지정한다. 기존 참가자 작업을 지우지 않는다.</td>
+</tr>
+<tr>
+<td><code>agentcore</code> 버전이나 옵션이 다름</td>
+<td><code>agentcore --version</code>과 각 <code>--help</code>로 0.28.1인지 확인한다.</td>
+</tr>
+<tr>
+<td><code>uv</code>가 Python 3.14를 찾지 못함</td>
+<td><code>uv sync --python 3.14 --frozen</code>에 필요한 Python 다운로드 경로·프록시를 확인한다.</td>
+</tr>
+<tr>
+<td>synth에서 ARM64 wheel 설치 실패</td>
+<td>공개 패키지 접속과 캐시를 확인한다. x86 로컬 설치 성공만으로 ARM64 패키징을 판단하지 않는다.</td>
+</tr>
+<tr>
+<td>Node <code>DEP0190</code> 경고</td>
+<td>고정 CDK packager의 하위 프로세스 호출 경고다. 종료 코드와 실제 템플릿 검사 결과를 별도로 확인한다.</td>
+</tr>
+<tr>
+<td>dev가 연결되지 않음</td>
+<td>터미널 A의 시작 로그, 동일한 <code>--port</code>, <code>/ping</code> 응답, 기존 포트 사용을 확인한다.</td>
+</tr>
+<tr>
+<td>dev가 AWS 배포를 준비함</td>
+<td><code>--skip-deploy</code>와 생성 프로젝트의 설정을 확인한다.</td>
+</tr>
+<tr>
+<td>배포 시 account/bootstrap 오류</td>
+<td>계정 일치와 기존 bootstrap 버전을 확인한다. 운영 스택을 변경하지 않는다.</td>
+</tr>
+<tr>
+<td>원격 로그가 없음</td>
+<td>로컬 dev 로그와 CloudWatch를 구분한다. 실제 배포·invoke 수행 여부와 <code>--since</code>를 확인한다.</td>
+</tr>
+<tr>
+<td><code>remove</code> 후에도 Runtime이 존재함</td>
+<td>로컬 정의만 제거한 상태인지 확인하고 해당 프로젝트의 deploy 또는 소유 스택 삭제를 완료한다.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="heading-9-소유-자원-정리">9. 소유 자원 정리</h2>
+<p>로컬 dev를 종료하고, 교육용 계정·프로젝트가 맞는지 다시 확인한다.
+다음 명령은 이 Runtime을 로컬 정의에서 제거한다. <strong>제거 직후 AWS가 정리된 것은 아니다.</strong></p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-14" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-14">agentcore remove agent --name Warmup --yes --json
+agentcore validate --json
+agentcore deploy --target default
+agentcore status --target default --json
+</code></pre></div>
+<p>뒤의 deploy가 제거된 정의를 AWS에 적용한다. 이때 CDK 앱은 Runtime 0개를 허용해
+이 스택 소유의 Runtime·역할·정책을 제거한다. 로컬에서도 확인한다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-15" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-15">npm --prefix agentcore/cdk run synth
+python3 checks/check_synth.py --expect-empty
+</code></pre></div>
+<p>기대 결과는 <code>resourceCount: 0</code>이다. 빈 CloudFormation 스택까지 삭제할 경우에는
+정확히 이 스택만 지정한다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-16" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-16">aws cloudformation delete-stack \
+  --stack-name AgentCore-AtlasCliTeam01-default \
+  --region ap-northeast-2
+aws cloudformation wait stack-delete-complete \
+  --stack-name AgentCore-AtlasCliTeam01-default \
+  --region ap-northeast-2
+</code></pre></div>
+<p>서비스가 생성한 로그 그룹은 CloudFormation의 소유 리소스가 아니므로 남을 수 있다.
+다음 조회로 <strong>내 접두사에 해당하는 실제 로그 그룹 이름</strong>을 확인한 뒤, 필요한 기록을
+보관하고 그 그룹만 삭제한다. 다른 팀이나 운영 로그 그룹을 선택하지 않는다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-17" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-17">aws logs describe-log-groups \
+  --log-group-name-prefix /aws/bedrock-agentcore/runtimes/AtlasCliTeam01_Warmup- \
+  --region ap-northeast-2 \
+  --query 'logGroups[].logGroupName' \
+  --output json
+</code></pre></div>
+<p>공유 CDK bootstrap 스택·버킷과 그 안의 다른 프로젝트 아티팩트는 삭제하지 않는다.
+이 모듈은 Transaction Search 설정을 만들지 않으므로 계정 단위 trace 설정을 정리할 이유도 없다.
+<code>remove all</code>이나 로컬 폴더 삭제를 AWS 정리의 대체 명령으로 쓰지 않는다.
+실제 Atlas 스택은 별도 정리 장을 따라 처리한다.</p>
+<h2 id="heading-공식-근거와-검증-기록">공식 근거와 검증 기록</h2>
+<ul>
+<li><a href="https://github.com/aws/agentcore-cli" class="external-link" rel="noopener noreferrer" target="_blank">AgentCore CLI 공식 소스<span class="sr-only"> (새 탭)</span></a></li>
+<li><a href="https://schema.agentcore.aws.dev/v1/agentcore.json" class="external-link" rel="noopener noreferrer" target="_blank">AgentCore JSON 스키마<span class="sr-only"> (새 탭)</span></a></li>
+<li><a href="https://github.com/aws/agentcore-l3-cdk-constructs" class="external-link" rel="noopener noreferrer" target="_blank">AgentCore CDK constructs<span class="sr-only"> (새 탭)</span></a></li>
+<li><span class="source-reference" title="소스 저장소에서 확인: ../cli/VALIDATION.md">이 모듈의 로컬 검증 기록 <small>소스 참고</small></span></li>
+</ul>
+<p>스키마 URL은 업데이트될 수 있다. 이 장은 설치된 CLI 0.28.1의 스키마·도움말과
+<code>@aws/agentcore-cdk</code> 0.1.0-alpha.50의 공개 scaffold 구성 요소를 함께 확인한 결과를 사용한다.</p></div>
+      <section class="reading-check js-only" aria-label="이 장의 읽기 기록">
+        <div><p class="eyebrow">READING CHECK</p><h2>이 장을 읽었나요?</h2><p>읽음 표시는 이 브라우저에만 저장됩니다.<br>실제 실습 결과는 터미널에서 확인하세요.</p></div>
+        <button class="button primary-button" type="button" data-progress-toggle aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span data-toggle-label>읽음으로 표시</span></button>
+      </section>
+      <nav class="page-pagination" aria-label="이전 다음 장">
+        <a class="pagination-link prev" rel="prev" href="03-codex.html">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H5m6-6-6 6 6 6"/></svg><span><small>이전 장</small><strong>03 · Codex로 실습용 에셋 구성</strong></span>
+  </a><a class="pagination-link next" rel="next" href="05-foundation-and-data.html">
+    <span><small>다음 장</small><strong>05 · 컨테이너 저장소와 장소 데이터</strong></span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>
+  </a>
+      </nav>
+    </article>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-1-cli-입문-runtime과-실제-atlas의-경계" data-toc-link>1. CLI 입문 Runtime과 실제 Atlas의 경계</a></li><li class="toc-depth-2"><a href="#heading-2-실제-create-명령의-모양-확인" data-toc-link>2. 실제 create 명령의 모양 확인</a></li><li class="toc-depth-2"><a href="#heading-3-독립-프로젝트-준비" data-toc-link>3. 독립 프로젝트 준비</a></li><li class="toc-depth-2"><a href="#heading-4-의존성-설치와-로컬-검증" data-toc-link>4. 의존성 설치와 로컬 검증</a></li><li class="toc-depth-2"><a href="#heading-5-로컬-http-실행과-호출" data-toc-link>5. 로컬 HTTP 실행과 호출</a></li><li class="toc-depth-2"><a href="#heading-6-교육용-aws-계정에서-배포" data-toc-link>6. 교육용 AWS 계정에서 배포</a></li><li class="toc-depth-2"><a href="#heading-7-원격-호출상태로그" data-toc-link>7. 원격 호출·상태·로그</a></li><li class="toc-depth-2"><a href="#heading-8-확인-과제와-진단" data-toc-link>8. 확인 과제와 진단</a></li><li class="toc-depth-2"><a href="#heading-9-소유-자원-정리" data-toc-link>9. 소유 자원 정리</a></li><li class="toc-depth-2"><a href="#heading-공식-근거와-검증-기록" data-toc-link>공식 근거와 검증 기록</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+  </div>
+    </main>
+    <footer class="site-footer"><span>Jeju Atlas · 배포 워크숍<span class="footer-date">2026.09.11 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 · 글꼴 라이선스</a></footer>
+  </div>
+  <p class="reader-status" role="status" aria-live="polite" data-reader-status></p>
+</body>
+</html>

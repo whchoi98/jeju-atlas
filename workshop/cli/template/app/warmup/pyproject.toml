@@ -1,0 +1,33 @@
+[project]
+name = "atlas-cli-warmup"
+version = "1.0.0"
+description = "Deterministic BedrockAgentCoreApp HTTP lifecycle workshop"
+requires-python = ">=3.14,<3.15"
+# CLI/CDK 0.28.1's ZIP packager uses `uv pip install -r pyproject.toml`,
+# which does not consume uv.lock. Pin the complete runtime dependency closure
+# here as well, so local sync and the deployed CodeZip use the same versions.
+dependencies = [
+  "annotated-types==0.8.0",
+  "anyio==4.15.1",
+  "bedrock-agentcore==1.9.1",
+  "boto3==1.43.92",
+  "botocore==1.43.92",
+  "click==8.5.0",
+  "h11==0.16.0",
+  "idna==3.19",
+  "jmespath==1.1.0",
+  "pydantic==2.13.5",
+  "pydantic-core==2.46.5",
+  "python-dateutil==2.9.0.post0",
+  "s3transfer==0.19.2",
+  "six==1.17.0",
+  "starlette==1.6.0",
+  "typing-extensions==4.16.0",
+  "typing-inspection==0.4.4",
+  "urllib3==2.7.0",
+  "uvicorn==0.52.4",
+  "websockets==17.1",
+]
+
+[tool.uv]
+package = false

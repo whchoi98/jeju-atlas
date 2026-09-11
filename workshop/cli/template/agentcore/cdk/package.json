@@ -1,0 +1,20 @@
+{
+  "name": "atlas-cli-workshop-cdk",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "synth": "npm run build && cdk synth --no-lookups --no-notices",
+    "cdk": "npm run build && cdk"
+  },
+  "dependencies": {
+    "@aws/agentcore-cdk": "0.1.0-alpha.50",
+    "aws-cdk-lib": "2.261.0",
+    "constructs": "10.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "aws-cdk": "2.1126.0",
+    "typescript": "5.9.3"
+  }
+}

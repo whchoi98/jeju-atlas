@@ -1,0 +1,23 @@
+{
+  "generator": "jeju-atlas-workshop/v1",
+  "pages": [
+    "index.html",
+    "chapters/00-orientation.html",
+    "chapters/01-setup.html",
+    "chapters/02-aws-environment.html",
+    "chapters/03-codex.html",
+    "chapters/04-agentcore-cli.html",
+    "chapters/05-foundation-and-data.html",
+    "chapters/06-atlas-agentcore.html",
+    "chapters/07-routing.html",
+    "chapters/08-web.html",
+    "chapters/09-https-edge.html",
+    "chapters/10-enrichment.html",
+    "chapters/11-operations.html",
+    "chapters/12-validation.html",
+    "chapters/13-cleanup.html",
+    "reference/resources.html",
+    "reference/facilitator.html",
+    "reference/catalog-bootstrap.html"
+  ]
+}

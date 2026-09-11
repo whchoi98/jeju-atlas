@@ -1,0 +1,4 @@
+boto3>=1.42.86,<2
+requests>=2.32.5,<3
+PyYAML>=6.0,<7
+cfn-lint==1.45.0

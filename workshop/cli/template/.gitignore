@@ -1,0 +1,13 @@
+.cli-config/
+.cache/
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+agentcore/.cli/
+agentcore/.cache/
+agentcore/.env*
+agentcore/cdk/dist/
+agentcore/cdk/cdk.out/
+agentcore/cdk/cdk.context.json
+*.zip

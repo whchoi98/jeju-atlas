@@ -1,0 +1,27 @@
+{
+  "title": "제주 아틀라스를 직접 배포하기",
+  "subtitle": "Codex와 Amazon AgentCore CLI로 만드는 3D 제주 여행 가이드",
+  "updatedAt": "2026-09-11",
+  "language": "ko",
+  "chapters": [
+    {"id":"00","slug":"00-orientation","title":"완성할 서비스와 실습 흐름","day":1,"minutes":15,"summary":"현재 에셋, 전체 아키텍처와 완료 기준을 확인합니다."},
+    {"id":"01","slug":"01-setup","title":"개발 도구와 CLI 설치","day":1,"minutes":30,"summary":"Node·Python·Docker·AWS CLI·AgentCore CLI·Codex를 준비합니다."},
+    {"id":"02","slug":"02-aws-environment","title":"AWS 계정과 기존 네트워크","day":1,"minutes":25,"summary":"계정·참가자 이름을 정하고 VPC·서브넷·NAT를 확인합니다."},
+    {"id":"03","slug":"03-codex","title":"Codex로 실습용 에셋 구성","day":1,"minutes":25,"summary":"독립 작업 공간에서 프롬프트·변경 검토·실행을 익힙니다."},
+    {"id":"04","slug":"04-agentcore-cli","title":"AgentCore CLI 첫 배포","day":1,"minutes":40,"summary":"작은 Runtime으로 생성·로컬 실행·배포·호출을 연습합니다."},
+    {"id":"05","slug":"05-foundation-and-data","title":"컨테이너 저장소와 장소 데이터","day":1,"minutes":35,"summary":"ECR·비공개 S3를 준비하고 샘플·OSM 카탈로그를 만듭니다."},
+    {"id":"06","slug":"06-atlas-agentcore","title":"제주 가이드 AgentCore 배포","day":1,"minutes":50,"summary":"실제 Guide·Tools·Gateway·Memory와 Strands를 배포합니다."},
+    {"id":"07","slug":"07-routing","title":"실제 경로와 고도 데이터","day":2,"minutes":45,"summary":"Valhalla·OSM·HGT로 도보·차량 경로 이미지를 빌드합니다."},
+    {"id":"08","slug":"08-web","title":"3D 지도 웹과 Fargate 배포","day":2,"minutes":40,"summary":"Public ALB와 Private Fargate에 지도·가이드·라우터를 연결합니다."},
+    {"id":"09","slug":"09-https-edge","title":"도메인·HTTPS·엣지 구성","day":2,"minutes":60,"summary":"ACM·WAF·S3 OAC·Lambda@Edge와 고도 캐시를 구성합니다."},
+    {"id":"10","slug":"10-enrichment","title":"공식 정보와 주간 보강","day":2,"minutes":35,"summary":"Visit Jeju·TourAPI·올레길·사진의 출처를 유지하며 보강합니다."},
+    {"id":"11","slug":"11-operations","title":"관측·보안·운영 제어","day":2,"minutes":35,"summary":"CloudWatch·SNS·할당량·이미지 검사·개인정보 보호를 확인합니다."},
+    {"id":"12","slug":"12-validation","title":"서비스 검증과 문제 해결","day":2,"minutes":35,"summary":"한영 AI·3D 지도·실제 경로·스트리밍·복구 기준을 검증합니다."},
+    {"id":"13","slug":"13-cleanup","title":"실습 자원 정리","day":2,"minutes":25,"summary":"공유 네트워크를 보존하고 실습 스택과 잔존 자원을 정리합니다."}
+  ],
+  "references": [
+    {"slug":"resources","title":"AWS 자원·기술 전체 매핑"},
+    {"slug":"facilitator","title":"진행자 준비 가이드"},
+    {"slug":"catalog-bootstrap","title":"카탈로그 생성과 출처"}
+  ]
+}

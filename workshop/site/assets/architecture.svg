@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 470" role="img" aria-labelledby="system-map-title system-map-description">
+  <title id="system-map-title">Jeju Atlas 실습 연결 구조</title>
+  <desc id="system-map-description">브라우저가 CloudFront와 WAF를 거쳐 Public ALB와 Private ECS의 웹 및 Valhalla에 연결됩니다. 웹은 참가자 소유 S3와 AgentCore Guide를 사용합니다. Guide는 Gateway 및 Tools, Memory, Bedrock과 연결됩니다. VPC, 서브넷과 NAT는 사전에 준비된 공유 네트워크입니다.</desc>
+  <defs>
+    <marker id="system-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="var(--teal, #287b74)"/></marker>
+  </defs>
+  <g font-family="NanumSquare, sans-serif">
+    <rect x="392" y="30" width="416" height="247" rx="16" fill="var(--sky, #dceef4)" fill-opacity=".48" stroke="var(--line-strong, #93b3be)" stroke-width="1.4" stroke-dasharray="6 5"/>
+    <text x="416" y="58" font-size="13" font-weight="700" fill="var(--strong, #103b4d)">공유 VPC · 기존 서브넷 사용</text>
+    <g fill="none" stroke="var(--teal, #287b74)" stroke-width="1.8" marker-end="url(#system-arrow)">
+      <path d="M161 139h43"/>
+      <path d="M353 139h64"/>
+      <path d="M557 139h38"/>
+      <path d="M767 139h91"/>
+      <path d="M683 177v41"/>
+      <path d="M629 177v18h-57v90H465v39"/>
+      <path d="M549 367h81"/>
+      <path d="M800 367h58"/>
+    </g>
+    <g fill="var(--surface, #fff)" stroke="var(--line-strong, #93b3be)" stroke-width="1.2">
+      <rect x="24" y="100" width="137" height="78" rx="10"/>
+      <rect x="204" y="100" width="149" height="78" rx="10"/>
+      <rect x="417" y="100" width="140" height="78" rx="10"/>
+      <rect x="595" y="100" width="172" height="78" rx="10"/>
+      <rect x="858" y="100" width="196" height="78" rx="10"/>
+      <rect x="611" y="218" width="143" height="39" rx="8"/>
+      <rect x="380" y="324" width="169" height="88" rx="10"/>
+      <rect x="630" y="312" width="170" height="112" rx="10"/>
+      <rect x="858" y="324" width="196" height="88" rx="10"/>
+    </g>
+    <g fill="var(--strong, #103b4d)" text-anchor="middle" font-size="15" font-weight="700">
+      <text x="92" y="134">Browser</text>
+      <text x="278" y="132">CloudFront</text>
+      <text x="487" y="134">Public ALB</text>
+      <text x="681" y="129">Private ECS</text>
+      <text x="956" y="132">소유 S3 버킷</text>
+      <text x="682" y="243" font-size="13">공유 NAT · 외부 통신</text>
+      <text x="465" y="357">AgentCore</text>
+      <text x="465" y="381">Guide</text>
+      <text x="715" y="341">Gateway → Tools</text>
+      <text x="715" y="394">Memory</text>
+      <text x="956" y="360">Amazon Bedrock</text>
+    </g>
+    <g fill="var(--muted, #506570)" text-anchor="middle" font-size="12">
+      <text x="92" y="155">3D 지도 · AI 가이드</text>
+      <text x="278" y="155">WAF · HTTPS</text>
+      <text x="487" y="155">공개 진입점</text>
+      <text x="681" y="155">Web + Valhalla</text>
+      <text x="956" y="155">카탈로그 · 정적 자산</text>
+      <text x="956" y="385">가이드 모델 호출</text>
+    </g>
+    <path d="M649 369h132" stroke="var(--line, #d8e3e8)" stroke-width="1"/>
+    <text x="27" y="367" font-size="14" font-weight="700" fill="var(--strong, #103b4d)">지도 요청에서 가이드 응답까지</text>
+    <text x="27" y="391" font-size="12" fill="var(--muted, #506570)">화살표는 주요 연결을 요약합니다.</text>
+    <text x="27" y="414" font-size="12" fill="var(--muted, #506570)">실제 권한·라우팅은 각 장에서 확인합니다.</text>
+  </g>
+</svg>

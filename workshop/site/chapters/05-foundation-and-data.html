@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="ECR·비공개 S3를 준비하고 샘플·OSM 카탈로그를 만듭니다.">
+  <title>컨테이너 저장소와 장소 데이터 · Jeju Atlas 워크숍</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/mark.svg">
+  <script src="../assets/theme.js"></script>
+  <link rel="stylesheet" href="../assets/reader.css">
+  <script src="../assets/reader.js" defer></script>
+</head>
+<body id="top" data-course-key="8235ee42a9ab6388" data-page-kind="chapters" data-current-chapter="05-foundation-and-data">
+  <a class="skip-link" href="#main-content">본문으로 바로 가기</a>
+  <aside class="sidebar" id="course-nav" aria-label="워크숍 목차">
+    <div class="sidebar-brand">
+      <a class="brand" href="../index.html" aria-label="Jeju Atlas 워크숍 전체 과정">
+        <img src="../assets/mark.svg" width="42" height="42" alt="">
+        <span><strong>Jeju Atlas</strong><span>배포 워크숍</span></span>
+      </a>
+      <button class="icon-button mobile-only js-only" type="button" data-nav-close aria-label="목차 닫기"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
+    </div>
+    <div class="nav-search js-only">
+      <label class="sr-only" for="chapter-search">챕터와 참고 자료의 제목·주제 검색</label>
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="chapter-search" type="search" placeholder="제목·주제 검색" autocomplete="off" spellcheck="false" aria-controls="chapter-navigation">
+      <kbd aria-hidden="true">/</kbd>
+    </div>
+    <p class="search-result sr-only" data-search-result role="status" aria-live="polite"></p>
+    <nav class="chapter-navigation" id="chapter-navigation" aria-label="전체 과정과 챕터">
+      <a class="overview-link" href="../index.html">전체 과정<span aria-hidden="true">00 — 13</span></a>
+      <section class="nav-group" data-nav-group aria-label="1일 차">
+        <h2><span>DAY 1</span><span>3시간 40분</span></h2>
+        <ol><li data-nav-entry data-search="00 완성할 서비스와 실습 흐름 현재 에셋, 전체 아키텍처와 완료 기준을 확인합니다. 완성 모습 두 AgentCore 배포 배포 순서 완료 기준">
+    <a class="chapter-link" href="00-orientation.html" data-chapter-link="00-orientation">
+      <span class="nav-number">00</span>
+      <span class="nav-title">완성할 서비스와 실습 흐름</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="01 개발 도구와 CLI 설치 Node·Python·Docker·AWS CLI·AgentCore CLI·Codex를 준비합니다. 저장소와 Node Python·uv·AWS CLI·Docker AgentCore CLI와 Codex Codex 로그인 확인과 복구">
+    <a class="chapter-link" href="01-setup.html" data-chapter-link="01-setup">
+      <span class="nav-number">01</span>
+      <span class="nav-title">개발 도구와 CLI 설치</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="02 AWS 계정과 기존 네트워크 계정·참가자 이름을 정하고 VPC·서브넷·NAT를 확인합니다. 계정과 참가자 이름 설정 생성 기존 네트워크 검색 파생 이름">
+    <a class="chapter-link" href="02-aws-environment.html" data-chapter-link="02-aws-environment">
+      <span class="nav-number">02</span>
+      <span class="nav-title">AWS 계정과 기존 네트워크</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="03 Codex로 실습용 에셋 구성 독립 작업 공간에서 프롬프트·변경 검토·실행을 익힙니다. 작업 공간 생성 Codex 실행 dry-run, plan, apply 비대화형 실행">
+    <a class="chapter-link" href="03-codex.html" data-chapter-link="03-codex">
+      <span class="nav-number">03</span>
+      <span class="nav-title">Codex로 실습용 에셋 구성</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="04 AgentCore CLI 첫 배포 작은 Runtime으로 생성·로컬 실행·배포·호출을 연습합니다. 1. CLI 입문 Runtime과 실제 Atlas의 경계 2. 실제 create 명령의 모양 확인 3. 독립 프로젝트 준비 4. 의존성 설치와 로컬 검증 5. 로컬 HTTP 실행과 호출 6. 교육용 AWS 계정에서 배포 7. 원격 호출·상태·로그 8. 확인 과제와 진단 9. 소유 자원 정리 공식 근거와 검증 기록">
+    <a class="chapter-link" href="04-agentcore-cli.html" data-chapter-link="04-agentcore-cli">
+      <span class="nav-number">04</span>
+      <span class="nav-title">AgentCore CLI 첫 배포</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="05 컨테이너 저장소와 장소 데이터 ECR·비공개 S3를 준비하고 샘플·OSM 카탈로그를 만듭니다. ECR 생성 CloudFront 없이 비공개 데이터 버킷 생성 카탈로그 생성·게시 데이터 의미">
+    <a class="chapter-link" href="05-foundation-and-data.html" aria-current="page" data-chapter-link="05-foundation-and-data">
+      <span class="nav-number">05</span>
+      <span class="nav-title">컨테이너 저장소와 장소 데이터</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide·Tools·Gateway·Memory와 Strands를 배포합니다. 구성 새 의존성 ZIP 앱 코드 패키징·배포 모델 설정 재개">
+    <a class="chapter-link" href="06-atlas-agentcore.html" data-chapter-link="06-atlas-agentcore">
+      <span class="nav-number">06</span>
+      <span class="nav-title">제주 가이드 AgentCore 배포</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li></ol>
+      </section><section class="nav-group" data-nav-group aria-label="2일 차">
+        <h2><span>DAY 2</span><span>4시간 35분</span></h2>
+        <ol><li data-nav-entry data-search="07 실제 경로와 고도 데이터 Valhalla·OSM·HGT로 도보·차량 경로 이미지를 빌드합니다. 입력 자료 라우터 이미지 웹 연결">
+    <a class="chapter-link" href="07-routing.html" data-chapter-link="07-routing">
+      <span class="nav-number">07</span>
+      <span class="nav-title">실제 경로와 고도 데이터</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="08 3D 지도 웹과 Fargate 배포 Public ALB와 Private Fargate에 지도·가이드·라우터를 연결합니다. 빌드 앱 계획 첫 접속 실제 Distribution으로 데이터 정책 연결 문제 해결">
+    <a class="chapter-link" href="08-web.html" data-chapter-link="08-web">
+      <span class="nav-number">08</span>
+      <span class="nav-title">3D 지도 웹과 Fargate 배포</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="09 도메인·HTTPS·엣지 구성 ACM·WAF·S3 OAC·Lambda@Edge와 고도 캐시를 구성합니다. 도메인과 viewer 인증서 서울 origin 인증서 WAF와 공유 자산 Lambda@Edge와 독립 HTTPS probe 확인과 문제 해결">
+    <a class="chapter-link" href="09-https-edge.html" data-chapter-link="09-https-edge">
+      <span class="nav-number">09</span>
+      <span class="nav-title">도메인·HTTPS·엣지 구성</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="10 공식 정보와 주간 보강 Visit Jeju·TourAPI·올레길·사진의 출처를 유지하며 보강합니다. 키 입력 수집 이미지와 Schedule 결과 해석 올레길과 웹 확인">
+    <a class="chapter-link" href="10-enrichment.html" data-chapter-link="10-enrichment">
+      <span class="nav-number">10</span>
+      <span class="nav-title">공식 정보와 주간 보강</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="11 관측·보안·운영 제어 CloudWatch·SNS·할당량·이미지 검사·개인정보 보호를 확인합니다. 운영 스택 확인할 지표 호출 한도와 모델 권한 로그와 개인정보 이미지와 네트워크">
+    <a class="chapter-link" href="11-operations.html" data-chapter-link="11-operations">
+      <span class="nav-number">11</span>
+      <span class="nav-title">관측·보안·운영 제어</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="12 서비스 검증과 문제 해결 한영 AI·3D 지도·실제 경로·스트리밍·복구 기준을 검증합니다. 자동 검사 실제 화면 실제 AI 질문 문제 구분 복구 기준">
+    <a class="chapter-link" href="12-validation.html" data-chapter-link="12-validation">
+      <span class="nav-number">12</span>
+      <span class="nav-title">서비스 검증과 문제 해결</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="13 실습 자원 정리 공유 네트워크를 보존하고 실습 스택과 잔존 자원을 정리합니다. CLI 입문 프로젝트 Atlas 스택 계획 보존 및 수동 자원 확인 마지막 점검">
+    <a class="chapter-link" href="13-cleanup.html" data-chapter-link="13-cleanup">
+      <span class="nav-number">13</span>
+      <span class="nav-title">실습 자원 정리</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li></ol>
+      </section>
+      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="AWS 자원·기술 전체 매핑 장 연결표 기반·저장소·비밀값 실제 Atlas AgentCore 웹 컴퓨팅·로드 밸런싱 HTTPS·캐시·엣지 공식 데이터 작업·관측 지도·라우팅·데이터·사용자 화면 조건과 제외 범위">
+    <a class="reference-link" href="../reference/resources.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">AWS 자원·기술 전체 매핑</span>
+
+    </a></li><li data-nav-entry data-search="진행자 준비 가이드 행사 전 팀·계정·네트워크 준비 FULL HTTPS와 모델·제공처 접근 새 빌드와 선택 제공 아티팩트 첫 설치와 배포기 사용 경계 이틀 진행안과 AWS 대기 여러 팀의 quota·비용 관리 정리 순서와 남는 자원 로컬 검증과 클라우드 리허설 구분 부모 작업과 리허설에서 확인할 공백">
+    <a class="reference-link" href="../reference/facilitator.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">진행자 준비 가이드</span>
+
+    </a></li><li data-nav-entry data-search="카탈로그 생성과 출처 선택: 공개 OpenStreetMap 자료 추가 오프라인 OSM fixture 재생 호환성 확인과 후속 공식 보강">
+    <a class="reference-link" href="../reference/catalog-bootstrap.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">카탈로그 생성과 출처</span>
+
+    </a></li></ul></section>
+      <p class="search-empty" data-search-empty hidden>검색 결과가 없습니다.<br>다른 제목이나 주제를 입력하세요.</p>
+    </nav>
+    <div class="reading-progress">
+      <div class="progress-label"><span>나의 읽기 기록</span><strong data-progress-count>0 / 14 읽음</strong></div>
+      <progress data-reading-progress max="14" value="0" aria-label="읽은 챕터 수"></progress>
+      <p data-storage-note>이 브라우저에만 저장됩니다.<br>AWS 배포 상태를 나타내지 않습니다.</p>
+      <button class="text-button js-only" type="button" data-reset-progress hidden>읽기 기록 초기화</button>
+    </div>
+  </aside>
+  <button class="nav-backdrop" type="button" data-nav-backdrop aria-label="목차 닫기" tabindex="-1" hidden></button>
+  <div class="workspace" data-workspace>
+    <header class="topbar">
+      <div class="topbar-leading"><button class="toolbar-button mobile-only js-only" type="button" data-nav-toggle aria-controls="course-nav" aria-expanded="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>목차</span></button>
+        <nav class="breadcrumb" aria-label="현재 위치"><a href="../index.html">워크숍</a><span aria-hidden="true">/</span><span>CHAPTER 05</span></nav>
+      </div>
+      <div class="toolbar js-only"><button class="toolbar-button" type="button" data-theme-toggle aria-label="어두운 화면으로 전환" aria-pressed="false"><span class="theme-moon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14a8 8 0 0 1-10-10 8 8 0 1 0 10 10Z"/></svg></span><span class="theme-sun"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></span><span data-theme-label>다크</span></button><button class="toolbar-button" type="button" data-print><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4V8h16v9h-3M7 14h10v7H7Z"/><path d="M16 11h1"/></svg><span>인쇄</span></button></div>
+    </header>
+    <main id="main-content" tabindex="-1">
+      <noscript><p class="noscript-note">목차와 본문은 그대로 읽을 수 있습니다. 검색·코드 복사·읽기 기록은 JavaScript를 켜면 사용할 수 있습니다.</p></noscript>
+      <div class="article-layout">
+    <article class="lesson" aria-labelledby="heading-05--컨테이너-저장소와-장소-데이터">
+      <header class="lesson-header">
+        <p class="eyebrow"><span class="chapter-stamp">05</span>DAY 1<span class="meta-separator">/</span>35분 실습</p>
+        <h1 id="heading-05--컨테이너-저장소와-장소-데이터">컨테이너 저장소와 장소 데이터</h1>
+        <p class="lesson-summary">ECR·비공개 S3를 준비하고 샘플·OSM 카탈로그를 만듭니다.</p>
+        <div class="lesson-location"><span>6 / 14번째 챕터</span><span class="lesson-read-state" data-chapter-state>아직 읽지 않음</span></div>
+      </header>
+      <div class="prose">
+<p>ECR과 비공개 데이터 S3를 먼저 만듭니다.
+웹 Distribution과 실제 Atlas Runtime이 아직 없는 단계입니다.
+운영 Distribution을 데이터 버킷에 임시 연결하지 않습니다.</p>
+<h2 id="heading-ecr-생성">ECR 생성</h2>
+<p>각 plan 출력에서 참가자 이름과 생성 자원을 확인한 뒤 apply를 실행합니다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-1">cd "$ATLAS_REPO"
+python3 workshop/scripts/lab.py run network --config "$ATLAS_CONFIG" --execute
+python3 workshop/scripts/lab.py run plan-bootstrap --config "$ATLAS_CONFIG" --execute
+python3 workshop/scripts/lab.py run apply-bootstrap --config "$ATLAS_CONFIG" --execute
+python3 workshop/scripts/lab.py run status-bootstrap --config "$ATLAS_CONFIG" --execute
+</code></pre></div>
+<p><code>CREATE_COMPLETE</code>가 된 뒤 진행합니다. 진행 중이면 status를 다시 확인하며 apply를 반복하지 않습니다.
+ECR은 웹·수집 작업·라우터 이미지를 불변 태그와 digest로 관리합니다.</p>
+<h2 id="heading-cloudfront-없이-비공개-데이터-버킷-생성">CloudFront 없이 비공개 데이터 버킷 생성</h2>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-2">python3 workshop/scripts/lab.py run plan-data --config "$ATLAS_CONFIG" --execute
+python3 workshop/scripts/lab.py run apply-data --config "$ATLAS_CONFIG" --execute
+python3 workshop/scripts/lab.py run status-data --config "$ATLAS_CONFIG" --execute
+</code></pre></div>
+<p>실습용 데이터 템플릿은 초기의 빈 Distribution 입력을 처리합니다.
+Public Access Block·버전 관리·암호화·미디어 OAC를 만들지만
+CloudFront 미디어 읽기 허용은 실제 Distribution을 연결할 때까지 없습니다.
+수집 이미지와 Schedule은 아직 활성화하지 않습니다.</p>
+<p>데이터 → AgentCore → 웹 → 실제 Distribution 연결 순서로 최초 배포 의존성을 해결합니다.</p>
+<h2 id="heading-카탈로그-생성게시">카탈로그 생성·게시</h2>
+<p>전체 실습에서는 공개 OSM 장소를 포함해 새 카탈로그를 만듭니다.</p>
+<div class="code-block"><div class="code-toolbar"><span class="code-language">bash</span><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><pre tabindex="0" aria-label="bash 코드"><code class="language-bash" id="code-3">python3 workshop/scripts/lab.py catalog --osm --config "$ATLAS_CONFIG" --execute
+python3 workshop/scripts/lab.py publish-catalog --config "$ATLAS_CONFIG" --execute
+</code></pre></div>
+<p>네트워크 없는 준비 실습은 <code>--osm</code>을 생략하면 샘플 137건만 사용합니다.
+이 경우 전체 데이터 준비가 끝났다고 기록하지 않습니다.
+이미 생성된 파일은 덮어쓰지 않으므로 처음에 사용할 모드를 선택합니다.
+재생성할 때는 본인 파일을 백업하고 새 출력을 검증합니다.</p>
+<p>샘플/OSM 개수, SQLite 경로·SHA-256과 게시 객체 버전을 확인합니다.
+OSM 개수는 조회 시점과 조건에 따라 달라지며 과거 운영의 6,587건과 같다고 보장하지 않습니다.
+검증된 Overpass JSON이 있으면 <code>--osm-file</code>을 사용할 수 있습니다.</p>
+<p>최초 게시에서는 <code>place-details/latest.json</code>에 빈 공식 snapshot도 조건부로 초기화합니다.
+공식 확인 결과를 만들어 넣는 것이 아니라, 읽기 전용 worker가 첫 실행부터 정상 파일을 읽게 하는
+준비입니다. 이미 보강된 snapshot은 덮어쓰지 않습니다.</p>
+<h2 id="heading-데이터-의미">데이터 의미</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col">자료</th>
+<th scope="col">해석</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>샘플 137건</td>
+<td>실제 장소 이름을 바탕으로 만든 시드. 기본 좌표·주소·소개는 공식 검증값이 아님</td>
+</tr>
+<tr>
+<td>OSM 행</td>
+<td>실제 OpenStreetMap 자료. ODbL 출처와 조회 정보를 유지</td>
+</tr>
+<tr>
+<td>사진·시간·편의</td>
+<td>후속 보강에서 확인된 항목만 표시</td>
+</tr>
+<tr>
+<td>빈 필드</td>
+<td>모르는 값. Codex나 모델이 만들어 채우지 않음</td>
+</tr>
+</tbody>
+</table></div>
+<p>준비기는 Node 카탈로그와 Python Tools가 함께 읽는 테이블·검색 인덱스·메타데이터를 만듭니다.
+자세한 내용은 <a href="../reference/catalog-bootstrap.html">카탈로그 준비 기준</a>에 있습니다.</p>
+<ul class="contains-task-list">
+<li class="task-list-item"><input type="checkbox" disabled> Registry와 Data 스택이 완료되었습니다.</li>
+<li class="task-list-item"><input type="checkbox" disabled> S3가 비공개이고 아직 운영 CloudFront와 연결되지 않았습니다.</li>
+<li class="task-list-item"><input type="checkbox" disabled> 출처를 구분한 카탈로그를 내 버킷에 게시했습니다.</li>
+</ul>
+<p>Codex 카드: <span class="source-reference" title="소스 저장소에서 확인: ../prompts/05-foundation-and-data.md">05 · ECR·카탈로그 <small>소스 참고</small></span></p>
+<p>다음: <a href="06-atlas-agentcore.html">06 · 실제 Atlas AgentCore</a></p></div>
+      <section class="reading-check js-only" aria-label="이 장의 읽기 기록">
+        <div><p class="eyebrow">READING CHECK</p><h2>이 장을 읽었나요?</h2><p>읽음 표시는 이 브라우저에만 저장됩니다.<br>실제 실습 결과는 터미널에서 확인하세요.</p></div>
+        <button class="button primary-button" type="button" data-progress-toggle aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span data-toggle-label>읽음으로 표시</span></button>
+      </section>
+      <nav class="page-pagination" aria-label="이전 다음 장">
+        <a class="pagination-link prev" rel="prev" href="04-agentcore-cli.html">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H5m6-6-6 6 6 6"/></svg><span><small>이전 장</small><strong>04 · AgentCore CLI 첫 배포</strong></span>
+  </a><a class="pagination-link next" rel="next" href="06-atlas-agentcore.html">
+    <span><small>다음 장</small><strong>06 · 제주 가이드 AgentCore 배포</strong></span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>
+  </a>
+      </nav>
+    </article>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-ecr-생성" data-toc-link>ECR 생성</a></li><li class="toc-depth-2"><a href="#heading-cloudfront-없이-비공개-데이터-버킷-생성" data-toc-link>CloudFront 없이 비공개 데이터 버킷 생성</a></li><li class="toc-depth-2"><a href="#heading-카탈로그-생성게시" data-toc-link>카탈로그 생성·게시</a></li><li class="toc-depth-2"><a href="#heading-데이터-의미" data-toc-link>데이터 의미</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+  </div>
+    </main>
+    <footer class="site-footer"><span>Jeju Atlas · 배포 워크숍<span class="footer-date">2026.09.11 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 · 글꼴 라이선스</a></footer>
+  </div>
+  <p class="reader-status" role="status" aria-live="polite" data-reader-status></p>
+</body>
+</html>
