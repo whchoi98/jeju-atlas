@@ -8,13 +8,14 @@ import argparse
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import re
 import time
 import uuid
 
 import boto3
 import requests
 
-from deploy import connect, save
+from deploy import ACCOUNT, REGION, connect, load, save
 
 
 def main():
@@ -25,7 +26,17 @@ def main():
         parser.error("--live is required for the single billable guide turn")
     session = connect()
     control = session.client("bedrock-agentcore-control")
-    runtime_ids = ("Ohmyjeju_OhmyjejuAgent-7fiRWV5uVi", "Ohmyjeju_OhmyjejuTools-BzugIP8Xga")
+    owned = load("atlas-agent-outputs.json")
+    runtime_ids = []
+    for field, name in [("guideRuntimeArn", "JejuAtlas_Guide"), ("toolsRuntimeArn", "JejuAtlas_Tools")]:
+        arn = owned.get(field, "")
+        if not re.fullmatch(rf"arn:aws:bedrock-agentcore:{REGION}:{ACCOUNT}:runtime/{name}-[A-Za-z0-9]{{10}}", arn):
+            raise RuntimeError("Verify only the independent Jeju Atlas runtimes")
+        runtime_ids.append(arn.rsplit("/", 1)[-1])
+    stack = session.client("cloudformation").describe_stacks(StackName="Jeju3dApp")["Stacks"][0]
+    parameters = {item["ParameterKey"]: item["ParameterValue"] for item in stack["Parameters"]}
+    if parameters.get("GuideRuntimeArn") != owned["guideRuntimeArn"] or parameters.get("CatalogBucket") != owned["catalogBucket"]:
+        raise RuntimeError("Switch the app to its independent runtime and catalog before a live turn")
     versions = []
     for runtime_id in runtime_ids:
         state = control.get_agent_runtime(agentRuntimeId=runtime_id)
@@ -79,9 +90,9 @@ def main():
     end_ms = int(datetime.now(timezone.utc).timestamp() * 1000) + 5000
     report["logWindow"] = {"startMs": start_ms, "endMs": end_ms}
     groups = [("/aws/bedrock-agentcore/runtimes/" + runtime_id + "-DEFAULT", None) for runtime_id in runtime_ids]
-    if any(item["logGroupName"] == "/aws/spans"
-           for item in logs.describe_log_groups(logGroupNamePrefix="/aws/spans")["logGroups"]):
-        groups.append(("/aws/spans", '"Ohmyjeju_OhmyjejuAgent.DEFAULT"'))
+    if any(item["logGroupName"] == "aws/spans"
+           for item in logs.describe_log_groups(logGroupNamePrefix="aws/spans")["logGroups"]):
+        groups.append(("aws/spans", '"JejuAtlas_Guide.DEFAULT"'))
     events = []
     # Exporters batch records. Poll the same invocation window; never invoke again.
     for attempt in range(7):

@@ -4,11 +4,15 @@
 
 **배포 주소: [제주 아틀라스 열기](https://jeju-atlas.whchoi.net)** · 기존 CloudFront 주소도 지원합니다.
 
-[최신 운영 검증·남은 항목](docs/commercial-completion-audit-2026-09-10.md) · [현재 배포 상태](docs/deployment.md)
+[이동 경로·3D·전용 Agent 전환 현황](docs/mobility-independence-2026-09-11.md) · [이전 공개 배포 기록](docs/deployment.md)
 
-현재 웹은 `release-20260910T202150Z` / `jeju-3d:11`, Agent·Tools는 **22 / 12, READY**입니다.
-CloudFront→ALB HTTPS는 2026-09-10 **19:38 UTC 배포 완료**했으며 원본 DNS 전환 대기는 없습니다.
-인프라·HTTP 78개, Node 247개·Python 150개와 빌드가 통과했습니다. 상세 증거와 남은 운영자 결정은 최신 검증 문서를 기준으로 합니다.
+**공개 웹이 전용 Agent·카탈로그·도보/차량 경로 엔진으로 전환됐습니다.**
+현재 릴리스는 `release-20260911T013430Z` / `jeju-3d:12`입니다.
+`Jeju3dApp` `UPDATE_COMPLETE`, PRIMARY `COMPLETED`, desired/running 2/2와 웹·라우터 HEALTHY를 확인했습니다.
+두 공개 호스트의 API 200 응답과 독립성 24개 검사가 통과했습니다.
+공개 브라우저 8/8, 운영 인프라 91개, 최종 Node 299개·Python 190개 통과(선택적 검사 3개 건너뜀)를 확인했습니다.
+공개 AI 답변 완료와 원문 로그 비기록도 확인했습니다.
+CloudFront→ALB HTTPS는 2026-09-10 19:38 UTC부터 배포된 상태이며 원본 DNS 전환 대기는 없습니다.
 
 [AgentCore·Strands 구성](docs/agentcore-components.md) · [공식 상세·갤러리·올레길](docs/official-details-olle.md)
 
@@ -19,11 +23,19 @@ CloudFront→ALB HTTPS는 2026-09-10 **19:38 UTC 배포 완료**했으며 원본
 - 기본 정보와 보강 정보를 구분한 장소 상세, 사진·요일별 이용시간·편의·인허가 상태·출처
 - 2D/3D 전환, 위성/고도 지도 전환, 실제 높이 1×~2× 조절
 - 장소로 이동, 제주 한 바퀴·올레길 코스별 3D 둘러보기, 현재 시점 공유
-- 즐겨찾기, 코스 순서·체류시간 편집, 직선 연결선, 브라우저 저장과 코스 공유
-- Open-Meteo 날씨·3일 예보와 기존 Ohmyjeju AgentCore AI 가이드
+- 즐겨찾기, 코스 순서·체류시간 편집, 실제 이동 경로 표시, 브라우저 저장과 코스 공유
+- Open-Meteo 날씨·3일 예보와 한영 AI 가이드
 - 설치형 PWA, 저장한 코스 오프라인 확인, 모바일·키보드·reduced motion 지원
 - 한국어/English 토글, 선택 기억, 화면·추천 질문·AI 답변 언어 연동
 - 저장 자료 백업·검토 후 복원·기기 삭제, 저장 실패와 탭 간 편집 충돌 보호
+
+이번 릴리스에 반영한 기능입니다. 실제 네이티브 통합과 공개 브라우저 검사가 각각 8/8 통과했습니다.
+
+- 최대 12곳의 실제 도보·차량 경로 거리/예상 시간 비교, 체류 포함 계획 시간·구간 안내
+- 출발·도착 지정, 지도 중심·명시적으로 허용한 현재 위치, GPX·이동 수단을 포함한 코스 공유
+- 명소 12곳의 전용 3D 탐색·회전·위에서 보기, 실제 경로 미리보기·고도 단면
+- 여러 점 직선 거리 재기·마지막 점 취소·초기화
+- 자체 소스·S3 아티팩트·카탈로그·Runtime·Gateway·Memory를 사용하는 전용 AI
 
 ## 실행
 
@@ -38,7 +50,8 @@ npm run dev
 API 서버를 별도 터미널에서 실행하면 Vite가 `/api`를 로컬 8097 포트로 전달합니다.
 
 ```bash
-CATALOG_BUCKET=ohmyjeju-catalog-061525506239-prod \
+CATALOG_BUCKET=jeju-3d-data-061525506239-ap-northeast-2 \
+DETAILS_BUCKET=jeju-3d-data-061525506239-ap-northeast-2 \
 AWS_REGION=ap-northeast-2 \
 HOST=127.0.0.1 PORT=8097 NODE_ENV=development \
 PUBLIC_ORIGIN=http://localhost:5173 \
@@ -46,6 +59,11 @@ node server/server.mjs
 ```
 
 해당 S3 객체를 읽을 수 있는 AWS 역할이 필요합니다. 읽기 전용 로컬 카탈로그 파일이 있으면 `CATALOG_BUCKET` 대신 `CATALOG_LOCAL_PATH=/absolute/path/catalog.sqlite`를 지정할 수 있습니다. 로컬 AI는 런타임·사용량 테이블·세션 키를 명시적으로 구성한 경우에만 켜집니다.
+
+실제 Valhalla를 같은 네트워크의 loopback에 준비한 경우
+`ROUTING_URL=http://127.0.0.1:8002`, `ROUTING_DATA_UPDATED_AT=2026-09-10T20:21:06Z`를
+추가합니다. 준비·데이터 경로는 [라우터 설명](routing/README.md)을 따릅니다.
+원본 참조 저장소나 공개 데모 라우팅 서버는 실행 의존성이 아닙니다.
 
 정적 빌드를 실제 배포 서버로 확인하려면:
 
@@ -59,7 +77,10 @@ node server/server.mjs
 
 `http://127.0.0.1:8097`에서 엽니다. `/healthz`는 배포 버전이 포함된 JSON을 반환합니다.
 
-## 배포 구조
+## 현재 공개 배포 구조
+
+공개 task 12는 전용 Guide·카탈로그·라우터를 사용합니다.
+이전 task 11의 공유 Agent 연결은 [과거 배포 기록](docs/deployment.md)에 보존합니다.
 
 ```mermaid
 flowchart LR
@@ -70,8 +91,9 @@ flowchart LR
     CF -->|"/assets/* · OAC"| Assets["비공개 S3 · 버전별 공유 자산"]
     CF -->|"/media/* · OAC"| Media["비공개 S3 · 허용된 원본 사진"]
     ECS -->|기존 기본 경로| NAT["기존 NAT Gateway"]
-    ECS -->|읽기 전용·ETag 확인| Catalog["기존 운영 S3 카탈로그"]
-    ECS -->|IAM·서버 사용자 식별| Agent["기존 Ohmyjeju AgentCore"]
+    ECS -->|읽기 전용| Catalog["제주 전용 S3 카탈로그"]
+    ECS -->|IAM| Agent["JejuAtlas_Guide · 전용 Gateway/Tools/Memory"]
+    ECS -->|loopback 8002| Router["Valhalla 3.8.3 · OSM 그래프/HGT"]
     ECS -->|조건부 일일 카운터| Quota["DynamoDB · AI 호출 한도"]
     CF -->|"/terrarium/* · HTTPS · 고도 캐시"| DEM["Mapzen / AWS Terrain Tiles"]
     Browser -->|위성 영상| Esri["Esri World Imagery"]
@@ -86,8 +108,10 @@ flowchart LR
 | Registry 스택 | `Jeju3dRegistry` |
 | 앱 스택 | `Jeju3dApp` |
 | 원본 TLS / 공유 자산 스택 | `Jeju3dOriginRouting`(us-east-1) / `Jeju3dStatic`(서울) |
+| 전용 AgentCore 스택 | `Jeju3dAgentCore` — 생성 완료, Guide·Tools 버전 1 READY |
 | ECR / ECS 클러스터 / 서비스 | `jeju-3d` |
-| Fargate | Linux ARM64, 태스크당 0.25 vCPU·512 MiB, 최소 2개·최대 4개 |
+| Fargate | task 12: 0.5 vCPU·1,024 MiB, 라우터 상한 512 MiB. 정상 2개, 최소 2개·최대 4개 |
+| 데이터 수집 | `jeju-3d-data:4`; 소유 카탈로그 사용, `Jeju3dData` `UPDATE_COMPLETE` |
 | 컨테이너 | UID/GID 1000, 읽기 전용 루트 파일시스템, Linux capabilities 제거 |
 | 앱 IAM 역할 | 지정 카탈로그·공식 상세·올레길 S3 객체 읽기, 지정 AI 런타임 호출, 전용 할당량 테이블 GetItem·UpdateItem |
 | 실행 IAM 역할 | 전용 ECR·로그 및 세션 서명 키 주입 |
@@ -151,6 +175,13 @@ python3 scripts/verify.py
 
 기존 앱을 재배포할 때는 `build-push` → `plan-app` → 변경 내용 검토 → `apply-app` → `status-app` → `verify.py` 순서로 실행합니다. 필요한 경우 다음 명령으로 HTML 캐시만 무효화합니다.
 
+이번 전환은 [라우터 이미지](routing/README.md)를 먼저 준비하고 웹 이미지와 digest 쌍으로
+기록합니다. 앱 계획은 전용 Guide·전용 카탈로그 출력을 소비합니다.
+독립 Guide 배포는 `scripts/deploy-atlas-agent.py`의
+`build` → `publish` → `plan` → 검토 → `apply` → `status` → `configure-logs` 순서입니다.
+기존 `scripts/deploy-guide-models.py` CLI는 폐기됐으며 AWS 연결 전에 종료합니다.
+[전용 Agent 절차](agent/README.md)
+
 `infra/production.json`에 사용자 도메인·인증서·용량·AI 한도와 전환 설정을 관리합니다.
 `build-push`는 Node·Python 테스트, 전체 템플릿 검사, npm 취약점 검사와 빌드를 먼저
 실행합니다. `/readyz`를 지원하지 않는 기존 이미지에서 넘어올 때는 `/healthz`로
@@ -165,13 +196,15 @@ python3 scripts/deploy.py invalidate
 연결하며 OAC `E2W270OBXMQ1S2`로 서명합니다. `build-push`는 해당 스택이 있으면
 정확한 이미지 digest에서 자산을 추출·게시하고, `plan-app`은 이미지 매니페스트를 확인합니다.
 기존 자산을 덮어쓰거나 삭제하지 않아 롤링 배포 중 이전 HTML의 참조를 유지합니다.
-현재와 이전 이미지 **3개에 필요한 19개 자산의 HTTP 200·SHA-256 일치**,
-직접 S3 접근 차단·매니페스트 비공개를 [검증했습니다](.local/shared-assets-verification.json).
+2026-09-10에는 당시 이미지 **3개에 필요한 19개 자산의 HTTP 200·SHA-256 일치**,
+직접 S3 접근 차단·매니페스트 비공개를 검증했습니다.
+[당시 운영 기록](docs/commercial-completion-audit-2026-09-10.md). 이번 이미지의 자산·화면 결과는 공개 브라우저 최종 검사에 별도로 기록합니다.
 
 HTML은 재검증하고 hash가 붙은 JS/CSS/worker는 1년 immutable 캐시합니다.
 지도 상태는 URL fragment에 저장하며 CloudFront cache key에 포함하지 않습니다.
-롤백은 [승인 이미지 절차](docs/rollback.md)를 따릅니다. 실제 이미지의 로컬 예행연습과
-AWS 검토 가능 계획까지 확인했으며 **운영 롤백은 실행하지 않았습니다.**
+수동 롤백은 [승인 이미지 절차](docs/rollback.md)를 따릅니다. 이전 이미지로 되돌리는
+수동 운영 롤백은 실행하지 않았습니다. 이번 전환의 실패 시도에서 발생한 CloudFormation
+자동 롤백과 성공한 재시도는 [배포 이력](docs/mobility-independence-2026-09-11.md#실패-시도와-복구-이력)에 구분합니다.
 
 원본 검증 값은 Secrets Manager에서 생성합니다. 스크립트·이미지·출력 파일에 값을 저장하지 않습니다. ECR 로그인 정보는 별도 임시 Docker 설정에만 전달하고 이미지 푸시 후 삭제합니다.
 
@@ -194,11 +227,16 @@ AWS 검토 가능 계획까지 확인했으며 **운영 롤백은 실행하지 �
 
 ## 장소 카탈로그와 출처
 
-참고 프로젝트 `/home/ec2-user/my-project/agentcore-cli`의 최신 서비스 구현과 운영 S3 카탈로그를 연결했습니다. 참고 프로젝트와 카탈로그 원본은 수정하지 않습니다.
+전용 실행에 사용할 카탈로그를 아래 소유 버킷에 복사했고, 6,724곳과 원본 SHA-256을
+그대로 유지했습니다. 공개 웹 task 12와 수집 작업 4도 이 소유 카탈로그를 사용합니다.
 
 ```text
-s3://ohmyjeju-catalog-061525506239-prod/catalog/catalog.sqlite
+s3://jeju-3d-data-061525506239-ap-northeast-2/catalog/catalog.sqlite
 ```
+
+[복사·해시 검증](.local/independence/catalog-import-applied.json).
+에이전트 소스는 검증된 커밋에서 한 번 읽기 전용으로 복사해 `agent/guide/`, `agent/tools/`에서
+소유합니다. 후속 빌드·배포·실행은 참조 프로젝트 디렉터리나 공유 Runtime을 사용하지 않습니다.
 
 확인 당시 6,724곳은 **OpenStreetMap 6,587곳 + 큐레이션 시드 137곳**입니다. 137곳의 장소 이름은 실제 장소를 바탕으로 하지만 기본 좌표·주소·소개는 공식 대조 검증값으로 취급하지 않습니다. 주간 보강으로 연결된 사진·요일별 시간·인허가 정보는 기본 필드와 출처를 나눠 보여 줍니다.
 
@@ -214,20 +252,24 @@ s3://ohmyjeju-catalog-061525506239-prod/catalog/catalog.sqlite
 
 ## AI와 저장
 
-AI는 기존 Ohmyjeju AgentCore 런타임을 사용합니다. 브라우저는 AWS 자격 증명이나 런타임 ARN을 받지 않으며 서버가 IAM으로 호출합니다.
+전용 Guide `JejuAtlas_Guide-2sFw9YBI8V`, Tools `JejuAtlas_Tools-Nh0YFIFC7c`,
+HTTP Gateway와 Memory가 배포됐고 공개 ECS task 12에 연결됐습니다.
+브라우저는 AWS 자격 증명이나 런타임 ARN을 받지 않으며 서버가 IAM으로 호출합니다.
+전용 Gateway 대상 경로는 `/JejuAtlasTools/invocations`입니다.
 
 서울 Global CRIS의 **GPT-5.6 Sol**을 일반 질문에, **GPT-6 Astra**를 일정·코스
 계획에 사용합니다. 한영 토글의 `locale`은 요청마다 고정되어 AgentCore까지
 전달됩니다. 여러 태스크가 DynamoDB의 원자적 사용량·실행 잠금·요청 ID를
 공유하며, 결과가 불명확한 요청을 자동으로 다시 과금 호출하지 않습니다.
 
-Agent 22·Tools 12는 관측 로그의 질문·답변 콘텐츠를 제거한 버전입니다.
-실제 Astra 영어 일정 요청은 **53.433초**에 완료됐고, 검사 시간대의 로그에서
-입력 표식·질문·답변 일부가 검출되지 않았습니다. 모델·도구 이름과 토큰 수는 남습니다.
-두 Runtime 로그 그룹에 **14일 보관**을 적용했으며 AgentCore Memory의 보관과는 별개입니다.
+전용 Guide의 실제 한국어 호출 **17.553초**, 영어 호출 **25.434초**와 정상 `done`을 확인했습니다.
+검사 구간의 로그·트레이스 **8,260건**에서 입력 표식·질문·답변 유출은 검출되지 않았고,
+모델·도구·토큰 메타데이터는 유지됐습니다. 공개 웹 전체 지연이나 미래 요청의 보장이 아닙니다.
+서비스가 자동 생성한 전용 Runtime 로그 두 개에 `configure-logs`로 **14일 보관**을 적용했습니다.
+같은 로그 그룹을 CloudFormation에 중복 선언하지 않습니다. Memory 이벤트의 30일 보관과는 별개입니다.
 [개인정보 관측 검사와 보관 범위](docs/agentcore-components.md#관측-로그와-개인정보)
 
-질문과 응답 처리는 참조 프로젝트의 대화 세션·마크다운·도구 상태 표시 방식을 반영합니다. 유휴 14분이 지나 대화가 만료되면 같은 질문을 한 번 복구하며, 유효한 대화를 계속할 때는 서명 토큰을 갱신합니다. 이미 과금됐을 수 있는 스트리밍·네트워크 오류와 이용 한도는 자동 재전송하지 않습니다.
+질문과 응답 처리는 초기 참조 검토를 반영한 이 프로젝트 소유 구현입니다. 유휴 14분이 지나 대화가 만료되면 같은 질문을 한 번 복구하며, 유효한 대화를 계속할 때는 서명 토큰을 갱신합니다. 이미 과금됐을 수 있는 스트리밍·네트워크 오류와 이용 한도는 자동 재전송하지 않습니다.
 
 AI 응답은 강조·목록·표·코드·안전한 링크 등 GFM 마크다운으로 표시합니다. 준비 중 상태와 실제 사용 도구를 보여주고, 하단 추천 질문 말풍선은 입력·대화 맥락에 따라 갱신합니다. 말풍선은 입력창을 채우며 모델 호출을 자동으로 추가하지 않습니다. 화면과 지도 라벨은 자체 제공하는 나눔스퀘어 글꼴을 사용합니다.
 
@@ -249,17 +291,39 @@ AI 응답은 강조·목록·표·코드·안전한 링크 등 GFM 마크다운�
 - 90초 제한과 8초 heartbeat를 사용합니다. API·AI 응답은 캐시하지 않습니다.
 - 모델·AgentCore 사용료는 별도이며 호출당 토큰·도구 사용량에 따라 달라집니다.
 
-즐겨찾기와 코스는 이 브라우저의 localStorage에 저장합니다. 코스 공유 주소의 fragment에 순서·좌표·체류 시간·출처를 넣습니다. 연결선과 거리는 직선 기준이며 도로 내비게이션을 의미하지 않습니다.
+즐겨찾기와 코스는 이 브라우저의 localStorage에 저장합니다. 새 공유 형식은 기존 fragment를
+유지하면서 이동 수단을 함께 복원합니다. 가까운 순서 정렬과 거리 재기는 직선 기준이고,
+도보·차량 비교는 Valhalla의 실제 경로·예상 시간입니다. 실시간 교통은 반영하지 않습니다.
+경로·고도 POST는 앱 프로세스에서 actor당 분당 60회로 제한하며 AI 쿼터와 별개입니다.
 
 PWA는 현재 빌드의 앱 셸만 저장합니다. API 응답·고도 타일·외부 사진을 서비스 워커로 사전 저장하지 않습니다. 오프라인에서는 저장한 코스를 확인할 수 있고 지도·새 장소 조회·AI에는 연결이 필요합니다.
 
 ## 검증
 
-현재 릴리스의 인프라·HTTP **78개**, Node **247개**, Python **150개**와 빌드가
-통과했습니다. 최종 부하 검사는 **50개 세션·500 GET, 오류 0건**,
-p50 **41.702ms**, p95 **275.421ms**, 최대 **502.158ms**입니다.
-짧은 HTTP 검사 결과이며 지속 처리 용량·지도 FPS·AI 완료 지연을 뜻하지 않습니다.
-[검사 범위와 복구 기록](docs/load-recovery.md)에서 과거 측정과 구분합니다.
+이번 브랜치의 실제 로컬 Valhalla·HGT·웹 BFF 브라우저 검사는 **8/8 통과**했습니다.
+GPX·12곳 공유·한영·모바일·위치 권한 거절·고도·3D·응답 취소를 포함하며 모델 호출은 0회입니다.
+[네이티브 보고서](.local/browser-mobility-native-rate60/report.json).
+전용 AI 실제 호출 검증과 전체 검사·공개 전환 결과는
+[최신 전환 기록](docs/mobility-independence-2026-09-11.md)에 구분합니다.
+
+공개 사용자 도메인과 CloudFront 주소에서 health/config/routes/elevation의 200 응답을
+확인했습니다. 검증 지점쌍은 차량 **4,571m / 예상 410.673초**,
+도보 **3,885m / 예상 2,770.64초**입니다.
+[공개 API 결과](.local/mobility-live-api.json) ·
+[AWS 독립성 24/24](.local/independence/final-aws-audit.json).
+웹 `92f16ae2…`·라우터 `bae4b2b8…`의 최종 ECR 스캔은 각각 발견 0건입니다.
+정확한 digest와 스캔 근거는 최신 전환 기록에 있습니다.
+공개 브라우저 8/8과 실제 route/elevation POST 16회가 통과했습니다.
+[공개 브라우저 보고서](.local/browser-mobility-live-release-20260911T013430Z-observed-config/report.json).
+공개 AI는 영어 일정 요청을 26.651초에 완료했고, 관련 로그·트레이스 1,066건에서
+질문·답변 유출이 없고 모델·도구·토큰 메타데이터가 유지됨을 확인했습니다.
+[공개 AI 검사](.local/guide-privacy-live.json).
+최종 Node 299개·Python 190개 통과(선택적 검사 3개 건너뜀), 스키마·의존성 검사·운영 빌드가 통과했습니다.
+[최종 검사](.local/checks.json). 별도 운영 인프라·HTTP 검사도 91개 통과했습니다.
+
+인프라·HTTP 78개, Node 247개·Python 150개와 500 GET p95 275.421ms 등은
+[2026-09-10 공개 릴리스의 과거 기록](docs/commercial-completion-audit-2026-09-10.md)입니다.
+새 코드·새 용량의 처리 성능이나 공개 전환 완료를 증명하는 값으로 재사용하지 않습니다.
 
 ```bash
 node --test --test-concurrency=1 tests/*.test.mjs
@@ -297,16 +361,28 @@ node scripts/browser-guide-live-check.mjs https://d2mznud99i2mdr.cloudfront.net 
 
 브라우저 검사는 실제 고도·위성 타일, 지도 시점, 검색, 분류, 2D/3D, 고도 배율, 지형 지도, 자동 둘러보기, 공유 복원, 모바일 조작을 확인합니다. 결과와 스크린샷은 `.local/`에 저장합니다.
 
+새 이동 기능 검사는 실제 로컬 엔진·카탈로그·HGT가 준비된 상태에서 실행합니다.
+자료 경로와 실행 조건은 [라우터 설명](routing/README.md)을 따릅니다.
+
+```bash
+node scripts/browser-mobility-check.mjs --output .local/browser-mobility-native
+```
+
+이 명령은 자체 웹/브라우저만 관리하며 AI를 호출하지 않습니다.
+공개 ECS의 전용 연결·API 확인과 공개 브라우저 8/8 검증을 완료했습니다.
+
 운영 검증 `scripts/verify.py`는 HTTPS, HTTP 리다이렉트, CloudFront 캐시, ALB Target Health, ECS 안정화, Private ENI, Prefix List/SG, 원본 헤더 일치, 기존 NAT 경로를 실제 AWS API 및 HTTP로 확인합니다. 헤더 값 자체는 출력하지 않습니다.
 
 `verify-terrain-cache.py`는 제주 샘플 5개의 원본/CloudFront PNG 해시, 브라우저 TTL, CORS, 캐시 적중, 다운로드 지연, 없는 타일의 오류 캐시 금지를 확인합니다. 결과는 `.local/terrain-cache-verification.json`에 저장합니다.
 
 ## 비용과 운영 범위
 
-서울 ARM Fargate 0.25 vCPU·0.5 GB 태스크를 월 730시간 실행하면
-CPU·메모리만 **최소 2개 약 USD 16.58/월**, 최대 4개 상시 실행 시 약 USD 33.16/월입니다.
+과거 task 11의 서울 ARM Fargate 0.25 vCPU·0.5 GB를 월 730시간 실행하는 계산은
+CPU·메모리만 최소 2개 약 USD 16.58/월, 최대 4개 상시 실행 시 약 USD 33.16/월이었습니다.
 ALB·공인 IPv4·NAT 처리량·CloudFront·S3·WAF·로그·알람·수집 작업·AI 비용은 별도입니다.
 예전 태스크 1개 기준 USD 35–45 예시는 현재 구성의 총액 견적으로 사용하지 않습니다.
+현재 task 12는 태스크당 0.5 vCPU·1 GiB와 라우터 상한 512 MiB이므로 위 추정치를
+새 구성에 그대로 적용하지 않습니다. 전용 AgentCore·메모리·아티팩트 비용도 별도로 확인해야 합니다.
 
 원본 Host 함수의 Lambda@Edge 요율은 요청 **USD 0.60/100만 건**,
 실행 **USD 0.00005001/GB-second**입니다. 128 MB·10ms를 가정한
@@ -331,7 +407,11 @@ SNS 구독과 실제 수신 확인이 필요하며, `main` 병합은 명시적 �
 - 위성 영상: [Esri World Imagery](https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer)
 - 장소 정보 참고: [Visit Jeju](https://www.visitjeju.net/)
 
-고도 타일은 CloudFront를 통해 공개 S3 원본에서 받고, 위성 타일은 브라우저가 Esri에 직접 요청합니다. 운영용 S3 복제본이나 대량 다운로드 데이터셋은 만들지 않았습니다. 외부 데이터 서비스와 인터넷 연결이 필요합니다. 영상은 실시간 촬영 영상이 아니며, 지역별 촬영 시점과 해상도가 다릅니다. DEM 기반 지형으로 건물 사진측량, 개별 바위의 정밀 모델, 도보 내비게이션을 제공하지 않습니다.
+지도용 Terrarium 고도 타일은 CloudFront를 통해 공개 S3 원본에서 받고 위성 영상은
+Esri에 요청합니다. 새 경로 그래프는 OSM **2026-09-10T20:21:06Z**, 단면은 Skadi
+`N33E126.hgt` 출처 객체 **2016-04-23** 자료를 전용 라우터 이미지에 고정했습니다.
+이 날짜는 현재 위성 영상 촬영일이나 정밀 현장 측량일이 아닙니다.
+외부 지도 서비스와 연결이 필요하며 실시간 영상·교통·사진측량 건물·로드뷰를 제공한다고 주장하지 않습니다.
 
 제주 지역 고도에 쓰이는 전 지구 SRTM/GMTED2010 데이터는 USGS, ETOPO1은 NOAA에 출처를 표시합니다. 위성 영상에는 Esri 서비스 메타데이터의 현재 제공자 문구(Esri, Vantor, Earthstar Geographics 및 GIS User Community)를 표시합니다.
 
@@ -344,6 +424,9 @@ src/                    지도·장소·한국어/English UI
 public/                 정적 자산
 server/                 정적 HTTP·SQLite 카탈로그·날씨·보호된 AI API
 shared/api-types.ts     브라우저·서버 응답 계약
+shared/routing-types.ts 도보·차량 경로와 고도 응답 계약
+agent/                  소유 Guide/Tools 소스·의존성 manifest
+routing/                고정 OSM/HGT 경로 이미지·실행 계약
 tests/                  HTTP·SQLite·세션·AI·날씨·배포 검사
 infra/                  CloudFormation 템플릿
 scripts/                계획·배포·AWS 검증·브라우저 검증
@@ -356,4 +439,5 @@ docs/                   설계·구현 계획·배포 결과
 서비스가 더 이상 필요하지 않을 때 앱 스택 삭제와 별도 운영·데이터·공유 자산·원본
 라우팅 스택의 정리를 함께 계획해야 합니다. ECR·로그·S3와 게시된 함수 버전에는
 보존 설정이 있으며, CloudFront 연결 해제·삭제에는 시간이 걸릴 수 있습니다.
-기존 VPC·서브넷·NAT와 AgentCore는 앱 스택의 소유 리소스가 아닙니다.
+전용 AgentCore는 별도 `Jeju3dAgentCore` 스택에서 관리합니다.
+기존 공유 AgentCore·VPC·서브넷·NAT는 이 앱의 정리 대상으로 취급하지 않습니다.

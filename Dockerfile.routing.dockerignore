@@ -1,0 +1,10 @@
+**
+!Dockerfile.routing
+!routing/runtime.py
+!routing/entrypoint.py
+!routing/healthcheck.py
+!.local/routing-data/valhalla_tiles.tar
+!.local/routing-data/admin.sqlite
+!.local/routing-data/timezones.sqlite
+!.local/routing-data/source.json
+!.local/routing-data/elevation_data/N33/N33E126.hgt

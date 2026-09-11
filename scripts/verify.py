@@ -8,7 +8,115 @@ import re
 import sys
 
 import requests
-from deploy import ACCOUNT, APP, LOCAL, PREFIX, PRIVATE, PUBLIC, REGION, VPC, SETTINGS, assert_network, connect, emit, load, save, stack_outputs, validate_settings
+from deploy import (
+    ACCOUNT, APP, LOCAL, PREFIX, PRIVATE, PUBLIC, REGION, VPC, SETTINGS,
+    assert_network, connect, emit, load, normalize_routing_image, routing_parameters,
+    save, stack_outputs, validate_settings,
+)
+
+
+def verify_task_configuration(taskdef, parameters, settings, image, check):
+    """Compare actual ECS configuration with the selected release and validated sizing."""
+    try:
+        expected = routing_parameters(image, settings, parameters)
+    except (ValueError, TypeError, KeyError):
+        check("Task sizing and routing release selection are valid", False)
+        return
+    defaults = {"TaskCpu": "256", "TaskMemory": "512"}
+    check("CloudFormation capacity matches validated settings", all(
+        str(parameters.get(key, default)) == expected[key] for key, default in defaults.items()
+    ))
+    platform = taskdef.get("runtimePlatform", {})
+    check("ARM64 Linux Fargate capacity matches deployment configuration",
+          platform.get("cpuArchitecture") == "ARM64" and platform.get("operatingSystemFamily") == "LINUX"
+          and "FARGATE" in taskdef.get("requiresCompatibilities", []) and taskdef.get("networkMode") == "awsvpc"
+          and str(taskdef.get("cpu")) == expected["TaskCpu"] and str(taskdef.get("memory")) == expected["TaskMemory"])
+    containers = taskdef.get("containerDefinitions", [])
+    web = [item for item in containers if item.get("name") == "web"]
+    routers = [item for item in containers if item.get("name") == "routing"]
+    check("Exactly one web container is selected by name", len(web) == 1)
+    web = web[0] if len(web) == 1 else {}
+    environment = {item["name"]: item["value"] for item in web.get("environment", [])}
+    check("CloudFormation routing matches the immutable release pair",
+          parameters.get("RoutingImageUri", "") == expected["RoutingImageUri"]
+          and parameters.get("RoutingDataUpdatedAt", "") == expected["RoutingDataUpdatedAt"])
+    if not expected["RoutingImageUri"]:
+        check("Routing remains absent without a paired release",
+              not routers and "ROUTING_URL" not in environment and "ROUTING_DATA_UPDATED_AT" not in environment
+              and not any(item.get("containerName") == "routing" for item in web.get("dependsOn", []))
+              and not any(item.get("name") == "routing-cache" for item in taskdef.get("volumes", [])))
+        return
+
+    router = routers[0] if len(routers) == 1 else {}
+    check("Exactly one native router uses the paired immutable image",
+          len(routers) == 1 and router.get("image") == expected["RoutingImageUri"])
+    check("Web routing URL and source timestamp use the selected local engine",
+          environment.get("ROUTING_URL") == "http://127.0.0.1:8002"
+          and environment.get("ROUTING_DATA_UPDATED_AT") == expected["RoutingDataUpdatedAt"])
+    capabilities = router.get("linuxParameters", {}).get("capabilities", {})
+    check("Native router is nonroot and read-only without exposed ports or secrets",
+          router.get("user") == "65532:65532" and router.get("readonlyRootFilesystem") is True
+          and not router.get("privileged", False) and not router.get("portMappings")
+          and not router.get("secrets") and not router.get("environment") and not router.get("environmentFiles")
+          and "ALL" in capabilities.get("drop", []) and not capabilities.get("add"))
+    check("Native router memory matches the configured task budget",
+          str(parameters.get("RoutingMemory", "512")) == expected["RoutingMemory"]
+          and router.get("memory") == int(expected["RoutingMemory"])
+          and router.get("cpu") == 256 and router.get("memoryReservation") == 256)
+    mounts = router.get("mountPoints", [])
+    volume = [item for item in taskdef.get("volumes", []) if item.get("name") == "routing-cache"]
+    check("Native router writes only its separate ephemeral tmp volume",
+          len(mounts) == 1 and mounts[0].get("sourceVolume") == "routing-cache"
+          and mounts[0].get("containerPath") == "/tmp" and mounts[0].get("readOnly") is False
+          and not any(item.get("sourceVolume") == "routing-cache" for item in web.get("mountPoints", []))
+          and len(volume) == 1 and not any(volume[0].get(key) for key in (
+              "host", "dockerVolumeConfiguration", "efsVolumeConfiguration", "fsxWindowsFileServerVolumeConfiguration")))
+    health = router.get("healthCheck", {})
+    check("Native health uses the fixed private status check",
+          health.get("command") == ["CMD", "python3", "/opt/routing/healthcheck.py"]
+          and 0 < health.get("timeout", 0) <= 5 and 5 <= health.get("interval", 0) <= 60
+          and 1 <= health.get("retries", 0) <= 5)
+    check("Native failure remains isolated with restart and graceful stop",
+          router.get("essential") is False and router.get("restartPolicy", {}).get("enabled") is True
+          and router.get("stopTimeout") == 120
+          and [item for item in web.get("dependsOn", []) if item.get("containerName") == "routing"]
+          == [{"containerName": "routing", "condition": "START"}])
+
+
+def verify_routing_runtime(tasks, service, enis, outputs, image, check):
+    """Use existing describe results; never invoke native routing or a model."""
+    network = service.get("networkConfiguration", {}).get("awsvpcConfiguration", {})
+    group = outputs.get("TaskSecurityGroupId")
+    check("Task service and ENIs use only the selected private security group",
+          bool(group) and set(network.get("subnets", [])) == set(PRIVATE)
+          and network.get("assignPublicIp") == "DISABLED" and network.get("securityGroups") == [group]
+          and bool(tasks) and len(enis) == len(tasks)
+          and all(eni.get("VpcId") == VPC and eni.get("SubnetId") in PRIVATE
+                  and not eni.get("Association", {}).get("PublicIp")
+                  and {item.get("GroupId") for item in eni.get("Groups", [])} == {group} for eni in enis))
+    balancers = service.get("loadBalancers", [])
+    check("Service load balancing exposes only the web container",
+          len(balancers) == 1 and balancers[0].get("containerName") == "web"
+          and balancers[0].get("containerPort") == 8080
+          and balancers[0].get("targetGroupArn") == outputs.get("TargetGroupArn"))
+    paired = image.get("routing")
+    if paired is None:
+        check("Running tasks have no unconfigured native router",
+              not any(item.get("name") == "routing" for task in tasks for item in task.get("containers", [])))
+        return
+    try:
+        uri = normalize_routing_image(paired)["imageUri"]
+    except (ValueError, TypeError, KeyError):
+        check("Running native router release selection is valid", False)
+        return
+    healthy = bool(tasks)
+    for task in tasks:
+        routers = [item for item in task.get("containers", []) if item.get("name") == "routing"]
+        healthy = healthy and task.get("taskDefinitionArn") == service.get("taskDefinition") \
+            and task.get("lastStatus") == "RUNNING" and len(routers) == 1 \
+            and routers[0].get("image") == uri and routers[0].get("lastStatus") == "RUNNING" \
+            and routers[0].get("healthStatus") == "HEALTHY"
+    check("Every running task has a healthy native router from the selected release", healthy)
 
 
 def task_iam_scoped(iam, role_name, environment, *, details_bucket=""):
@@ -254,10 +362,9 @@ def verify():
     awsvpc = service["networkConfiguration"]["awsvpcConfiguration"]
     check("Private subnets and public IP disabled", set(awsvpc["subnets"]) == set(PRIVATE) and awsvpc["assignPublicIp"] == "DISABLED", awsvpc)
     taskdef = ecs.describe_task_definition(taskDefinition=service["taskDefinition"])["taskDefinition"]
-    container = taskdef["containerDefinitions"][0]
-    check("ARM64 0.25 vCPU 512 MiB", taskdef["runtimePlatform"]["cpuArchitecture"] == "ARM64"
-          and taskdef["cpu"] == "256" and taskdef["memory"] == "512")
-    check("Immutable image digest deployed", container["image"] == image["imageUri"], container["image"])
+    verify_task_configuration(taskdef, parameters, settings, image, check)
+    container = next((item for item in taskdef["containerDefinitions"] if item.get("name") == "web"), {})
+    check("Immutable image digest deployed", container.get("image") == image["imageUri"], container.get("image"))
     check("Nonroot and read-only container", container.get("user") == "1000:1000" and container.get("readonlyRootFilesystem") is True)
     task_role_name = taskdef["taskRoleArn"].split("/")[-1]
     iam = session.client("iam")
@@ -294,6 +401,7 @@ def verify():
     ]
     check("Running ENIs are private", bool(enis) and all(eni["VpcId"] == VPC and eni["SubnetId"] in PRIVATE
           and not eni.get("Association", {}).get("PublicIp") for eni in enis), task_network)
+    verify_routing_runtime(tasks, service, enis, outputs, image, check)
 
     alb = elb.describe_load_balancers(LoadBalancerArns=[outputs["LoadBalancerArn"]])["LoadBalancers"][0]
     check("ALB placed in public subnets", alb["Scheme"] == "internet-facing" and alb["VpcId"] == VPC

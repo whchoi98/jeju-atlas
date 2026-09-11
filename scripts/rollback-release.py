@@ -12,10 +12,20 @@ import time
 from uuid import uuid4
 
 from botocore.config import Config
-from deploy import ACCOUNT, APP, LOCAL, REGION, connect, emit, require_asset_manifest
+from deploy import (
+    ACCOUNT, APP, LOCAL, REGION, connect, emit, require_asset_manifest,
+    normalize_routing_image, verify_routing_image,
+)
 
 REPOSITORY = f"{ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com/jeju-3d"
 APPROVED_RELEASES = {
+    "release-20260911T013430Z": {
+        "digest": "sha256:92f16ae2e460aa6dce5cef37689cff5a63996df8002f51894f3c6be577130734",
+        "routing": {
+            "imageUri": "061525506239.dkr.ecr.ap-northeast-2.amazonaws.com/jeju-3d@sha256:bae4b2b84b99d8c55b2c973b1f3a89da505f6d15e1d9b27bf46665b4a7d8b5da",
+            "dataUpdatedAt": "2026-09-10T20:21:06Z",
+        },
+    },
     "release-20260910T202150Z": "sha256:18fb0b1fa57b1ee5552eec9e9db34717c23319c28fc6e6e78bbfc45a939a54b9",
     "release-20260910T180902Z": "sha256:0ef30ebd2d916a26fcc53eeee47a92c5483c55aef408c836e5a49c25880f671b",
     "release-20260910T173044Z": "sha256:9c3959d38054d2d6c3715439b897ae1204f4059a8f4724409399d32ab46b35b7",
@@ -42,9 +52,16 @@ def require(condition, message):
 
 def approved_image(release):
     require(release in APPROVED_RELEASES, "Release is not on the approved rollback allowlist")
-    digest = APPROVED_RELEASES[release]
-    require(re.fullmatch(r"sha256:[a-f0-9]{64}", digest) is not None, "Approved digest is malformed")
-    return {"release": release, "digest": digest, "imageUri": f"{REPOSITORY}@{digest}"}
+    approved = APPROVED_RELEASES[release]
+    digest = approved.get("digest") if isinstance(approved, dict) else approved
+    require(isinstance(digest, str) and re.fullmatch(r"sha256:[a-f0-9]{64}", digest) is not None, "Approved digest is malformed")
+    result = {"release": release, "digest": digest, "imageUri": f"{REPOSITORY}@{digest}"}
+    if isinstance(approved, dict) and approved.get("routing") is not None:
+        try:
+            result["routing"] = normalize_routing_image(approved["routing"])
+        except ValueError:
+            raise RollbackError("The approved routing pair is malformed") from None
+    return result
 
 
 def fingerprint(value):
@@ -98,12 +115,26 @@ def snapshot(cf, ecs):
             "Current image must be an immutable digest in the owned repository")
     environment = {item["name"]: item["value"] for item in containers[0].get("environment", [])}
     require(environment.get("RELEASE") == parameters["Release"], "Live release differs from the stack")
+    routers = [item for item in task["containerDefinitions"] if item["name"] == "routing"]
+    routing = None
+    if parameters.get("RoutingImageUri"):
+        routing = normalize_routing_image({
+            "imageUri": parameters["RoutingImageUri"], "dataUpdatedAt": parameters.get("RoutingDataUpdatedAt", ""),
+        })
+        require(len(routers) == 1 and routers[0]["image"] == routing["imageUri"],
+                "Live routing image differs from the stack")
+        require(environment.get("ROUTING_URL") == "http://127.0.0.1:8002"
+                and environment.get("ROUTING_DATA_UPDATED_AT", "") == routing["dataUpdatedAt"],
+                "Web and routing source metadata differ")
+    else:
+        require(not routers, "An untracked routing sidecar is present")
     template = cf.get_template(StackName=APP, TemplateStage="Original")["TemplateBody"]
     base = {
         **stamp(stack), "currentImage": parameters["ImageUri"], "currentRelease": parameters["Release"],
         "taskDefinition": service["taskDefinition"], "deploymentId": deployments[0]["id"],
         "desiredCount": desired, "minCapacity": minimum, "maxCapacity": maximum,
         "templateSha256": fingerprint(template),
+        "routing": routing,
     }
     latest = cf.describe_stacks(StackName=APP)["Stacks"][0]
     require(stamp(latest) == stamp(stack) and latest["StackStatus"] == stack["StackStatus"],
@@ -120,8 +151,18 @@ def verify_ecr(ecr, target):
 
 def rollback_parameters(parameters, base, target):
     replacements = {"ImageUri": target["imageUri"], "Release": target["release"], "DesiredCount": str(base["desiredCount"])}
+    routing = target.get("routing")
+    if routing is not None:
+        require({"RoutingImageUri", "RoutingDataUpdatedAt"} <= parameters.keys(),
+                "The current template cannot restore a routing-enabled release")
+    if "RoutingImageUri" in parameters:
+        require("RoutingDataUpdatedAt" in parameters, "Routing metadata parameter is missing")
+        replacements.update(
+            RoutingImageUri=routing["imageUri"] if routing else "",
+            RoutingDataUpdatedAt=routing["dataUpdatedAt"] if routing else "",
+        )
     return [
-        {"ParameterKey": key, **({"ParameterValue": replacements[key]} if key in MUTABLE else {"UsePreviousValue": True})}
+        {"ParameterKey": key, **({"ParameterValue": replacements[key]} if key in replacements else {"UsePreviousValue": True})}
         for key in sorted(parameters)
     ]
 
@@ -150,7 +191,7 @@ def read_change_set(cf, arn):
     return {**result, "Changes": changes}
 
 
-def validate_changes(changes):
+def validate_changes(changes, *, allow_routing_volume=False):
     seen = set()
     for entry in changes:
         require(entry.get("Type") == "Resource", "Unexpected change-set entry")
@@ -165,6 +206,8 @@ def validate_changes(changes):
         require(bool(details), "Change details are required for review")
         if name in ("TaskDefinition", "Service"):
             allowed = {"ContainerDefinitions"} if name == "TaskDefinition" else {"TaskDefinition", "DesiredCount"}
+            if name == "TaskDefinition" and allow_routing_volume:
+                allowed.add("Volumes")
             require(change.get("Replacement") in (("True", "Conditional", "False") if name == "TaskDefinition" else ("False",)),
                     "Only a task-definition revision may be replaced")
             require(all(item.get("Target", {}).get("Attribute") == "Properties"
@@ -194,10 +237,10 @@ def review(cf, report, parameters):
     items = detail.get("Parameters", [])
     actual = {item["ParameterKey"]: item for item in items}
     require(len(actual) == len(items) and actual.keys() == parameters.keys(), "Change set parameter coverage differs")
-    desired = {"ImageUri": report["target"]["imageUri"], "Release": report["target"]["release"],
-               "DesiredCount": str(report["base"]["desiredCount"])}
+    desired = {item["ParameterKey"]: item["ParameterValue"]
+               for item in rollback_parameters(parameters, report["base"], report["target"]) if "ParameterValue" in item}
     for key, item in actual.items():
-        if key in MUTABLE:
+        if key in desired:
             require(not item.get("UsePreviousValue") and item.get("ParameterValue") == desired[key],
                     "Image, release or preserved capacity differs from the plan")
         elif item.get("UsePreviousValue") is True:
@@ -209,7 +252,8 @@ def review(cf, report, parameters):
                     "Protected parameters must retain their deployed values")
     template = cf.get_template(StackName=APP, ChangeSetName=report["changeSetArn"], TemplateStage="Original")["TemplateBody"]
     require(fingerprint(template) == report["base"]["templateSha256"], "Change set does not use the current deployed template")
-    validate_changes(detail.get("Changes", []))
+    routing_changed = parameters.get("RoutingImageUri", "") != desired.get("RoutingImageUri", "")
+    validate_changes(detail.get("Changes", []), allow_routing_volume=routing_changed)
     return [{key: item["ResourceChange"].get(key) for key in ("Action", "LogicalResourceId", "ResourceType", "Replacement")}
             for item in detail["Changes"]]
 
@@ -240,9 +284,12 @@ def plan(session, release, *, plan_path=None, sleep=time.sleep, clock=time.monot
         cf, ecs, ecr = [session.client(name, region_name=REGION, config=CONFIG) for name in ("cloudformation", "ecs", "ecr")]
         base, parameters = snapshot(cf, ecs)
         report["base"] = base
-        report["preservedParameters"] = sorted(parameters.keys() - MUTABLE)
-        require((target["imageUri"], release) != (base["currentImage"], base["currentRelease"]), "Target image is already deployed")
+        mutable = {item["ParameterKey"] for item in rollback_parameters(parameters, base, target) if "ParameterValue" in item}
+        report["preservedParameters"] = sorted(parameters.keys() - mutable)
+        require((target["imageUri"], release, target.get("routing")) !=
+                (base["currentImage"], base["currentRelease"], base.get("routing")), "Target image pair is already deployed")
         verify_ecr(ecr, target)
+        verify_routing_image(session, target.get("routing"))
         verify_shared_assets(session, parameters, target)
         created = cf.create_change_set(
             StackName=APP, ChangeSetName=f"jeju-3d-rollback-{token}", ChangeSetType="UPDATE",
@@ -286,6 +333,7 @@ def apply(session, release, *, plan_path=None, execute=False):
     current, parameters = snapshot(cf, ecs)
     require(current == report["base"], "Rollback plan is stale; create a fresh plan")
     verify_ecr(ecr, target)
+    verify_routing_image(session, target.get("routing"))
     verify_shared_assets(session, parameters, target)
     review(cf, report, parameters)
     latest, _ = snapshot(cf, ecs)

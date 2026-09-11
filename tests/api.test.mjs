@@ -132,8 +132,17 @@ test('config verifies secure host-only sessions without exposing runtime setting
   assert.equal(first.status, 200);
   assert.deepEqual(JSON.parse(first.body), {
     version: 'api-test',
-    features: { catalog: true, guide: false, planner: true, pwa: true },
+    features: { catalog: true, guide: false, planner: true, pwa: true, routing: false },
     guide: { daily_limit: 30 },
+    routing: {
+      enabled: false,
+      modes: ['walk', 'car'],
+      source: {
+        provider: 'valhalla', data: 'OpenStreetMap',
+        attribution: '© OpenStreetMap contributors · ODbL · Valhalla',
+        url: 'https://www.openstreetmap.org/copyright', data_updated_at: null,
+      },
+    },
   });
   assert.equal(first.headers['cache-control'], 'no-store');
   const setCookie = first.headers['set-cookie'][0];

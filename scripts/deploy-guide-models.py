@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Deploy reviewed guide models, provenance rules and official place details.
+"""Historical migration helpers. The shared-runtime deployment CLI is retired.
 
-Keeps live dependency bundles, Gateway and Memory intact. Optional official
-details add only a read grant for the owned snapshot to the Tools role.
-The canonical source changes live in the supplied agentcore-cli worktree.
+Deploy this project's independent agent with scripts/deploy-atlas-agent.py.
+Pure migration helpers remain for regression coverage of earlier releases.
 """
 from __future__ import annotations
 
@@ -353,6 +352,13 @@ def configure_logs(session):
 
 
 def main():
+    raise SystemExit(
+        "Shared AgentCore deployment is disabled to protect agentcore-cli. "
+        "Use scripts/deploy-atlas-agent.py for the independent Jeju Atlas stack."
+    )
+
+
+def _historical_cli():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["plan", "apply", "status", "configure-logs"])
     parser.add_argument("--source", type=Path)

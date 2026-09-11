@@ -1,0 +1,40 @@
+FROM ghcr.io/valhalla/valhalla@sha256:58c7dd3fb256f306b00c558fb76aea9fd4fb804edd831e2b4847c26511cca507
+USER root
+WORKDIR /opt/routing
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+# Patch Ubuntu at build time without replacing the pinned native engine.
+# Fail closed against the 2026-09-11 Critical/High scan's fixed-version floors.
+RUN set -eu; \
+    sha256sum /usr/local/bin/valhalla_service > /opt/routing/valhalla-service.sha256; \
+    apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update; \
+    DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 \
+        -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 \
+        upgrade -y --no-install-recommends; \
+    for required in \
+        libc-bin=2.39-0ubuntu8.8 libc6=2.39-0ubuntu8.8 locales=2.39-0ubuntu8.8 \
+        curl=8.5.0-2ubuntu10.13 libcurl3t64-gnutls=8.5.0-2ubuntu10.13 libcurl4t64=8.5.0-2ubuntu10.13 \
+        libssl3t64=3.0.13-0ubuntu3.15 openssl=3.0.13-0ubuntu3.15 \
+        libperl5.38t64=5.38.2-3.2ubuntu0.4 perl=5.38.2-3.2ubuntu0.4 \
+        perl-base=5.38.2-3.2ubuntu0.4 perl-modules-5.38=5.38.2-3.2ubuntu0.4; do \
+        package="${required%%=*}"; minimum="${required#*=}"; \
+        installed="$(dpkg-query -W -f='${Version}' "$package")"; \
+        if ! dpkg --compare-versions "$installed" ge "$minimum"; then \
+            printf 'OS security floor not met: %s %s < %s\n' "$package" "$installed" "$minimum" >&2; \
+            exit 1; \
+        fi; \
+    done; \
+    sha256sum -c /opt/routing/valhalla-service.sha256; \
+    dpkg-query -W -f='${binary:Package}\t${Version}\n' > /opt/routing/os-packages.tsv; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
+COPY routing/runtime.py routing/entrypoint.py routing/healthcheck.py ./
+COPY .local/routing-data/ ./data/
+RUN --network=none valhalla_build_config > /opt/routing/defaults.json \
+    && python3 /opt/routing/runtime.py --defaults /opt/routing/defaults.json --seal \
+    && rm /opt/routing/defaults.json \
+    && chmod 1777 /tmp
+USER 65532:65532
+VOLUME ["/tmp"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD ["python3", "/opt/routing/healthcheck.py"]
+ENTRYPOINT ["python3", "/opt/routing/entrypoint.py"]

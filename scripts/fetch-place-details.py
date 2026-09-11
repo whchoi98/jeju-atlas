@@ -438,7 +438,7 @@ def run(args):
     with tempfile.TemporaryDirectory(prefix="jeju-details-") as temp:
         catalog = args.catalog or Path(temp) / "catalog.sqlite"
         if args.catalog is None:
-            s3.download_file(os.environ.get("CATALOG_BUCKET", "ohmyjeju-catalog-061525506239-prod"), "catalog/catalog.sqlite", str(catalog))
+            s3.download_file(os.environ.get("CATALOG_BUCKET", "jeju-3d-data-061525506239-ap-northeast-2"), "catalog/catalog.sqlite", str(catalog))
         connection = sqlite3.connect(f"file:{catalog.resolve()}?mode=ro", uri=True)
         connection.row_factory = sqlite3.Row
         places = [dict(row) for row in connection.execute("SELECT id,name,name_en,category,source,lat,lng,address FROM places")]

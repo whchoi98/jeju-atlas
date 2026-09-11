@@ -1,15 +1,17 @@
 import type { CatalogPlace, GuideMap } from '../shared/api-types';
+import type { RouteSuccess } from '../shared/routing-types';
 import type { AtlasMap } from './map';
 import type { PlaceSnapshot, TripStop } from './trip';
 import { TripPlanner } from './trip';
 import { CatalogMap } from './catalog-map';
 import { CatalogUI } from './catalog-ui';
 import { GuidePanel } from './guide';
-import { categoryName, distanceLabel, distanceMeters, html } from './api';
+import { categoryName, distanceLabel, html, isJejuPoint } from './api';
 import { initializePWA } from './pwa';
 import { categorySymbol, icon } from './icons';
 import { getLocale, placeName } from './i18n';
 import './explore.css';
+import './mobility.css';
 
 interface ExperienceOptions {
   atlas: () => AtlasMap | undefined;
@@ -28,6 +30,7 @@ export class AtlasExperience {
   private layers: CatalogMap | undefined;
   private options: ExperienceOptions;
   private tripStops: TripStop[] = [];
+  private activeRoute: RouteSuccess | null = null;
   private recommendation: GuideMap | undefined;
   private selectedCatalog: CatalogPlace | PlaceSnapshot | undefined;
   private isCatalogSelection = false;
@@ -82,9 +85,29 @@ export class AtlasExperience {
     this.planner = new TripPlanner(trip, {
       notify: options.notify,
       onChange: (stops) => this.setTrip(stops),
-      onSelect: (place) => { void this.catalog.openPlace(place.id, place); },
+      onRoute: (route) => this.setTripRoute(route),
+      onSelect: (place) => {
+        if (place.id.startsWith('point:')) this.selectCatalog(place);
+        else void this.catalog.openPlace(place.id, place);
+      },
       shareCamera: options.cameraURL,
       copy: (url) => options.copyURL(url, '장소 순서와 체류 시간이 담긴 코스 주소를 복사했어요.'),
+      getMapCenter: () => {
+        const center = options.atlas()?.map.getCenter();
+        return center && isJejuPoint(center.lng, center.lat) ? { lng: center.lng, lat: center.lat } : null;
+      },
+      requestCurrentLocation: () => new Promise((resolve, reject) => {
+        if (!navigator.geolocation) { reject(new Error('location_unavailable')); return; }
+        navigator.geolocation.getCurrentPosition(
+          position => {
+            const { longitude: lng, latitude: lat } = position.coords;
+            if (!isJejuPoint(lng, lat)) { reject(new Error('location_outside_jeju')); return; }
+            resolve({ lng, lat });
+          },
+          error => reject(new Error(error.code === 1 ? 'location_denied' : 'location_unavailable')),
+          { enableHighAccuracy: false, timeout: 10_000, maximumAge: 0 },
+        );
+      }),
     });
     this.catalog = new CatalogUI(catalogRoot, detail, {
       center: () => {
@@ -100,6 +123,8 @@ export class AtlasExperience {
       onVisibility: (visible) => this.layers?.setVisible(visible),
       planner: this.planner, notify: options.notify, openDrawer: options.openDrawer,
       onReset: () => { options.stopTour(); options.atlas()?.reset(); },
+      onTrip: () => { this.showTab('trip'); options.openDrawer(); },
+      on3D: (place) => this.selectCatalog(place, true),
     });
     this.guide = new GuidePanel(guide, {
       notify: options.notify,
@@ -142,6 +167,7 @@ export class AtlasExperience {
     });
     document.getElementById('reset-view')?.addEventListener('click', () => this.catalog.resetFilters(false));
     document.getElementById('brand-home')?.addEventListener('click', () => this.catalog.resetFilters(false));
+    window.addEventListener('atlas:fit-route', () => this.fitTripRoute());
     window.addEventListener('beforeunload', event => {
       if (this.planner.hasUnsavedChanges || this.guide.hasUnsavedWork) {
         event.preventDefault();
@@ -156,6 +182,7 @@ export class AtlasExperience {
     this.planner.openDataManagement();
   }
   refreshLocale(): boolean {
+    this.renderTripRoute();
     if (!this.isCatalogSelection || !this.selectedCatalog) return false;
     this.renderSelection(this.selectedCatalog);
     this.layers?.setSelection({ ...this.selectedCatalog, name: placeName(this.selectedCatalog) });
@@ -178,6 +205,7 @@ export class AtlasExperience {
   onMapReady(atlas: AtlasMap): void {
     this.layers = new CatalogMap(atlas.map, (id) => {
       const saved = this.tripStops.find((stop) => stop.id === id);
+      if (saved && id.startsWith('point:')) { this.selectCatalog(saved); return; }
       const recommended = this.recommendation?.markers.find((marker) => marker.id === id);
       if (recommended && !saved && !this.catalog.pointData.features.some((point) => point.properties.id === id)) {
         const fallback: PlaceSnapshot = {
@@ -189,7 +217,8 @@ export class AtlasExperience {
         void this.catalog.openPlace(id, fallback);
       } else void this.catalog.openPlace(id, saved);
     });
-    this.layers.setTrip(this.tripStops);
+    this.layers.setTrip(this.tripStops.map(stop => ({ ...stop, name: placeName(stop) })), this.activeRoute);
+    window.dispatchEvent(new CustomEvent('atlas:route-change', { detail: { route: this.activeRoute } }));
     if (this.recommendation) this.layers.setGuide(this.recommendation);
     this.catalog.onMapReady();
     atlas.setRepresentativeSelectHandler((place) => {
@@ -219,18 +248,23 @@ export class AtlasExperience {
     document.getElementById('catalog-search')?.focus();
   }
 
-  private selectCatalog(place: CatalogPlace | PlaceSnapshot): void {
+  private selectCatalog(place: CatalogPlace | PlaceSnapshot, force3D = false): void {
     this.options.stopTour();
     this.isCatalogSelection = true;
     this.selectedCatalog = place;
     this.layers?.setSelection(place);
     const atlas = this.options.atlas();
     if (atlas) {
+      atlas.stopRoutePreview();
+      if (force3D) {
+        atlas.set3D(true);
+        atlas.setExaggeration(1);
+      }
       atlas.setSelected('');
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
       atlas.map.flyTo({
-        center: [place.lng, place.lat], zoom: Math.max(12.5, Math.min(15, atlas.map.getZoom())),
-        pitch: atlas.getState().is3D ? 52 : 0, duration: reduced ? 0 : 1500,
+        center: [place.lng, place.lat], zoom: force3D ? 14.4 : Math.max(12.5, Math.min(15, atlas.map.getZoom())),
+        pitch: atlas.getState().is3D ? force3D ? 60 : 52 : 0, duration: reduced ? 0 : 1500,
         padding: { top: 40, bottom: matchMedia('(max-width: 760px)').matches ? 170 : 130, left: 0, right: 0 },
       });
     }
@@ -247,15 +281,51 @@ export class AtlasExperience {
 
   private setTrip(stops: TripStop[]): void {
     this.tripStops = stops;
-    this.layers?.setTrip(stops);
+    this.renderTripRoute();
     const badge = document.getElementById('trip-tab-count');
     if (badge) badge.textContent = String(stops.length);
-    const caption = document.getElementById('trip-map-caption');
-    if (caption) {
-      const distance = stops.reduce((sum, stop, index) => index ? sum + distanceMeters(stops[index - 1], stop) : sum, 0);
-      caption.hidden = !stops.length;
-      caption.innerHTML = `${icon('route')}내 여행 ${stops.length}곳 · 직선 연결 ${html(distanceLabel(distance))}`;
-    }
     if (this.activeTab === 'trip') document.getElementById('trip-panel')?.setAttribute('aria-label', `내 여행 ${stops.length}곳`);
+  }
+
+  private setTripRoute(route: RouteSuccess | null): void {
+    this.options.atlas()?.stopRoutePreview();
+    this.activeRoute = route;
+    this.renderTripRoute();
+    window.dispatchEvent(new CustomEvent('atlas:route-change', { detail: { route } }));
+  }
+
+  private renderTripRoute(): void {
+    this.layers?.setTrip(this.tripStops.map(stop => ({ ...stop, name: placeName(stop) })), this.activeRoute);
+    const caption = document.getElementById('trip-map-caption');
+    if (!caption) return;
+    caption.hidden = !this.tripStops.length;
+    caption.setAttribute('data-i18n-ignore', '');
+    const english = getLocale() === 'en';
+    const route = this.activeRoute;
+    const mode = route?.mode === 'walk' ? english ? 'Walk' : '도보' : english ? 'Drive' : '차량';
+    caption.dataset.mode = route?.mode ?? '';
+    caption.innerHTML = `${icon('route')}${english ? `My trip · ${this.tripStops.length} stops` : `내 여행 ${this.tripStops.length}곳`}${route
+      ? ` · ${mode} ${html(distanceLabel(route.distance_m))} · ${Math.ceil(route.duration_s / 60)}${english ? ' min' : '분'}`
+      : ''}`;
+  }
+
+  private fitTripRoute(): void {
+    const atlas = this.options.atlas();
+    const points = this.activeRoute?.coordinates;
+    if (!atlas || !points?.length) return;
+    this.options.stopTour();
+    atlas.stopRoutePreview();
+    this.catalog.closeDetail(false);
+    this.options.closeDrawer();
+    let west = points[0][0], east = west, south = points[0][1], north = south;
+    for (const [lng, lat] of points) {
+      west = Math.min(west, lng); east = Math.max(east, lng);
+      south = Math.min(south, lat); north = Math.max(north, lat);
+    }
+    atlas.map.fitBounds([[west, south], [east, north]], {
+      padding: { top: 85, right: 65, bottom: 185, left: 45 },
+      maxZoom: 15, pitch: atlas.getState().is3D ? 40 : 0,
+      duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 900,
+    });
   }
 }

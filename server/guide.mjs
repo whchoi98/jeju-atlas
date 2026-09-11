@@ -393,7 +393,7 @@ function statusData(event, locale = 'ko') {
   }
   if (event.stage !== 'tool') return null;
   const tool = typeof event.tool === 'string' && event.tool.length <= 80
-    ? event.tool.replace(/^ohmyjejutools_/, '') : '';
+    ? event.tool.replace(/^(?:ohmyjejutools|jejuatlastools)_/, '') : '';
   if (!Object.hasOwn(TOOL_LABELS, tool)) {
     return { message: english ? 'Checking travel information.' : '여행에 필요한 정보를 확인하고 있습니다.', stage: 'tool' };
   }

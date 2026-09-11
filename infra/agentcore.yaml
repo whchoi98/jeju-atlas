@@ -1,0 +1,321 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Independent Jeju Atlas AgentCore runtimes, HTTP gateway and memory
+
+Parameters:
+  DataBucketName:
+    Type: String
+    AllowedPattern: 'jeju-3d-data-[0-9]{12}-ap-northeast-2'
+  GuideCodeKey:
+    Type: String
+    AllowedPattern: 'agent/releases/[a-f0-9]{64}/guide\.zip'
+  GuideCodeVersionId:
+    Type: String
+    MinLength: 3
+  ToolsCodeKey:
+    Type: String
+    AllowedPattern: 'agent/releases/[a-f0-9]{64}/tools\.zip'
+  ToolsCodeVersionId:
+    Type: String
+    MinLength: 3
+
+Resources:
+  MemoryRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Jeju Atlas managed memory strategies
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  Memory:
+    Type: AWS::BedrockAgentCore::Memory
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: JejuAtlas_Memory
+      Description: Independent Jeju Atlas conversations and preferences
+      EventExpiryDuration: 30
+      MemoryExecutionRoleArn: !GetAtt MemoryRole.Arn
+      MemoryStrategies:
+        - SemanticMemoryStrategy:
+            Name: JejuAtlas_Facts
+            NamespaceTemplates: ['/users/{actorId}/facts']
+        - UserPreferenceMemoryStrategy:
+            Name: JejuAtlas_Preferences
+            NamespaceTemplates: ['/users/{actorId}/preferences']
+        - SummaryMemoryStrategy:
+            Name: JejuAtlas_Summary
+            NamespaceTemplates: ['/summaries/{actorId}/{sessionId}']
+        - EpisodicMemoryStrategy:
+            Name: JejuAtlas_Episodes
+            NamespaceTemplates: ['/episodes/{actorId}/{sessionId}']
+            ReflectionConfiguration:
+              NamespaceTemplates: ['/episodes/{actorId}']
+      Tags:
+        Project: jeju-3d
+        Component: independent-agent
+
+  ToolsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Read-only Jeju Atlas tools; no reference-project access or API credentials
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: ReadAtlasDataAndCode
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:GetObjectVersion]
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:s3:::${DataBucketName}/catalog/catalog.sqlite'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${DataBucketName}/snapshots/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${DataBucketName}/place-details/latest.json'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${DataBucketName}/agent/releases/*'
+        - PolicyName: ToolsTelemetry
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:DescribeLogStreams, logs:PutLogEvents]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/JejuAtlas_Tools-*'
+              - Effect: Allow
+                Action: [logs:DescribeLogGroups, xray:PutTelemetryRecords, xray:PutTraceSegments]
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  ToolsRuntime:
+    Type: AWS::BedrockAgentCore::Runtime
+    Properties:
+      AgentRuntimeName: JejuAtlas_Tools
+      Description: Jeju Atlas independent MCP tools
+      AgentRuntimeArtifact:
+        CodeConfiguration:
+          Code:
+            S3:
+              Bucket: !Ref DataBucketName
+              Prefix: !Ref ToolsCodeKey
+              VersionId: !Ref ToolsCodeVersionId
+          Runtime: PYTHON_3_14
+          EntryPoint: [main.py]
+      RoleArn: !GetAtt ToolsRole.Arn
+      NetworkConfiguration:
+        NetworkMode: PUBLIC
+      ProtocolConfiguration: MCP
+      EnvironmentVariables:
+        ATLAS_CATALOG_BUCKET: !Ref DataBucketName
+        ATLAS_DETAILS_BUCKET: !Ref DataBucketName
+        OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: 'false'
+        OTEL_SEMCONV_STABILITY_OPT_IN: 'gen_ai_unredacted_attributes='
+      Tags:
+        Project: jeju-3d
+        Component: independent-agent
+
+  GatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Jeju Atlas gateway may invoke only its own tools runtime
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: InvokeAtlasTools
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: bedrock-agentcore:InvokeAgentRuntime
+                Resource:
+                  - !GetAtt ToolsRuntime.AgentRuntimeArn
+                  - !Sub '${ToolsRuntime.AgentRuntimeArn}/runtime-endpoint/DEFAULT'
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  Gateway:
+    Type: AWS::BedrockAgentCore::Gateway
+    Properties:
+      Name: jeju-atlas-tools
+      Description: IAM-protected Jeju Atlas HTTP runtime gateway
+      AuthorizerType: AWS_IAM
+      RoleArn: !GetAtt GatewayRole.Arn
+      Tags:
+        Project: jeju-3d
+        Component: independent-agent
+
+  ToolsTarget:
+    Type: AWS::BedrockAgentCore::GatewayTarget
+    Properties:
+      GatewayIdentifier: !GetAtt Gateway.GatewayIdentifier
+      Name: JejuAtlasTools
+      Description: Independent Jeju Atlas MCP runtime through the HTTP gateway
+      TargetConfiguration:
+        Http:
+          AgentcoreRuntime:
+            Arn: !GetAtt ToolsRuntime.AgentRuntimeArn
+      CredentialProviderConfigurations:
+        - CredentialProviderType: GATEWAY_IAM_ROLE
+
+  GuideRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Jeju Atlas guide; Global CRIS Sol/Astra and its own gateway/memory
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: SolAndAstra
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [bedrock:CountTokens, bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/global.openai.gpt-5.6-sol'
+                  - !Sub 'arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/global.openai.gpt-6-astra'
+                  - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/openai.gpt-5.6-sol*'
+                  - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/openai.gpt-6-astra*'
+        - PolicyName: OwnGatewayAndMemory
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: bedrock-agentcore:InvokeGateway
+                Resource: !GetAtt Gateway.GatewayArn
+              - Effect: Allow
+                Action:
+                  - bedrock-agentcore:CreateEvent
+                  - bedrock-agentcore:DeleteEvent
+                  - bedrock-agentcore:GetEvent
+                  - bedrock-agentcore:GetMemory
+                  - bedrock-agentcore:GetMemoryRecord
+                  - bedrock-agentcore:DeleteMemoryRecord
+                  - bedrock-agentcore:ListActors
+                  - bedrock-agentcore:ListEvents
+                  - bedrock-agentcore:ListSessions
+                Resource: !GetAtt Memory.MemoryArn
+              - Effect: Allow
+                Action: [bedrock-agentcore:ListMemoryRecords, bedrock-agentcore:RetrieveMemoryRecords]
+                Resource: !GetAtt Memory.MemoryArn
+                Condition:
+                  StringLike:
+                    bedrock-agentcore:namespace:
+                      - /users/*/facts
+                      - /users/*/preferences
+                      - /summaries/*/*
+                      - /episodes/*
+              - Effect: Allow
+                Action: [bedrock-agentcore:ListMemoryRecords, bedrock-agentcore:RetrieveMemoryRecords]
+                Resource: !GetAtt Memory.MemoryArn
+                Condition:
+                  StringLike:
+                    bedrock-agentcore:namespacePath:
+                      - /users/*/facts
+                      - /users/*/preferences
+                      - /summaries/*/*
+                      - /episodes/*
+        - PolicyName: ReadOwnCode
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:GetObjectVersion]
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DataBucketName}/agent/releases/*'
+        - PolicyName: GuideTelemetry
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:DescribeLogStreams, logs:PutLogEvents]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/JejuAtlas_Guide-*'
+              - Effect: Allow
+                Action: [logs:DescribeLogGroups, xray:PutTelemetryRecords, xray:PutTraceSegments]
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+
+  GuideRuntime:
+    Type: AWS::BedrockAgentCore::Runtime
+    DependsOn: ToolsTarget
+    Properties:
+      AgentRuntimeName: JejuAtlas_Guide
+      Description: Jeju Atlas independent bilingual Strands travel guide
+      AgentRuntimeArtifact:
+        CodeConfiguration:
+          Code:
+            S3:
+              Bucket: !Ref DataBucketName
+              Prefix: !Ref GuideCodeKey
+              VersionId: !Ref GuideCodeVersionId
+          Runtime: PYTHON_3_14
+          EntryPoint: [opentelemetry-instrument, main.py]
+      RoleArn: !GetAtt GuideRole.Arn
+      NetworkConfiguration:
+        NetworkMode: PUBLIC
+      EnvironmentVariables:
+        AGENTCORE_GATEWAY_JEJUATLASTOOLS_URL: !GetAtt Gateway.GatewayUrl
+        AGENTCORE_GATEWAY_JEJUATLASTOOLS_AUTH_TYPE: AWS_IAM
+        ATLAS_MEMORY_ID: !GetAtt Memory.MemoryId
+        ATLAS_MODEL_FAST: global.openai.gpt-5.6-sol
+        ATLAS_MODEL_DEEP: global.openai.gpt-6-astra
+        ATLAS_MODEL_ROUTING: auto
+        ATLAS_THINKING: none
+        ATLAS_THINKING_DEEP: adaptive:medium
+        ATLAS_PREFETCH: 'true'
+        ATLAS_STRUCTURED_MODE: derive
+        ATLAS_TURN_TIMEOUT_S: '85'
+        OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: 'false'
+        OTEL_SEMCONV_STABILITY_OPT_IN: 'gen_ai_unredacted_attributes='
+      Tags:
+        Project: jeju-3d
+        Component: independent-agent
+
+Outputs:
+  GuideRuntimeArn:
+    Value: !GetAtt GuideRuntime.AgentRuntimeArn
+  ToolsRuntimeArn:
+    Value: !GetAtt ToolsRuntime.AgentRuntimeArn
+  GatewayId:
+    Value: !GetAtt Gateway.GatewayIdentifier
+  GatewayUrl:
+    Value: !GetAtt Gateway.GatewayUrl
+  MemoryId:
+    Value: !GetAtt Memory.MemoryId
+  CatalogBucket:
+    Value: !Ref DataBucketName

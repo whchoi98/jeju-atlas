@@ -26,7 +26,9 @@ Parameters:
     Description: Optional existing Jeju3dOperations topic in the owned Seoul account. Empty disables notification actions, not alarm evaluation. No subscriptions are created.
   CatalogBucket:
     Type: String
-    Default: ohmyjeju-catalog-061525506239-prod
+    Default: jeju-3d-data-061525506239-ap-northeast-2
+    AllowedValues: [jeju-3d-data-061525506239-ap-northeast-2]
+    Description: The catalog snapshot owned by this Jeju Atlas project.
   PublicMediaOrigin:
     Type: String
     Default: https://jeju-atlas.whchoi.net

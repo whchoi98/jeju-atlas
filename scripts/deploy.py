@@ -12,6 +12,7 @@ import base64
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -44,6 +45,78 @@ STACKS = {
     "origin-routing": "Jeju3dOriginRouting", "tls-probe": "Jeju3dTlsProbe",
     "static": "Jeju3dStatic",
 }
+FARGATE_MEMORY = {
+    "256": {512, 1024, 2048},
+    "512": set(range(1024, 4097, 1024)),
+    "1024": set(range(2048, 8193, 1024)),
+    "2048": set(range(4096, 16385, 1024)),
+}
+ROUTING_MEMORY = {256, 512, 1024, 2048, 4096, 8192}
+OWN_CATALOG_BUCKET = f"jeju-3d-data-{ACCOUNT}-{REGION}"
+
+
+def normalize_routing_image(value):
+    if not isinstance(value, dict):
+        raise ValueError("A paired routing image is required")
+    uri = value.get("imageUri", "")
+    pattern = rf"{ACCOUNT}\.dkr\.ecr\.{REGION}\.amazonaws\.com/jeju-3d@sha256:[a-f0-9]{{64}}"
+    if not isinstance(uri, str) or not re.fullmatch(pattern, uri):
+        raise ValueError("Routing must use an immutable image in the owned repository")
+    date = value.get("dataUpdatedAt")
+    date = "" if date is None else date
+    if not isinstance(date, str) or len(date) > 40:
+        raise ValueError("Invalid routing source timestamp")
+    if date:
+        try:
+            if datetime.fromisoformat(date.replace("Z", "+00:00")).tzinfo is None:
+                raise ValueError()
+        except ValueError:
+            raise ValueError("Invalid routing source timestamp") from None
+    if value.get("engineVersion", "3.8.3") != "3.8.3":
+        raise ValueError("Routing graph must use the pinned engine version")
+    return {"imageUri": uri, "dataUpdatedAt": date}
+
+
+def routing_parameters(image, settings, existing):
+    paired = image.get("routing")
+    enabled = settings.get("RoutingEnabled") == "true"
+    if enabled and paired is None:
+        raise ValueError("Build the web release with its routing image before enabling routing")
+    if paired is not None and not enabled:
+        raise ValueError("The web release contains routing; enable it explicitly")
+    if not enabled and existing.get("RoutingImageUri") and settings.get("RoutingEnabled") != "false":
+        raise ValueError("Do not implicitly remove an existing routing sidecar")
+    routing = normalize_routing_image(paired) if enabled else {"imageUri": "", "dataUpdatedAt": ""}
+    cpu = str(settings.get("TaskCpu", existing.get("TaskCpu", "256")))
+    memory = str(settings.get("TaskMemory", existing.get("TaskMemory", "512")))
+    if enabled and not {"TaskCpu", "TaskMemory"} & settings.keys() and (cpu, memory) == ("256", "512"):
+        cpu, memory = "512", "1024"
+    if cpu not in FARGATE_MEMORY or not memory.isdigit() or int(memory) not in FARGATE_MEMORY[cpu]:
+        raise ValueError("Unsupported Fargate task CPU/memory pair")
+    route_memory = str(settings.get("RoutingMemory", existing.get("RoutingMemory", "512")))
+    if not route_memory.isdigit() or int(route_memory) not in ROUTING_MEMORY:
+        raise ValueError("Unsupported routing memory limit")
+    if enabled and (int(cpu) < 512 or int(memory) - int(route_memory) < 256):
+        raise ValueError("Routing must leave CPU and memory for the web container")
+    return {
+        "RoutingImageUri": routing["imageUri"], "RoutingDataUpdatedAt": routing["dataUpdatedAt"],
+        "TaskCpu": cpu, "TaskMemory": memory, "RoutingMemory": route_memory,
+    }
+
+
+def atlas_agent_parameters(path=None):
+    """New app plans require the dedicated Atlas runtime and catalog boundary."""
+    path = Path(path) if path is not None else LOCAL / "atlas-agent-outputs.json"
+    raw = path.read_bytes()
+    if len(raw) > 64 * 1024:
+        raise ValueError("Atlas agent outputs are oversized")
+    value = json.loads(raw)
+    arn = value.get("guideRuntimeArn", "") if isinstance(value, dict) else ""
+    pattern = rf"arn:aws:bedrock-agentcore:{REGION}:{ACCOUNT}:runtime/JejuAtlas_Guide(?:-[A-Za-z0-9_-]+)?"
+    if (not isinstance(arn, str) or not re.fullmatch(pattern, arn)
+            or value.get("catalogBucket") != OWN_CATALOG_BUCKET):
+        raise ValueError("Atlas outputs must identify a separate owned runtime")
+    return {"GuideRuntimeArn": arn, "CatalogBucket": OWN_CATALOG_BUCKET}
 
 
 def validate_settings(values):
@@ -55,6 +128,7 @@ def validate_settings(values):
     allowed = {
         "ViewerDomainName", "ViewerCertificateArn", "OriginDomainName",
         "OriginTlsEnabled", "OriginTlsMode", "TargetHealthPath",
+        "RoutingEnabled", "TaskCpu", "TaskMemory", "RoutingMemory",
     } | set(integer_bounds)
     if not isinstance(values, dict) or set(values) - allowed:
         raise ValueError("Unknown production setting; secrets and networking do not belong here")
@@ -101,6 +175,20 @@ def validate_settings(values):
     if health_path not in ("/readyz", "/healthz"):
         raise ValueError("TargetHealthPath must be /readyz or /healthz")
     result["TargetHealthPath"] = health_path
+    if "RoutingEnabled" in values:
+        if values["RoutingEnabled"] not in ("true", "false"):
+            raise ValueError("RoutingEnabled must be the string true or false")
+        result["RoutingEnabled"] = values["RoutingEnabled"]
+    if {"TaskCpu", "TaskMemory"} & values.keys():
+        cpu, memory = str(values.get("TaskCpu", "")), str(values.get("TaskMemory", ""))
+        if cpu not in FARGATE_MEMORY or not memory.isdigit() or int(memory) not in FARGATE_MEMORY[cpu]:
+            raise ValueError("Provide a supported TaskCpu/TaskMemory pair")
+        result.update(TaskCpu=cpu, TaskMemory=memory)
+    if "RoutingMemory" in values:
+        memory = str(values["RoutingMemory"])
+        if not memory.isdigit() or int(memory) not in ROUTING_MEMORY:
+            raise ValueError("Unsupported routing container memory limit")
+        result["RoutingMemory"] = memory
     return result
 
 
@@ -249,6 +337,7 @@ def infrastructure_parameters(session, kind):
     if kind == "data":
         assert_network(session)
         values = {
+            "CatalogBucket": OWN_CATALOG_BUCKET,
             "DistributionArn": f"arn:aws:cloudfront::{ACCOUNT}:distribution/{outputs['DistributionId']}",
             "VpcId": VPC, "PrivateSubnetIds": ",".join(PRIVATE),
         }
@@ -357,7 +446,9 @@ def plan(session, kind, overrides=None):
             "Release": image["release"],
         }
         settings = validate_settings(json.loads(SETTINGS.read_text()))
-        params.update(settings)
+        params.update({key: value for key, value in settings.items() if key != "RoutingEnabled"})
+        # Never fall back to the reference runtime/catalog on a new app deployment.
+        params.update(atlas_agent_parameters())
         edge = optional_stack_outputs(session, "edge")
         origin = optional_stack_outputs(session, "origin")
         data = optional_stack_outputs(session, "data")
@@ -399,6 +490,10 @@ def plan(session, kind, overrides=None):
                 if item.get("ParameterValue") and item["ParameterValue"] != "****":
                     params.setdefault(item["ParameterKey"], item["ParameterValue"])
         if kind == "app" and change_type == "UPDATE":
+            current_parameters = {item["ParameterKey"]: item.get("ParameterValue", "")
+                                  for item in existing.get("Parameters", [])}
+            params.update(routing_parameters(image, settings, current_parameters))
+            verify_routing_image(session, image.get("routing"))
             outputs = {item["OutputKey"]: item["OutputValue"] for item in existing.get("Outputs", [])}
             # Preserve existing non-secret parameters not overridden by the
             # checked-in settings (for example a previously deployed WebACL).
@@ -424,8 +519,12 @@ def plan(session, kind, overrides=None):
             raise
         change_type = "CREATE"
     if kind == "app" and change_type == "CREATE":
+        params.update(routing_parameters(image, settings, {}))
+        verify_routing_image(session, image.get("routing"))
         assert_domain(session, settings, {})
         assert_origin_tls(session, params, {})
+    if kind == "app" and not params.get("GuideRuntimeArn"):
+        raise ValueError("Provide an explicitly selected dedicated guide runtime for a new app stack")
     change_name = "jeju-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     created = cf.create_change_set(
         StackName=name,
@@ -517,19 +616,63 @@ def apply(session, kind):
     emit({"started": review["stack"], "changeSet": arn})
 
 
-def build_push(session, data_worker=False):
+def verify_routing_image(session, routing):
+    if routing is None:
+        return
+    value = normalize_routing_image(routing)
+    digest = value["imageUri"].split("@", 1)[1]
+    images = session.client("ecr").describe_images(
+        registryId=ACCOUNT, repositoryName="jeju-3d", imageIds=[{"imageDigest": digest}],
+    )["imageDetails"]
+    if len(images) != 1 or images[0]["imageDigest"] != digest:
+        raise ValueError("The paired routing image is not available in ECR")
+
+
+def routing_source():
+    spec = importlib.util.spec_from_file_location("jeju_routing_runtime", ROOT / "routing/runtime.py")
+    runtime = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runtime)
+    path = ROOT / ".local/routing-data"
+    source = runtime.validate_artifacts(path)
+    return {
+        "engineVersion": runtime.ENGINE_VERSION, "baseImage": runtime.BASE_IMAGE,
+        "dataUpdatedAt": runtime.data_updated_at(source.get("data_updated_at")),
+        "sourceSha256": runtime.file_hash(path / "source.json"),
+        "graphSha256": source["files"]["valhalla_tiles.tar"]["sha256"],
+    }
+
+
+def build_push(session, data_worker=False, routing_worker=False):
+    if data_worker and routing_worker:
+        raise ValueError("Select one image build type")
     cf = session.client("cloudformation")
     ecr = session.client("ecr")
     registry = stack_outputs(cf, BOOTSTRAP)
     uri = registry["RepositoryUri"]
-    release = ("data-release-" if data_worker else "release-") + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    prefix = "routing-release-" if routing_worker else "data-release-" if data_worker else "release-"
+    release = prefix + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     tag = f"{uri}:{release}"
-    if data_worker:
+    metadata = routing_source() if routing_worker else {}
+    paired = None
+    if not data_worker and not routing_worker:
+        settings = validate_settings(json.loads(SETTINGS.read_text()))
+        if settings.get("RoutingEnabled") == "true":
+            paired = normalize_routing_image(load("routing-image.json"))
+            verify_routing_image(session, paired)
+    if routing_worker:
+        subprocess.run(["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "routing_image_test.py"],
+                       check=True, cwd=ROOT)
+    elif data_worker:
         subprocess.run(["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "*detail*test.py"], check=True, cwd=ROOT)
     else:
         subprocess.run(["node", "scripts/check.mjs"], check=True, cwd=ROOT)
-    subprocess.run(["docker", "build", "--platform", "linux/arm64", "--file",
-                    "Dockerfile.data" if data_worker else "Dockerfile", "--tag", tag, "."], check=True, cwd=ROOT)
+    dockerfile = "Dockerfile.routing" if routing_worker else "Dockerfile.data" if data_worker else "Dockerfile"
+    command = ["docker", "build", "--platform", "linux/arm64", "--file", dockerfile, "--tag", tag]
+    if routing_worker:
+        # Refresh signed Ubuntu fixes for the pinned engine on every release.
+        # Artifact sealing remains network-isolated in Dockerfile.routing.
+        command.extend(["--network", "default", "--no-cache"])
+    subprocess.run([*command, "."], check=True, cwd=ROOT)
     token = ecr.get_authorization_token()["authorizationData"][0]
     username, password = base64.b64decode(token["authorizationToken"]).decode().split(":", 1)
     with tempfile.TemporaryDirectory(prefix="jeju-ecr-") as config:
@@ -540,8 +683,14 @@ def build_push(session, data_worker=False):
         subprocess.run(["docker", "--config", config, "push", tag], check=True)
     result = ecr.describe_images(repositoryName="jeju-3d", imageIds=[{"imageTag": release}])["imageDetails"][0]
     image = {"release": release, "tag": tag, "digest": result["imageDigest"], "imageUri": f"{uri}@{result['imageDigest']}"}
-    save("data-image.json" if data_worker else "image.json", image)
-    if not data_worker:
+    if routing_worker:
+        image.update(metadata)
+    elif not data_worker:
+        image["routing"] = paired
+    save("routing-image.json" if routing_worker else "data-image.json" if data_worker else "image.json", image)
+    if not data_worker and not routing_worker:
+        (LOCAL / "release-pairs").mkdir(parents=True, exist_ok=True)
+        save(f"release-pairs/{result['imageDigest'].split(':', 1)[1]}.json", image)
         assets = optional_stack_outputs(session, "static")
         if assets:
             subprocess.run([
@@ -619,7 +768,7 @@ def delete_tls_probe(session):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["network", "build-push", "build-data-push", "invalidate",
+    parser.add_argument("action", choices=["network", "build-push", "build-data-push", "build-routing-push", "invalidate",
                                           "plan-tls-probe-disable", "delete-tls-probe"] + [
         f"{action}-{kind}" for kind in STACKS for action in ["plan", "apply", "status"]
     ])
@@ -641,6 +790,8 @@ def main():
         build_push(session)
     elif args.action == "build-data-push":
         build_push(session, data_worker=True)
+    elif args.action == "build-routing-push":
+        build_push(session, routing_worker=True)
     elif args.action == "invalidate":
         outputs = stack_outputs(session.client("cloudformation"), APP)
         result = session.client("cloudfront").create_invalidation(

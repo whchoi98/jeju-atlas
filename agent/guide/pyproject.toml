@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "JejuAtlasGuide"
+version = "0.1.0"
+description = "AgentCore Runtime Application using Strands SDK"
+readme = "README.md"
+requires-python = ">=3.10"
+# Floors reflect the APIs this app actually calls, not the scaffolding defaults:
+#   strands-agents 1.54: BedrockModel(cache_config=CacheConfig(...), cache_tools=...),
+#     Agent.stream_async(structured_output_model=..., cancel_signal=...), StructuredOutputEvent
+#   bedrock-agentcore 1.22: memory.integrations.strands (AgentCoreMemoryConfig/SessionManager)
+# CodeZip deploys resolve from the committed uv.lock (`uv sync --frozen --no-dev`), so these floors are
+# for reproducibility and for anyone installing without the lock — keep them in step with uv.lock.
+dependencies = [
+    "aws-opentelemetry-distro",
+    "bedrock-agentcore >= 1.22.0",
+    "botocore[crt] >= 1.35.0",
+    "mcp ~= 1.24.0",
+    "strands-agents >= 1.54.0",
+    "mcp-proxy-for-aws >= 1.1.0",
+    "pydantic>=2.9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

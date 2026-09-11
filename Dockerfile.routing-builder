@@ -1,0 +1,7 @@
+FROM ghcr.io/valhalla/valhalla@sha256:58c7dd3fb256f306b00c558fb76aea9fd4fb804edd831e2b4847c26511cca507
+
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends osmium-tool \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /data

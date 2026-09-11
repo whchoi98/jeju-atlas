@@ -1,11 +1,13 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './style.css';
+import './scenes.css';
 import { brandMark, icon } from './icons';
 import { categories, formatCoordinates, places, tourStops, type Place } from './places';
 import type { AtlasMap, ViewState } from './map';
 import { AtlasExperience } from './explore';
 import { getLocale, initializeI18n, placeName, t } from './i18n';
 import { html } from './api';
+import { TerrainScenes } from './scenes';
 import {
   DEFAULT_TOUR, createTourTrack, loadOlleRoute, loadTourManifest, routeBounds, routeDistance, tourLabel, tourText,
   type OlleRoute, type TourChoice, type TourManifest,
@@ -37,6 +39,7 @@ let toastTimer: ReturnType<typeof setTimeout> | undefined;
 let lastState: ViewState | undefined;
 let initializationId = 0;
 let experience: AtlasExperience | undefined;
+let terrainScenes: TerrainScenes | undefined;
 
 app.innerHTML = `
   <a href="#map" class="skip-link">지도로 바로 가기</a>
@@ -166,7 +169,7 @@ app.innerHTML = `
       <div><dt>${icon('mountain')} 높이 살펴보기</dt><dd>3D와 2D를 전환하고 고도 배율을 조절해 보세요. 1×가 실제 비율입니다.</dd></div>
       <div><dt>${icon('play')} 가볍게 둘러보기</dt><dd>‘제주 한 바퀴’는 다섯 장소로 시점을 이동합니다. 지도를 직접 움직이거나 Esc를 누르면 멈춥니다.</dd></div>
     </dl>
-    <p class="data-note">위성 영상은 실시간 영상이 아닙니다. 지형 데이터의 해상도에 따라 작은 바위와 건물은 표시되지 않습니다. 장소 좌표는 탐색용 중심점이며 길 안내를 제공하지 않습니다.</p>
+    <p class="data-note" id="terrain-data-note" data-i18n-ignore></p>
     <div class="data-sources"><strong>지도 데이터</strong><span>위성 영상 · Esri World Imagery</span><span>고도 타일 · Mapzen / AWS Terrain Tiles</span><span>육지 고도 · USGS (SRTM / GMTED2010)</span><span>전 지구 지형 · NOAA (ETOPO1)</span><a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">고도 데이터 전체 출처 보기 ↗</a><span>지도 엔진 · MapLibre GL JS</span><span id="emoji-attribution">UI 이모지 · <a href="https://github.com/twitter/twemoji/tree/v14.0.2" target="_blank" rel="noopener noreferrer">Twemoji © Twitter, Inc and other contributors</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a></span><a href="/emoji/LICENSE-GRAPHICS.txt" target="_blank" rel="noopener">이모지 이용허락 전문 ↗</a></div>
     <details class="device-privacy" id="privacy-help"><summary>자료 보관과 AI 이용</summary><p>코스와 즐겨찾기는 이 브라우저에 저장됩니다. 코스 공유 주소의 # 뒤에는 장소 이름·좌표·순서·체류 시간·출처가 담기며, 주소를 받은 사람이 볼 수 있습니다.</p><p>AI 질문과 필요한 탐색 맥락은 서버를 거쳐 AWS의 기존 AI 런타임에 전달됩니다. 서버는 이용 한도를 관리합니다.</p><p>기기 자료 삭제는 브라우저의 코스·즐겨찾기·이전 정상 저장본에만 적용됩니다. 이미 공유한 주소와 서버에 전송된 자료, 이용 한도용 세션 쿠키는 삭제하지 않습니다.</p><p>새 대화는 현재 화면의 대화를 비우고 새 연결을 시작합니다. 서버 자료를 삭제하는 기능이 아닙니다.</p><button id="about-data" class="button">이 기기의 여행 자료 관리</button></details>
     <button class="button button--primary dialog-start" id="about-start">제주 탐험하기 ${icon('arrow')}</button>
@@ -233,6 +236,7 @@ function renderSelected(): void {
 function selectPlace(place: Place, fly: boolean, touring = false): void {
   experience?.legacySelected();
   selected = place;
+  terrainScenes?.setSelected(place);
   atlas?.setSelected(place.id);
   renderPlaces();
   renderSelected();
@@ -260,6 +264,7 @@ function setCategory(category: string): void {
 }
 
 function setDrawer(open: boolean): void {
+  if (open && terrainScenes?.isOpen) terrainScenes.hide(false);
   drawerOpen = open;
   element('place-drawer').classList.toggle('is-open', open);
   element('drawer-toggle').setAttribute('aria-expanded', String(open));
@@ -278,6 +283,7 @@ function toast(message: string): void {
 
 function updateView(state: ViewState): void {
   lastState = state;
+  terrainScenes?.updateView(state);
   element('camera-coordinates').textContent = formatCoordinates(state.center);
   const compass = document.querySelector<SVGElement>('.compass-needle');
   if (compass) compass.style.transform = `rotate(${-state.bearing}deg)`;
@@ -307,6 +313,7 @@ function updateView(state: ViewState): void {
 
 function setMapReady(ready: boolean): void {
   mapReady = ready;
+  terrainScenes?.setReady(ready);
   document.querySelectorAll<HTMLButtonElement | HTMLInputElement>('[data-map-action]').forEach((control) => { control.disabled = !ready; });
   renderSelected();
   if (lastState) updateView(lastState);
@@ -341,6 +348,7 @@ async function initializeMap(stateOverride?: ViewState): Promise<void> {
     renderPlaces();
     renderSelected();
     updateView(state);
+    terrainScenes?.detachMap();
     atlas?.destroy();
     atlas = undefined;
     element('map').replaceChildren();
@@ -351,6 +359,7 @@ async function initializeMap(stateOverride?: ViewState): Promise<void> {
         element('map-loading').hidden = true;
         atlas?.setCategory(activeCategory);
         if (atlas) experience?.onMapReady(atlas);
+        if (atlas) terrainScenes?.attach(atlas);
         if (activeTrail) {
           atlas?.setTourRoute(activeTrail);
           atlas?.fitTourRoute(activeTrail);
@@ -484,6 +493,7 @@ async function initializeTours(): Promise<void> {
 }
 
 async function changeTourTheme(id: string, play = false): Promise<void> {
+  terrainScenes?.hide(false);
   stopTour();
   const choice = tourManifest?.routes.find(route => route.id === id);
   selectedTour = choice?.available ? choice.id : DEFAULT_TOUR;
@@ -541,7 +551,7 @@ function stopTour(announce = false): void {
   trailController = undefined;
   trailLoading = false;
   tourIndex = -1;
-  if (interrupted) atlas?.stop();
+  atlas?.stop();
   renderTour();
   if (announce && interrupted) toast(tourText('stopped'));
 }
@@ -579,6 +589,7 @@ function startTrailTour(route: OlleRoute): void {
 
 function startTour(): void {
   if (!mapReady || trailLoading) return;
+  terrainScenes?.hide(false);
   if (selectedTour !== DEFAULT_TOUR) {
     if (!activeTrail) { void changeTourTheme(selectedTour, true); return; }
     tourIndex = 0;
@@ -664,6 +675,7 @@ element('share-select').addEventListener('click', () => {
 });
 element('about-button').addEventListener('click', () => {
   stopTour();
+  terrainScenes?.hide(false);
   element<HTMLDialogElement>('about-dialog').showModal();
 });
 element('about-close').addEventListener('click', () => element<HTMLDialogElement>('about-dialog').close());
@@ -688,6 +700,7 @@ element('fallback-map').addEventListener('click', () => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     stopTour();
+    if (terrainScenes?.isOpen) terrainScenes.hide();
     closeLayerPanel();
     if (drawerOpen) setDrawer(false);
   }
@@ -697,9 +710,12 @@ document.addEventListener('keydown', (event) => {
     experience?.searchFocus();
   }
 });
-document.addEventListener('visibilitychange', () => { if (document.hidden) stopTour(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { stopTour(); terrainScenes?.stop(); }
+});
 window.addEventListener('hashchange', () => {
   stopTour();
+  terrainScenes?.hide(false);
   if (mapReady && atlas && mapModule) {
     const state = mapModule.readView();
     atlas.restoreView(state);
@@ -713,12 +729,19 @@ window.matchMedia('(max-width: 760px)').addEventListener('change', () => {
 });
 window.addEventListener('pagehide', () => {
   stopTour();
+  terrainScenes?.stop();
   clearTimeout(toastTimer);
 });
 
 renderPlaces();
 renderSelected();
 setDrawer(false);
+function renderTerrainNote(): void {
+  element('terrain-data-note').textContent = getLocale() === 'en'
+    ? 'The 3D view uses real DEM terrain and satellite imagery. Photogrammetric buildings and live footage are not provided. Landmark coordinates are viewing centers. Route times are estimates without live traffic.'
+    : '실제 고도·위성 기반의 지형 3D입니다. 개별 건물 사진측량이나 실시간 영상은 제공하지 않습니다. 명소 좌표는 관찰 중심점이며 경로 시간은 실시간 교통을 반영하지 않은 추정치입니다.';
+}
+renderTerrainNote();
 experience = new AtlasExperience({
   atlas: () => atlas,
   closeDrawer: () => setDrawer(false),
@@ -728,7 +751,24 @@ experience = new AtlasExperience({
   cameraURL: () => atlas && mapModule ? mapModule.cameraURL(atlas.getState()) : window.location.href,
   copyURL,
 });
+terrainScenes = new TerrainScenes(document.querySelector<HTMLElement>('.map-shell')!, {
+  atlas: () => atlas,
+  onSelect: place => selectPlace(place, false),
+  onDetails: place => {
+    if (place.catalogId) void experience?.catalog.openPlace(place.catalogId);
+  },
+  stopOtherPlayback: () => stopTour(),
+  closeDrawer: () => { experience?.catalog.closeDetail(false); setDrawer(false); },
+  notify: toast,
+});
+// Optional integration entry for a known landmark/catalog ID. Generic catalog
+// places keep the parent's normal 3D action and never acquire invented presets.
+window.addEventListener('atlas:inspect-place', event => {
+  const id = (event as CustomEvent<{ id?: unknown }>).detail?.id;
+  if (typeof id === 'string' && id.length <= 200) terrainScenes?.inspect(id);
+});
 window.addEventListener('atlas:locale-change', () => {
+  renderTerrainNote();
   renderPlaces();
   if (!experience?.refreshLocale()) renderSelected();
   renderTourChoices();

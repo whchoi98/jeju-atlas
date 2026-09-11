@@ -4,7 +4,9 @@ import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { places, type Place } from './places';
 import { icon } from './icons';
 import { getLocale, placeName, t } from './i18n';
-import { routeBounds, type OlleRoute, type TourFrame } from './tours';
+import { createTourTrack, routeBounds, type OlleRoute, type TourFrame } from './tours';
+import { CameraPlayback } from './scenes';
+import { routeCoordinates } from './elevation-profile';
 
 // v6 ships a separate module worker. Its default sibling URL is invalid after
 // Vite hashes the main chunk; bundle the worker and its imports explicitly.
@@ -209,6 +211,16 @@ export class AtlasMap {
   private contextLost = false;
   private contextRestoring = false;
   private tourPart = -1;
+  private orbitPlayback = new CameraPlayback();
+  private routePlayback = new CameraPlayback();
+  private previewProgress = 0;
+  private motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+  private onVisibility = () => { if (document.hidden) this.stop(); };
+  private onMotionPreference = () => { if (this.motionPreference.matches) this.stop(); };
+  private onRouteChange = () => this.stop();
+  // A frame-by-frame jumpTo may precede the engine's dragstart detection.
+  // Stop at the physical input boundary so the user's gesture owns the camera.
+  private onDirectInput = () => { this.stop(); this.callbacks.onInteraction(); };
   private onLocale = () => {
     for (const place of places) {
       const element = this.markers.get(place.id)?.getElement();
@@ -249,6 +261,9 @@ export class AtlasMap {
     // can inspect getTerrain(), areTilesLoaded(), queryTerrainElevation(), etc.
     window.__JEJU_MAP__ = this.map;
     window.addEventListener('atlas:locale-change', this.onLocale);
+    window.addEventListener('atlas:route-change', this.onRouteChange);
+    document.addEventListener('visibilitychange', this.onVisibility);
+    this.motionPreference.addEventListener('change', this.onMotionPreference);
     this.map.addControl(new maplibregl.AttributionControl({
       compact: false,
       customAttribution: terrainAttribution,
@@ -260,6 +275,7 @@ export class AtlasMap {
     this.onContextLost = (event) => {
       event.preventDefault();
       this.contextLost = true;
+      this.stop();
       callbacks.onError('그래픽 연결이 끊겼습니다. 복구를 기다리고 있어요. 계속 표시되지 않으면 다시 불러와 주세요.', true);
     };
     this.onContextRestored = () => {
@@ -273,6 +289,8 @@ export class AtlasMap {
     };
     this.map.getCanvas().addEventListener('webglcontextlost', this.onContextLost);
     this.map.getCanvas().addEventListener('webglcontextrestored', this.onContextRestored);
+    this.map.getCanvas().addEventListener('pointerdown', this.onDirectInput, { capture: true, passive: true });
+    this.map.getCanvas().addEventListener('wheel', this.onDirectInput, { capture: true, passive: true });
 
     this.loadTimer = setTimeout(() => {
       if (!this.ready) callbacks.onError('지형을 불러오는 데 시간이 걸리고 있습니다. 인터넷 연결을 확인하거나 다시 시도해 주세요.', false);
@@ -318,10 +336,10 @@ export class AtlasMap {
     });
     for (const eventName of ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart'] as const) {
       this.map.on(eventName, (event) => {
-        if (event.originalEvent) callbacks.onInteraction();
+        if (event.originalEvent) { this.stop(); callbacks.onInteraction(); }
       });
     }
-    this.map.getCanvas().addEventListener('keydown', () => callbacks.onInteraction());
+    this.map.getCanvas().addEventListener('keydown', () => { this.stop(); callbacks.onInteraction(); });
   }
 
   private tryRecovered(): void {
@@ -390,6 +408,7 @@ export class AtlasMap {
   }
 
   restoreView(state: ViewState): void {
+    this.stop();
     this.setExaggeration(state.exaggeration);
     this.setBasemap(state.basemap);
     this.set3D(state.is3D);
@@ -473,6 +492,7 @@ export class AtlasMap {
   }
 
   flyTo(place: Place, tour = false): void {
+    this.stop();
     this.setSelected(place.id);
     const duration = reducedMotion() ? 0 : tour ? 3300 : 2200;
     this.map.flyTo({
@@ -487,6 +507,7 @@ export class AtlasMap {
   }
 
   reset(): void {
+    this.stop();
     const view = defaultView();
     this.map.flyTo({
       center: view.center,
@@ -499,6 +520,7 @@ export class AtlasMap {
   }
 
   set3D(enabled: boolean): void {
+    this.stop();
     this.state.is3D = enabled;
     this.map.setTerrain(enabled ? { source: 'terrain-dem', exaggeration: this.state.exaggeration } : null);
     this.map.easeTo({
@@ -509,6 +531,7 @@ export class AtlasMap {
   }
 
   setExaggeration(value: number): void {
+    this.stop();
     this.state.exaggeration = Math.min(2, Math.max(1, value));
     if (this.state.is3D) this.map.setTerrain({ source: 'terrain-dem', exaggeration: this.state.exaggeration });
     this.emitMove();
@@ -524,23 +547,176 @@ export class AtlasMap {
   }
 
   zoom(amount: number): void {
+    this.stop();
     this.map.zoomTo(this.map.getZoom() + amount, { duration: reducedMotion() ? 0 : 350 });
   }
 
   north(): void {
+    this.stop();
     this.map.rotateTo(0, { duration: reducedMotion() ? 0 : 600 });
   }
 
+  get isOrbiting(): boolean { return this.orbitPlayback.running; }
+  get isPreviewingRoute(): boolean { return this.routePlayback.running; }
+  get routePreviewProgress(): number { return this.previewProgress; }
+
+  private activity(kind: 'orbit' | 'route', running: boolean): void {
+    window.dispatchEvent(new CustomEvent('atlas:camera-activity', { detail: { kind, running, progress: this.previewProgress } }));
+  }
+
+  private inspectionPadding(): { top: number; bottom: number; left: number; right: number } {
+    const container = this.map.getContainer();
+    const panel = container.closest('.map-shell')?.querySelector<HTMLElement>('#terrain-tools-panel');
+    const shown = panel && !panel.hidden && panel.offsetHeight > 0;
+    if (smallScreen()) {
+      const occupied = shown ? container.getBoundingClientRect().bottom - panel.getBoundingClientRect().top + 20 : 150;
+      return { top: 70, bottom: Math.max(100, Math.min(container.clientHeight - 170, occupied)), left: 12, right: 25 };
+    }
+    return { top: 40, bottom: 115, left: 20, right: shown ? Math.min(panel.offsetWidth + 110, container.clientWidth * 0.46) : 80 };
+  }
+
+  inspectScene(place: Place, overhead = false): void {
+    if (!this.ready || this.disposed || this.contextLost) return;
+    this.stop();
+    this.state.is3D = true;
+    this.map.setTerrain({ source: 'terrain-dem', exaggeration: this.state.exaggeration });
+    this.setSelected(place.id);
+    this.map.flyTo({
+      center: place.coordinates, zoom: smallScreen() ? place.zoom - 0.7 : place.zoom,
+      pitch: overhead ? 0 : 58, bearing: overhead ? 0 : place.bearing,
+      duration: reducedMotion() ? 0 : 1400, essential: false,
+      padding: this.inspectionPadding(),
+    });
+    this.emitMove();
+  }
+
+  startOrbit(place: Place): void {
+    this.callbacks.onInteraction();
+    this.stop();
+    if (!this.ready || this.disposed || this.contextLost || reducedMotion() || document.hidden) return;
+    this.state.is3D = true;
+    this.map.setTerrain({ source: 'terrain-dem', exaggeration: this.state.exaggeration });
+    this.setSelected(place.id);
+    this.map.jumpTo({
+      center: place.coordinates, zoom: smallScreen() ? place.zoom - 0.7 : place.zoom,
+      pitch: 58, bearing: place.bearing,
+      padding: this.inspectionPadding(),
+    });
+    this.orbitPlayback.start(30000, progress => {
+      this.map.jumpTo({ bearing: place.bearing + progress * 360 });
+    }, () => this.activity('orbit', false));
+    this.activity('orbit', true);
+  }
+
+  previewRoute(coordinates: [number, number][]): void {
+    const line = routeCoordinates(coordinates);
+    const track = createTourTrack([line]);
+    this.callbacks.onInteraction();
+    this.stop();
+    if (!this.ready || this.disposed || this.contextLost || document.hidden) return;
+    if (reducedMotion()) { this.showRouteOverview(line); return; }
+    this.state.is3D = true;
+    this.map.setTerrain({ source: 'terrain-dem', exaggeration: this.state.exaggeration });
+    if (!this.map.getSource('terrain-route-preview')) {
+      this.map.addSource('terrain-route-preview', {
+        type: 'geojson', data: { type: 'FeatureCollection', features: [] },
+        attribution: 'Routes © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors · ODbL</a>',
+      });
+      this.map.addLayer({
+        id: 'terrain-route-preview', type: 'line', source: 'terrain-route-preview',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#187c87', 'line-width': 5, 'line-opacity': 0.8 },
+      });
+      this.map.addSource('terrain-route-position', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      this.map.addLayer({
+        id: 'terrain-route-position', type: 'circle', source: 'terrain-route-position',
+        paint: { 'circle-color': '#c16d43', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 },
+      });
+    }
+    (this.map.getSource('terrain-route-preview') as GeoJSONSource).setData({
+      type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: line },
+    });
+    let bearing: number | undefined, lastStatus = -1;
+    const padding = this.inspectionPadding();
+    this.routePlayback.start(Math.min(90000, Math.max(15000, track.length * 4)), progress => {
+      const frame = track.at(track.length * progress);
+      const delta = bearing === undefined ? 0 : ((frame.bearing - bearing + 540) % 360) - 180;
+      bearing = bearing === undefined ? frame.bearing : bearing + delta * 0.12;
+      this.previewProgress = progress;
+      (this.map.getSource('terrain-route-position') as GeoJSONSource).setData({
+        type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: frame.center },
+      });
+      // Every camera frame samples the original line; sparse waypoint flights
+      // would otherwise cut corners and leave the real road.
+      this.map.jumpTo({
+        center: frame.center, zoom: smallScreen() ? 14 : 14.5, pitch: 55, bearing,
+        padding,
+      });
+      if (Math.floor(progress * 100) !== lastStatus) {
+        lastStatus = Math.floor(progress * 100);
+        this.activity('route', true);
+      }
+    }, () => this.stopRoutePreview());
+    this.activity('route', true);
+  }
+
+  stopRoutePreview(): void {
+    const active = this.routePlayback.running || this.previewProgress > 0;
+    this.routePlayback.stop();
+    this.previewProgress = 0;
+    for (const name of ['terrain-route-preview', 'terrain-route-position']) {
+      (this.map.getSource(name) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features: [] });
+    }
+    if (active) this.activity('route', false);
+  }
+
+  showRouteOverview(coordinates: [number, number][]): void {
+    const line = routeCoordinates(coordinates);
+    this.stop();
+    if (!this.ready || this.disposed || this.contextLost) return;
+    this.state.is3D = true;
+    this.map.setTerrain({ source: 'terrain-dem', exaggeration: this.state.exaggeration });
+    this.map.fitBounds(routeBounds([line]), {
+      padding: this.inspectionPadding(),
+      maxZoom: 14, pitch: 45, bearing: 0, duration: reducedMotion() ? 0 : 1200,
+    });
+  }
+
+  setProfilePoint(point: [number, number] | null): void {
+    if (!this.ready || this.disposed) return;
+    if (!this.map.getSource('terrain-profile-point')) {
+      if (!point) return;
+      this.map.addSource('terrain-profile-point', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      this.map.addLayer({
+        id: 'terrain-profile-point', type: 'circle', source: 'terrain-profile-point',
+        paint: { 'circle-color': '#17313a', 'circle-radius': 6, 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 },
+      });
+    }
+    (this.map.getSource('terrain-profile-point') as GeoJSONSource).setData(point
+      ? { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: point } }
+      : { type: 'FeatureCollection', features: [] });
+  }
+
   stop(): void {
+    const orbiting = this.orbitPlayback.running;
+    this.orbitPlayback.stop();
+    this.stopRoutePreview();
     this.map.stop();
+    if (orbiting) this.activity('orbit', false);
   }
 
   destroy(): void {
+    this.stop();
     this.disposed = true;
     clearTimeout(this.loadTimer);
     window.removeEventListener('atlas:locale-change', this.onLocale);
+    window.removeEventListener('atlas:route-change', this.onRouteChange);
+    document.removeEventListener('visibilitychange', this.onVisibility);
+    this.motionPreference.removeEventListener('change', this.onMotionPreference);
     this.map.getCanvas().removeEventListener('webglcontextlost', this.onContextLost);
     this.map.getCanvas().removeEventListener('webglcontextrestored', this.onContextRestored);
+    this.map.getCanvas().removeEventListener('pointerdown', this.onDirectInput, true);
+    this.map.getCanvas().removeEventListener('wheel', this.onDirectInput, true);
     for (const marker of this.markers.values()) marker.remove();
     this.map.remove();
     if (window.__JEJU_MAP__ === this.map) delete window.__JEJU_MAP__;

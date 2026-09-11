@@ -1,3 +1,5 @@
+import type { RoutingConfig } from './routing-types';
+
 export type LatLng = { lat: number; lng: number };
 export type FieldEvidence = {
   state: 'unknown' | 'unverified' | 'source_reported' | 'parsed' | 'reviewed';
@@ -149,6 +151,7 @@ export type GuideMap = {
 };
 export type AppConfig = {
   version: string;
-  features: { catalog: boolean; guide: boolean; planner: boolean; pwa: boolean };
+  features: { catalog: boolean; guide: boolean; planner: boolean; pwa: boolean; routing: boolean };
   guide: { daily_limit: number; csrf_token?: string };
+  routing: RoutingConfig;
 };

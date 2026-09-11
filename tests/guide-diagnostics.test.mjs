@@ -264,7 +264,7 @@ test('only actual allowlisted runtime tools gain status metadata, with known pre
   const f = await fixture(t, {
     invokeEvents: () => source([
       { type: 'status', stage: 'thinking', tool: 'find_places', message: PRIVATE_PROMPT },
-      ...tools.flatMap((tool) => [tool, `ohmyjejutools_${tool}`]).map((tool) => ({
+      ...tools.flatMap((tool) => [tool, `ohmyjejutools_${tool}`, `jejuatlastools_${tool}`]).map((tool) => ({
         type: 'status', stage: 'tool', tool, label: SECRET, message: PRIVATE_PROMPT, arguments: { private: RUNTIME_ARN },
       })),
       ...[RUNTIME_ARN, `ohmyjejutools_find_places ${SECRET}`, '__proto__', { name: 'weather', args: PRIVATE_PROMPT }].map((tool) => ({
@@ -277,7 +277,7 @@ test('only actual allowlisted runtime tools gain status metadata, with known pre
   const result = await f.post(await f.cookie()).completed;
   const statuses = events(result.body).filter((event) => event.event === 'status').map((event) => event.data);
   const announced = statuses.filter((status) => status.tool);
-  assert.deepEqual(announced.map((status) => status.tool), tools.flatMap((tool) => [tool, tool]));
+  assert.deepEqual(announced.map((status) => status.tool), tools.flatMap((tool) => [tool, tool, tool]));
   assert.ok(announced.every((status) => status.stage === 'tool' && /[가-힣]/.test(status.label) && /[가-힣]/.test(status.message)));
   assert.ok(statuses.some((status) => status.stage === 'thinking' && !status.tool));
   assert.ok(statuses.every((status) => ['thinking', 'tool'].includes(status.stage)));

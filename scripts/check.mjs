@@ -17,23 +17,24 @@ const templates = (await readdir(path.join(root, 'infra'))).filter((name) => nam
 const steps = [
   ['node-tests', process.execPath, ['--test', '--test-concurrency=1', ...tests.map((name) => `tests/${name}`)]],
   ['deployment-tests', process.env.ATLAS_PYTHON || 'python3', ['-m', 'unittest', 'discover', '-s', 'tests', '-p', '*_test.py']],
-  ['cloudformation', 'cfn-lint', templates.map((name) => `infra/${name}`)],
+  ['cloudformation', 'cfn-lint', ['--registry-schemas', 'infra/schemas/agentcore', '--template', ...templates.map((name) => `infra/${name}`)]],
   ['dependencies', 'npm', ['audit', '--audit-level=high']],
   ['production-build', 'npm', ['run', 'build']],
 ];
 
 async function sourceDigest() {
   const digest = createHash('sha256');
-  const files = ['package.json', 'package-lock.json', 'Dockerfile', '.dockerignore', 'Dockerfile.data', 'Dockerfile.data.dockerignore', 'index.html', 'vite.config.ts', 'tsconfig.json'];
+  const files = ['package.json', 'package-lock.json', 'Dockerfile', '.dockerignore', 'Dockerfile.data', 'Dockerfile.data.dockerignore', 'Dockerfile.routing', 'Dockerfile.routing-builder', 'Dockerfile.routing.dockerignore', 'index.html', 'vite.config.ts', 'tsconfig.json'];
   async function collect(directory) {
     const entries = await readdir(path.join(root, directory), { withFileTypes: true });
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      if (entry.name.startsWith('.env') || ['.venv', '.pytest_cache', '.mypy_cache', '.ruff_cache'].includes(entry.name)) continue;
       const name = `${directory}/${entry.name}`;
       if (entry.isDirectory()) await collect(name);
       else if (entry.isFile()) files.push(name);
     }
   }
-  for (const directory of ['src', 'shared', 'server', 'public', 'infra', 'tests', 'scripts']) await collect(directory);
+  for (const directory of ['src', 'shared', 'server', 'public', 'infra', 'tests', 'scripts', 'routing', 'agent']) await collect(directory);
   for (const name of files.sort()) {
     // Python imports create caches while checks run. They are not release input.
     if (name.includes('/__pycache__/') || name.endsWith('.pyc')) continue;

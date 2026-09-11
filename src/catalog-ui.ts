@@ -17,6 +17,8 @@ interface CatalogOptions {
   notify: (message: string) => void;
   openDrawer: () => void;
   onReset?: () => void;
+  onTrip?: () => void;
+  on3D?: (place: CatalogPlace | PlaceSnapshot) => void;
 }
 
 const noData = '정보 없음';
@@ -697,6 +699,11 @@ export class CatalogUI {
     this.detailRoot.innerHTML = `
       <div class="detail-heading"><div><nav class="detail-breadcrumb" aria-label="${t('장소 탐색 경로')}"><button data-detail-action="back">${t('이전 화면')}</button><span aria-hidden="true">›</span><span>${html(categoryName(place.category))}</span></nav><h2 tabindex="-1" data-i18n-ignore>${html(placeName(place))}</h2>${place.name_en ? `<span class="detail-english" data-i18n-ignore>${html(getLocale() === 'en' ? place.name : place.name_en)}</span>` : ''}</div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div>
       <div class="detail-action-bar"><button id="detail-favorite" data-detail-action="favorite" aria-pressed="${this.options.planner.isFavorite(place.id)}">${icon('pin')}즐겨찾기</button><button id="detail-add-trip" data-detail-action="add">${icon('plus')}내 여행에 담기</button><button data-detail-action="map">${icon('expand')}지도 보기</button></div>
+      <div class="detail-route-actions" data-i18n-ignore>
+        <button data-detail-action="origin">${icon('pin')}${getLocale() === 'en' ? 'Start here' : '출발지로'}</button>
+        <button data-detail-action="destination">${icon('route')}${getLocale() === 'en' ? 'Go here' : '도착지로'}</button>
+        <button data-detail-action="3d">${icon('mountain')}${getLocale() === 'en' ? 'Explore in 3D' : '3D로 보기'}</button>
+      </div>
       <p id="detail-save-status" class="detail-save-status" role="status" hidden></p>
       <div class="detail-related-actions"><button data-detail-action="nearby">${icon('compass')}주변 장소</button><button data-detail-action="category">${icon(categorySymbol(place.category).icon)}${html(categoryName(place.category))} 더 보기</button></div>
       <div class="detail-content">
@@ -761,6 +768,16 @@ export class CatalogUI {
     if (action === 'weather') { if (this.currentDetail) void this.loadWeather(this.currentDetail); return; }
     const place = this.currentDetail ?? this.savedFallback;
     if (!place) return;
+    if (action === 'origin' || action === 'destination') {
+      const update = action === 'origin' ? this.options.planner.setOrigin(place) : this.options.planner.setDestination(place);
+      void Promise.resolve(update).then(() => { this.closeDetail(false); this.options.onTrip?.(); });
+      return;
+    }
+    if (action === '3d') {
+      this.closeDetail(false);
+      (this.options.on3D ?? this.options.onSelect)(place);
+      return;
+    }
     if (action === 'favorite') this.options.planner.toggleFavorite(place);
     if (action === 'add') this.options.planner.add(place);
     if (action === 'map') { this.options.onSelect(place); this.closeDetail(); }

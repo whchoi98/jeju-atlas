@@ -1,0 +1,282 @@
+{
+  "imported_from": "agentcore-cli",
+  "source_commit": "9d4ae864369eb62fddfb9b346d6e25722c946aa1",
+  "method": "one-time copy of tracked application sources; independent package and environment names",
+  "files": [
+    {
+      "path": "agent/guide/main.py",
+      "upstream_blob_sha256": "50abdc92fda9344fd1d2ee01e4be4c1d4ce078ec48e19734f8603bc1834b5cc7",
+      "initial_sha256": "a80111c452e0ccfcecf2b84b0f3a593b409b56800b8afd52fb8477d7794fc510"
+    },
+    {
+      "path": "agent/guide/mcp_client/__init__.py",
+      "upstream_blob_sha256": "6cbe75d1c29523ae68d35d5561eadb8a03c9e50cc2cfb9ae645222ee21d2ef48",
+      "initial_sha256": "6cbe75d1c29523ae68d35d5561eadb8a03c9e50cc2cfb9ae645222ee21d2ef48"
+    },
+    {
+      "path": "agent/guide/mcp_client/client.py",
+      "upstream_blob_sha256": "dd68fb11a1eeec4b0a2e4d141f4274974e770cfa3b70031b2f57bc6116fafb92",
+      "initial_sha256": "2e8f637c828a947102492f82aaae899619531e0726cc658a81fe036d1a0beaa8"
+    },
+    {
+      "path": "agent/guide/memory/__init__.py",
+      "upstream_blob_sha256": "6cbe75d1c29523ae68d35d5561eadb8a03c9e50cc2cfb9ae645222ee21d2ef48",
+      "initial_sha256": "6cbe75d1c29523ae68d35d5561eadb8a03c9e50cc2cfb9ae645222ee21d2ef48"
+    },
+    {
+      "path": "agent/guide/memory/session.py",
+      "upstream_blob_sha256": "067e9f9d356d802c45f220498e769e9a8464a009b8239731a2e2899f4533c8e3",
+      "initial_sha256": "0c042cec08142cedf59bd329a0abfb52ae0d2e087837838e73b86b5f385225f2"
+    },
+    {
+      "path": "agent/guide/model/__init__.py",
+      "upstream_blob_sha256": "6cbe75d1c29523ae68d35d5561eadb8a03c9e50cc2cfb9ae645222ee21d2ef48",
+      "initial_sha256": "6cbe75d1c29523ae68d35d5561eadb8a03c9e50cc2cfb9ae645222ee21d2ef48"
+    },
+    {
+      "path": "agent/guide/model/load.py",
+      "upstream_blob_sha256": "a0ab5cc69e8925db7832d3f4099dcccf6947407f01368e2a6560bb86a2edfa2c",
+      "initial_sha256": "222f2b5ff5886e8c47c4d49f7ebea6b68d87ef4e37e22135b3cc21198cddd462"
+    },
+    {
+      "path": "agent/guide/model/mantle_compat.py",
+      "upstream_blob_sha256": "fed4099488dfc3c924b5d42b7fbe3c7608652fc1c35c983132ce5ef08ee133f0",
+      "initial_sha256": "fed4099488dfc3c924b5d42b7fbe3c7608652fc1c35c983132ce5ef08ee133f0"
+    },
+    {
+      "path": "agent/guide/atlas_agent/__init__.py",
+      "upstream_blob_sha256": "7c507ccb3e2693b0b51dd307fe7bf5faf598c263273dd10de2da4007689cc007",
+      "initial_sha256": "f7f78b0bcd3683eb6917e4d17c8feae9fa4070076221bb713e343b9b7af6d52b"
+    },
+    {
+      "path": "agent/guide/atlas_agent/derive.py",
+      "upstream_blob_sha256": "23a14acfdc1189599a1e113fe00c5f45b0be8f73fc4664d0b3b4463ffa3b3482",
+      "initial_sha256": "e854af38f1d5efac8c5c035bd2e1a32a0d1f6f0a74824a551285b4f5c22e1398"
+    },
+    {
+      "path": "agent/guide/atlas_agent/identity.py",
+      "upstream_blob_sha256": "c9729858f29c522419c410221d3c98298a3d345d791abe30b68f9abf31948c71",
+      "initial_sha256": "c9729858f29c522419c410221d3c98298a3d345d791abe30b68f9abf31948c71"
+    },
+    {
+      "path": "agent/guide/atlas_agent/payload.py",
+      "upstream_blob_sha256": "31bd1803e688046b7fd49ad58bba146b7f492710bd098713035c0d67ca71cd84",
+      "initial_sha256": "31bd1803e688046b7fd49ad58bba146b7f492710bd098713035c0d67ca71cd84"
+    },
+    {
+      "path": "agent/guide/atlas_agent/prefetch.py",
+      "upstream_blob_sha256": "be99c992e0946030f68025c9dbe06d5822133055c98ccb03e5e3ebfcd1cf2568",
+      "initial_sha256": "dc6766986befad55d4bb39355c241f7a358df1cd6cfc0d86fc3b933f15b757ae"
+    },
+    {
+      "path": "agent/guide/atlas_agent/privacy.py",
+      "upstream_blob_sha256": "ceaa6ce6524008e9229c24ea3bfe03b84625ecec99832ca0f7717853aeb0a325",
+      "initial_sha256": "f57186bc36c368c671b90d368ca7b112eef9bbd756816a61e11a0dca5934005d"
+    },
+    {
+      "path": "agent/guide/atlas_agent/prompts/__init__.py",
+      "upstream_blob_sha256": "616642fb729707d7be486d6d5f125bb2c11bd8a602b60bd67fc7a64339fb8aef",
+      "initial_sha256": "20b0f932fbba3cf5cd35d8bf6ec039e32c9b05e1f0de796f3389e8bccd71ff82"
+    },
+    {
+      "path": "agent/guide/atlas_agent/prompts/format_derive.md",
+      "upstream_blob_sha256": "3b8701bf6dc0fd655bca1a18ad7f1540ab0774f39eabfe3a84f072649aee7390",
+      "initial_sha256": "3b8701bf6dc0fd655bca1a18ad7f1540ab0774f39eabfe3a84f072649aee7390"
+    },
+    {
+      "path": "agent/guide/atlas_agent/prompts/format_structured.md",
+      "upstream_blob_sha256": "c626f76e7947a946209d01d8f832f62b334dafe3ad3159b75af7205eed8e7fc7",
+      "initial_sha256": "c626f76e7947a946209d01d8f832f62b334dafe3ad3159b75af7205eed8e7fc7"
+    },
+    {
+      "path": "agent/guide/atlas_agent/prompts/system.md",
+      "upstream_blob_sha256": "8f7c795253047bc27d27f59a22566704ffa140878c93c6f9e062cf12271cce80",
+      "initial_sha256": "8f7c795253047bc27d27f59a22566704ffa140878c93c6f9e062cf12271cce80"
+    },
+    {
+      "path": "agent/guide/atlas_agent/routing.py",
+      "upstream_blob_sha256": "78ac3f3f464f6d6da703e61fabc67a2805e6161660d74e9988a09245dea0d6d8",
+      "initial_sha256": "2d6d81a68aa9c60ba2d4a5dd25deaefadf8e371096a2aa57122d45fecdbd770f"
+    },
+    {
+      "path": "agent/guide/atlas_agent/streaming.py",
+      "upstream_blob_sha256": "2bbbdcb1548f20c43630331392b60bbcfcf67532bdb938c12bba8e0fcbfab937",
+      "initial_sha256": "77a9171bf82024a51352dbc75df97a87a2c34fbd72cd4b61b4ec00170109e7ce"
+    },
+    {
+      "path": "agent/guide/atlas_agent/tool_budget.py",
+      "upstream_blob_sha256": "f0381b2d52e73f165f5cfd4d961e0f81e86c741a8b1c35bf1e97f2fb175d7a2c",
+      "initial_sha256": "35e26369e330f26154e83641b08b2efb18f5fd326f7ab7225e6216f763a48b4b"
+    },
+    {
+      "path": "agent/guide/atlas_contracts/__init__.py",
+      "upstream_blob_sha256": "81c302c4426d5d4bdef0fe479901761f558e75c2fba46d4d2cd5cccd84f9184c",
+      "initial_sha256": "81c302c4426d5d4bdef0fe479901761f558e75c2fba46d4d2cd5cccd84f9184c"
+    },
+    {
+      "path": "agent/guide/atlas_contracts/mapresponse_v2.py",
+      "upstream_blob_sha256": "b52d7294eeddee3030f360c60612499f26617177f3b986ad0962a02028d8e12a",
+      "initial_sha256": "b52d7294eeddee3030f360c60612499f26617177f3b986ad0962a02028d8e12a"
+    },
+    {
+      "path": "agent/guide/pyproject.toml",
+      "upstream_blob_sha256": "38136bfb0b8e0bfce2aaace401f69636c586c3fdc323266ae4d61a4aa4d32477",
+      "initial_sha256": "440994eaf9065ccec82ee6bba345f99d34874ffea7b057050bd11d7b59c6728c"
+    },
+    {
+      "path": "agent/guide/skills/fetcher.py",
+      "upstream_blob_sha256": "ce570a2f5b30a12f10120b8705c6ca024a99ee863c495a1a93050fe4d6e188ee",
+      "initial_sha256": "ce570a2f5b30a12f10120b8705c6ca024a99ee863c495a1a93050fe4d6e188ee"
+    },
+    {
+      "path": "agent/guide/uv.lock",
+      "upstream_blob_sha256": "1ebd8c0e9457b2dc60b7c3e5c896fbec5bdd67838b8803e085191060f0cfea65",
+      "initial_sha256": "1ebd8c0e9457b2dc60b7c3e5c896fbec5bdd67838b8803e085191060f0cfea65"
+    },
+    {
+      "path": "agent/tools/catalog.py",
+      "upstream_blob_sha256": "6bee6545aabe09be313f2e6737c810e2de8a0f7dffd5450168bd03ec6a724d4c",
+      "initial_sha256": "75c874cb3649c2b10425981ecc70f95f1a70a93579a234d83348dbe2e4643530"
+    },
+    {
+      "path": "agent/tools/data/jeju_pois.json",
+      "upstream_blob_sha256": "a3b0323d5743d63086872a9965eadb62a44cb2daf8bc52ec2e42c6d2cf2ac0e4",
+      "initial_sha256": "a3b0323d5743d63086872a9965eadb62a44cb2daf8bc52ec2e42c6d2cf2ac0e4"
+    },
+    {
+      "path": "agent/tools/main.py",
+      "upstream_blob_sha256": "6d220e512542b02b751e11c14994d9b368b03d001a98ebdcf5547eaeedef410e",
+      "initial_sha256": "52a586c1bf0f4495a7528d340467db7a4cef1e1f6d7998178d0c0a83040d7eeb"
+    },
+    {
+      "path": "agent/tools/atlas_tools/__init__.py",
+      "upstream_blob_sha256": "afbd32e37c803a12e8bedc71b5636671c5801a0a9a687f5707d56a6be74314a4",
+      "initial_sha256": "afbd32e37c803a12e8bedc71b5636671c5801a0a9a687f5707d56a6be74314a4"
+    },
+    {
+      "path": "agent/tools/atlas_tools/catalog_client.py",
+      "upstream_blob_sha256": "89472eade4ea4960237012b07a5c6a5961bc65c41b26aa354002664bda30a119",
+      "initial_sha256": "2d00733c9bbab05f8507560fafb778271c35576c1879b08ffe2efce60c60af58"
+    },
+    {
+      "path": "agent/tools/atlas_tools/catalog_fallback.py",
+      "upstream_blob_sha256": "384fdeb613e1cc83efee058f2ab5a08c2f4aa96e30b60b2337c3a39e5a0b1599",
+      "initial_sha256": "cf638fd84c50a3e80d4ffe883d4d61f8239f083f11afc2e007017b4b253bba3e"
+    },
+    {
+      "path": "agent/tools/atlas_tools/external/__init__.py",
+      "upstream_blob_sha256": "2f832831f91d1fd2cfaf5e68f28199faeb985a34fa3f76de21e512255e89706d",
+      "initial_sha256": "2f832831f91d1fd2cfaf5e68f28199faeb985a34fa3f76de21e512255e89706d"
+    },
+    {
+      "path": "agent/tools/atlas_tools/external/geo.py",
+      "upstream_blob_sha256": "441a71b2e40d978ac35319f2f6b5f911091cd8799fa70615e54d6a3f024061fb",
+      "initial_sha256": "3f013f3f604eb4504af2ea229493d112ecf19b1dde00de700c9778b9023fb2dc"
+    },
+    {
+      "path": "agent/tools/atlas_tools/external/jejuhub.py",
+      "upstream_blob_sha256": "766ddfc31e6208fb8b0a6891562d970dee5e545f8d65e2442c5810e0becba85b",
+      "initial_sha256": "766ddfc31e6208fb8b0a6891562d970dee5e545f8d65e2442c5810e0becba85b"
+    },
+    {
+      "path": "agent/tools/atlas_tools/external/kakao_local.py",
+      "upstream_blob_sha256": "80e36240f26dc1da346f794e14a7c090b0796e3d28f7442d99d9e0ac1d5c2d1b",
+      "initial_sha256": "80e36240f26dc1da346f794e14a7c090b0796e3d28f7442d99d9e0ac1d5c2d1b"
+    },
+    {
+      "path": "agent/tools/atlas_tools/external/keys.py",
+      "upstream_blob_sha256": "f11dafb20f37a8d5967eca6a9d178183dcfa7b714e97a5d1a1a82cd24849ac49",
+      "initial_sha256": "136eb32c3864c2d22b833303caf55c3ae54e396d1904d5f47db6f7fa27078a0b"
+    },
+    {
+      "path": "agent/tools/atlas_tools/external/kma.py",
+      "upstream_blob_sha256": "d83e8d424f69c3de2d1f70d5397efac3ec69a2066d971ab4d5a2889db4b4678d",
+      "initial_sha256": "d83e8d424f69c3de2d1f70d5397efac3ec69a2066d971ab4d5a2889db4b4678d"
+    },
+    {
+      "path": "agent/tools/atlas_tools/external/secrets_ssm.py",
+      "upstream_blob_sha256": "eac7ecf65a1416c1e11512290b0a91589197429a80b46e1b5db4abf6aa14ab30",
+      "initial_sha256": "4f5a0f8d930b91d5679b225aa45207ba1fd64eb9b3217677bf630518eb27194a"
+    },
+    {
+      "path": "agent/tools/atlas_tools/external/tourapi.py",
+      "upstream_blob_sha256": "564b5804dbbf8da2fd8de312d7e336c4683c0794f7513994b9ca327ff4362dba",
+      "initial_sha256": "564b5804dbbf8da2fd8de312d7e336c4683c0794f7513994b9ca327ff4362dba"
+    },
+    {
+      "path": "agent/tools/atlas_tools/festivals.py",
+      "upstream_blob_sha256": "96f78e3d9c107a1591c29b84096404eba684f05d18dca40652a8716aa9dc74e6",
+      "initial_sha256": "96f78e3d9c107a1591c29b84096404eba684f05d18dca40652a8716aa9dc74e6"
+    },
+    {
+      "path": "agent/tools/atlas_tools/geo.py",
+      "upstream_blob_sha256": "bb4dca364731434c7ce5d661ed786b761a6162dd5ef0954671f8c90100829b9a",
+      "initial_sha256": "489f0ca178b5e65f38389e9fe71f97bec9f1180870945d073e177087aee6242b"
+    },
+    {
+      "path": "agent/tools/atlas_tools/layers.py",
+      "upstream_blob_sha256": "69313207d3d92a4d2706a657965e909a670f958f0b438858e1049ae98300f31e",
+      "initial_sha256": "69313207d3d92a4d2706a657965e909a670f958f0b438858e1049ae98300f31e"
+    },
+    {
+      "path": "agent/tools/atlas_tools/official_details.py",
+      "upstream_blob_sha256": "650e2c987832cd9487f1de89ccc45748bf84724b28734e21f898acf6f40bf3b6",
+      "initial_sha256": "3ec146f777f3d14cb8a3b1bc12fc10f91e7b9efe02fe94a7d04e2368b6cfe504"
+    },
+    {
+      "path": "agent/tools/atlas_tools/places.py",
+      "upstream_blob_sha256": "6be3a2eea3f8a6f9f98a3a2cd4fc27d78df24f24b4e12ec5f77d991183944738",
+      "initial_sha256": "6be3a2eea3f8a6f9f98a3a2cd4fc27d78df24f24b4e12ec5f77d991183944738"
+    },
+    {
+      "path": "agent/tools/atlas_tools/planner.py",
+      "upstream_blob_sha256": "67b8c5fdd1788cc666d0b221dd8ab2eadcb9dc39116de65bdfd9ee3df7d24109",
+      "initial_sha256": "5f8eb62758b26d34f3007b6b813c35c87f853b24fc1fd9035127941288612466"
+    },
+    {
+      "path": "agent/tools/atlas_tools/privacy.py",
+      "upstream_blob_sha256": "ceaa6ce6524008e9229c24ea3bfe03b84625ecec99832ca0f7717853aeb0a325",
+      "initial_sha256": "f57186bc36c368c671b90d368ca7b112eef9bbd756816a61e11a0dca5934005d"
+    },
+    {
+      "path": "agent/tools/atlas_tools/routing.py",
+      "upstream_blob_sha256": "38b8be0a15c332ec650c5106c3f23a3df980795a2b43c30548e3390cf6b18ad9",
+      "initial_sha256": "38b8be0a15c332ec650c5106c3f23a3df980795a2b43c30548e3390cf6b18ad9"
+    },
+    {
+      "path": "agent/tools/atlas_tools/snapshots.py",
+      "upstream_blob_sha256": "625b34a756033ffda7eef957fe0637c1c3a6b9373f3d226286a8e027038ceb67",
+      "initial_sha256": "fe5f760aaa67ff2a9998c15a5383c0dd3cf5f43df367cfe6e548fa4ba73b1f34"
+    },
+    {
+      "path": "agent/tools/atlas_tools/sun.py",
+      "upstream_blob_sha256": "1f6dd4a0d5d7dccb018a9f2cb1a78a6a5cb9d829901e48791234ea7f2e3e8de6",
+      "initial_sha256": "1f6dd4a0d5d7dccb018a9f2cb1a78a6a5cb9d829901e48791234ea7f2e3e8de6"
+    },
+    {
+      "path": "agent/tools/atlas_tools/weather.py",
+      "upstream_blob_sha256": "de3af8ba5a8853e5f0dc4c12988cedf70cb984d36ac310b28d7cdc657b83ab67",
+      "initial_sha256": "de3af8ba5a8853e5f0dc4c12988cedf70cb984d36ac310b28d7cdc657b83ab67"
+    },
+    {
+      "path": "agent/tools/place_extra.py",
+      "upstream_blob_sha256": "4fc30ddca7448604255eba1bc5923aadd80e32a20c2b147848fd10b8dc824d55",
+      "initial_sha256": "2194b8b9154042b18f2ab4a4f03164618e593df475f38ba1aaf3dfe90c996175"
+    },
+    {
+      "path": "agent/tools/policies/ssm-secrets.json",
+      "upstream_blob_sha256": "02f4ed38edf5bfd6baff210e9e1659369972aa6554934433816a38369a0f43dd",
+      "initial_sha256": "02f4ed38edf5bfd6baff210e9e1659369972aa6554934433816a38369a0f43dd"
+    },
+    {
+      "path": "agent/tools/pyproject.toml",
+      "upstream_blob_sha256": "7fe67e0c04518683648a172e3a37ca9f6437913b2688e1fd1ab8259764659826",
+      "initial_sha256": "13b1e24a18d82156fdcacaa7936449b3507ce99459307466992e6add90614bc0"
+    },
+    {
+      "path": "agent/tools/uv.lock",
+      "upstream_blob_sha256": "bea7c9a04eb2a2a633e0b537690d6b6b75a4cf491bc25253559c75b3021dd5c2",
+      "initial_sha256": "bea7c9a04eb2a2a633e0b537690d6b6b75a4cf491bc25253559c75b3021dd5c2"
+    }
+  ]
+}

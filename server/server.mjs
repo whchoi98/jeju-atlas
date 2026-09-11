@@ -42,7 +42,7 @@ export function createAppServer({ root, release = 'local', api, onDiagnostic = (
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
 
     const reply = (status, text, type = 'text/plain; charset=utf-8') => {
       res.writeHead(status, {
@@ -181,7 +181,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   let catalog;
   let api;
   // Keep static-only imports/tests independent of SQLite and AWS packages.
-  if (process.env.CATALOG_BUCKET || process.env.CATALOG_LOCAL_PATH || process.env.GUIDE_RUNTIME_ARN) {
+  if (process.env.CATALOG_BUCKET || process.env.CATALOG_LOCAL_PATH || process.env.GUIDE_RUNTIME_ARN || process.env.ROUTING_URL) {
     try {
       const { createApiHandler } = await import('./api.mjs');
       if (process.env.CATALOG_BUCKET || process.env.CATALOG_LOCAL_PATH) {

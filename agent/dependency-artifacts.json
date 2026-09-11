@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "roles": {
+    "guide": {
+      "bucket": "jeju-3d-data-061525506239-ap-northeast-2",
+      "key": "agent/dependencies/203b094c62885809031a939c7e2a49bab0e32d2da7677b66fc9c38e8f454b09d/guide.zip",
+      "versionId": "LIN7iegYxwNgXcJe3rEgOvh7..nqlsq6",
+      "sha256": "203b094c62885809031a939c7e2a49bab0e32d2da7677b66fc9c38e8f454b09d",
+      "bytes": 48516675
+    },
+    "tools": {
+      "bucket": "jeju-3d-data-061525506239-ap-northeast-2",
+      "key": "agent/dependencies/1c6602182eb14b6cab663eb214f3eecedfa9d26dbb919fb070a95afb940ce3b5/tools.zip",
+      "versionId": "LXGBgHEzAPGLzQ9pUfvJjIckprlE4Kcg",
+      "sha256": "1c6602182eb14b6cab663eb214f3eecedfa9d26dbb919fb070a95afb940ce3b5",
+      "bytes": 25803188
+    }
+  }
+}

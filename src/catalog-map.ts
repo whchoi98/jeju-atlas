@@ -1,5 +1,6 @@
 import type { GeoJSONSource, Map as MapLibreMap, MapLayerMouseEvent, MapStyleImageMissingEvent } from 'maplibre-gl';
 import type { GuideMap } from '../shared/api-types';
+import type { RouteSuccess } from '../shared/routing-types';
 import type { TripStop } from './trip';
 import { isJejuPoint } from './api';
 import { categorySymbol, paintIcon, type IconName } from './icons';
@@ -67,6 +68,7 @@ export class CatalogMap {
       },
     });
     const select = (event: MapLayerMouseEvent) => {
+      if (map.getContainer().closest('.is-measuring')) return;
       const id = event.features?.[0]?.properties?.id;
       if (typeof id === 'string') onSelect(id);
     };
@@ -75,11 +77,13 @@ export class CatalogMap {
     map.on('click', 'trip-stops', select);
     map.on('click', 'guide-stops', select);
     map.on('click', 'catalog-clusters', async (event) => {
+      if (map.getContainer().closest('.is-measuring')) return;
       const feature = event.features?.[0];
       if (feature?.geometry.type !== 'Point') return;
       const source = map.getSource('catalog-points') as GeoJSONSource;
       try {
         const zoom = await source.getClusterExpansionZoom(Number(feature.properties.cluster_id));
+        if (map.getContainer().closest('.is-measuring')) return;
         map.easeTo({ center: feature.geometry.coordinates as [number, number], zoom: Math.min(17, zoom), duration: motion() });
       } catch { /* A newer point request may replace a cluster before the click resolves. */ }
     });
@@ -246,8 +250,15 @@ export class CatalogMap {
     });
   }
 
-  setTrip(stops: TripStop[]): void {
-    this.setRoute('trip', stops, stops.map((stop) => [stop.lng, stop.lat]));
+  setTrip(stops: TripStop[], route: RouteSuccess | null = null): void {
+    const coordinates = route && route.coordinates.length <= 30_000
+      && route.coordinates.every(([lng, lat]) => isJejuPoint(lng, lat)) ? route.coordinates : [];
+    this.setRoute('trip', stops, coordinates);
+    const color = route?.mode === 'walk' ? '#187c87' : '#b45b33';
+    this.map.setPaintProperty('trip-route-line', 'line-color', color);
+    this.map.setPaintProperty('trip-route-line', 'line-width', 4);
+    this.map.setPaintProperty('trip-route-line', 'line-dasharray', route?.mode === 'walk' ? [1.5, 1] : [1, 0]);
+    this.map.setPaintProperty('trip-stops', 'circle-color', color);
   }
 
   setGuide(response: GuideMap): void {

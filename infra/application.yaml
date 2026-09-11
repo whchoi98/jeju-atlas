@@ -20,6 +20,29 @@ Parameters:
   Release:
     Type: String
     AllowedPattern: '^[a-zA-Z0-9._-]{1,100}$'
+  TaskCpu:
+    Type: String
+    Default: '256'
+    AllowedValues: ['256', '512', '1024', '2048']
+  TaskMemory:
+    Type: String
+    Default: '512'
+    AllowedValues: ['512', '1024', '2048', '3072', '4096', '5120', '6144', '7168', '8192', '9216', '10240', '11264', '12288', '13312', '14336', '15360', '16384']
+  RoutingImageUri:
+    Type: String
+    Default: ''
+    Description: Optional immutable routing image, paired with the web release.
+    AllowedPattern: '^$|^061525506239\.dkr\.ecr\.ap-northeast-2\.amazonaws\.com/jeju-3d@sha256:[a-f0-9]{64}$'
+  RoutingDataUpdatedAt:
+    Type: String
+    Default: ''
+    MaxLength: 40
+    Description: OSM source timestamp from the routing image manifest; empty means unknown.
+  RoutingMemory:
+    Type: Number
+    Default: 512
+    AllowedValues: [256, 512, 1024, 2048, 4096, 8192]
+    Description: Routing container hard memory limit in MiB; leave room for the web container.
   DesiredCount:
     Type: Number
     Default: 1
@@ -97,12 +120,12 @@ Parameters:
     AllowedPattern: '^$|^arn:aws:lambda:us-east-1:061525506239:function:jeju-3d-origin-host:[1-9][0-9]*$'
   CatalogBucket:
     Type: String
-    Default: ohmyjeju-catalog-061525506239-prod
-    AllowedPattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+    Default: jeju-3d-data-061525506239-ap-northeast-2
+    AllowedValues: [jeju-3d-data-061525506239-ap-northeast-2]
   GuideRuntimeArn:
     Type: String
-    Default: arn:aws:bedrock-agentcore:ap-northeast-2:061525506239:runtime/Ohmyjeju_OhmyjejuAgent-7fiRWV5uVi
-    AllowedPattern: '^arn:aws:bedrock-agentcore:ap-northeast-2:[0-9]{12}:runtime/[A-Za-z0-9_-]+$'
+    Description: Explicit guide runtime selected by the release owner; no reference-project default.
+    AllowedPattern: '^arn:aws:bedrock-agentcore:ap-northeast-2:061525506239:runtime/JejuAtlas_Guide(?:-[A-Za-z0-9_-]+)?$'
   DetailsBucket:
     Type: String
     Default: ''
@@ -125,6 +148,44 @@ Parameters:
     AllowedPattern: '^$|^[A-Z0-9]+$'
 
 Rules:
+  TaskSizeMatchesFargate:
+    Assertions:
+      - Assert: !Or
+          - !And
+            - !Equals [!Ref TaskCpu, '256']
+            - !Contains [['512', '1024', '2048'], !Ref TaskMemory]
+          - !And
+            - !Equals [!Ref TaskCpu, '512']
+            - !Contains [['1024', '2048', '3072', '4096'], !Ref TaskMemory]
+          - !And
+            - !Equals [!Ref TaskCpu, '1024']
+            - !Contains [['2048', '3072', '4096', '5120', '6144', '7168', '8192'], !Ref TaskMemory]
+          - !And
+            - !Equals [!Ref TaskCpu, '2048']
+            - !Contains [['4096', '5120', '6144', '7168', '8192', '9216', '10240', '11264', '12288', '13312', '14336', '15360', '16384'], !Ref TaskMemory]
+        AssertDescription: Select a supported Fargate CPU and memory combination.
+  RoutingRequiresCapacity:
+    RuleCondition: !Not [!Equals [!Ref RoutingImageUri, '']]
+    Assertions:
+      - Assert: !And
+          - !Not [!Equals [!Ref TaskCpu, '256']]
+          - !Not [!Equals [!Ref TaskMemory, '512']]
+        AssertDescription: Routing requires at least 0.5 vCPU and 1 GiB; final sizing must be measured.
+      - Assert: !Or
+          - !Contains [['256', '512'], !Ref RoutingMemory]
+          - !And
+            - !Equals [!Ref RoutingMemory, '1024']
+            - !Not [!Contains [['512', '1024'], !Ref TaskMemory]]
+          - !And
+            - !Equals [!Ref RoutingMemory, '2048']
+            - !Not [!Contains [['512', '1024', '2048'], !Ref TaskMemory]]
+          - !And
+            - !Equals [!Ref RoutingMemory, '4096']
+            - !Not [!Contains [['512', '1024', '2048', '3072', '4096'], !Ref TaskMemory]]
+          - !And
+            - !Equals [!Ref RoutingMemory, '8192']
+            - !Not [!Contains [['512', '1024', '2048', '3072', '4096', '5120', '6144', '7168', '8192'], !Ref TaskMemory]]
+        AssertDescription: The routing memory limit must leave room for the web container.
   SharedAssetsRequireBucketAndOac:
     Assertions:
       - Assert: !Or
@@ -176,6 +237,7 @@ Conditions:
     - !Equals [!Ref OriginTlsMode, canonical-host]
   HasDetails: !Not [!Equals [!Ref DetailsBucket, '']]
   HasSharedAssets: !Not [!Equals [!Ref AssetsBucketDomainName, '']]
+  RoutingEnabled: !Not [!Equals [!Ref RoutingImageUri, '']]
 
 Resources:
   SessionSecret:
@@ -531,8 +593,8 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       NetworkMode: awsvpc
-      Cpu: '256'
-      Memory: '512'
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
       RuntimePlatform:
         CpuArchitecture: ARM64
         OperatingSystemFamily: LINUX
@@ -540,12 +602,20 @@ Resources:
       TaskRoleArn: !GetAtt TaskRole.Arn
       Volumes:
         - Name: catalog-cache
+        - !If [RoutingEnabled, {Name: routing-cache}, !Ref AWS::NoValue]
       ContainerDefinitions:
         - Name: web
           Image: !Ref ImageUri
           Essential: true
           User: '1000:1000'
           ReadonlyRootFilesystem: true
+          Cpu: !If [RoutingEnabled, 256, !Ref AWS::NoValue]
+          MemoryReservation: !If [RoutingEnabled, 256, !Ref AWS::NoValue]
+          DependsOn: !If
+            - RoutingEnabled
+            - - ContainerName: routing
+                Condition: START
+            - !Ref AWS::NoValue
           LinuxParameters:
             Capabilities:
               Drop:
@@ -589,6 +659,16 @@ Resources:
               Value: '115000'
             - Name: ATLAS_READY_ENDPOINT
               Value: 'true'
+            - !If
+              - RoutingEnabled
+              - Name: ROUTING_URL
+                Value: http://127.0.0.1:8002
+              - !Ref AWS::NoValue
+            - !If
+              - RoutingEnabled
+              - Name: ROUTING_DATA_UPDATED_AT
+                Value: !Ref RoutingDataUpdatedAt
+              - !Ref AWS::NoValue
             - Name: PUBLIC_ORIGIN
               Value: !If
                 - HasViewerDomain
@@ -620,6 +700,42 @@ Resources:
               awslogs-stream-prefix: web
               mode: non-blocking
               max-buffer-size: 1m
+        - !If
+          - RoutingEnabled
+          - Name: routing
+            Image: !Ref RoutingImageUri
+            Essential: false
+            User: '65532:65532'
+            ReadonlyRootFilesystem: true
+            Cpu: 256
+            Memory: !Ref RoutingMemory
+            MemoryReservation: 256
+            LinuxParameters:
+              Capabilities:
+                Drop: [ALL]
+            RestartPolicy:
+              Enabled: true
+              RestartAttemptPeriod: 60
+            MountPoints:
+              - SourceVolume: routing-cache
+                ContainerPath: /tmp
+                ReadOnly: false
+            StopTimeout: 120
+            HealthCheck:
+              Command: [CMD, python3, /opt/routing/healthcheck.py]
+              Interval: 30
+              Timeout: 5
+              Retries: 3
+              StartPeriod: 15
+            LogConfiguration:
+              LogDriver: awslogs
+              Options:
+                awslogs-group: !Ref LogGroup
+                awslogs-region: !Ref AWS::Region
+                awslogs-stream-prefix: routing
+                mode: non-blocking
+                max-buffer-size: 1m
+          - !Ref AWS::NoValue
       Tags:
         - Key: Project
           Value: jeju-3d
@@ -1112,6 +1228,10 @@ Outputs:
     Value: !Ref LogGroup
   TaskDefinitionArn:
     Value: !Ref TaskDefinition
+  RoutingImageUri:
+    Value: !Ref RoutingImageUri
+  RoutingDataUpdatedAt:
+    Value: !Ref RoutingDataUpdatedAt
   TerrainTileUrl:
     Value: !Sub 'https://${Distribution.DomainName}/terrarium/{z}/{x}/{y}.png'
   TerrainCachePolicyId:

@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import { createSessions } from './sessions.mjs';
 import { AdmissionError, createAdmission } from './admission.mjs';
 import { createWeatherService, inJeju } from './weather.mjs';
+import { createRoutingService, RoutingError } from './routing.mjs';
 import {
   GuideError, createGuideHandler, createAgentInvoker, createDynamoQuotaConsumer, emitGuideDiagnostic,
 } from './guide.mjs';
@@ -12,6 +13,10 @@ const compress = promisify(gzip);
 const BODY_LIMIT = 16 * 1024;
 const PUBLIC_CACHE = 'public, max-age=60';
 const CATALOG_BUILD_MAX_AGE_MS = 14 * 86_400_000;
+// Each edit compares two modes and can sample elevation. Allow a complete
+// 12-stop editing flow while keeping the local engine's separate concurrency,
+// byte and deadline limits. This does not consume or change the AI quota.
+const ROUTING_REQUESTS_PER_MINUTE = 60;
 
 function catalogBuildTimestamp(value) {
   if (typeof value !== 'string' || value.length > 40 || /\s/.test(value)
@@ -198,7 +203,7 @@ export function createApiHandler({
   dailyLimit = Number(env.GUIDE_DAILY_LIMIT || 30),
   consumeQuota, invokeEvents, fetch: fetchImpl = globalThis.fetch, clock = Date.now,
   heartbeatMs = 8000, deadlineMs = 90_000, maxActors = 10_000,
-  weatherOptions = {},
+  weatherOptions = {}, routingOptions = {},
   onDiagnostic = () => {},
   admission: injectedAdmission,
 } = {}) {
@@ -227,6 +232,31 @@ export function createApiHandler({
     admission, requestHashKey: signingSecret,
   });
   const weather = createWeatherService({ fetch: fetchImpl, clock, ...weatherOptions });
+  let routing;
+  try {
+    routing = createRoutingService({
+      ...routingOptions, url: env.ROUTING_URL, dataUpdatedAt: env.ROUTING_DATA_UPDATED_AT,
+      fetch: fetchImpl, clock,
+    });
+  } catch {
+    // An invalid optional sidecar setting must not take down catalog/map tasks.
+    // Never report the URL, coordinates or a potentially input-bearing exception.
+    routing = createRoutingService();
+  }
+  const routingEnabled = Boolean(allowedOrigin && routing.enabled);
+  const routingActors = new Map();
+  const takeRoutingSlot = actorId => {
+    const now = clock();
+    for (const [actor, entries] of routingActors) {
+      if (entries.at(-1) <= now - 60_000) routingActors.delete(actor);
+    }
+    const recent = (routingActors.get(actorId) || []).filter(time => time > now - 60_000);
+    if (recent.length >= ROUTING_REQUESTS_PER_MINUTE || (!routingActors.has(actorId) && routingActors.size >= maxActors)) {
+      throw new RoutingError(429, 'rate_limited');
+    }
+    recent.push(now);
+    routingActors.set(actorId, recent);
+  };
   let draining = false;
   let initialized = false;
   let catalogHeartbeat;
@@ -261,7 +291,7 @@ export function createApiHandler({
     res.setHeader('Cache-Control', 'no-store');
     try {
       const path = url.pathname;
-      const expectedMethod = path === '/api/guide' ? 'POST' : 'GET';
+      const expectedMethod = ['/api/guide', '/api/routes', '/api/elevation'].includes(path) ? 'POST' : 'GET';
       if (req.method !== expectedMethod) {
         res.setHeader('Allow', expectedMethod);
         throw new ApiError(405, 'method_not_allowed', '지원하지 않는 요청 방식입니다.');
@@ -270,12 +300,55 @@ export function createApiHandler({
         const session = sessions.readCookie(req.headers.cookie) || sessions.issueCookie(res);
         return await sendJson(req, res, 200, {
           version: release,
-          features: { catalog: Boolean(catalog && catalog.status().status === 'ready'), guide: enabled, planner: true, pwa: true },
+          features: {
+            catalog: Boolean(catalog && catalog.status().status === 'ready'),
+            guide: enabled, planner: true, pwa: true, routing: routingEnabled && !draining,
+          },
           guide: {
             daily_limit: dailyLimit,
             ...(enabled ? { csrf_token: sessions.csrfToken(session.actorId) } : {}),
           },
+          routing: {
+            enabled: routingEnabled && !draining,
+            ...(routingEnabled && !draining ? { csrf_token: sessions.csrfToken(session.actorId) } : {}),
+            modes: ['walk', 'car'], source: routing.source,
+          },
         });
+      }
+      if (path === '/api/routes' || path === '/api/elevation') {
+        const unavailableCode = path === '/api/routes' ? 'routing_unavailable' : 'elevation_unavailable';
+        if (draining) throw new RoutingError(503, unavailableCode);
+        queryParams(url, []);
+        if (!allowedOrigin) throw new ApiError(403, 'origin_forbidden', '허용된 페이지에서 다시 요청해 주세요.');
+        const session = sessions.readCookie(req.headers.cookie);
+        if (!session) {
+          sessions.issueCookie(res);
+          throw new ApiError(401, 'session_required', '페이지를 새로고침한 뒤 다시 요청해 주세요.');
+        }
+        // New endpoints always require the private config's signed-cookie-bound
+        // proof. That proof also supports the second viewer host, without CORS.
+        if (!sessions.verifyCsrf(req.headers['x-atlas-csrf'], session.actorId)) {
+          throw new ApiError(403, 'csrf_invalid', '요청 연결 확인이 만료되었습니다. 연결을 갱신해 주세요.');
+        }
+        if (!routingEnabled) throw new RoutingError(503, unavailableCode);
+        const body = await readJson(req, res);
+        takeRoutingSlot(session.actorId);
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        const disconnected = () => { if (!res.writableEnded) abort(); };
+        req.once('aborted', abort);
+        res.once('close', disconnected);
+        try {
+          if (req.aborted || res.destroyed) abort();
+          const result = path === '/api/routes'
+            ? await routing.route(body, controller.signal)
+            : await routing.elevation(body, controller.signal);
+          if (controller.signal.aborted) return;
+          return await sendJson(req, res, !result.available && result.code === unavailableCode ? 503 : 200, result);
+        } finally {
+          req.off('aborted', abort);
+          res.off('close', disconnected);
+        }
       }
       if (path === '/api/guide') {
         if (draining) throw new GuideError(503, 'guide_unavailable');
@@ -354,7 +427,7 @@ export function createApiHandler({
         return;
       }
       const failure = error instanceof AdmissionError ? new GuideError(error.status, error.code)
-        : error instanceof ApiError || error instanceof GuideError
+        : error instanceof ApiError || error instanceof GuideError || error instanceof RoutingError
         ? error : error instanceof RangeError || (error?.statusCode === 400 && error?.code === 'CATALOG_BAD_QUERY')
           ? invalidQuery() : new ApiError(503, 'service_unavailable', '서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       if (url.pathname === '/api/guide') {
@@ -378,13 +451,15 @@ export function createApiHandler({
     catalogHeartbeat = setInterval(reportCatalogStatus, 60_000);
     catalogHeartbeat.unref?.();
   };
-  api.beginDrain = () => { draining = true; guide.beginDrain(); };
+  api.beginDrain = () => { draining = true; guide.beginDrain(); routing.close(); };
   api.drain = () => { api.beginDrain(); return guide.drain(); };
   api.close = () => {
     draining = true;
     clearInterval(catalogHeartbeat);
     guide.close();
     weather.close();
+    routing.close();
+    routingActors.clear();
     // Only close transports created by this factory; injected ones belong to their caller.
     if (!invokeEvents) agent.close();
     if (!consumeQuota) quota.close();
