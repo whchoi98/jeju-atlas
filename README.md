@@ -13,13 +13,14 @@
 
 [이동 경로·3D·전용 Agent 전환 현황](docs/mobility-independence-2026-09-11.md) · [이전 공개 배포 기록](docs/deployment.md)
 
-**AWS 색상의 앱과 설치형 워크숍 PWA를 공개 배포했습니다.**
-현재 릴리스는 `release-20260911T194530Z` / `jeju-3d:13`입니다.
+**카카오 장소 상세 연동과 사이드바 접기·펼치기를 공개 배포했습니다.**
+현재 릴리스는 `release-20260911T221928Z` / `jeju-3d:15`입니다.
 `Jeju3dApp` `UPDATE_COMPLETE`, PRIMARY `COMPLETED`, desired/running 2/2와 웹·라우터 HEALTHY를 확인했습니다.
-두 공개 호스트에서 앱·워크숍·다운로드와 서로 다른 PWA 설치 ID, 오프라인 읽기를 확인했습니다.
-운영 검사 91개, 앱 Node 308개·Python 190개, 워크숍 94개가 통과했습니다.
-앱 선택 검사 3개는 건너뛰었고, 이번 배포 검증에서 실제 모델을 호출하지 않았습니다.
-[워크숍 열기](https://jeju-atlas.whchoi.net/workshop/) · [배포·PWA 검증 기록](docs/pwa-workshop-release-2026-09-11.md)
+운영 사이트에서 실제 카카오 주소·전화·상세 링크, 한영 전환과 사이드바 복원을 확인했습니다.
+운영 검사 94개, 앱 Node 420개·Python 193개가 통과했습니다.
+앱 선택 검사 3개는 건너뛰었고, 실제 카카오 API를 호출했으며 AI 모델은 호출하지 않았습니다.
+[카카오·사이드바 배포 기록](docs/kakao-sidebar-release-2026-09-11.md) ·
+[워크숍 열기](https://jeju-atlas.whchoi.net/workshop/) · [PWA 배포 기록](docs/pwa-workshop-release-2026-09-11.md)
 
 전용 Agent·카탈로그·도보/차량 경로 엔진 전환과 실제 AI 답변 완료 검증은
 [이전 릴리스 기록](docs/mobility-independence-2026-09-11.md)에 있습니다.
@@ -43,6 +44,8 @@ CloudFront→ALB HTTPS는 2026-09-10 19:38 UTC부터 배포된 상태이며 원�
 - 설치형 PWA, 저장한 코스 오프라인 확인, 모바일·키보드·reduced motion 지원
 - 한국어/English 토글, 선택 기억, 화면·추천 질문·AI 답변 언어 연동
 - 저장 자료 백업·검토 후 복원·기기 삭제, 저장 실패와 탭 간 편집 충돌 보호
+- 헤더 버튼으로 사이드바 접기·펼치기, AI 탭 확대와 대화·입력 상태 보존
+- 카카오 Local의 주소·전화·상세 링크를 기존 장소 정보와 구분해 실시간 조회
 
 이번 릴리스에 반영한 기능입니다. 실제 네이티브 통합과 공개 브라우저 검사가 각각 8/8 통과했습니다.
 
