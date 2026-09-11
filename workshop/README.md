@@ -12,6 +12,11 @@ PC에서는 `workshop/site/` 전체 또는
 [공식 GitHub/AWS 가이드 대조](reference/official-guide-review.md) ·
 [Codex·Kiro CLI·Claude Code 환경](reference/ai-cli-environments.md)
 
+`npm run build`는 앱의 `dist/workshop/`에 교재와 다운로드 ZIP도 구성합니다.
+배포 후 앱의 이용 안내에서 워크숍을 열거나 같은 호스트의 `/workshop/`로 접속합니다.
+HTTPS에서는 워크숍을 별도 앱으로 설치하고 저장 완료 후 21개 페이지를 오프라인으로 읽을 수 있습니다.
+지도 앱의 저장 코스와 워크숍의 교재 캐시는 각각 관리하며, 실제 AI·지도 타일·AWS 실습 명령은 연결이 필요합니다.
+
 ## 시작
 
 ```bash

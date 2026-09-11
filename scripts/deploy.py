@@ -794,10 +794,12 @@ def main():
         build_push(session, routing_worker=True)
     elif args.action == "invalidate":
         outputs = stack_outputs(session.client("cloudformation"), APP)
+        paths = ["/", "/index.html", "/sw.js", "/manifest.webmanifest",
+                 "/favicon.svg", "/icons/*", "/workshop*"]
         result = session.client("cloudfront").create_invalidation(
             DistributionId=outputs["DistributionId"],
             InvalidationBatch={
-                "Paths": {"Quantity": 2, "Items": ["/", "/index.html"]},
+                "Paths": {"Quantity": len(paths), "Items": paths},
                 "CallerReference": str(time.time_ns()),
             },
         )

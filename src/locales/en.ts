@@ -282,6 +282,7 @@ export const en: Record<string, string> = {
   'AI 질문과 필요한 탐색 맥락은 서버를 거쳐 AWS의 기존 AI 런타임에 전달됩니다. 서버는 이용 한도를 관리합니다.': 'AI questions and relevant browsing context pass through the server to the existing AI runtime on AWS. The server manages usage limits.',
   '기기 자료 삭제는 브라우저의 코스·즐겨찾기·이전 정상 저장본에만 적용됩니다. 이미 공유한 주소와 서버에 전송된 자료, 이용 한도용 세션 쿠키는 삭제하지 않습니다.': 'Device deletion removes only the browser’s trip, favorites and last good backup. Shared URLs, server data and usage-limit session cookies are not deleted.',
   '새 대화는 현재 화면의 대화를 비우고 새 연결을 시작합니다. 서버 자료를 삭제하는 기능이 아닙니다.': 'New chat clears the on-screen conversation and starts a new connection. It does not delete server data.',
+  '배포 워크숍 열기 ↗': 'Open deployment workshop ↗',
   '앱 업데이트': 'App update', '새 버전 적용': 'Apply update', '앱으로 설치': 'Install app', '앱 저장 재시도': 'Retry app storage',
   '새 버전이 준비됐어요. 저장된 코스는 유지됩니다.': 'An update is ready. Your saved trips will be kept.',
   '새 버전이 준비됐어요. 적용 전에 모든 탭의 작성·저장 상태를 확인합니다.': 'An update is ready. We will check drafts and saving status in every tab before applying it.',

@@ -18,6 +18,9 @@ SOURCE_DOMAIN = "jeju-atlas.whchoi.net"
 FOLDERS = {"src", "public", "shared", "server", "agent", "routing", "infra", "scripts", "tests", "docs"}
 FILES = {"package.json", "package-lock.json", "README.md", "index.html", "tsconfig.json",
          "vite.config.ts", ".gitignore", ".dockerignore", ".gitleaks.toml", ".nvmrc"}
+PUBLIC_WORKSHOP_FOLDERS = {"chapters", "reference", "prompts", "assets"}
+PUBLIC_WORKSHOP_FILES = {"workshop/course.json", "workshop/scripts/build.mjs",
+                        "workshop/scripts/pwa.mjs", "workshop/scripts/package_handbook.py"}
 
 
 def placeholder_hostname(config):
@@ -207,7 +210,8 @@ def prepare_workspace(config, source_root, labs_root):
     raw = subprocess.check_output(["git", "--no-optional-locks", "-C", str(source_root), "ls-files", "-z"])
     tracked = [name.decode() for name in raw.split(b"\0") if name]
     selected = [name for name in tracked if name.split("/")[0] in FOLDERS or name in FILES
-                or name.startswith("Dockerfile")]
+                or name.startswith("Dockerfile") or name in PUBLIC_WORKSHOP_FILES
+                or (name.startswith("workshop/") and name.split("/")[1] in PUBLIC_WORKSHOP_FOLDERS)]
     if not selected:
         raise ValueError("Prepare from the Jeju Atlas Git repository root")
     destination.mkdir(parents=True)

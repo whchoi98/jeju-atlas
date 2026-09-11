@@ -25,6 +25,8 @@ class HandbookPackageTests(unittest.TestCase):
             "assets/reader.css": "body{color:#232f3e}",
             "assets/fonts/OFL.txt": "Font license",
             "prompts/00.md": "# A Codex card\nRun commands on the workshop EC2.\n",
+            "manifest.webmanifest": '{"name":"Workshop","scope":"./","start_url":"./"}',
+            "sw.js": "// scoped workshop worker\n",
         }
         for name, content in files.items():
             path = site / name
@@ -63,7 +65,7 @@ class HandbookPackageTests(unittest.TestCase):
 
     def test_private_or_unexpected_files_and_symlinks_are_not_exported(self):
         module = self.module()
-        for private in [".env", ".local/config.json", "credentials.json"]:
+        for private in [".env", ".local/config.json", "credentials.json", "unexpected.js", "downloads/private.zip"]:
             with self.subTest(private=private), tempfile.TemporaryDirectory(prefix="atlas-handbook-") as directory:
                 root = Path(directory)
                 site, _ = self.fixture(root)

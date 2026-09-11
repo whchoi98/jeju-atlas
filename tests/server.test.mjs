@@ -23,6 +23,16 @@ test('HTTP serving contract', async (t) => {
   await writeFile(join(root, 'index.html'), '<!doctype html><title>제주 아틀라스</title>');
   await writeFile(join(root, 'assets', 'app-a1b2.js'), 'console.log("jeju");');
   await writeFile(join(root, 'map.css'), 'body{margin:0}');
+  await mkdir(join(root, 'workshop/downloads'), { recursive: true });
+  await mkdir(join(root, 'workshop/prompts'), { recursive: true });
+  await mkdir(join(root, 'workshop/assets'), { recursive: true });
+  await writeFile(join(root, 'workshop/index.html'), '<!doctype html><title>배포 워크숍</title>');
+  await writeFile(join(root, 'workshop/sw.js'), '/* reader worker */');
+  await writeFile(join(root, 'workshop/manifest.webmanifest'), '{"scope":"./"}');
+  await writeFile(join(root, 'workshop/assets/reader.js'), '/* reader */');
+  await writeFile(join(root, 'workshop/prompts/00-overview.md'), '# 실습 카드');
+  await writeFile(join(root, 'workshop/downloads/jeju-atlas-workshop-handbook.zip'), 'PK-test');
+  await writeFile(join(root, 'workshop/.workshop-site.json'), '{"generator":"private-build-metadata"}');
   await writeFile(join(temp, 'secret.txt'), 'must-not-leak');
   await symlink(join(temp, 'secret.txt'), join(root, 'linked.txt'));
   const server = module.createAppServer({ root, release: 'test-release' });
@@ -77,6 +87,44 @@ test('HTTP serving contract', async (t) => {
     assert.equal(response.status, 404);
     assert.doesNotMatch(response.body, /<!doctype/);
     assert.equal(response.headers['cache-control'], 'no-store');
+  });
+
+  await t.test('workshop directory redirects to its own landing page with relative links intact', async () => {
+    const redirect = await get('/workshop?from=atlas');
+    assert.equal(redirect.status, 308);
+    assert.equal(redirect.headers.location, '/workshop/?from=atlas');
+    const response = await get('/workshop/');
+    assert.equal(response.status, 200);
+    assert.match(response.body, /배포 워크숍/);
+    assert.doesNotMatch(response.body, /제주 아틀라스/);
+    assert.equal(response.headers['cache-control'], 'public, max-age=0, must-revalidate');
+    assert.equal((await get('/workshop/assets/')).status, 404);
+    assert.equal((await get('/workshop-missing/')).status, 404);
+  });
+
+  await t.test('workshop worker, manifest and unhashed assets revalidate on every release', async () => {
+    const worker = await get('/workshop/sw.js');
+    assert.equal(worker.status, 200);
+    assert.match(worker.headers['content-type'], /javascript/);
+    assert.equal(worker.headers['cache-control'], 'no-cache');
+    const manifest = await get('/workshop/manifest.webmanifest');
+    assert.match(manifest.headers['content-type'], /^application\/manifest\+json/);
+    for (const path of ['/workshop/manifest.webmanifest', '/workshop/assets/reader.js']) {
+      assert.equal((await get(path)).headers['cache-control'], 'public, max-age=0, must-revalidate');
+    }
+  });
+
+  await t.test('public handout and prompt cards use usable download types without exposing build state', async () => {
+    const archive = await get('/workshop/downloads/jeju-atlas-workshop-handbook.zip', 'HEAD');
+    assert.equal(archive.status, 200);
+    assert.equal(archive.headers['content-type'], 'application/zip');
+    assert.equal(archive.headers['content-disposition'], 'attachment; filename="jeju-atlas-workshop-handbook.zip"');
+    const card = await get('/workshop/prompts/00-overview.md');
+    assert.match(card.headers['content-type'], /^text\/plain; charset=utf-8/);
+    assert.match(card.body, /실습 카드/);
+    for (const path of ['/workshop/.workshop-site.json', '/workshop/%2elocal/config.json']) {
+      assert.equal((await get(path)).status, 403);
+    }
   });
 
   await t.test('encoded traversal, symlinks and malformed paths never leak files', async () => {

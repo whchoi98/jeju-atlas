@@ -46,6 +46,7 @@ def package_handbook(site, output):
             continue
         parts = PurePosixPath(relative).parts
         allowed = (relative in pages
+                   or relative in {"manifest.webmanifest", "sw.js"}
                    or (parts[0] == "assets" and path.suffix.lower() in ASSET_SUFFIXES)
                    or (len(parts) == 2 and parts[0] == "prompts" and path.suffix == ".md"))
         if not allowed or any(part.startswith(".") for part in parts):
@@ -63,6 +64,8 @@ def package_handbook(site, output):
         "5. EC2에는 제주 아틀라스 전체 Git 저장소가 필요합니다.\n\n"
         "이 묶음은 읽기용입니다. AWS 키, 실습 설정, 배포 상태, DB, 런타임 ZIP은 포함하지 않습니다.\n"
         "prompts/*.md는 EC2에서 선택한 AI CLI에 전달할 공통 프롬프트 카드입니다.\n"
+        "HTTPS 사이트에서는 워크숍을 설치하고 챕터를 오프라인으로 읽을 수 있습니다.\n"
+        "압축 해제한 file:// 교재도 그대로 읽을 수 있으며 서비스워커는 등록하지 않습니다.\n"
     ).encode("utf-8")
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = None

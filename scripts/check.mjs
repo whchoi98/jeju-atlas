@@ -28,13 +28,14 @@ async function sourceDigest() {
   async function collect(directory) {
     const entries = await readdir(path.join(root, directory), { withFileTypes: true });
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-      if (entry.name.startsWith('.env') || ['.venv', '.pytest_cache', '.mypy_cache', '.ruff_cache'].includes(entry.name)) continue;
+      if (entry.name.startsWith('.env') || ['.venv', '.local', '.git', 'node_modules', '__pycache__', '.pytest_cache', '.mypy_cache', '.ruff_cache'].includes(entry.name)) continue;
       const name = `${directory}/${entry.name}`;
+      if (name === 'workshop/site') continue; // Generated reader output; sources below are release inputs.
       if (entry.isDirectory()) await collect(name);
       else if (entry.isFile()) files.push(name);
     }
   }
-  for (const directory of ['src', 'shared', 'server', 'public', 'infra', 'tests', 'scripts', 'routing', 'agent']) await collect(directory);
+  for (const directory of ['src', 'shared', 'server', 'public', 'infra', 'tests', 'scripts', 'routing', 'agent', 'workshop']) await collect(directory);
   for (const name of files.sort()) {
     // Python imports create caches while checks run. They are not release input.
     if (name.includes('/__pycache__/') || name.endsWith('.pyc')) continue;

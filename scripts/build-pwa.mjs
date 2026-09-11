@@ -11,6 +11,7 @@ const ASSETS = ${JSON.stringify(urls)};
 const ASSET_PATHS = new Set(ASSETS);
 let review = null;
 let applying = false;
+const isWorkshop = (pathname) => pathname === '/workshop' || pathname.startsWith('/workshop/');
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
@@ -18,12 +19,13 @@ self.addEventListener('install', (event) => {
 });
 
 async function applyUpdate(requester) {
-  if (!requester || applying) {
+  if (!requester || isWorkshop(new URL(requester.url).pathname) || applying) {
     requester?.postMessage({ type: 'ATLAS_UPDATE_BLOCKED' });
     return;
   }
   applying = true;
-  const tabs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const tabs = (await self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+    .filter((tab) => !isWorkshop(new URL(tab.url).pathname));
   const id = crypto.randomUUID();
   let finish;
   const replies = new Map();
@@ -68,6 +70,7 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin
+      || isWorkshop(url.pathname)
       || url.pathname.startsWith('/api/') || url.pathname.startsWith('/terrarium/')
       || url.pathname === '/sw.js' || url.pathname === '/healthz') return;
   if (request.mode === 'navigate') {
@@ -92,7 +95,7 @@ export async function buildPWA(rootPath = resolve('dist')) {
   async function visit(directory) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
-      if (entry.isDirectory()) await visit(path);
+      if (entry.isDirectory() && relative(rootPath, path) !== 'workshop') await visit(path);
       else if (/\.(?:html|js|css|svg|png|webmanifest|pbf|woff2?)$/.test(entry.name) && entry.name !== 'sw.js') files.push(path);
     }
   }

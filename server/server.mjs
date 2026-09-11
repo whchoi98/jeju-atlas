@@ -24,6 +24,9 @@ const contentTypes = {
   '.ttf': 'font/ttf',
   '.wasm': 'application/wasm',
   '.txt': 'text/plain; charset=utf-8',
+  '.md': 'text/plain; charset=utf-8',
+  '.sha256': 'text/plain; charset=utf-8',
+  '.zip': 'application/zip',
 };
 
 export function createAppServer({ root, release = 'local', api, onDiagnostic = () => {} }) {
@@ -99,7 +102,13 @@ export function createAppServer({ root, release = 'local', api, onDiagnostic = (
       try { ready = !draining && (!api?.ready || await api.ready()); } catch { /* Not ready on dependency failure. */ }
       return reply(ready ? 200 : 503, JSON.stringify({ status: ready ? 'ready' : 'not_ready', release }), 'application/json; charset=utf-8');
     }
-    const relativePath = pathname === '/' ? 'index.html' : pathname.slice(1);
+    if (pathname === '/workshop') {
+      const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+      res.setHeader('Location', `/workshop/${query}`);
+      return reply(308, 'Workshop moved to /workshop/\n');
+    }
+    const relativePath = pathname === '/' ? 'index.html'
+      : pathname === '/workshop/' ? 'workshop/index.html' : pathname.slice(1);
     let filename;
     let info;
     try {
@@ -114,13 +123,17 @@ export function createAppServer({ root, release = 'local', api, onDiagnostic = (
     }
 
     const type = contentTypes[extname(filename).toLowerCase()] || 'application/octet-stream';
-    const cache = pathname === '/sw.js'
+    const cache = pathname === '/sw.js' || pathname === '/workshop/sw.js'
       ? 'no-cache'
-      : extname(filename) === '.html'
+      : extname(filename) === '.html' || pathname.startsWith('/workshop/')
       ? 'public, max-age=0, must-revalidate'
       : pathname.startsWith('/assets/')
         ? 'public, max-age=31536000, immutable'
         : 'public, max-age=3600';
+    if (pathname === '/workshop/sw.js') res.setHeader('Service-Worker-Allowed', '/workshop/');
+    if (pathname === '/workshop/downloads/jeju-atlas-workshop-handbook.zip') {
+      res.setHeader('Content-Disposition', 'attachment; filename="jeju-atlas-workshop-handbook.zip"');
+    }
     res.writeHead(200, {
       'Content-Type': type,
       'Content-Length': info.size,

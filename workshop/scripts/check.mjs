@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 /** Local workshop checks only. No deployment, model invocation or credential reads. */
 import { spawn } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const python = process.env.ATLAS_PYTHON || 'python3';
+const siteTests = (await readdir(path.join(root, 'workshop/tests')))
+  .filter(name => name.endsWith('.test.mjs')).sort().map(name => `workshop/tests/${name}`);
 const steps = [
   ['workshop-python', python, ['-m', 'unittest', 'discover', '-s', 'workshop/tests', '-p', 'test_*.py']],
   ['cli-preparer', python, ['-m', 'unittest', 'discover', '-s', 'workshop/cli', '-p', 'test_prepare.py']],
-  ['site-tests', process.execPath, ['--test', 'workshop/tests/site.test.mjs']],
+  ['site-tests', process.execPath, ['--test', ...siteTests]],
   ['course-content', python, ['workshop/scripts/check_content.py']],
   ['site-build', process.execPath, ['workshop/scripts/build.mjs']],
 ];

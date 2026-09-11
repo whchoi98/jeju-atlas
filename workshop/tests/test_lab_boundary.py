@@ -89,6 +89,12 @@ class BoundaryTests(unittest.TestCase):
             self.assertFalse((app / "agent/dependency-artifacts.json").exists())
             self.assertEqual((app / "src/main.ts").read_bytes(), (ROOT / "src/main.ts").read_bytes())
             self.assertFalse((app / "node_modules").exists())
+            for name in ["course.json", "scripts/build.mjs", "scripts/package_handbook.py",
+                         "assets/reader.js"]:
+                self.assertTrue((app / "workshop" / name).is_file(), name)
+            self.assertFalse((app / "workshop/.local").exists())
+            self.assertFalse((app / "workshop/cli").exists())
+            self.assertFalse((app / "workshop/site").exists())
             collector = (app / "scripts/fetch-place-details.py").read_text()
             data_template = (app / "infra/data.yaml").read_text()
             self.assertNotIn("/jeju-atlas/", collector)

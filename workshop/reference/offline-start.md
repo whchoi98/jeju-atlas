@@ -5,7 +5,8 @@ PC에 AWS 자격 증명이나 API 키를 복사하지 않습니다.
 
 ## 다운로드할 파일
 
-EC2에서 만든 다음 ZIP을 PC로 다운로드합니다.
+게시된 워크숍에서는 같은 호스트의 `/workshop/downloads/jeju-atlas-workshop-handbook.zip`을
+다운로드할 수 있습니다. EC2에서 직접 가져올 때는 다음 ZIP을 사용합니다.
 
 ```text
 /home/ec2-user/my-project/jeju-atlas/workshop/.local/downloads/jeju-atlas-workshop-handbook.zip
@@ -18,6 +19,8 @@ ZIP 내부에서 index.html 하나만 직접 열지 않습니다.
 jeju-atlas-workshop/
 ├── START-HERE.txt
 ├── index.html
+├── manifest.webmanifest # HTTPS 설치 정보
+├── sw.js               # HTTPS 오프라인 교재 저장
 ├── chapters/          # 순서대로 읽는 HTML
 ├── reference/         # 자원·진행자·공식 문서 대조
 ├── assets/            # CSS·JS·SVG·나눔스퀘어·라이선스
@@ -28,6 +31,18 @@ ZIP 대신 폴더를 복사한다면 **`workshop/site/` 전체**를 같은 구�
 `index.html`이나 `chapters/`만 다운로드하면 글꼴·스타일·탐색이 빠집니다.
 각 챕터에는 Codex·Kiro CLI·Claude Code 공통 카드와 복사 버튼이 있고 원본 `.md`도 다운로드할 수 있습니다.
 세 환경의 설치·인증·프로젝트 지침은 [AI CLI 환경](ai-cli-environments.md)에 포함됩니다.
+
+## PWA로 읽기
+
+HTTPS 워크숍을 한 번 열고 오프라인 저장 완료 표시를 확인합니다.
+브라우저가 제공하는 설치 버튼 또는 홈 화면에 추가 메뉴로 워크숍을 설치할 수 있습니다.
+이후 인터넷 연결을 끊어도 개요·챕터·참고 자료·프롬프트 카드를 읽을 수 있습니다.
+새 버전은 안내가 나왔을 때 적용하며, 진도 기록은 유지됩니다.
+
+지도 앱은 저장한 코스·즐겨찾기와 앱 화면을 오프라인으로 보여 줍니다.
+새 지도 타일·사진·최신 장소 검색·날씨·AI 응답은 온라인 기능입니다.
+워크숍과 지도 앱의 설치·캐시는 분리되어 있습니다.
+파일로 연 교재는 서비스워커 없이 동작하고, EC2 명령 실행은 연결된 터미널에서 진행합니다.
 
 ## EC2에서 ZIP 다시 만들기
 

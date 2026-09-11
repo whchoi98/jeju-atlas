@@ -1,0 +1,25 @@
+{
+  "name": "Jeju Atlas 워크숍 · 제주 아틀라스를 직접 배포하기",
+  "short_name": "Atlas 워크숍",
+  "description": "Codex · Kiro CLI · Claude Code와 Amazon AgentCore CLI로 만드는 3D 제주 여행 가이드",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f3f3",
+  "theme_color": "#232f3e",
+  "icons": [
+    {
+      "src": "./assets/icons/atlas-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icons/atlas-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

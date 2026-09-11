@@ -19,6 +19,7 @@ import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeSanitize from 'rehype-sanitize';
 import rehypeStringify from 'rehype-stringify';
+import { createPwaAssets } from './pwa.mjs';
 
 const scriptPath = fileURLToPath(import.meta.url);
 const workshopRoot = resolve(dirname(scriptPath), '..');
@@ -458,7 +459,7 @@ function documentPage(doc, docs) {
   </div>`;
 }
 
-function renderPage(course, docs, doc, architecture, hasFontLicense) {
+function renderPage(course, docs, doc, architecture, hasFontLicense, publicDownloads = false) {
   const currentFile = doc?.outputFile ?? 'index.html';
   const asset = (file) => pageHref(currentFile, `assets/${file}`);
   const title = doc ? `${doc.navTitle} · Jeju Atlas 워크숍` : `${course.title} · Jeju Atlas`;
@@ -471,15 +472,19 @@ function renderPage(course, docs, doc, architecture, hasFontLicense) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#232f3e">
   <meta name="referrer" content="no-referrer">
   <meta name="description" content="${escapeHtml(doc?.summary || course.subtitle)}">
   <title>${escapeHtml(title)}</title>
   <link rel="icon" type="image/svg+xml" href="${asset('mark.svg')}">
+  <link rel="apple-touch-icon" href="${asset('icons/atlas-192.png')}">
+  <link rel="manifest" data-workshop-manifest="${pageHref(currentFile, 'manifest.webmanifest')}">
   <script src="${asset('theme.js')}"></script>
   <link rel="stylesheet" href="${asset('reader.css')}">
   <script src="${asset('reader.js')}" defer></script>
+  <script src="${asset('reader-pwa.js')}" defer></script>
 </head>
-<body id="top" data-course-key="${courseKey}" data-page-kind="${doc?.kind ?? 'overview'}"${doc?.kind === 'chapters' ? ` data-current-chapter="${doc.slug}"` : ''}>
+<body id="top" data-course-key="${courseKey}" data-page-kind="${doc?.kind ?? 'overview'}"${publicDownloads ? ' data-public-handbook' : ''}${doc?.kind === 'chapters' ? ` data-current-chapter="${doc.slug}"` : ''}>
   <a class="skip-link" href="#main-content">본문으로 바로 가기</a>
   ${sidebar(course, docs, currentFile)}
   <button class="nav-backdrop" type="button" data-nav-backdrop aria-label="목차 닫기" tabindex="-1" hidden></button>
@@ -490,6 +495,13 @@ function renderPage(course, docs, doc, architecture, hasFontLicense) {
       </div>
       <div class="toolbar js-only"><button class="toolbar-button" type="button" data-theme-toggle aria-label="어두운 화면으로 전환" aria-pressed="false"><span class="theme-moon">${icon('moon')}</span><span class="theme-sun">${icon('sun')}</span><span data-theme-label>다크</span></button><button class="toolbar-button" type="button" data-print>${icon('print')}<span>인쇄</span></button></div>
     </header>
+    <aside class="pwa-panel js-only" data-workshop-pwa aria-label="워크숍 앱" hidden>
+      <p data-pwa-status role="status" aria-live="polite"></p>
+      <div class="pwa-actions">
+        <button class="pwa-button" type="button" data-pwa-install hidden>워크숍 설치</button>
+        <button class="pwa-button pwa-update" type="button" data-pwa-update hidden>업데이트 적용</button>
+      </div>
+    </aside>
     <main id="main-content" tabindex="-1">
       <noscript><p class="noscript-note">목차와 본문은 그대로 읽을 수 있습니다. 검색·코드 복사·읽기 기록은 JavaScript를 켜면 사용할 수 있습니다.</p></noscript>
       ${doc ? documentPage(doc, docs) : courseOverview(course, docs, architecture)}
@@ -518,7 +530,7 @@ async function loadAssets() {
     }
   }
   await collect(assetsRoot);
-  for (const name of ['reader.css', 'reader.js', 'theme.js', 'mark.svg', 'architecture.svg']) {
+  for (const name of ['reader.css', 'reader.js', 'reader-pwa.js', 'theme.js', 'mark.svg', 'architecture.svg']) {
     if (!assets.has(`assets/${name}`)) throw new Error(`Missing workshop reader asset: ${name}`);
   }
   for (const name of fontFiles) {
@@ -608,7 +620,7 @@ async function writeSite(outputDir, pages, assets) {
       throw new Error(`Output is not an owned workshop site: ${outputDir}. Choose an empty --output directory.`);
     }
     if (marker.generator !== generator) throw new Error(`Output is not an owned workshop site: ${outputDir}`);
-    for (const name of ['chapters', 'reference', 'assets', 'index.html', outputMarker]) {
+    for (const name of ['chapters', 'reference', 'assets', 'prompts', 'index.html', 'manifest.webmanifest', 'sw.js', outputMarker]) {
       await rm(join(outputDir, name), { recursive: true, force: true });
     }
   }
@@ -625,6 +637,7 @@ async function writeSite(outputDir, pages, assets) {
 export async function buildSite({
   coursePath = join(workshopRoot, 'course.json'),
   outputDir = join(workshopRoot, 'site'),
+  publicDownloads = false,
 } = {}) {
   coursePath = resolve(coursePath);
   outputDir = resolve(outputDir);
@@ -692,8 +705,9 @@ export async function buildSite({
   });
   for (const doc of docs) rewriteDocumentLinks(doc, bySource, byOutput, new Set(assets.keys()));
   const architecture = assets.get('assets/architecture.svg').toString('utf8');
-  const pages = new Map([['index.html', renderPage(course, docs, null, architecture, true)],
-    ...docs.map((doc) => [doc.outputFile, renderPage(course, docs, doc, architecture, true)])]);
+  const pages = new Map([['index.html', renderPage(course, docs, null, architecture, true, publicDownloads)],
+    ...docs.map((doc) => [doc.outputFile, renderPage(course, docs, doc, architecture, true, publicDownloads)])]);
+  for (const [name, contents] of createPwaAssets({ course, pages, assets })) assets.set(name, contents);
   validateRenderedSite(pages, assets);
   await writeSite(outputDir, pages, assets);
   return { outputDir, pages: [...pages.keys()], assets: [...assets.keys()] };

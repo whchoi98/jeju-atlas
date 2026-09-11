@@ -203,6 +203,13 @@ button:disabled { cursor: wait; }
 .topbar .toolbar-button:hover, .topbar .icon-button:hover, .sidebar-brand .icon-button:hover { color: #fff; border-color: var(--interactive-on-dark); background: #414d5c; }
 .topbar :focus-visible, .sidebar-brand :focus-visible { outline-color: var(--interactive-on-dark); }
 .toolbar-button .icon { width: 17px; height: 17px; }
+.pwa-panel { --js-display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; padding: 10px 44px; border-bottom: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 12px; }
+.pwa-panel p { flex: 1 1 240px; margin: 0; }
+.pwa-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pwa-button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); color: var(--interactive-text); font-size: 12px; font-weight: 700; }
+.pwa-button:hover { background: var(--interactive-soft); border-color: var(--interactive); }
+.pwa-update { border-color: var(--brand-orange); }
+.pwa-button:disabled { opacity: .7; }
 .theme-sun { display: none; }
 [data-theme="dark"] .theme-sun { display: inline; }
 [data-theme="dark"] .theme-moon { display: none; }
@@ -380,6 +387,7 @@ main:focus { outline: none; }
 @media (max-width: 1250px) {
   :root { --rail-width: 268px; }
   .topbar { padding-inline: 30px; }
+  .pwa-panel { padding-inline: 30px; }
   main { padding: 35px 30px 30px; }
   .sidebar-brand { padding-inline: 21px; }
   .article-layout { display: flex; flex-direction: column; gap: 0; max-width: 760px; }
@@ -410,6 +418,7 @@ main:focus { outline: none; }
   .nav-open .sidebar { transform: translateX(0); box-shadow: var(--shadow); }
   .nav-backdrop { position: fixed; z-index: 35; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: rgb(35 47 62 / 44%); }
   .topbar { min-height: 62px; padding: 11px 23px; }
+  .pwa-panel { padding-inline: 28px; }
   .topbar-leading { gap: 12px; }
   .topbar-leading .toolbar-button { margin-left: -8px; color: var(--interactive-on-dark); font-weight: 700; }
   main { padding: 35px 28px 28px; }
@@ -428,6 +437,7 @@ main:focus { outline: none; }
 
 @media (max-width: 560px) {
   .topbar { gap: 6px; padding: 10px 16px; }
+  .pwa-panel { padding-inline: 21px; font-size: 11px; }
   .topbar-leading { gap: 8px; }
   .breadcrumb { gap: 8px; font-size: 11px; }
   .breadcrumb > a, .breadcrumb > span:nth-child(2) { display: none; }
@@ -530,7 +540,7 @@ main:focus { outline: none; }
   html { scroll-behavior: auto; }
   body { background: white; font-size: 10pt; }
   .sidebar, .topbar, .nav-backdrop, .skip-link, .article-toc, .reader-status, .reading-check, .page-pagination, .copy-button, .overview-header > .button, .details-hint, .noscript-note { display: none !important; }
-  .js .reading-check.js-only, .js .copy-button.js-only { display: none !important; }
+  .js .reading-check.js-only, .js .copy-button.js-only, .js .pwa-panel.js-only { display: none !important; }
   .workspace { margin: 0; }
   main { padding: 0; min-height: 0; }
   .overview, .lesson, .article-layout { display: block; max-width: none; width: 100%; }

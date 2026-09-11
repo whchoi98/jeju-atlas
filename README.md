@@ -49,7 +49,8 @@ CloudFront→ALB HTTPS는 2026-09-10 19:38 UTC부터 배포된 상태이며 원�
 
 ## 실행
 
-Node.js **24.18.1 이상**과 npm이 필요합니다. 서버는 Node의 SQLite 기능을 사용합니다.
+Node.js **24.18.1 이상**, npm과 Python 3가 필요합니다. Python은 공개 워크숍 ZIP을 만드는 빌드 단계에서만 사용합니다.
+서버는 Node의 SQLite 기능을 사용합니다.
 전체 검사에는 Node 24 계열을 사용하며 `.nvmrc`에 검증 버전을 기록했습니다.
 
 ```bash
@@ -195,7 +196,9 @@ python3 scripts/deploy.py status-app
 python3 scripts/verify.py
 ```
 
-기존 앱을 재배포할 때는 `build-push` → `plan-app` → 변경 내용 검토 → `apply-app` → `status-app` → `verify.py` 순서로 실행합니다. 필요한 경우 다음 명령으로 HTML 캐시만 무효화합니다.
+기존 앱을 재배포할 때는 `build-push` → `plan-app` → 변경 내용 검토 → `apply-app` → `status-app` → `verify.py` 순서로 실행합니다.
+`invalidate`는 앱 HTML·서비스워커·설치 메타데이터·아이콘과 `/workshop*` 캐시를 갱신합니다.
+해시가 포함된 `/assets/*`와 기존 지도 타일은 그대로 유지합니다.
 
 이번 전환은 [라우터 이미지](routing/README.md)를 먼저 준비하고 웹 이미지와 digest 쌍으로
 기록합니다. 앱 계획은 전용 Guide·전용 카탈로그 출력을 소비합니다.

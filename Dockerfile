@@ -1,6 +1,6 @@
 FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS build
 RUN apk upgrade --no-cache \
-    && apk add --no-cache nodejs=24.18.1-r0 npm 'libssl3>=3.5.8-r0' 'libcrypto3>=3.5.8-r0'
+    && apk add --no-cache nodejs=24.18.1-r0 npm python3=3.14.7-r1 'libssl3>=3.5.8-r0' 'libcrypto3>=3.5.8-r0'
 WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
@@ -8,7 +8,13 @@ COPY index.html tsconfig.json vite.config.ts ./
 COPY src ./src
 COPY shared ./shared
 COPY public ./public
-COPY scripts/build-pwa.mjs ./scripts/build-pwa.mjs
+COPY scripts/build-pwa.mjs scripts/build-workshop-public.mjs ./scripts/
+COPY workshop/course.json ./workshop/course.json
+COPY workshop/chapters ./workshop/chapters
+COPY workshop/reference ./workshop/reference
+COPY workshop/prompts ./workshop/prompts
+COPY workshop/assets ./workshop/assets
+COPY workshop/scripts/build.mjs workshop/scripts/pwa.mjs workshop/scripts/package_handbook.py ./workshop/scripts/
 RUN npm run build \
     && npm prune --omit=dev --ignore-scripts --no-audit --no-fund
 
