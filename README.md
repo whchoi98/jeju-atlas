@@ -13,18 +13,23 @@
 
 [이동 경로·3D·전용 Agent 전환 현황](docs/mobility-independence-2026-09-11.md) · [이전 공개 배포 기록](docs/deployment.md)
 
-**공개 웹이 전용 Agent·카탈로그·도보/차량 경로 엔진으로 전환됐습니다.**
-현재 릴리스는 `release-20260911T013430Z` / `jeju-3d:12`입니다.
+**AWS 색상의 앱과 설치형 워크숍 PWA를 공개 배포했습니다.**
+현재 릴리스는 `release-20260911T194530Z` / `jeju-3d:13`입니다.
 `Jeju3dApp` `UPDATE_COMPLETE`, PRIMARY `COMPLETED`, desired/running 2/2와 웹·라우터 HEALTHY를 확인했습니다.
-두 공개 호스트의 API 200 응답과 독립성 24개 검사가 통과했습니다.
-공개 브라우저 8/8, 운영 인프라 91개, 최종 Node 299개·Python 190개 통과(선택적 검사 3개 건너뜀)를 확인했습니다.
-공개 AI 답변 완료와 원문 로그 비기록도 확인했습니다.
+두 공개 호스트에서 앱·워크숍·다운로드와 서로 다른 PWA 설치 ID, 오프라인 읽기를 확인했습니다.
+운영 검사 91개, 앱 Node 308개·Python 190개, 워크숍 94개가 통과했습니다.
+앱 선택 검사 3개는 건너뛰었고, 이번 배포 검증에서 실제 모델을 호출하지 않았습니다.
+[워크숍 열기](https://jeju-atlas.whchoi.net/workshop/) · [배포·PWA 검증 기록](docs/pwa-workshop-release-2026-09-11.md)
+
+전용 Agent·카탈로그·도보/차량 경로 엔진 전환과 실제 AI 답변 완료 검증은
+[이전 릴리스 기록](docs/mobility-independence-2026-09-11.md)에 있습니다.
 CloudFront→ALB HTTPS는 2026-09-10 19:38 UTC부터 배포된 상태이며 원본 DNS 전환 대기는 없습니다.
 위 내용은 해당 릴리스의 검증 기록입니다. 이후 분리 점검에서 기존 프로젝트 역할의
 제주 로그 조회 권한과 기존 Runtime 로그의 14일 보관 정책 잔존을 확인했습니다.
 실행 리소스 분리와 권한 경계·과거 변경 이력은 [점검 결과](docs/separation-audit-2026-09-11.md)에서 구분합니다.
 
-[AgentCore·Strands 구성](docs/agentcore-components.md) · [공식 상세·갤러리·올레길](docs/official-details-olle.md)
+[AgentCore·Strands 구성](docs/agentcore-components.md) · [공식 상세·갤러리·올레길](docs/official-details-olle.md) ·
+[방문 정보 부족과 카카오 연동 검토](docs/visitor-info-kakao-2026-09-11.md)
 
 과거 릴리스 기록: [초기 운영 보강·한영 UI](docs/commercial-release-2026-09-10.md) · [공식 상세·올레길](docs/details-olle-release-2026-09-10.md)
 
