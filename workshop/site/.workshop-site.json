@@ -18,6 +18,9 @@
     "chapters/13-cleanup.html",
     "reference/resources.html",
     "reference/facilitator.html",
-    "reference/catalog-bootstrap.html"
+    "reference/catalog-bootstrap.html",
+    "reference/official-guide-review.html",
+    "reference/offline-start.html",
+    "reference/ai-cli-environments.html"
   ]
 }

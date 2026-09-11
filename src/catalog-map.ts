@@ -57,8 +57,8 @@ export class CatalogMap {
         'icon-offset': [0, 25], 'icon-allow-overlap': false, 'icon-padding': 5,
       },
     });
-    this.routeLayer('trip', '#c16d43');
-    this.routeLayer('guide', '#587a9b');
+    this.routeLayer('trip', '#a85d00');
+    this.routeLayer('guide', '#6842b3');
     map.addSource('catalog-selection', { type: 'geojson', data: empty() });
     map.addLayer({
       id: 'catalog-selected-marker', type: 'symbol', source: 'catalog-selection',
@@ -120,7 +120,7 @@ export class CatalogMap {
       context.font = '500 22px "NanumSquare", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
       context.fillStyle = '#fffffff2';
       context.beginPath(); context.roundRect(0, 0, canvas.width, 42, 7); context.fill();
-      context.fillStyle = '#17313a'; context.textBaseline = 'middle'; context.textAlign = 'center';
+      context.fillStyle = '#232f3e'; context.textBaseline = 'middle'; context.textAlign = 'center';
       context.fillText(name, canvas.width / 2, 21, canvas.width - 20);
       this.map.addImage(event.id, context.getImageData(0, 0, canvas.width, canvas.height), { pixelRatio: 2 });
       return;
@@ -139,7 +139,7 @@ export class CatalogMap {
       context.scale(2, 2);
       const center = cluster ? 19 : selected ? 20 : 16;
       const radius = selected ? 17 : 14;
-      context.fillStyle = selected ? '#187c87' : '#ffffff';
+      context.fillStyle = selected ? '#0972d3' : '#ffffff';
       context.strokeStyle = selected ? '#ffffff' : color;
       context.lineWidth = selected ? 2.5 : 1.25;
       context.beginPath(); context.arc(center, center, radius, 0, Math.PI * 2); context.fill(); context.stroke();
@@ -254,7 +254,8 @@ export class CatalogMap {
     const coordinates = route && route.coordinates.length <= 30_000
       && route.coordinates.every(([lng, lat]) => isJejuPoint(lng, lat)) ? route.coordinates : [];
     this.setRoute('trip', stops, coordinates);
-    const color = route?.mode === 'walk' ? '#187c87' : '#b45b33';
+    // Keep white stop numbers legible and walking/driving routes distinct.
+    const color = route?.mode === 'walk' ? '#0972d3' : '#a85d00';
     this.map.setPaintProperty('trip-route-line', 'line-color', color);
     this.map.setPaintProperty('trip-route-line', 'line-width', 4);
     this.map.setPaintProperty('trip-route-line', 'line-dasharray', route?.mode === 'walk' ? [1.5, 1] : [1, 0]);

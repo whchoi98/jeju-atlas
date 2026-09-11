@@ -93,11 +93,11 @@ export class DistanceMeasurement {
     map.addLayer({
       id: 'measurement-line', type: 'line', source: 'measurement-line',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#c16d43', 'line-width': 3, 'line-dasharray': [2, 1.5] },
+      paint: { 'line-color': '#ff9900', 'line-width': 3, 'line-dasharray': [2, 1.5] },
     });
     map.addLayer({
       id: 'measurement-points', type: 'circle', source: 'measurement-points',
-      paint: { 'circle-color': '#c16d43', 'circle-radius': 6, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
+      paint: { 'circle-color': '#ff9900', 'circle-radius': 6, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
     });
     map.getCanvas().addEventListener('click', this.onClick, true);
     map.getCanvas().addEventListener('pointerdown', this.onPointerDown, true);

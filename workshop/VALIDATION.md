@@ -7,7 +7,7 @@
 ## 구성과 콘텐츠
 
 - Markdown 14개 챕터와 Codex 프롬프트 카드 14개.
-- 개요·챕터·참고 문서의 정적 HTML 18페이지.
+- 개요·챕터·참고 문서의 정적 HTML 21페이지와 다운로드 가능한 프롬프트 카드.
 - 기존 인프라 자원 선언 94개·유형 41개에 대한 챕터와 검증 매핑.
 - NanumSquare와 라이선스 포함, 외부 Markdown 요청 없이 파일/HTTP로 읽는 HTML.
 - 검색·코드 복사·학습 진도·테마·키보드·모바일·인쇄 동작.
@@ -22,8 +22,10 @@ PATH=/tmp/jeju-node24/bin:$PATH npm run check
 작업 호스트의 Node 24.21.0을 사용했습니다.
 워크숍 검사는 Python 경계·카탈로그·실행 제어, CLI 준비기,
 HTML 생성·내비게이션·브라우저 및 자원/명령 매핑을 확인합니다.
-최종 결과는 Python 36개·CLI 준비기 9개·사이트 18개, 총 63개 통과이며 건너뛴 검사는 없습니다.
-18개 실제 HTML 페이지를 데스크톱·모바일에서 확인했고 브라우저 오류나 외부 리소스 요청이 없었습니다.
+초기 구성은 Python 36개·CLI 준비기 9개·사이트 18개, 총 63개를 통과했습니다.
+EC2·오프라인·세 AI CLI 보강 후에는 Python 48개·CLI 준비기 9개·사이트 20개,
+총 77개를 통과했으며 건너뛴 검사는 없습니다.
+실제 HTML을 데스크톱·모바일, file/HTTP에서 확인했고 브라우저 오류나 외부 리소스 요청이 없었습니다.
 
 참가자용으로 변환한 별도 앱에서도 `npm ci`와 `npm run check`를 수행했습니다.
 Node 299개 통과·1개 선택 검사 생략, Python 190개 통과·2개 선택 검사 생략,
@@ -75,3 +77,25 @@ ZIP 크기·경로·CRC·소스 digest와 console launcher의 재배치 가능�
 이 폴더는 Git과 정적 사이트에서 제외합니다.
 원본 `agentcore-cli`와 기존 제주 운영 AWS 설정은 변경하지 않았습니다.
 게시 대상 소스·생성 HTML에 Gitleaks 검사를 실행해 비밀값 탐지 0건을 확인했습니다.
+
+## EC2·오프라인·AWS 색상·AI CLI 보강
+
+사용자가 지정한 공식 GitHub와 AWS Runtime CLI 시작 가이드를 직접 대조했습니다.
+실습 EC2의 IMDSv2 identity와 primary NIC VPC, STS 계정, 두 AZ subnet·NAT를
+읽기 전용으로 조회하고 생성된 복사본의 `run network`까지 통과했습니다.
+실행 EC2의 VPC가 기존 제주 배포 VPC와 다르므로 Name 태그 검색을 기본 경로로 사용하지 않습니다.
+실제 식별자는 Git 제외 파일 `workshop/.local/ec2-current-verification.json`에 보관합니다.
+
+Codex CLI 0.136.0, Kiro CLI 2.21.2, Claude Code 2.1.197의 설치 버전과 도움말을 확인했습니다.
+새 로그인·모델 호출·전역 CLI 재설치는 수행하지 않았습니다.
+`doctor --assistant`는 선택한 도구만 요구하고, 생성 작업 공간에는 공통 AGENTS,
+Claude Code import, Kiro steering 지침이 포함됩니다.
+
+제주 앱과 워크숍에 AWS 네이비·오렌지·액션 블루를 적용했습니다.
+위성·지형 원본, 카테고리 의미 구분, 나눔스퀘어와 기능·레이아웃을 유지했습니다.
+PWA 색상·아이콘, 주요 화면의 텍스트 대비와 데스크톱·모바일을 확인했습니다.
+이번에는 소스와 교재를 변경했으며 운영 앱을 재배포하지 않았습니다.
+
+PC용 ZIP은 생성 HTML·정적 자산·글꼴/라이선스·공통 프롬프트 카드만 허용합니다.
+페이지 누락, symlink, `.env`·`.local`·예상 밖 파일을 거부하는 검사를 추가했습니다.
+압축 해제한 `jeju-atlas-workshop/index.html`이 진입점이며 명령은 EC2에서 실행합니다.

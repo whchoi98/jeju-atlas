@@ -3,7 +3,7 @@
   padding: 25px; border: 1px solid var(--border); border-radius: 12px;
   color: var(--ink); background: white; font-family: var(--sans); overflow: auto;
 }
-.saved-data-dialog::backdrop { background: #17313a60; }
+.saved-data-dialog::backdrop { background: #232f3e60; }
 .saved-data-dialog h2 { font-size: 19px; margin: 0; }
 .saved-data-dialog h3 { font-size: 16px; margin: 18px 0 12px; }
 .saved-data-dialog p, .saved-data-dialog li, .saved-data-dialog label { font-size: 13px; line-height: 1.85; }
@@ -13,18 +13,18 @@
 .saved-data-dialog .button { min-height: 42px; font-size: 12px; white-space: normal; text-align: center; }
 .saved-file-label {
   position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  min-height: 42px; border: 1px solid var(--teal); border-radius: 7px; padding: 9px 13px; cursor: pointer;
+  min-height: 42px; border: 1px solid var(--interactive); border-radius: 7px; padding: 9px 13px; cursor: pointer;
 }
-.saved-file-label:focus-within { outline: 3px solid var(--teal); outline-offset: 3px; }
+.saved-file-label:focus-within { outline: 3px solid var(--interactive); outline-offset: 3px; }
 .saved-file-label > input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
 .saved-file-label .icon { width: 16px; height: 16px; }
 .saved-data-dialog fieldset { border: 1px solid var(--border); padding: 12px; border-radius: 6px; margin-top: 18px; }
 .saved-data-dialog legend { font-size: 12px; padding-inline: 5px; color: var(--basalt); }
 .saved-data-dialog fieldset label { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; }
-.saved-data-dialog input[type="radio"], .saved-data-dialog input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--teal); margin-top: 4px; }
+.saved-data-dialog input[type="radio"], .saved-data-dialog input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--interactive); margin-top: 4px; }
 .saved-delete-label { display: flex; gap: 10px; padding: 15px 0; }
-.saved-data-dialog .saved-danger { color: #924520; background: #fff3ec; border: 1px solid #e3bfa9; }
-.saved-data-dialog .saved-danger:hover { background: #fbe6d8; }
+.saved-data-dialog .saved-danger { color: var(--error); background: var(--error-soft); border: 1px solid var(--error); }
+.saved-data-dialog .saved-danger:hover { background: #ffdfdf; }
 .saved-backup { margin-bottom: 10px; border: 1px solid var(--border); }
 .saved-filename { overflow-wrap: anywhere; color: var(--basalt); }
 #saved-import-preview ol { padding-left: 24px; margin: 12px 0; }

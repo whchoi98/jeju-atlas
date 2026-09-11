@@ -6,18 +6,27 @@
 
 ## 행사 전 팀·계정·네트워크 준비
 
-한 팀에는 하나의 참가자 식별자, 예상 AWS 계정, 사용할 프로필 또는 역할, 자원 이름 공간, 담당자를 배정한다. 같은 계정을 쓰는 팀은 VPC뿐 아니라 서비스 한도와 비용도 공유한다. 팀 이름이 다르다는 이유만으로 계정 수준 격리가 확보됐다고 설명하지 않는다.
+시작점은 **Codex가 설치된 EC2**다. 참가자는 PC에서 내려받은 HTML을 읽고 명령은 EC2에서 실행한다.
+Codex를 재설치하거나 인증을 교체하지 않으며 실제 caller는 EC2의 계정과 일치해야 한다.
+Kiro CLI·Claude Code를 선택할 팀은 `ai-cli-environments.md`의 도구별 인증을 사전에 준비한다.
+이 선택은 개발 도구의 차이이며 EC2 계정·VPC와 실제 Atlas의 모델 설정을 바꾸지 않는다.
+동일한 작업 폴더를 여러 CLI가 동시에 수정하지 않도록 배정한다.
+`init-ec2`가 instance identity와 primary NIC VPC를 읽어 같은 계정·VPC에 고정한다.
+Name 태그로 다른 VPC를 찾거나 기본 VPC로 대체하지 않는다.
+
+한 팀에는 참가자 식별자, 해당 EC2와 연결 역할, 자원 이름 공간, 담당자를 배정한다.
+같은 계정의 팀은 서비스 한도와 비용도 공유한다. 이름만 다르다고 계정 수준 격리라고 설명하지 않는다.
 
 | 준비 항목 | 진행자가 확보할 내용 | 시작 조건 |
 | --- | --- | --- |
 | 팀 실행 경계 | 예상 계정 ID, 선택 프로필/역할, 팀 식별자, 실습 이름, 담당자·정리 기한 | 실제 caller 계정과 구성의 계정 일치. 프로필 이름만으로 판정하지 않음 |
 | 이름과 소유권 | ECR·S3·ECS·ALB·IAM·DynamoDB·Runtime·Gateway·Memory·SSM·로그·캐시 정책·WAF·SNS·DNS 이름 | 두 팀의 렌더링 결과를 비교해 충돌 없음. 계정·리전·팀 태그와 실제 ARN/ID 장부 준비 |
-| 기존 네트워크 | 서울의 기존 VPC, Public Subnet 두 AZ, Private Subnet 두 AZ, 라우트 테이블·IGW·NAT ID | Public 기본 경로는 IGW, Private 기본 경로는 정상 NAT. Private public-IP 자동 할당 비활성 |
+| 기존 네트워크 | 서울의 실습 EC2가 속한 VPC, Public/Private Subnet 두 AZ, 기존 IGW·NAT | IMDSv2 VPC ID 일치. Public 기본 경로 IGW, Private 기본 경로 정상 NAT, 자동 Public IP 비활성 |
 | 실제 네트워크 사용 가능성 | 서브넷 가용 주소, NAT 상태·출구 접근, DNS, 필요 endpoint 정책, prefix list | ECR·S3·로그·외부 제공처 접근이 가능한 환경. endpoint만 있다는 이유로 NAT 전제 생략 금지 |
 | CloudFront ALB 접근 | 서울의 AWS 관리 `com.amazonaws.global.cloudfront.origin-facing` prefix list | 소유자·이름·리전과 SG quota 확인. 원본처럼 HTTP/TLS SG를 분리할 여유 확보 |
 | 배포 권한 | CloudFormation 변경 세트, 범위가 제한된 IAM 생성/PassRole, 해당 서비스 제어·아티팩트 게시·관측 권한 | 조직 SCP·permission boundary까지 확인. 권한 실패를 공유 기반 수정으로 해결하지 않음 |
 | 로컬 실행 환경 | Node 24 계열 24.18.1 이상, Python·uv, AWS CLI, Docker ARM64 빌드 환경, cfn-lint, WebGL 브라우저 | 잠금 파일 설치, 기본 컨테이너 실행, 디스크 여유·다운로드 경로·브라우저 그래픽 확인 |
-| 수업 도구 | Codex 작업 환경, 04장에서 검증한 AgentCore CLI 버전·스키마 | 계획의 `@aws/agentcore` 0.28.1과 설치본 대조. 인증 상태를 배포 모델 접근 허가로 해석하지 않음 |
+| 수업 도구 | 이미 설치된 Codex·인증 확인, AgentCore CLI 버전·스키마 | Codex 재설치 불필요. `@aws/agentcore` 0.28.1 대조. Codex 인증과 Bedrock 접근 분리 |
 
 기존 `scripts/deploy.py`는 계정·VPC·서브넷·도메인·이름이 운영 환경에 고정되어 있다. 여러 YAML의 `AllowedPattern`/`AllowedValues`, 수집기의 계정 검사, IAM ARN과 로그 prefix에도 같은 경계가 있다. **원본 저장소에서 운영 배포기를 그대로 실행하는 방식은 참가자 설치 절차가 아니다.**
 

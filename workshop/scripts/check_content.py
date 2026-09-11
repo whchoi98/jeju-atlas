@@ -41,6 +41,12 @@ def main():
                  "plan-static", "plan-tls-probe", "verify-tls", "plan-operations", "verify"}
     if mandatory - documented:
         raise ValueError("Missing deployment coverage: " + ", ".join(sorted(mandatory - documented)))
+    if "init-ec2" not in (COURSE / "chapters/02-aws-environment.md").read_text():
+        raise ValueError("The main course must start from the current EC2 account and VPC")
+    if course.get("includePromptCards") is not True:
+        raise ValueError("PC handbook must include the prompt cards")
+    if not (COURSE / "reference/ai-cli-environments.md").is_file():
+        raise ValueError("The three AI CLI environments must be documented")
     resource_types = set()
     resource_count = 0
     for template in (ROOT / "infra").glob("*.yaml"):

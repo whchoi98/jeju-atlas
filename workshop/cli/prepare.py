@@ -18,6 +18,8 @@ REGION = "ap-northeast-2"
 RUNTIME = "Warmup"
 TEMPLATE_FILES = (
     "AGENTS.md",
+    "CLAUDE.md",
+    ".kiro/steering/workshop.md",
     "README.md",
     "activate.sh",
     ".gitignore",

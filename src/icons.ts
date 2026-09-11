@@ -46,7 +46,7 @@ export function categorySymbol(category: string): { icon: IconName; color: strin
   if (['올레길', 'trail'].includes(category)) return { icon: 'trail', color: '#5b8d72' };
   if (['숙소', 'stay', 'hotel', 'lodging', 'accommodation'].includes(category)) return { icon: 'lodging', color: '#787096' };
   if (['섬', 'island'].includes(category)) return { icon: 'island', color: '#748757' };
-  return { icon: 'pin', color: '#187c87' };
+  return { icon: 'pin', color: '#0972d3' };
 }
 
 /** Draw trusted local icon artwork synchronously for MapLibre sprite images. */
@@ -70,4 +70,4 @@ export function icon(name: IconName, className = ''): string {
   return `<svg class="icon ${className}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
 }
 
-export const brandMark = `<svg viewBox="0 0 44 44" width="44" height="44" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="43" height="43" rx="13" fill="#187c87"/><path d="m8 29 9-11 5 5 7-12 8 18H8Z" stroke="white" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 34h25M25 17l4 4 3-3M15 29l7-6" stroke="white" stroke-width="1.3" stroke-linecap="round"/><circle cx="12" cy="12" r="2" stroke="white" stroke-width="1.2"/></svg>`;
+export const brandMark = `<svg viewBox="0 0 44 44" width="44" height="44" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="43" height="43" rx="13" fill="#232f3e"/><path d="m8 29 9-11 5 5 7-12 8 18H8Z" stroke="white" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 34h25M25 17l4 4 3-3M15 29l7-6" stroke="white" stroke-width="1.3" stroke-linecap="round"/><circle cx="12" cy="12" r="2" stroke="#ff9900" stroke-width="1.2"/></svg>`;

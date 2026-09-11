@@ -59,7 +59,7 @@ CloudFront와 Lambda@Edge 복제 정리는 시간이 걸릴 수 있습니다.
 Memory는 이름만 비슷한 기존 운영 Memory를 선택하지 않습니다.
 API 키 값 자체를 조회하여 삭제 대상을 확인하지 않습니다.
 
-공유 `cc-on-bedrock-vpc`, NAT·IGW·서브넷·라우트·endpoint, 기존 viewer 인증서,
+실습 EC2가 속한 공유 VPC, NAT·IGW·서브넷·라우트·endpoint, 기존 viewer 인증서,
 CDK bootstrap, 중앙 추적 설정과 다른 프로젝트의 IAM 정책은 유지합니다.
 
 ## 마지막 점검

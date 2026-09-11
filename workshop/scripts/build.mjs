@@ -57,6 +57,9 @@ function validateManifest(input) {
   }
   if (!Array.isArray(input.chapters) || !input.chapters.length) manifestError('chapters must not be empty');
   if (!Array.isArray(input.references)) manifestError('references must be an array');
+  if (input.includePromptCards !== undefined && typeof input.includePromptCards !== 'boolean') {
+    manifestError('includePromptCards must be boolean');
+  }
   if (input.language && !/^[a-z]{2,3}(?:-[a-zA-Z]{2,4})?$/.test(input.language)) manifestError('invalid language');
   if (input.updatedAt && !/^\d{4}-\d{2}-\d{2}$/.test(input.updatedAt)) manifestError('updatedAt must use YYYY-MM-DD');
   const seen = new Set();
@@ -303,6 +306,9 @@ function rewriteDocumentLinks(doc, bySource, byOutput, assetFiles) {
     }
     if (assetFiles.has(outputPath)) {
       node.properties[isImage ? 'src' : 'href'] = `${posix.relative(posix.dirname(doc.outputFile), outputPath)}${query}${fragment}`;
+      if (!isImage && outputPath.startsWith('prompts/') && outputPath.endsWith('.md')) {
+        node.properties.download = posix.basename(outputPath);
+      }
       if (isImage) {
         node.properties.loading = 'lazy';
         node.properties.decoding = 'async';
@@ -635,9 +641,28 @@ export async function buildSite({
   const sourceResults = await Promise.allSettled(course.entries.map(async (entry) => {
     const sourcePath = join(courseDirectory, entry.sourceFile);
     await assertNoSymlinks(sourcePath, courseDirectory);
-    const source = await readFile(sourcePath, 'utf8');
+    let source = await readFile(sourcePath, 'utf8');
     if (!source.trim()) throw new Error(`Empty workshop document: ${entry.sourceFile}`);
-    return { entry, source, sourcePath };
+    let promptAsset;
+    if (course.includePromptCards && entry.kind === 'chapters') {
+      const name = `prompts/${entry.slug}.md`;
+      const promptPath = join(courseDirectory, name);
+      let prompt;
+      try {
+        await assertNoSymlinks(promptPath, courseDirectory);
+        prompt = await readFile(promptPath, 'utf8');
+      } catch (error) {
+        throw new Error(`Cannot include workshop prompt ${name}: ${error.message}`);
+      }
+      if (!prompt.trim() || Buffer.byteLength(prompt) > 128 * 1024) {
+        throw new Error(`Invalid workshop prompt: ${name}`);
+      }
+      promptAsset = { name, contents: Buffer.from(prompt, 'utf8') };
+      const fence = '`'.repeat(Math.max(3, ...[...prompt.matchAll(/`+/g)].map((match) => match[0].length + 1)));
+      source += `\n\n## AI CLI 프롬프트 카드\n\n아래 카드 전체를 복사해 실습 EC2에서 선택한 Codex·Kiro CLI·Claude Code에 전달합니다. `
+        + `[Markdown 카드 다운로드](../${name})\n\n${fence}markdown\n${prompt}${prompt.endsWith('\n') ? '' : '\n'}${fence}\n`;
+    }
+    return { entry, source, sourcePath, promptAsset };
   }));
   const missing = [];
   const errors = [];
@@ -654,6 +679,9 @@ export async function buildSite({
     ].filter(Boolean).join('\n'));
   }
   const assets = await loadAssets();
+  for (const { value } of sourceResults) {
+    if (value.promptAsset) assets.set(value.promptAsset.name, value.promptAsset.contents);
+  }
   const docs = await Promise.all(sourceResults.map(({ value }) => prepareDocument(value.entry, value.source, value.sourcePath)));
   const bySource = new Map(docs.map((doc) => [doc.sourcePath, doc]));
   const byOutput = new Map(docs.map((doc) => [doc.outputFile, doc]));

@@ -26,7 +26,25 @@ git -C "$ATLAS_APP" status --short --branch
 codex -C "$ATLAS_APP" --sandbox workspace-write -a on-request
 ```
 
-[03 프롬프트 카드](../prompts/03-codex.md)를 전달합니다.
+Kiro CLI 또는 Claude Code로 진행할 때는 같은 폴더에서 한 도구만 선택합니다.
+
+```bash
+cd "$ATLAS_APP"
+kiro-cli chat
+```
+
+Claude Code를 선택할 경우:
+
+```bash
+cd "$ATLAS_APP"
+claude
+```
+
+`CLAUDE.md`는 공통 `AGENTS.md`를 가져오며 `.kiro/steering/workshop.md`도 같은 계정·이름 경계를
+명시합니다. 인증과 선택적 Claude Code Bedrock 설정은 [AI CLI 환경](../reference/ai-cli-environments.md)을 따릅니다.
+개발 도구를 바꿔도 실제 Atlas의 Sol/Astra 모델 설정을 바꾸지 않습니다.
+
+[03 공통 프롬프트 카드](../prompts/03-codex.md)를 선택한 도구에 전달합니다.
 첫 요청에서는 파일 구성·계정·자원 이름·현재 단계만 확인하고 배포하지 않습니다.
 원본 저장소나 `agentcore-cli`를 추가 쓰기 폴더로 지정하지 않습니다.
 

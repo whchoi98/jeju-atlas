@@ -97,13 +97,17 @@ def run_step(config, args):
         raise SystemExit(result.returncode)
 
 
-def doctor(config, include_aws):
+def doctor(config, include_aws, assistant="codex"):
+    assistants = {"codex": "codex", "kiro": "kiro-cli", "claude": "claude"}
+    if assistant not in assistants:
+        raise ValueError("Choose codex, kiro, or claude")
+    assistant_command = assistants[assistant]
     rows = []
     checks = [
         ("node", ["node", "--version"]), ("npm", ["npm", "--version"]),
         ("python", [sys.executable, "--version"]), ("uv", ["uv", "--version"]),
         ("aws", ["aws", "--version"]), ("docker", ["docker", "--version"]),
-        ("agentcore", ["agentcore", "--version"]), ("codex", ["codex", "--version"]),
+        ("agentcore", ["agentcore", "--version"]), (assistant_command, [assistant_command, "--version"]),
         ("cfn-lint", ["cfn-lint", "--version"]),
     ]
     for name, command in checks:
@@ -120,7 +124,7 @@ def doctor(config, include_aws):
         if name == "agentcore":
             ok = ok and bool(re.search(r"\b0\.28\.1\b", version))
         rows.append({"tool": name, "ok": bool(ok), "version": version[:500]})
-    result = {"tools": rows, "names": resource_names(config), "awsChecked": False}
+    result = {"tools": rows, "names": resource_names(config), "awsChecked": False, "assistant": assistant}
     if include_aws:
         session = aws_session(config)
         discovered = discover_network(config, session.client("ec2"))
@@ -327,8 +331,12 @@ def main():
     init.add_argument("--vpc-name", default="cc-on-bedrock-vpc")
     init.add_argument("--domain", default="")
     init.add_argument("--viewer-certificate", default="")
+    ec2_init = commands.add_parser("init-ec2", parents=[common],
+                                  help="Use this EC2's account/region/VPC and existing Codex environment")
+    ec2_init.add_argument("--participant", required=True)
     doc = commands.add_parser("doctor", parents=[common])
     doc.add_argument("--aws", action="store_true")
+    doc.add_argument("--assistant", choices=["codex", "kiro", "claude"], default="codex")
     commands.add_parser("discover", parents=[common])
     commands.add_parser("prepare", parents=[common])
     commands.add_parser("info", parents=[common])
@@ -353,6 +361,17 @@ def main():
     secret.add_argument("--provider", choices=["visitjeju", "tourapi"], required=True)
     secret.add_argument("--execute", action="store_true")
     args = parser.parse_args()
+    if args.action == "init-ec2":
+        if args.config.exists() or args.config.is_symlink():
+            raise FileExistsError("Config already exists; keep the EC2 binding or select another config file")
+        from ec2_context import configuration_for_ec2, read_ec2_context
+        config = configuration_for_ec2(args.participant, read_ec2_context())
+        config = discover_network(config, aws_session(config).client("ec2"))
+        write_json(args.config, config)
+        emit({"config": str(args.config), "ec2Context": config["ec2Context"],
+              "network": config["network"], "names": resource_names(config),
+              "createdAwsResources": False})
+        return
     if args.action == "init":
         if args.config.exists() or args.config.is_symlink():
             raise FileExistsError("Config already exists; preserve it or select another --config path")
@@ -368,10 +387,11 @@ def main():
     if args.action == "info":
         emit({"config": str(args.config.resolve()), "names": resource_names(config),
               "workspace": str(workspace_path(config)), "cliWorkspace": str(cli_path(config)),
-              "accountId": config["accountId"], "region": config["region"]})
+              "accountId": config["accountId"], "region": config["region"],
+              "ec2Context": config.get("ec2Context")})
         return
     if args.action == "doctor":
-        result = doctor(config, args.aws)
+        result = doctor(config, args.aws, args.assistant)
         emit(result)
         if not result["passed"]:
             raise SystemExit(1)

@@ -231,18 +231,17 @@ curl --fail --silent http://127.0.0.1:8080/invocations \
 
 여기부터는 실제 AWS 자원과 비용이 발생할 수 있다. 다음 조건이 갖추어져야 한다.
 
-1. 명시적으로 선택한 교육용 AWS profile의 계정이 `.atlas-cli-workshop.json`과 같다.
+1. 현재 EC2의 호출 계정이 02장의 EC2 바인딩과 `.atlas-cli-workshop.json`에 일치한다.
 2. 리전은 `ap-northeast-2`이고, 담당자가 준비한 기본 CDK bootstrap 버전이 30 이상이다.
 3. 참가자는 이 스택의 CloudFormation 배포, 소유 실행 역할 생성·전달, bootstrap 자산 사용,
    Runtime 생성·호출·조회, 소유 로그 조회에 필요한 권한이 있다.
 4. 새 스택 이름과 Runtime 접두사를 다른 참가자나 운영 배포가 사용하지 않는다.
 
 모델 ID나 제공자 API 키는 필요 없다. 이 예제에서 모델 접근을 추가해 해결할 문제도 없다.
-AWS profile 이름은 자신의 교육 환경에 맞게 설정한다.
+이 EC2에 연결된 역할과 02장의 계정 바인딩을 유지한다. 다른 계정 profile로 바꾸지 않는다.
 
 ```bash
 source ./activate.sh
-export AWS_PROFILE=workshop-team01
 aws sts get-caller-identity --query Account --output text
 cat .atlas-cli-workshop.json
 ```
@@ -260,9 +259,10 @@ aws ssm get-parameter \
 파라미터가 없거나 값이 30 미만이면 담당자의 환경 준비가 필요하다.
 CLI가 bootstrap 생성·업그레이드를 제안해도 이 모듈에서 공유 스택 변경을 승인하지 않는다.
 
-로컬 검증이 통과한 프로젝트에서 배포한다.
+로컬 검증이 통과한 프로젝트에서 공식 가이드의 dry-run으로 계획을 먼저 확인한다.
 
 ```bash
+agentcore deploy --target default --dry-run --json
 agentcore deploy --target default
 ```
 
@@ -375,6 +375,7 @@ aws logs describe-log-groups \
 ## 공식 근거와 검증 기록
 
 - [AgentCore CLI 공식 소스](https://github.com/aws/agentcore-cli)
+- [AWS 공식 Runtime CLI 시작 가이드](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-get-started-cli.html)
 - [AgentCore JSON 스키마](https://schema.agentcore.aws.dev/v1/agentcore.json)
 - [AgentCore CDK constructs](https://github.com/aws/agentcore-l3-cdk-constructs)
 - [이 모듈의 로컬 검증 기록](../cli/VALIDATION.md)

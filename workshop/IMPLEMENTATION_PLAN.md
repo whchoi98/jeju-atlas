@@ -8,6 +8,18 @@
 
 **Tech Stack:** Node 24, Python, uv, AWS CLI, `@aws/agentcore` 0.28.1, Codex CLI, existing CloudFormation and container assets, Markdown/GFM and static HTML.
 
+## Updated starting environment and distribution
+
+The workshop now starts on an EC2 instance with Codex already installed. `init-ec2`
+uses IMDSv2 and STS to bind the lab to that instance's account, region and primary VPC;
+Name-tag/default-VPC fallback is not used. A local PC reads the complete HTML handbook
+and copies commands/cards into the EC2 session. The generated site bundles prompt cards,
+fonts and assets and can be exported as a whitelist-checked ZIP. Application and workshop
+colors follow the AWS navy/orange palette with accessible interactive colors.
+Kiro CLI and Claude Code are supported alternative development environments on the same EC2.
+Prepared app and CLI projects include shared AGENTS, Claude import guidance, and Kiro steering.
+The selected-assistant doctor check does not require the other assistant binaries.
+
 ## Constraints and delivery contract
 
 - Write workshop material and helpers under `workshop/`. Root changes are limited to navigation, ignore rules and workshop npm commands.

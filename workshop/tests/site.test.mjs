@@ -99,6 +99,27 @@ async function fixture(t, options = {}) {
 const readPage = (output, path) => readFile(join(output, path), 'utf8');
 const decodeAttribute = (value) => value.replaceAll('&amp;', '&').replaceAll('&#x26;', '&');
 
+test('PC handbook includes downloadable Codex cards and their copyable text', async (t) => {
+  const course = { ...manifest(), includePromptCards: true };
+  const cards = Object.fromEntries(course.chapters.map((chapter) => [
+    `prompts/${chapter.slug}.md`, `# Codex card ${chapter.id}\nRun this task on the EC2 terminal.\n`,
+  ]));
+  const input = await fixture(t, { course, documents: cards });
+  await buildSite({ coursePath: input.coursePath, outputDir: input.outputDir });
+  const page = await readPage(input.outputDir, 'chapters/01-tools.html');
+  assert.match(page, /href="\.\.\/prompts\/01-tools\.md"/);
+  assert.match(page, /Codex card 01/);
+  assert.equal(await readFile(join(input.outputDir, 'prompts/01-tools.md'), 'utf8'),
+    cards['prompts/01-tools.md']);
+});
+
+test('portable course refuses to silently omit a required Codex card', async (t) => {
+  const course = { ...manifest(), includePromptCards: true };
+  const input = await fixture(t, { course });
+  await assert.rejects(buildSite({ coursePath: input.coursePath, outputDir: input.outputDir }),
+    /prompt|프롬프트/i);
+});
+
 async function assertClosedSite(output) {
   const pages = ['index.html'];
   for (const dir of ['chapters', 'reference']) {

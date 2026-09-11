@@ -10,7 +10,8 @@
     "server": "node server/server.mjs",
     "check": "node scripts/check.mjs",
     "workshop:build": "node workshop/scripts/build.mjs",
-    "workshop:check": "node workshop/scripts/check.mjs"
+    "workshop:check": "node workshop/scripts/check.mjs",
+    "workshop:package": "npm run workshop:build && python3 workshop/scripts/package_handbook.py"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-agentcore": "3.1128.0",

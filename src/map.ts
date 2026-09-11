@@ -452,12 +452,12 @@ export class AtlasMap {
       this.map.addLayer({
         id: 'olle-tour-line', type: 'line', source: 'olle-tour-route',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#087f9c', 'line-width': 4 },
+        paint: { 'line-color': '#0972d3', 'line-width': 4 },
       });
       this.map.addSource('olle-tour-position', { type: 'geojson', data: empty });
       this.map.addLayer({
         id: 'olle-tour-position', type: 'circle', source: 'olle-tour-position',
-        paint: { 'circle-radius': 7, 'circle-color': '#e87543', 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 },
+        paint: { 'circle-radius': 7, 'circle-color': '#ff9900', 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 },
       });
     }
     (this.map.getSource('olle-tour-route') as GeoJSONSource).setData(route ?? empty);
@@ -625,12 +625,12 @@ export class AtlasMap {
       this.map.addLayer({
         id: 'terrain-route-preview', type: 'line', source: 'terrain-route-preview',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#187c87', 'line-width': 5, 'line-opacity': 0.8 },
+        paint: { 'line-color': '#0972d3', 'line-width': 5, 'line-opacity': 0.8 },
       });
       this.map.addSource('terrain-route-position', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       this.map.addLayer({
         id: 'terrain-route-position', type: 'circle', source: 'terrain-route-position',
-        paint: { 'circle-color': '#c16d43', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 },
+        paint: { 'circle-color': '#ff9900', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 },
       });
     }
     (this.map.getSource('terrain-route-preview') as GeoJSONSource).setData({
@@ -689,7 +689,7 @@ export class AtlasMap {
       this.map.addSource('terrain-profile-point', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       this.map.addLayer({
         id: 'terrain-profile-point', type: 'circle', source: 'terrain-profile-point',
-        paint: { 'circle-color': '#17313a', 'circle-radius': 6, 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 },
+        paint: { 'circle-color': '#232f3e', 'circle-radius': 6, 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 },
       });
     }
     (this.map.getSource('terrain-profile-point') as GeoJSONSource).setData(point

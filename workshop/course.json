@@ -1,8 +1,9 @@
 {
   "title": "제주 아틀라스를 직접 배포하기",
-  "subtitle": "Codex와 Amazon AgentCore CLI로 만드는 3D 제주 여행 가이드",
+  "subtitle": "Codex · Kiro CLI · Claude Code와 Amazon AgentCore CLI로 만드는 3D 제주 여행 가이드",
   "updatedAt": "2026-09-11",
   "language": "ko",
+  "includePromptCards": true,
   "chapters": [
     {"id":"00","slug":"00-orientation","title":"완성할 서비스와 실습 흐름","day":1,"minutes":15,"summary":"현재 에셋, 전체 아키텍처와 완료 기준을 확인합니다."},
     {"id":"01","slug":"01-setup","title":"개발 도구와 CLI 설치","day":1,"minutes":30,"summary":"Node·Python·Docker·AWS CLI·AgentCore CLI·Codex를 준비합니다."},
@@ -22,6 +23,9 @@
   "references": [
     {"slug":"resources","title":"AWS 자원·기술 전체 매핑"},
     {"slug":"facilitator","title":"진행자 준비 가이드"},
-    {"slug":"catalog-bootstrap","title":"카탈로그 생성과 출처"}
+    {"slug":"catalog-bootstrap","title":"카탈로그 생성과 출처"},
+    {"slug":"official-guide-review","title":"공식 AgentCore CLI 가이드 대조"},
+    {"slug":"offline-start","title":"PC 다운로드·EC2 실행"},
+    {"slug":"ai-cli-environments","title":"Codex·Kiro CLI·Claude Code 환경"}
   ]
 }

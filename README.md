@@ -6,7 +6,7 @@
 최신 지도·이동 경로·전용 Agent 작업과 Git 이력을 독립 저장소의 **`main`**에 모았습니다.
 [저장소 구성·GitHub 업로드](docs/repository.md) · [분리 구성·기존 영향 점검](docs/separation-audit-2026-09-11.md)
 
-[AgentCore CLI · Codex 설치·배포 워크숍](workshop/README.md) — 14개 챕터, 참가자별 독립 실습,
+[AgentCore CLI · Codex/Kiro CLI/Claude Code 워크숍](workshop/README.md) — 14개 챕터, EC2 계정·VPC 기반 독립 실습,
 실제 Atlas AgentCore·Fargate·데이터·엣지·운영 구성과 정리 절차를 제공합니다.
 
 **배포 주소: [제주 아틀라스 열기](https://jeju-atlas.whchoi.net)** · 기존 CloudFront 주소도 지원합니다.

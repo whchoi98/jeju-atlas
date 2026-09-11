@@ -112,6 +112,19 @@ def adapt_deployer(text):
     return text.replace(media_needle, '        values["PublicMediaOrigin"] = outputs["ApplicationUrl"]\n' + media_needle)
 
 
+def adapt_ec2_network_check(text, config):
+    if not config.get("ec2Context"):
+        return text
+    pattern = (r'    if not any\(t\["Key"\] == "Name" and t\["Value"\] == "[^"]+" for t in vpc.get\("Tags", \[\]\)\):\n'
+               r'        raise RuntimeError\("VPC name does not match the user\'s requested VPC"\)')
+    replacement = ('    if vpc.get("VpcId") != VPC or vpc.get("State") != "available":\n'
+                   '        raise RuntimeError("VPC must match the available VPC of the workshop EC2")')
+    result, count = re.subn(pattern, replacement, text)
+    if count != 1:
+        raise ValueError("Review the source VPC guard before preparing an EC2-bound lab")
+    return result
+
+
 def production_settings(config, https=False):
     return {
         "ViewerDomainName": config["domainName"],
@@ -217,7 +230,7 @@ def prepare_workspace(config, source_root, labs_root):
         target.write_bytes(data)
         shutil.copymode(source, target)
     deploy = destination / "scripts/deploy.py"
-    deploy.write_text(adapt_deployer(deploy.read_text()))
+    deploy.write_text(adapt_ec2_network_check(adapt_deployer(deploy.read_text()), config))
     template = destination / "infra/data.yaml"
     template.write_text(json.dumps(data_bootstrap_template(read_template(template)), indent=2) + "\n")
     configure_hostname_templates(destination, config)
@@ -242,6 +255,20 @@ def prepare_workspace(config, source_root, labs_root):
         "- Do not read or print credentials, .env files or provider key values. Use the hidden-input helper.\n"
         "- Preserve sample provenance and official evidence; do not invent opening hours or facilities.\n"
         "- Run npm run check for app changes. A local build is not proof of AWS deployment.\n",
+        encoding="utf-8",
+    )
+    (destination / "CLAUDE.md").write_text(
+        "@AGENTS.md\n\n# Claude Code workshop context\n\n"
+        "Follow the shared account, VPC, namespace and source-protection rules in AGENTS.md. "
+        "Changing the developer CLI does not change the Atlas runtime model configuration.\n",
+        encoding="utf-8",
+    )
+    steering = destination / ".kiro/steering"
+    steering.mkdir(parents=True)
+    (steering / "workshop.md").write_text(
+        "---\ninclusion: always\n---\n\n"
+        + (destination / "AGENTS.md").read_text()
+        + "\nUse the same lab.py ownership checks. Do not enable trust-all-tools or change production resources.\n",
         encoding="utf-8",
     )
     (destination / "README.md").write_text(

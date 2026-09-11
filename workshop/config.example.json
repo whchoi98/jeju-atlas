@@ -4,8 +4,14 @@
   "accountId": "123456789012",
   "region": "ap-northeast-2",
   "profile": "",
-  "vpcName": "cc-on-bedrock-vpc",
+  "vpcName": "vpc-00000000000000001",
   "network": {},
   "domainName": "",
-  "viewerCertificateArn": ""
+  "viewerCertificateArn": "",
+  "ec2Context": {
+    "instanceId": "i-00000000000000001",
+    "accountId": "123456789012",
+    "region": "ap-northeast-2",
+    "vpcId": "vpc-00000000000000001"
+  }
 }

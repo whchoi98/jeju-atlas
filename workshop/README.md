@@ -1,7 +1,16 @@
-# 제주 아틀라스 · AgentCore CLI × Codex 워크숍
+# 제주 아틀라스 · AgentCore CLI × AI CLI 워크숍
 
-현재 저장소의 3D 지도·제주 장소 데이터·한영 AI 가이드·이동 경로를 참가자 이름의 AWS 환경에 배포합니다.
+Codex가 설치된 실습 EC2에서 시작하여 **그 EC2의 계정과 VPC**에 참가자 이름으로 배포합니다.
+Codex를 기본으로 사용하거나 같은 EC2의 Kiro CLI·Claude Code 환경을 선택할 수 있습니다.
+현재 저장소의 3D 지도·제주 장소 데이터·한영 AI 가이드·이동 경로를 사용합니다.
 Markdown을 순서대로 읽거나, 생성된 `site/index.html`을 브라우저에서 엽니다.
+
+PC에서는 `workshop/site/` 전체 또는
+`workshop/.local/downloads/jeju-atlas-workshop-handbook.zip`을 내려받습니다.
+압축 해제 후 `index.html`을 열고 실제 명령은 EC2에서 실행합니다.
+[다운로드·실행 위치 안내](reference/offline-start.md) ·
+[공식 GitHub/AWS 가이드 대조](reference/official-guide-review.md) ·
+[Codex·Kiro CLI·Claude Code 환경](reference/ai-cli-environments.md)
 
 ## 시작
 
@@ -15,7 +24,8 @@ python3 -m http.server 8008 --directory workshop/site --bind 127.0.0.1
 브라우저에서 `http://127.0.0.1:8008`을 엽니다. 정적 HTML은 파일로 열어도 동작합니다.
 사이트에는 CLI를 실행하거나 AWS 키를 받는 기능이 없습니다. 진도 표시는 브라우저에 저장하는 학습 기록입니다.
 
-처음부터 설치하는 참가자는 [01 · 개발 도구](chapters/01-setup.md)부터 Node와 의존성을 준비합니다.
+설치된 AI CLI는 유지합니다. [01 · 개발 도구](chapters/01-setup.md)에서 버전·인증과 부족한 도구만
+확인합니다. `npm run workshop:package`로 PC용 ZIP을 다시 만들 수 있습니다.
 전체 과정을 한 번에 짧게 끝내는 실습으로 보지 않습니다. 이미지·경로 그래프 빌드,
 인증서 검증과 CloudFront 전파 시간을 포함해 진행자는 이틀의 실습 시간을 준비합니다.
 
@@ -44,8 +54,9 @@ python3 -m http.server 8008 --directory workshop/site --bind 127.0.0.1
 ## 공통 작업 규칙
 
 원본 저장소와 `agentcore-cli`는 수정하지 않습니다. 참가자 작업은
-`workshop/.local/labs/<참가자>/app`과 `cli`에 저장합니다. 기존 VPC·서브넷·NAT를 조회하여
-재사용하며 새 네트워크를 만들거나 공유 네트워크를 삭제하지 않습니다.
+`workshop/.local/labs/<참가자>/app`과 `cli`에 저장합니다.
+현재 EC2의 VPC를 IMDSv2로 식별하고 그 VPC의 기존 서브넷·NAT를 재사용합니다.
+VPC 이름이나 기본 VPC로 대체하지 않으며 공유 네트워크를 만들거나 삭제하지 않습니다.
 
 `lab.py run`은 기본적으로 실행할 명령과 대상을 표시합니다. 해당 단계의 목적·대상·변경 계획을
 확인한 뒤 `--execute`를 붙여 실행합니다. 실행 시 실제 AWS 계정과 준비된 작업 공간의 소유권을
@@ -61,7 +72,7 @@ Codex의 로그인·과금과 배포된 AWS 모델의 권한·과금은 구분�
 
 ## 문서와 검증
 
-`chapters/`가 학습 원본, `prompts/`가 Codex 카드, `scripts/`가 실습 도구, `cli/`가 검증된 CLI 예제입니다.
+`chapters/`가 학습 원본, `prompts/`가 세 AI CLI의 공통 카드, `scripts/`가 실습 도구, `cli/`가 검증된 AgentCore CLI 예제입니다.
 `course.json`을 기준으로 `site/`를 생성합니다. `.local/`에는 참가자 설정·데이터·ZIP·클라우드 출력이
 들어가며 Git 및 정적 사이트에서 제외합니다. API 키는 프롬프트·문서·설정 JSON에 넣지 않습니다.
 

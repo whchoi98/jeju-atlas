@@ -6,10 +6,23 @@ from pathlib import Path
 import re
 
 FIELDS = {"version", "participant", "accountId", "region", "profile", "vpcName",
-          "network", "domainName", "viewerCertificateArn"}
+          "network", "domainName", "viewerCertificateArn", "ec2Context"}
 NETWORK_FIELDS = {"vpcId", "publicSubnetIds", "privateSubnetIds", "cloudFrontPrefixListId"}
 PROTECTED_DOMAINS = {"jeju-atlas.whchoi.net", "ohmyjeju.whchoi.net"}
 RESERVED = {"prod", "production", "main", "default", "jeju3d", "jejuatlas", "ohmyjeju"}
+
+
+def validate_ec2_context(value):
+    if not isinstance(value, dict) or set(value) != {"instanceId", "accountId", "region", "vpcId"}:
+        raise ValueError("EC2 context must contain only instance/account/region/VPC identifiers")
+    checks = {
+        "instanceId": r"i-[a-f0-9]{8,17}", "accountId": r"[0-9]{12}",
+        "region": r"[a-z]{2}(?:-[a-z]+)+-[0-9]+", "vpcId": r"vpc-[a-f0-9]{8,17}",
+    }
+    if any(not isinstance(value[key], str) or not re.fullmatch(pattern, value[key])
+           for key, pattern in checks.items()):
+        raise ValueError("Invalid EC2 identity or network metadata")
+    return deepcopy(value)
 
 
 def validate_config(value, require_network=False):
@@ -30,7 +43,12 @@ def validate_config(value, require_network=False):
     if not isinstance(account, str) or not re.fullmatch(r"[0-9]{12}", account) or account == "000000000000":
         raise ValueError("An explicit 12-digit AWS accountId is required")
     if result["region"] != "ap-northeast-2":
-        raise ValueError("This workshop deploys regional assets in ap-northeast-2")
+        raise ValueError("Use the workshop EC2 in ap-northeast-2; no cross-region VPC fallback is allowed")
+    if "ec2Context" in result:
+        context = validate_ec2_context(result["ec2Context"])
+        if context["accountId"] != account or context["region"] != result["region"]:
+            raise ValueError("Configuration must use this EC2's own account and region")
+        result["ec2Context"] = context
     if not isinstance(result["profile"], str) or not re.fullmatch(r"[A-Za-z0-9_.@-]{0,64}", result["profile"]):
         raise ValueError("Invalid AWS profile name")
     if not isinstance(result["vpcName"], str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}", result["vpcName"]):
@@ -62,6 +80,8 @@ def validate_config(value, require_network=False):
             all_subnets.extend(values)
         if len(set(all_subnets)) != 4:
             raise ValueError("Public and private subnets must be four distinct subnets")
+        if result.get("ec2Context") and network["vpcId"] != result["ec2Context"]["vpcId"]:
+            raise ValueError("The selected network must be this EC2's primary-interface VPC")
     return result
 
 
@@ -82,6 +102,8 @@ def binding_digest(config):
     config = validate_config(config, require_network=True)
     # DNS can be configured after the initial CloudFront deployment. Ownership cannot.
     binding = {key: config[key] for key in ["participant", "accountId", "region", "vpcName", "network"]}
+    if config.get("ec2Context"):
+        binding["ec2Context"] = config["ec2Context"]
     return hashlib.sha256(json.dumps(binding, sort_keys=True).encode()).hexdigest()
 
 
@@ -118,16 +140,27 @@ def aws_session(config):
     caller = session.client("sts", config=Config(connect_timeout=5, read_timeout=15)).get_caller_identity()
     if caller["Account"] != config["accountId"]:
         raise ValueError("AWS credentials do not match the configured account; no operation executed")
+    if config.get("ec2Context"):
+        from ec2_context import read_ec2_context
+        if read_ec2_context() != config["ec2Context"]:
+            raise ValueError("Run cloud steps on the EC2 instance that created this workshop configuration")
     return session
 
 
 def discover_network(config, ec2):
     config = validate_config(config)
-    vpcs = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [config["vpcName"]]},
-                                    {"Name": "state", "Values": ["available"]}])["Vpcs"]
+    if config.get("ec2Context"):
+        vpcs = ec2.describe_vpcs(VpcIds=[config["ec2Context"]["vpcId"]])["Vpcs"]
+    else:
+        vpcs = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [config["vpcName"]]},
+                                        {"Name": "state", "Values": ["available"]}])["Vpcs"]
     if len(vpcs) != 1:
-        raise ValueError("Expected exactly one existing VPC with the configured Name tag")
+        raise ValueError("Expected exactly one configured existing VPC")
     vpc = vpcs[0]["VpcId"]
+    if vpcs[0].get("State", "available") != "available":
+        raise ValueError("The EC2 VPC must be available")
+    if config.get("ec2Context") and vpc != config["ec2Context"]["vpcId"]:
+        raise ValueError("EC2 lookup returned a different VPC")
     subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc]},
                                           {"Name": "state", "Values": ["available"]}])["Subnets"]
     tables = ec2.describe_route_tables(Filters=[{"Name": "vpc-id", "Values": [vpc]}])["RouteTables"]

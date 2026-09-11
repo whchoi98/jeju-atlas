@@ -1,10 +1,10 @@
-.terrain-tools-toggle { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 61px; padding: 9px 3px; color: var(--teal-dark); font: 700 9px/1.4 var(--sans); }
+.terrain-tools-toggle { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 61px; padding: 9px 3px; color: var(--interactive-hover); font: 700 9px/1.4 var(--sans); }
 .terrain-tools-toggle .icon { width: 21px; height: 21px; }
-.terrain-tools-toggle[aria-expanded="true"] { background: var(--teal); color: white; border-color: var(--teal); }
+.terrain-tools-toggle[aria-expanded="true"] { background: var(--interactive); color: white; border-color: var(--interactive); }
 .terrain-tools-toggle > span { max-width: 60px; text-align: center; }
-.layer-panel > .terrain-tools-toggle { flex-direction: row; width: 100%; min-height: 42px; margin: 0 0 14px; padding: 7px; gap: 7px; background: #e9f3ee; border-color: #d2e5dc; box-shadow: none; font-size: 11px; }
+.layer-panel > .terrain-tools-toggle { flex-direction: row; width: 100%; min-height: 42px; margin: 0 0 14px; padding: 7px; gap: 7px; background: var(--interactive-soft); border-color: var(--border); box-shadow: none; font-size: 11px; }
 .layer-panel > .terrain-tools-toggle > span { max-width: none; }
-.layer-panel > .terrain-tools-toggle[aria-expanded="true"] { background: var(--teal); color: #fff; }
+.layer-panel > .terrain-tools-toggle[aria-expanded="true"] { background: var(--interactive); color: #fff; }
 .terrain-tools-panel { position: absolute; top: 78px; right: 96px; z-index: 18; width: min(365px, calc(100% - 120px)); max-height: calc(100% - 150px); background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--panel-shadow); display: flex; flex-direction: column; overflow: hidden; color: var(--ink); font: 12px/1.7 var(--sans); }
 .terrain-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px 10px; }
 .terrain-panel-heading h2 { font: 700 19px/1.5 var(--sans); margin: 0; letter-spacing: -.5px; }
@@ -13,40 +13,40 @@
 .terrain-panel-heading .icon { width: 18px; height: 18px; }
 .terrain-tabs { display: flex; gap: 5px; padding: 0 13px; border-bottom: 1px solid var(--border); }
 .terrain-tabs > button { flex: 1; min-height: 40px; font: 700 12px/1.5 var(--sans); color: var(--basalt); background: transparent; border-bottom: 2px solid transparent; padding: 8px 3px; }
-.terrain-tabs > button[aria-selected="true"] { color: var(--teal); border-bottom-color: var(--teal); }
-.terrain-panel-content { padding: 15px 17px 19px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #bed3cb transparent; }
+.terrain-tabs > button[aria-selected="true"] { color: var(--interactive-text); border-bottom-color: var(--interactive); }
+.terrain-panel-content { padding: 15px 17px 19px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 .terrain-panel-content h3 { font: 700 15px/1.6 var(--sans); margin: 0 0 7px; }
 .terrain-note { font: 11px/1.75 var(--sans); color: var(--basalt); margin: 0 0 12px; overflow-wrap: anywhere; word-break: keep-all; }
 .terrain-actions { display: flex; flex-wrap: wrap; gap: 7px; margin: 11px 0; }
-.terrain-actions > button, #terrain-profile > button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: 1; min-height: 39px; padding: 8px; background: #f0f6f3; color: var(--teal-dark); border: 1px solid #dbe7e2; border-radius: 6px; font: 700 11px/1.4 var(--sans); }
+.terrain-actions > button, #terrain-profile > button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: 1; min-height: 39px; padding: 8px; background: var(--interactive-soft); color: var(--interactive-hover); border: 1px solid var(--border); border-radius: 6px; font: 700 11px/1.4 var(--sans); }
 .terrain-actions .icon { width: 14px; height: 14px; flex: none; }
-.terrain-actions > button[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); color: white; }
+.terrain-actions > button[aria-pressed="true"] { background: var(--interactive); border-color: var(--interactive); color: white; }
 .terrain-tools-panel button:disabled { cursor: not-allowed; }
 .scene-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 14px 0 18px; }
 .scene-grid > button { display: flex; align-items: center; gap: 8px; min-height: 43px; padding: 8px 10px; background: var(--paper); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; font: 700 12px/1.45 var(--sans); text-align: left; }
-.scene-grid > button > .icon { width: 20px; height: 20px; flex: none; color: var(--teal); }
+.scene-grid > button > .icon { width: 20px; height: 20px; flex: none; color: var(--interactive-text); }
 .scene-grid > button > span { overflow-wrap: anywhere; }
-.scene-grid > button[aria-pressed="true"] { background: #e4f0eb; border-color: #81b5ab; }
+.scene-grid > button[aria-pressed="true"] { background: var(--interactive-soft); border-color: var(--interactive); }
 .scene-selection { border-top: 1px solid var(--border); padding-top: 14px; }
 .scene-selection h3 { margin: 2px 0; font-size: 20px; }
 .scene-selection p { color: var(--basalt); font-size: 10px; margin: 0; }
-.terrain-eyebrow { color: var(--teal); font: 700 10px/1.6 var(--sans); letter-spacing: .4px; }
+.terrain-eyebrow { color: var(--interactive-text); font: 700 10px/1.6 var(--sans); letter-spacing: .4px; }
 #terrain-profile { padding-top: 17px; margin-top: 17px; border-top: 1px solid var(--border); }
 #terrain-profile > button { min-width: 150px; }
-#elevation-chart { display: block; width: 100%; height: 115px; overflow: visible; margin-top: 16px; background: linear-gradient(180deg, #f5faf7, #fff); }
-.profile-line { fill: none; stroke: var(--teal); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.profile-axis { stroke: #c5d5ce; stroke-width: 1; }
-#profile-chart-cursor { stroke: var(--orange); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 3 3; }
+#elevation-chart { display: block; width: 100%; height: 115px; overflow: visible; margin-top: 16px; background: linear-gradient(180deg, var(--surface-subtle), #fff); }
+.profile-line { fill: none; stroke: var(--interactive); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.profile-axis { stroke: var(--border); stroke-width: 1; }
+#profile-chart-cursor { stroke: var(--route-accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 3 3; }
 .profile-axis-labels { display: flex; justify-content: space-between; color: var(--basalt); font-size: 10px; padding-top: 5px; }
-#profile-cursor { display: block; width: 100%; min-height: 32px; accent-color: var(--teal); margin: 5px 0; }
-#profile-position { display: block; font: 700 12px/1.5 var(--sans); color: var(--teal-dark); text-align: center; margin-bottom: 12px; }
+#profile-cursor { display: block; width: 100%; min-height: 32px; accent-color: var(--interactive); margin: 5px 0; }
+#profile-position { display: block; font: 700 12px/1.5 var(--sans); color: var(--interactive-hover); text-align: center; margin-bottom: 12px; }
 .profile-stats { display: grid; gap: 8px; margin: 12px 0; }
 .profile-stats > div { display: flex; justify-content: space-between; gap: 8px; padding-bottom: 7px; border-bottom: 1px solid var(--border); }
 .profile-stats dt { font-size: 11px; color: var(--basalt); }
 .profile-stats dd { margin: 0; font-weight: 700; }
-.profile-source { font-size: 10px; color: var(--teal-dark); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.profile-source { font-size: 10px; color: var(--interactive-hover); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
 .measurement-summary { display: flex; flex-direction: column; gap: 4px; padding: 14px 0; border-block: 1px solid var(--border); }
-.measurement-summary strong { color: var(--teal-dark); font: 700 27px/1.3 var(--sans); }
+.measurement-summary strong { color: var(--interactive-hover); font: 700 27px/1.3 var(--sans); }
 .measurement-summary span { color: var(--basalt); font-size: 11px; }
 .measurement-segments { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 7px; }
 .measurement-segments li { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--basalt); }

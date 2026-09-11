@@ -12,21 +12,21 @@
   gap: 5px;
   min-height: 38px;
   padding: 7px 5px;
-  border: 1px solid #c7d9d7;
+  border: 1px solid var(--border);
   border-radius: 7px;
-  color: #195b60;
-  background: #f4faf8;
+  color: var(--interactive-text);
+  background: var(--interactive-soft);
   font: inherit;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
 }
 
-.detail-route-actions button:hover { background: #e4f1ec; }
-.detail-route-actions button:focus-visible { outline: 2px solid #187c87; outline-offset: 2px; }
+.detail-route-actions button:hover { background: var(--paper); }
+.detail-route-actions button:focus-visible { outline: 2px solid var(--interactive); outline-offset: 2px; }
 .detail-route-actions svg { width: 15px; height: 15px; flex-shrink: 0; }
-.trip-map-caption[data-mode="walk"] { color: #155f68; border-color: #a9d3d1; }
-.trip-map-caption[data-mode="car"] { color: #914422; border-color: #dfb6a1; }
+.trip-map-caption[data-mode="walk"] { color: var(--interactive-text); border-color: var(--interactive-border); }
+.trip-map-caption[data-mode="car"] { color: var(--route-accent); border-color: var(--brand-orange); }
 
 @media (max-width: 760px) {
   .detail-route-actions button { min-height: 42px; }
