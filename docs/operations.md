@@ -39,7 +39,7 @@ ALB의 CloudFront Prefix List 제한과 원본 검증 헤더는 유지합니다.
 `E2W270OBXMQ1S2`를 사용합니다. `/assets/*`, `/media/*`, `/terrarium/*`는
 Host 함수를 거치지 않습니다. 3개 이미지의 공유 자산 19개에 대해 HTTP 200과
 SHA-256 일치, S3 직접 접근 차단, 매니페스트 비공개를
-[확인했습니다](../.local/shared-assets-verification.json).
+확인했습니다 (`.local/history/jeju-3d/shared-assets-verification.json`, 로컬 자료).
 
 ## 엣지 보호와 로그
 
@@ -135,9 +135,9 @@ ALB 헤더 지연은 SSE 답변 전체가 끝나는 시간이나 AI 완료 지�
 실패 3건은 VisitJeju C4의 목록 건수 불일치·식별 충돌과 C1 연결 오류입니다.
 해당 실행은 `partial=true`로 완료했고 마지막 정상 자료를 유지했습니다.
 수집 완료나 웹 정상 응답만으로 제공처 장애가 해소됐다고 판단하지 않습니다.
-근거: [실제 실행](../.local/data-health-smoke.json),
-[필터·heartbeat 검증](../.local/data-health-metric-verification.json),
-[알람·지표 관측](../.local/data-health-live-alarms.json).
+근거: 실제 실행 (`.local/history/jeju-3d/data-health-smoke.json`, 로컬 자료),
+필터·heartbeat 검증 (`.local/history/jeju-3d/data-health-metric-verification.json`, 로컬 자료),
+알람·지표 관측 (`.local/history/jeju-3d/data-health-live-alarms.json`, 로컬 자료).
 
 ## 알림과 남은 운영 작업
 
@@ -169,6 +169,6 @@ cfn-lint infra/edge.yaml infra/operations.yaml infra/data.yaml infra/origin-rout
 결과는 그 릴리스의 운영 증거에 별도로 남깁니다.
 
 기준 템플릿: [edge.yaml](../infra/edge.yaml), [operations.yaml](../infra/operations.yaml), [data.yaml](../infra/data.yaml).
-운영 확인 자료: [로그·알람 검사](../.local/operations-live-checks.json),
-[인프라·HTTP 검사](../.local/verification.json).
+운영 확인 자료: 로그·알람 검사 (`.local/history/jeju-3d/operations-live-checks.json`, 로컬 자료),
+인프라·HTTP 검사 (`.local/history/jeju-3d/verification.json`, 로컬 자료).
 `.local` 파일은 재검사로 바뀔 수 있으므로 실행 시각과 릴리스를 함께 확인합니다.

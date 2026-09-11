@@ -19,10 +19,10 @@
 | 인프라·HTTP | 78개 통과 |
 | 최종 회귀 검사 | Node 247개·Python 150개와 빌드 통과 |
 
-근거: [인프라·HTTP](../.local/verification.json),
-[최종 빌드 검사](../.local/operations-final-image-build.log),
-[원본 TLS 전환 시각](../.local/origin-tls-status.log),
-[수집 작업](../.local/data-health-smoke.json).
+근거: 인프라·HTTP (`.local/history/jeju-3d/verification.json`, 로컬 자료),
+최종 빌드 검사 (`.local/history/jeju-3d/operations-final-image-build.log`, 로컬 자료),
+원본 TLS 전환 시각 (`.local/history/jeju-3d/origin-tls-status.log`, 로컬 자료),
+수집 작업 (`.local/history/jeju-3d/data-health-smoke.json`, 로컬 자료).
 
 원본 함수는 기본 동작과 `/api/catalog/*`, `/api/*`에만 연결됩니다.
 ALB DNS에 HTTPS로 연결하며 Host를 `jeju-atlas.whchoi.net`으로 고정하므로
@@ -32,12 +32,12 @@ ALB DNS에 HTTPS로 연결하며 Host를 `jeju-atlas.whchoi.net`으로 고정하
 공유 자산 버킷은 `jeju-3d-assets-061525506239-ap-northeast-2`,
 OAC는 `E2W270OBXMQ1S2`이며 `/assets/*`로 제공합니다. 현재·이전 이미지
 3개에 필요한 19개 자산의 HTTP 200·SHA-256 일치와 직접 S3 접근 차단·
-매니페스트 비공개를 [검증했습니다](../.local/shared-assets-verification.json).
+매니페스트 비공개를 검증했습니다 (`.local/history/jeju-3d/shared-assets-verification.json`, 로컬 자료).
 
 실제 Astra 영어 요청은 53.433초에 완료됐으며 검사 시간대 로그에 입력 표식·질문·
 답변 일부가 검출되지 않았습니다. 모델·도구 이름과 토큰 수는 남습니다.
 두 Runtime 로그 그룹에 14일 보관을 적용했습니다.
-[개인정보 검사](../.local/guide-privacy-live.json) · [보관 정책](../.local/runtime-log-retention-applied.json)
+개인정보 검사 (`.local/history/jeju-3d/guide-privacy-live.json`, 로컬 자료) · 보관 정책 (`.local/history/jeju-3d/runtime-log-retention-applied.json`, 로컬 자료)
 
 최종 부하 검사는 50개 세션·500 GET, 오류 0건, p50 41.702ms·p95 275.421ms·
 최대 502.158ms입니다. [측정 범위](load-recovery.md)는 HTTP 검사에 한정합니다.
@@ -209,29 +209,29 @@ AI는 서명된 HttpOnly/Secure/SameSite 쿠키와 사용자에 묶인 대화 �
 당시 검증에 사용한 자료 경로입니다. 반복 검사로 갱신되는 파일은 실행 시각과
 릴리스를 [운영 보강 기록](commercial-release-2026-09-10.md)과 대조해야 합니다.
 
-- [인프라 검사 JSON](../.local/verification.json)
-- [기존 3D 기능 운영 브라우저 검사 JSON](../.local/browser-after-guide-fix/report.json)
-- [카탈로그·실제 AI·PWA 운영 브라우저 검사](../.local/guide-browser-fix-production/report.json)
-- [대표 아이콘·분류·지도 목록 운영 검사](../.local/map-discovery-production/report.json)
-- [카탈로그·여행·PWA 로컬 통합 브라우저 검사](../.local/guide-browser-fix-local/report.json)
-- [가이드 화면 회귀 검사](../.local/guide-regression-local/report.json)
-- [늦은 지도 응답 취소 검사](../.local/map-race-after/report.json)
-- [대화 복구·GFM·도구·말풍선·모바일 검사](../.local/guide-session-local/report.json)
-- [새 화면·여행·오프라인 로컬 검사](../.local/guide-browser-ui-local/report.json)
-- [한라산 실제 응답 및 나눔스퀘어 운영 검사](../.local/hallasan-guide-production/report.json)
-- [Origin 차이 조건의 성산일출봉 실제 응답 검사](../.local/seongsan-origin-proof-production/report.json)
-- [고도 캐시 검사와 지연 측정 JSON](../.local/terrain-cache-verification.json)
-- [ECR 검사 JSON](../.local/image-scan-origin-proof.json)
-- [데스크톱 위성 지도](../.local/browser-terrain-cache/desktop-satellite.png)
-- [데스크톱 고도 지도](../.local/browser-terrain-cache/desktop-terrain.png)
-- [모바일 지도](../.local/browser-terrain-cache/mobile-map.png)
-- [모바일 장소 선택](../.local/browser-terrain-cache/mobile-place.png)
-- [대표 명소로 시작하는 지도](../.local/map-discovery-production/initial-representatives.png)
-- [공식 보강 사진과 장소 상세](../.local/guide-browser-fix-production/official-detail.png)
-- [여행 코스 편집](../.local/guide-browser-fix-production/trip-planner.png)
-- [실제 AI 가이드 응답](../.local/guide-browser-fix-production/live-guide.png)
-- [오프라인 저장 코스](../.local/guide-browser-fix-production/offline-trip.png)
-- [모바일 여행 코스](../.local/guide-browser-fix-production/mobile-trip.png)
+- 인프라 검사 JSON (`.local/history/jeju-3d/verification.json`, 로컬 자료)
+- 기존 3D 기능 운영 브라우저 검사 JSON (`.local/history/jeju-3d/browser-after-guide-fix/report.json`, 로컬 자료)
+- 카탈로그·실제 AI·PWA 운영 브라우저 검사 (`.local/history/jeju-3d/guide-browser-fix-production/report.json`, 로컬 자료)
+- 대표 아이콘·분류·지도 목록 운영 검사 (`.local/history/jeju-3d/map-discovery-production/report.json`, 로컬 자료)
+- 카탈로그·여행·PWA 로컬 통합 브라우저 검사 (`.local/history/jeju-3d/guide-browser-fix-local/report.json`, 로컬 자료)
+- 가이드 화면 회귀 검사 (`.local/history/jeju-3d/guide-regression-local/report.json`, 로컬 자료)
+- 늦은 지도 응답 취소 검사 (`.local/history/jeju-3d/map-race-after/report.json`, 로컬 자료)
+- 대화 복구·GFM·도구·말풍선·모바일 검사 (`.local/history/jeju-3d/guide-session-local/report.json`, 로컬 자료)
+- 새 화면·여행·오프라인 로컬 검사 (`.local/history/jeju-3d/guide-browser-ui-local/report.json`, 로컬 자료)
+- 한라산 실제 응답 및 나눔스퀘어 운영 검사 (`.local/history/jeju-3d/hallasan-guide-production/report.json`, 로컬 자료)
+- Origin 차이 조건의 성산일출봉 실제 응답 검사 (`.local/history/jeju-3d/seongsan-origin-proof-production/report.json`, 로컬 자료)
+- 고도 캐시 검사와 지연 측정 JSON (`.local/history/jeju-3d/terrain-cache-verification.json`, 로컬 자료)
+- ECR 검사 JSON (`.local/history/jeju-3d/image-scan-origin-proof.json`, 로컬 자료)
+- 데스크톱 위성 지도 (`.local/history/jeju-3d/browser-terrain-cache/desktop-satellite.png`, 로컬 자료)
+- 데스크톱 고도 지도 (`.local/history/jeju-3d/browser-terrain-cache/desktop-terrain.png`, 로컬 자료)
+- 모바일 지도 (`.local/history/jeju-3d/browser-terrain-cache/mobile-map.png`, 로컬 자료)
+- 모바일 장소 선택 (`.local/history/jeju-3d/browser-terrain-cache/mobile-place.png`, 로컬 자료)
+- 대표 명소로 시작하는 지도 (`.local/history/jeju-3d/map-discovery-production/initial-representatives.png`, 로컬 자료)
+- 공식 보강 사진과 장소 상세 (`.local/history/jeju-3d/guide-browser-fix-production/official-detail.png`, 로컬 자료)
+- 여행 코스 편집 (`.local/history/jeju-3d/guide-browser-fix-production/trip-planner.png`, 로컬 자료)
+- 실제 AI 가이드 응답 (`.local/history/jeju-3d/guide-browser-fix-production/live-guide.png`, 로컬 자료)
+- 오프라인 저장 코스 (`.local/history/jeju-3d/guide-browser-fix-production/offline-trip.png`, 로컬 자료)
+- 모바일 여행 코스 (`.local/history/jeju-3d/guide-browser-fix-production/mobile-trip.png`, 로컬 자료)
 
 `.local`은 실제 검증 기록으로 워크스페이스에 보관하며 Git에는 포함하지 않습니다. 최초 배포의 미사용 테스트 이미지 2개는 정리했으며, 현재 이미지와 이전 정상 릴리스 이미지는 보존했습니다.
 

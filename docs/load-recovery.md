@@ -17,7 +17,7 @@
 | p95 | 275.421ms |
 | 최대 | 502.158ms |
 
-근거: [최종 부하 결과](../.local/load-final-commercial.json).
+근거: 최종 부하 결과 (`.local/history/jeju-3d/load-final-commercial.json`, 로컬 자료).
 워밍업 6건은 측정에서 제외했습니다. 서울 검사 호스트라는 전제의 임시 목표
 오류 0건·p95 ≤ 1,000ms를 통과했습니다. 호스트 위치는 스크립트가 자동 판별하지 않습니다.
 이 결과는 짧은 HTTP 검사이며 장시간 수용 용량·사용자 기기의 FPS·AI 완료 지연을
@@ -82,7 +82,7 @@ health/config는 약 1초 주기로, AWS 상태는 별도 주기로 관측합니
 
 실제 단일 태스크 교체는 **이전 릴리스 `release-20260910T144230Z`**에서
 2026-09-10 14:56~14:58 UTC에 통과했습니다.
-[당시 관측 자료](../.local/recovery-commercial.json)는 현재 이미지의 교체 검증이나
+당시 관측 자료 (`.local/history/jeju-3d/recovery-commercial.json`, 로컬 자료)는 현재 이미지의 교체 검증이나
 이전 이미지로 되돌리는 운영 롤백의 증거가 아닙니다.
 
 ## 이전 이미지 롤백 검증
@@ -90,7 +90,7 @@ health/config는 약 1초 주기로, AWS 상태는 별도 주기로 관측합니
 현재 이미지 `18fb0b…` → 이전 이미지 `0ef30e…` → 현재 이미지의
 **실제 Docker 이미지 로컬 예행연습**이 통과했습니다. 모델 호출 0회,
 readiness·공식 상세·공유 자산 참조와 읽기 전용 자료 불변을 확인했습니다.
-[예행연습 결과](../.local/release-rollback-final-rehearsal.json)
+예행연습 결과 (`.local/history/jeju-3d/release-rollback-final-rehearsal.json`, 로컬 자료)
 
 공개 공유 자산은 3개 이미지에 필요한 19개 파일의 SHA-256을 검증했습니다.
 AWS 롤백은 **검토 가능한 계획까지 준비했으며 실행하지 않았습니다.**

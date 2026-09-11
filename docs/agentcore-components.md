@@ -18,7 +18,7 @@
 | 코드·의존성·카탈로그 버킷 | `jeju-3d-data-061525506239-ap-northeast-2` |
 | 인증 | 웹→Guide와 Guide→Gateway 모두 IAM; 대상 호출은 Gateway IAM 역할 |
 
-[완료된 스택 출력](../.local/atlas-agent-outputs.json).
+완료된 스택 출력 (`.local/atlas-agent-outputs.json`, 로컬 자료).
 Gateway는 HTTP Runtime 대상 구성입니다. 새 MCP 클라이언트는 대상 이름이 들어간
 `/JejuAtlasTools/invocations`에 연결하며 집계형 `/mcp` 엔드포인트를 사용하지 않습니다.
 
@@ -52,14 +52,14 @@ Gateway는 HTTP Runtime 대상 구성입니다. 새 MCP 클라이언트는 대�
 전용 카탈로그 키는 `catalog/catalog.sqlite`입니다. 초기 복사는 6,724곳과 원본 hash를
 유지했습니다. OpenStreetMap 6,587곳과 시드 137곳의 근거 수준은 그대로이며,
 복사가 기본 좌표·주소·소개를 공식 검증값으로 바꾸지는 않습니다.
-[카탈로그 복사 확인](../.local/independence/catalog-import-applied.json)
+카탈로그 복사 확인 (`.local/independence/catalog-import-applied.json`, 로컬 자료)
 
 ## 공식 상세와 제공처 키
 
 Tools는 전용 버킷의 `place-details/latest.json`을 읽습니다. 제공처·언어·조회 시각을
 보존하고, 기본 ID·좌표를 바꾸거나 연결된 기록 전체를 검증 완료로 승격하지 않습니다.
 웹 task 12와 수집 작업 `jeju-3d-data:4`도 같은 소유 카탈로그를 사용합니다.
-[실제 연결과 IAM 감사](../.local/independence/final-aws-audit.json)의 검사 대상 역할 4개에
+실제 연결과 IAM 감사 (`.local/independence/final-aws-audit.json`, 로컬 자료)의 검사 대상 역할 4개에
 참조 프로젝트 리소스 grant가 없음을 확인했습니다.
 
 TourAPI·VisitJeju 키는 별도 수집 태스크의 SSM 권한 경계에 남습니다.
@@ -71,12 +71,12 @@ Provider로 등록하지 않았습니다. 허용된 사진만 기존 CloudFront 
 
 전용 Guide의 실제 한국어 호출은 **17.553초**, 영어 호출은 **25.434초**에 오류 없이
 SSE `done`으로 끝났습니다. 별도의 공개 웹 AI 요청도 26.651초에 완료했습니다.
-[공개 AI 검사](../.local/guide-privacy-live.json)는 로그·트레이스 1,066건에서
+공개 AI 검사 (`.local/guide-privacy-live.json`, 로컬 자료)는 로그·트레이스 1,066건에서
 질문·답변 유출이 없고 모델·도구·토큰 메타데이터가 유지됨을 확인했습니다.
 
 검사 구간의 로그·트레이스 **8,260건**에서 입력 표식·질문·답변 유출은 검출되지 않았습니다.
 **Sol/Astra 모델·도구 이름·토큰 메타데이터는 유지됩니다.**
-[관측 검사](../.local/independence/native-telemetry-verification.json)
+관측 검사 (`.local/independence/native-telemetry-verification.json`, 로컬 자료)
 
 Runtime 서비스가 자동 생성한 다음 두 로그 그룹에 **14일 보관**을 적용했습니다.
 CloudFormation에 같은 로그 그룹을 중복 선언하지 않습니다.
@@ -85,7 +85,7 @@ CloudFormation에 같은 로그 그룹을 중복 선언하지 않습니다.
 - `/aws/bedrock-agentcore/runtimes/JejuAtlas_Tools-Nh0YFIFC7c-DEFAULT`
 
 `configure-logs`는 완료된 스택의 Runtime·아티팩트·역할 소유권을 확인하고 이 두 그룹만
-처리합니다. [보관 적용 결과](../.local/atlas-agent-log-retention.json).
+처리합니다. 보관 적용 결과 (`.local/atlas-agent-log-retention.json`, 로컬 자료).
 이 검사는 해당 관측 구간에 한하며 과거 로그 전체 삭제나 미래 요청의 무유출 보장을 뜻하지 않습니다.
 
 ## Memory와 배포 명령

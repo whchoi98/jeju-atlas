@@ -21,7 +21,7 @@
 - 인허가 `business_status=open`은 해당 인허가 기록의 상태이며 현재 영업 여부가 아닙니다.
   없는 필드는 생성하지 않고 OpenStreetMap·ODbL 표기를 유지합니다.
 
-[복사 검증](../.local/independence/catalog-import-applied.json) · [데이터 품질](data-quality.md)
+복사 검증 (`.local/independence/catalog-import-applied.json`, 로컬 자료) · [데이터 품질](data-quality.md)
 
 `agent/guide/`, `agent/tools/`는 검증된 소스의 초기 읽기 전용 복사 이후 이 프로젝트가
 소유합니다. 후속 빌드·실행은 참조 저장소 경로를 읽지 않습니다.
@@ -112,18 +112,18 @@ Guide는 IAM으로 전용 HTTP Gateway의 `/JejuAtlasTools/invocations`를 호�
 방문 순서·좌표·체류 시간·출처·이동 수단을 포함합니다. PWA는 앱 셸만 캐시하며
 API·지도 타일·사진을 사전 저장하지 않습니다. 오프라인 지도나 경로 계산을 약속하지 않습니다.
 
-실제 로컬 경로·HGT 통합은 [네이티브 브라우저 8/8 보고서](../.local/browser-mobility-native-rate60/report.json)에
+실제 로컬 경로·HGT 통합은 네이티브 브라우저 8/8 보고서 (`.local/browser-mobility-native-rate60/report.json`, 로컬 자료)에
 있습니다. 해당 브라우저 검사는 모델 호출 0회이며 AI 호출 검증과 별도입니다.
 공개 릴리스 `release-20260911T013430Z`의 웹·라우터 이미지 쌍과 전용 연결을 배포했습니다.
 공개 API의 검증 지점쌍은 차량 4,571m / 예상 410.673초,
-도보 3,885m / 예상 2,770.64초입니다. [공개 응답](../.local/mobility-live-api.json).
+도보 3,885m / 예상 2,770.64초입니다. 공개 응답 (`.local/mobility-live-api.json`, 로컬 자료).
 웹·라우터 최종 ECR 스캔은 각각 발견 0건이며, 실제 연결·IAM은
-[독립성 감사](../.local/independence/final-aws-audit.json)에서 확인했습니다.
-[공개 브라우저](../.local/browser-mobility-live-release-20260911T013430Z-observed-config/report.json)는
+독립성 감사 (`.local/independence/final-aws-audit.json`, 로컬 자료)에서 확인했습니다.
+공개 브라우저 (`.local/browser-mobility-live-release-20260911T013430Z-observed-config/report.json`, 로컬 자료)는
 8/8 통과했으며 실제 경로·고도 POST 16회가 모두 200이었습니다.
-[공개 AI 검사](../.local/guide-privacy-live.json)는 26.651초에 답변을 완료하고 관련
+공개 AI 검사 (`.local/guide-privacy-live.json`, 로컬 자료)는 26.651초에 답변을 완료하고 관련
 로그·트레이스 1,066건의 원문 비기록과 메타데이터 보존을 확인했습니다.
-[최종 전체 검사](../.local/checks.json)의 Node 299개·Python 190개 통과(선택적 검사 3개 건너뜀),
+최종 전체 검사 (`.local/checks.json`, 로컬 자료)의 Node 299개·Python 190개 통과(선택적 검사 3개 건너뜀),
 스키마·의존성·빌드가 모두 통과했습니다.
 
 2026-09-09~10의 공유 Ohmyjeju 연결·문제 재현·수정 시간은

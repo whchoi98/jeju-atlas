@@ -34,8 +34,8 @@ desired 2 / running 2, 웹·라우터 컨테이너 HEALTHY를 확인했습니다
 | 수집 작업 | `sha256:296ef7d4113b7db8bd3afa739feb84fa7c6e29d35a0d2e7b09935d38ea8f0842` |
 
 웹과 라우터 최종 ECR 스캔의 발견 건수는 각각 **0건**입니다.
-[웹 스캔](../.local/mobility-web-image-scan.json) ·
-[라우터 최종 보안 스캔](../.local/mobility-routing-security-scan.json).
+웹 스캔 (`.local/mobility-web-image-scan.json`, 로컬 자료) ·
+라우터 최종 보안 스캔 (`.local/mobility-routing-security-scan.json`, 로컬 자료).
 `mobility-routing-image-scan.json`은 보안 수정 전의 다른 이미지 기록이므로 현재 결과로 사용하지 않습니다.
 
 두 주소 `https://jeju-atlas.whchoi.net`, `https://d2mznud99i2mdr.cloudfront.net`에서
@@ -49,7 +49,7 @@ desired 2 / running 2, 웹·라우터 컨테이너 HEALTHY를 확인했습니다
 
 시간은 경로 엔진의 이동 예상치이며 HTTP 응답 지연 측정값이 아닙니다.
 고도 검증 좌표의 표본은 1,931m와 94m였으며 정상의 공식 표고·정밀 측량값을 뜻하지 않습니다.
-[공개 API 원문](../.local/mobility-live-api.json)
+공개 API 원문 (`.local/mobility-live-api.json`, 로컬 자료)
 
 ## 전용 리소스와 독립성
 
@@ -62,13 +62,13 @@ desired 2 / running 2, 웹·라우터 컨테이너 HEALTHY를 확인했습니다
 | Memory | `JejuAtlas_Memory-xH3L1d4DjN`; 4개 전략 ACTIVE |
 | 전용 버킷 | `jeju-3d-data-061525506239-ap-northeast-2` |
 
-근거: [완료된 스택 출력](../.local/atlas-agent-outputs.json).
+근거: 완료된 스택 출력 (`.local/atlas-agent-outputs.json`, 로컬 자료).
 Guide의 Gateway 연결은 IAM 인증이며, HTTP Gateway의 Runtime 대상 경로를 사용합니다.
 집계형 `/mcp` 경로나 이전 Gateway 이름을 새 구성에 적용하지 않습니다.
 일반 질문은 `global.openai.gpt-5.6-sol`, 일정 계획은 `global.openai.gpt-6-astra`를
 사용하는 서울 Global CRIS 설정을 유지합니다.
 
-[최종 AWS 독립성 감사](../.local/independence/final-aws-audit.json)의 **24개 검사가 모두 true**입니다.
+최종 AWS 독립성 감사 (`.local/independence/final-aws-audit.json`, 로컬 자료)의 **24개 검사가 모두 true**입니다.
 두 Runtime의 코드 S3·Gateway·Memory·역할, 실제 웹 `jeju-3d:12`와 수집 작업
 `jeju-3d-data:4`의 소유 카탈로그 연결을 확인했습니다. 검사한 Guide·Tools·웹·수집 역할
 4개에 원본 프로젝트 리소스를 가리키는 IAM grant는 없었습니다.
@@ -100,7 +100,7 @@ s3://jeju-3d-data-061525506239-ap-northeast-2/catalog/catalog.sqlite
 5fb97978a7a74b487c7850042c25f08242654c8946d2003374c894a3843a0b00
 ```
 
-[복사·해시 검증](../.local/independence/catalog-import-applied.json).
+복사·해시 검증 (`.local/independence/catalog-import-applied.json`, 로컬 자료).
 구성은 OpenStreetMap 6,587곳과 큐레이션 시드 137곳입니다. 137곳의 이름은 실제 장소를
 바탕으로 하지만 기본 좌표·주소·소개를 공식 대조 검증값으로 취급하지 않습니다.
 복사하거나 공식 보강 자료를 연결한 사실만으로 기본 필드를 검증 완료로 승격하지 않습니다.
@@ -121,7 +121,7 @@ s3://jeju-3d-data-061525506239-ap-northeast-2/catalog/catalog.sqlite
 **OSM 기준 시각은 `2026-09-10T20:21:06Z`**입니다.
 고도 단면은 Skadi `N33E126.hgt`의 원본 높이를 사용하며 출처 객체의 수정 시각은
 **2016-04-23**입니다. 이 날짜는 현재 영상 촬영일이나 현장 측량일을 뜻하지 않습니다.
-[데이터 manifest](../.local/routing-data/source.json)
+데이터 manifest (`.local/routing-data/source.json`, 로컬 자료)
 
 고도는 DEM 표본값으로 정상의 공식 표고·정밀 측량값과 다를 수 있습니다.
 단면은 화면 고도 배율과 독립적이며 결측을 0m로 채우지 않습니다.
@@ -130,7 +130,7 @@ s3://jeju-3d-data-061525506239-ap-northeast-2/catalog/catalog.sqlite
 
 ## 네이티브 검증
 
-[이동 기능 보고서](../.local/browser-mobility-native-rate60/report.json)는
+이동 기능 보고서 (`.local/browser-mobility-native-rate60/report.json`, 로컬 자료)는
 2026-09-11 01:22~01:26 UTC의 로컬 실제 그래프·HGT 검사입니다. **8/8 통과**했으며
 모델을 구성하거나 호출하지 않았습니다.
 
@@ -152,13 +152,13 @@ s3://jeju-3d-data-061525506239-ap-northeast-2/catalog/catalog.sqlite
 | 한국어 | 17.553초 | 오류 없이 `done` |
 | 영어 | 25.434초 | 오류 없이 `done` |
 
-근거: [한국어](../.local/independence/guide-ko-live.json),
-[영어](../.local/independence/guide-en-live.json).
+근거: 한국어 (`.local/independence/guide-ko-live.json`, 로컬 자료),
+영어 (`.local/independence/guide-en-live.json`, 로컬 자료).
 각 시간은 한 번의 네이티브 호출 관측값이며 공개 웹 전체의 지연 보장이 아닙니다.
 
 해당 검사 구간의 로그·트레이스 **8,260건**에서 입력 표식·질문·답변 원문 유출 검사는
 모두 false였습니다. Sol/Astra 모델·토큰 수·도구 메타데이터는 유지됐습니다.
-[관측 검사](../.local/independence/native-telemetry-verification.json).
+관측 검사 (`.local/independence/native-telemetry-verification.json`, 로컬 자료).
 전체 과거 로그가 삭제됐거나 모든 미래 요청을 검증했다는 의미는 아닙니다.
 
 ## 운영 명령과 현재 용량
@@ -176,7 +176,7 @@ python3 scripts/deploy-atlas-agent.py configure-logs
 
 Runtime 로그 그룹은 서비스가 자동 생성합니다. CloudFormation에 중복 선언하지 않고,
 `configure-logs`가 전용 Runtime 두 개의 소유권을 확인한 뒤 14일 보관을 적용했습니다.
-[적용 결과](../.local/atlas-agent-log-retention.json).
+적용 결과 (`.local/atlas-agent-log-retention.json`, 로컬 자료).
 폐기된 `scripts/deploy-guide-models.py` CLI는 AWS 연결 전에 종료합니다.
 
 공개 task 12의 설정은 작업당 **512 CPU units(0.5 vCPU)·1,024 MiB**,
@@ -193,12 +193,12 @@ AI의 전체 하루 30회·사용자별 시간당 5회·전체 동시 2회 제�
   선언해 충돌했고 자동 롤백됐습니다. actors 0명인 실패 Memory를 확인한 뒤 해당
   Memory의 삭제와 실패 스택 정리만 진행했습니다. 실패 시도의 로그는 14일 보관으로
   남기고 중복 로그 선언을 제거해 재생성했습니다.
-  [빈 Memory 확인](../.local/independence/failed-memory-inventory.json) ·
-  [정리 요청 기록](../.local/independence/failed-create-cleanup.json).
+  빈 Memory 확인 (`.local/independence/failed-memory-inventory.json`, 로컬 자료) ·
+  정리 요청 기록 (`.local/independence/failed-create-cleanup.json`, 로컬 자료).
   정리 상태 기록의 `DELETING`은 삭제 완료 증거로 해석하지 않습니다.
 - 첫 앱 적용은 CloudFormation Rules의 숫자 리터럴 `Equals` 비교 오류로 실패·롤백됐습니다.
   문자열 비교로 수정하고 회귀 검사를 거친 재시도에서 `UPDATE_COMPLETE`가 됐습니다.
-  [첫 계획](../.local/mobility-app-plan.log) · [재시도 계획](../.local/mobility-app-plan-retry.log).
+  첫 계획 (`.local/mobility-app-plan.log`, 로컬 자료) · 재시도 계획 (`.local/mobility-app-plan-retry.log`, 로컬 자료).
 
 이 과정에서 기존 참조 스택·소스는 추가 변경하지 않았습니다. 자동 롤백 이력은 승인된
 이전 릴리스로 수동 롤백을 수행한 기록과 구분합니다.
@@ -217,19 +217,19 @@ AI의 전체 하루 30회·사용자별 시간당 5회·전체 동시 2회 제�
 | 운영 배포·언어·모바일·회귀 | ECS task 12 건강 상태, 공개 브라우저 8/8, 인프라·HTTP 91개 |
 | 참조 프로젝트와 독립 | 실제 AWS 연결·코드·IAM·카탈로그 감사 24/24 |
 
-[공개 브라우저 최종 보고서](../.local/browser-mobility-live-release-20260911T013430Z-observed-config/report.json).
+공개 브라우저 최종 보고서 (`.local/browser-mobility-live-release-20260911T013430Z-observed-config/report.json`, 로컬 자료).
 두 호스트의 최종 경로·고도 POST 16회 모두 200이었고 CNAME 403은 없었습니다.
 초기 검증기의 중복 config 요청은 검증기에서 수정했으며 앱·서버 수정으로 우회하지 않았습니다.
 
-[공개 AI 검사](../.local/guide-privacy-live.json)는 영어 일정 질문을 26.651초에 완료했습니다.
+공개 AI 검사 (`.local/guide-privacy-live.json`, 로컬 자료)는 영어 일정 질문을 26.651초에 완료했습니다.
 도구 4개 사용과 정상 `done`을 확인했고, 관련 로그·트레이스 1,066건에서 입력 표식·질문·
 답변 원문 유출 없이 모델·도구·토큰 메타데이터가 남는 것을 확인했습니다.
 
-[운영 경로 소규모 부하 검사](../.local/mobility-public-routing-load.json)는 동시 클라이언트 2개,
+운영 경로 소규모 부하 검사 (`.local/mobility-public-routing-load.json`, 로컬 자료)는 동시 클라이언트 2개,
 총 60회 요청에서 오류 0회, p50 43.659ms, p95 101.102ms, 최장 116.691ms였습니다.
 이 관측은 해당 요청·부하 범위에 대한 값이며 모든 트래픽의 지연 보장이 아닙니다.
 
-[최종 소스 검사](../.local/checks.json)는 Node 299개·Python 190개 통과(선택적 검사 3개 건너뜀), CloudFormation 스키마,
+최종 소스 검사 (`.local/checks.json`, 로컬 자료)는 Node 299개·Python 190개 통과(선택적 검사 3개 건너뜀), CloudFormation 스키마,
 의존성 보안 검사, 운영 빌드에 통과했습니다. 검사 도중 소스 변경은 없었습니다.
 
 ```text
@@ -237,7 +237,7 @@ sourceDigest: 2ce1107066a689ad438ec5a1e9b8fb6b5aa242b224f78fb4d4bf81700923167c
 PWA shell: ba79f8bbdb7e8672
 ```
 
-[운영 검증](../.local/verification.json) 91개도 통과했습니다. 새로운 승인 롤백 항목에는
+운영 검증 (`.local/verification.json`, 로컬 자료) 91개도 통과했습니다. 새로운 승인 롤백 항목에는
 현재 웹·라우터 두 digest와 OSM 기준 시각을 함께 기록했습니다. 운영 롤백을 실행한 것은 아닙니다.
 
 선택적으로 건너뛴 검사는 별도 실행 플래그가 필요한 Trip 브라우저 검사 1개와

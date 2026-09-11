@@ -25,7 +25,7 @@
 p50 41.702ms·p95 275.421ms·최대 502.158ms를 관측했습니다.
 짧은 HTTP 검사로 장시간 처리 용량이나 동시 사용자 수를 확정하지 않습니다.
 예전 82ms대 p95와의 차이를 성능 개선율로 해석하지 않습니다.
-[부하 검사 범위](load-recovery.md) · [측정 원문](../.local/load-final-commercial.json)
+[부하 검사 범위](load-recovery.md) · 측정 원문 (`.local/history/jeju-3d/load-final-commercial.json`, 로컬 자료)
 
 ## 원본 HTTPS 함수
 
@@ -51,7 +51,7 @@ p50 41.702ms·p95 275.421ms·최대 502.158ms를 관측했습니다.
 10ms는 비용 설명을 위한 가정이며 운영 실행 시간 측정값이 아닙니다.
 전체 viewer 요청 100만 건의 비용으로 해석하지 않습니다.
 이 예시는 다른 AWS 서비스·세금·할인·무료 제공량을 포함하지 않습니다.
-가격 근거: [Lambda@Edge Price List 기록](../.local/lambda-edge-pricing.json).
+가격 근거: Lambda@Edge Price List 기록 (`.local/history/jeju-3d/lambda-edge-pricing.json`, 로컬 자료).
 
 ## 총액에 별도로 포함할 항목
 
@@ -73,4 +73,4 @@ AI는 현재 전체 하루 30회·사용자 시간당 5회·전체 동시 2회 �
 
 가격 근거: AmazonECS, `location=Asia Pacific (Seoul)`, ARM 요율,
 SKU `27GM5GDE29DV8J8U`와 `HNBF4GM42YHAVRU3`.
-확인 원문은 [Fargate 가격 기록](../.local/fargate-pricing.json)에 보관합니다.
+확인 원문은 Fargate 가격 기록 (`.local/history/jeju-3d/fargate-pricing.json`, 로컬 자료)에 보관합니다.

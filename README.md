@@ -2,6 +2,10 @@
 
 실제 제주 고도·위성 지도와 운영 장소 카탈로그, 여행 코스, AI 가이드를 연결한 한·영 앱입니다.
 
+이 프로젝트의 작업 디렉터리는 **`/home/ec2-user/my-project/jeju-atlas`**이며,
+최신 지도·이동 경로·전용 Agent 작업과 Git 이력을 독립 저장소의 **`main`**에 모았습니다.
+[저장소 구성·GitHub 업로드](docs/repository.md) · [분리 구성·기존 영향 점검](docs/separation-audit-2026-09-11.md)
+
 **배포 주소: [제주 아틀라스 열기](https://jeju-atlas.whchoi.net)** · 기존 CloudFront 주소도 지원합니다.
 
 [이동 경로·3D·전용 Agent 전환 현황](docs/mobility-independence-2026-09-11.md) · [이전 공개 배포 기록](docs/deployment.md)
@@ -13,6 +17,9 @@
 공개 브라우저 8/8, 운영 인프라 91개, 최종 Node 299개·Python 190개 통과(선택적 검사 3개 건너뜀)를 확인했습니다.
 공개 AI 답변 완료와 원문 로그 비기록도 확인했습니다.
 CloudFront→ALB HTTPS는 2026-09-10 19:38 UTC부터 배포된 상태이며 원본 DNS 전환 대기는 없습니다.
+위 내용은 해당 릴리스의 검증 기록입니다. 이후 분리 점검에서 기존 프로젝트 역할의
+제주 로그 조회 권한과 기존 Runtime 로그의 14일 보관 정책 잔존을 확인했습니다.
+실행 리소스 분리와 권한 경계·과거 변경 이력은 [점검 결과](docs/separation-audit-2026-09-11.md)에서 구분합니다.
 
 [AgentCore·Strands 구성](docs/agentcore-components.md) · [공식 상세·갤러리·올레길](docs/official-details-olle.md)
 
@@ -40,14 +47,26 @@ CloudFront→ALB HTTPS는 2026-09-10 19:38 UTC부터 배포된 상태이며 원�
 ## 실행
 
 Node.js **24.18.1 이상**과 npm이 필요합니다. 서버는 Node의 SQLite 기능을 사용합니다.
+전체 검사에는 Node 24 계열을 사용하며 `.nvmrc`에 검증 버전을 기록했습니다.
 
 ```bash
+cd /home/ec2-user/my-project/jeju-atlas
 npm ci
 npm run build
 npm run dev
 ```
 
 API 서버를 별도 터미널에서 실행하면 Vite가 `/api`를 로컬 8097 포트로 전달합니다.
+로컬 카탈로그를 준비한 환경에서는 `.env.example`을 `.env`로 복사하여 사용할 수 있습니다.
+카탈로그·키·실행 기록은 Git에 포함하지 않습니다.
+
+```bash
+cp .env.example .env
+# .env의 CATALOG_LOCAL_PATH를 준비한 SQLite 파일 경로로 설정
+node --env-file=.env server/server.mjs
+```
+
+소유 S3 버킷을 사용하는 경우의 설정 예입니다.
 
 ```bash
 CATALOG_BUCKET=jeju-3d-data-061525506239-ap-northeast-2 \
@@ -234,7 +253,7 @@ HTML은 재검증하고 hash가 붙은 JS/CSS/worker는 1년 immutable 캐시합
 s3://jeju-3d-data-061525506239-ap-northeast-2/catalog/catalog.sqlite
 ```
 
-[복사·해시 검증](.local/independence/catalog-import-applied.json).
+복사·해시 검증 (`.local/independence/catalog-import-applied.json`, 로컬 자료).
 에이전트 소스는 검증된 커밋에서 한 번 읽기 전용으로 복사해 `agent/guide/`, `agent/tools/`에서
 소유합니다. 후속 빌드·배포·실행은 참조 프로젝트 디렉터리나 공유 Runtime을 사용하지 않습니다.
 
@@ -302,24 +321,24 @@ PWA는 현재 빌드의 앱 셸만 저장합니다. API 응답·고도 타일·�
 
 이번 브랜치의 실제 로컬 Valhalla·HGT·웹 BFF 브라우저 검사는 **8/8 통과**했습니다.
 GPX·12곳 공유·한영·모바일·위치 권한 거절·고도·3D·응답 취소를 포함하며 모델 호출은 0회입니다.
-[네이티브 보고서](.local/browser-mobility-native-rate60/report.json).
+네이티브 보고서 (`.local/browser-mobility-native-rate60/report.json`, 로컬 자료).
 전용 AI 실제 호출 검증과 전체 검사·공개 전환 결과는
 [최신 전환 기록](docs/mobility-independence-2026-09-11.md)에 구분합니다.
 
 공개 사용자 도메인과 CloudFront 주소에서 health/config/routes/elevation의 200 응답을
 확인했습니다. 검증 지점쌍은 차량 **4,571m / 예상 410.673초**,
 도보 **3,885m / 예상 2,770.64초**입니다.
-[공개 API 결과](.local/mobility-live-api.json) ·
-[AWS 독립성 24/24](.local/independence/final-aws-audit.json).
+공개 API 결과 (`.local/mobility-live-api.json`, 로컬 자료) ·
+AWS 독립성 24/24 (`.local/independence/final-aws-audit.json`, 로컬 자료).
 웹 `92f16ae2…`·라우터 `bae4b2b8…`의 최종 ECR 스캔은 각각 발견 0건입니다.
 정확한 digest와 스캔 근거는 최신 전환 기록에 있습니다.
 공개 브라우저 8/8과 실제 route/elevation POST 16회가 통과했습니다.
-[공개 브라우저 보고서](.local/browser-mobility-live-release-20260911T013430Z-observed-config/report.json).
+공개 브라우저 보고서 (`.local/browser-mobility-live-release-20260911T013430Z-observed-config/report.json`, 로컬 자료).
 공개 AI는 영어 일정 요청을 26.651초에 완료했고, 관련 로그·트레이스 1,066건에서
 질문·답변 유출이 없고 모델·도구·토큰 메타데이터가 유지됨을 확인했습니다.
-[공개 AI 검사](.local/guide-privacy-live.json).
+공개 AI 검사 (`.local/guide-privacy-live.json`, 로컬 자료).
 최종 Node 299개·Python 190개 통과(선택적 검사 3개 건너뜀), 스키마·의존성 검사·운영 빌드가 통과했습니다.
-[최종 검사](.local/checks.json). 별도 운영 인프라·HTTP 검사도 91개 통과했습니다.
+최종 검사 (`.local/checks.json`, 로컬 자료). 별도 운영 인프라·HTTP 검사도 91개 통과했습니다.
 
 인프라·HTTP 78개, Node 247개·Python 150개와 500 GET p95 275.421ms 등은
 [2026-09-10 공개 릴리스의 과거 기록](docs/commercial-completion-audit-2026-09-10.md)입니다.
@@ -396,7 +415,8 @@ AI 하루 30회는 요청 입장 한도이며 금액 상한이 아닙니다. Clo
 [알람 현황](docs/operations.md)을 함께 확인해야 합니다.
 
 운영 알림 수신자, 월 예산·경보 기준, 사업자·서비스 연락처는 운영자 입력이 남아 있습니다.
-SNS 구독과 실제 수신 확인이 필요하며, `main` 병합은 명시적 승인 후 진행합니다.
+SNS 구독과 실제 수신 확인이 필요합니다. 최신 소스는 이 저장소의 `main`에 통합했으며,
+디렉터리 통합만으로 AWS를 재배포하지는 않습니다.
 이 문서의 배포·검사 통과는 해당 운영 항목까지 완료됐다는 뜻이 아닙니다.
 
 ## 데이터 출처와 한계
@@ -432,6 +452,9 @@ infra/                  CloudFormation 템플릿
 scripts/                계획·배포·AWS 검증·브라우저 검증
 docs/                   설계·구현 계획·배포 결과
 .local/                 생성된 결과·검증 자료 (Git 제외)
+.local/history/jeju-3d/ 이전 작업 디렉터리의 운영·검증 기록 (Git 제외)
+.env.example            비밀값 없는 로컬 API 설정 예제
+.nvmrc                  검증한 Node 버전
 ```
 
 ## 정리

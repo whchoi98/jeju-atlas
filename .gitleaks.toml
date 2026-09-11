@@ -1,0 +1,16 @@
+title = "Jeju Atlas secret scanning"
+
+[extend]
+useDefault = true
+
+# Scope this exception to the exact synthetic cookie-signing fixture.
+# Other values in this test and the same value in other files remain scanned.
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Synthetic session signing fixture used only by API tests"
+condition = "AND"
+paths = ['''(^|/)tests/api\.test\.mjs$''']
+regexTarget = "secret"
+regexes = ['''^api\-test\-secret\-with\-at\-least\-32\-bytes$''']
