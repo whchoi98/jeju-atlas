@@ -218,9 +218,14 @@ export class AtlasMap {
   private onVisibility = () => { if (document.hidden) this.stop(); };
   private onMotionPreference = () => { if (this.motionPreference.matches) this.stop(); };
   private onRouteChange = () => this.stop();
-  // A frame-by-frame jumpTo may precede the engine's dragstart detection.
-  // Stop at the physical input boundary so the user's gesture owns the camera.
-  private onDirectInput = () => { this.stop(); this.callbacks.onInteraction(); };
+  // Stop an existing flight before the first pointer starts a new gesture.
+  // Subsequent fingers, wheel ticks and gesture-start events must not call
+  // Map.stop(): it also resets MapLibre's active input handlers.
+  private onDirectInput = (event: Event) => {
+    const preserveGesture = event.type !== 'pointerdown' || (event as PointerEvent).isPrimary === false;
+    this.stop({ preserveGesture });
+    this.callbacks.onInteraction();
+  };
   private onLocale = () => {
     for (const place of places) {
       const element = this.markers.get(place.id)?.getElement();
@@ -291,6 +296,7 @@ export class AtlasMap {
     this.map.getCanvas().addEventListener('webglcontextrestored', this.onContextRestored);
     this.map.getCanvas().addEventListener('pointerdown', this.onDirectInput, { capture: true, passive: true });
     this.map.getCanvas().addEventListener('wheel', this.onDirectInput, { capture: true, passive: true });
+    this.map.getCanvas().addEventListener('keydown', this.onDirectInput, { capture: true });
 
     this.loadTimer = setTimeout(() => {
       if (!this.ready) callbacks.onError('지형을 불러오는 데 시간이 걸리고 있습니다. 인터넷 연결을 확인하거나 다시 시도해 주세요.', false);
@@ -336,10 +342,9 @@ export class AtlasMap {
     });
     for (const eventName of ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart'] as const) {
       this.map.on(eventName, (event) => {
-        if (event.originalEvent) { this.stop(); callbacks.onInteraction(); }
+        if (event.originalEvent) { this.stop({ preserveGesture: true }); callbacks.onInteraction(); }
       });
     }
-    this.map.getCanvas().addEventListener('keydown', () => { this.stop(); callbacks.onInteraction(); });
   }
 
   private tryRecovered(): void {
@@ -697,11 +702,11 @@ export class AtlasMap {
       : { type: 'FeatureCollection', features: [] });
   }
 
-  stop(): void {
+  stop({ preserveGesture = false }: { preserveGesture?: boolean } = {}): void {
     const orbiting = this.orbitPlayback.running;
     this.orbitPlayback.stop();
     this.stopRoutePreview();
-    this.map.stop();
+    if (!preserveGesture) this.map.stop();
     if (orbiting) this.activity('orbit', false);
   }
 
@@ -717,6 +722,7 @@ export class AtlasMap {
     this.map.getCanvas().removeEventListener('webglcontextrestored', this.onContextRestored);
     this.map.getCanvas().removeEventListener('pointerdown', this.onDirectInput, true);
     this.map.getCanvas().removeEventListener('wheel', this.onDirectInput, true);
+    this.map.getCanvas().removeEventListener('keydown', this.onDirectInput, true);
     for (const marker of this.markers.values()) marker.remove();
     this.map.remove();
     if (window.__JEJU_MAP__ === this.map) delete window.__JEJU_MAP__;

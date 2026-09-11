@@ -375,7 +375,7 @@ async function initializeMap(stateOverride?: ViewState): Promise<void> {
         stopTour();
         selectPlace(place, true);
       },
-      onInteraction: () => stopTour(true),
+      onInteraction: () => stopTour(true, { preserveGesture: true }),
       onError: showMapError,
       onRecovered: () => {
         if (currentId !== initializationId) return;
@@ -543,7 +543,7 @@ function advanceTour(): void {
   }, mapModule?.reducedMotion() ? 5000 : 8000);
 }
 
-function stopTour(announce = false): void {
+function stopTour(announce = false, options: { preserveGesture?: boolean } = {}): void {
   const interrupted = tourIndex >= 0 || trailLoading;
   clearTimeout(tourTimer);
   if (tourAnimation !== undefined) cancelAnimationFrame(tourAnimation);
@@ -552,7 +552,7 @@ function stopTour(announce = false): void {
   trailController = undefined;
   trailLoading = false;
   tourIndex = -1;
-  atlas?.stop();
+  atlas?.stop(options);
   renderTour();
   if (announce && interrupted) toast(tourText('stopped'));
 }

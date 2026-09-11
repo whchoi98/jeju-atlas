@@ -35,14 +35,16 @@ export class AtlasExperience {
   private selectedCatalog: CatalogPlace | PlaceSnapshot | undefined;
   private isCatalogSelection = false;
   private activeTab = 'explore';
+  private panelResizeFrame: number | undefined;
 
   constructor(options: ExperienceOptions) {
     this.options = options;
     document.body.classList.add('has-catalog');
+    document.body.dataset.activePanel = this.activeTab;
     const sidebar = document.querySelector<HTMLElement>('#sidebar-content')!;
     const legacy = sidebar.querySelector<HTMLElement>('.explorer')!;
     const intro = sidebar.querySelector<HTMLElement>('.sidebar-intro')!;
-    intro.innerHTML = `<div class="eyebrow"><span class="eyebrow-line"></span> AN ISLAND, IN PERSPECTIVE</div><h1>제주를 펼치고,<br>나만의 <em>여행으로.</em></h1>`;
+    intro.innerHTML = `<div class="eyebrow"><span class="eyebrow-line"></span> AN ISLAND, IN PERSPECTIVE</div><h1><span>제주를 펼치고,</span> <span>나만의</span> <em>여행으로.</em></h1>`;
     const tabs = document.createElement('div');
     tabs.className = 'sidebar-tabs';
     tabs.setAttribute('role', 'tablist');
@@ -191,7 +193,9 @@ export class AtlasExperience {
 
   showTab(tab: string): void {
     if (!['explore', 'trip', 'guide'].includes(tab)) return;
+    const guideTransition = (this.activeTab === 'guide') !== (tab === 'guide');
     this.activeTab = tab;
+    document.body.dataset.activePanel = tab;
     for (const id of ['explore', 'trip', 'guide']) {
       const selected = id === tab;
       document.getElementById(`${id}-panel`)!.hidden = !selected;
@@ -200,6 +204,22 @@ export class AtlasExperience {
       button.tabIndex = selected ? 0 : -1;
     }
     this.catalog.closeDetail(false);
+    if (!guideTransition || matchMedia('(max-width: 760px)').matches) return;
+    if (this.panelResizeFrame !== undefined) cancelAnimationFrame(this.panelResizeFrame);
+    // Let the map's container observer resize first; repair only a stale canvas.
+    this.panelResizeFrame = requestAnimationFrame(() => {
+      this.panelResizeFrame = requestAnimationFrame(() => {
+        this.panelResizeFrame = undefined;
+        const map = this.options.atlas()?.map;
+        if (!map) return;
+        const container = map.getContainer();
+        const canvas = map.getCanvas();
+        if (container.clientWidth > 0 && container.clientHeight > 0
+          && (canvas.clientWidth !== container.clientWidth || canvas.clientHeight !== container.clientHeight)) {
+          map.resize();
+        }
+      });
+    });
   }
 
   onMapReady(atlas: AtlasMap): void {

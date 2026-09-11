@@ -16,10 +16,11 @@
 
 /* Conversation content scrolls; the composer and contextual bubbles stay put. */
 .guide-panel { font-family: var(--sans, inherit); }
-.guide-panel > .panel-intro { flex: 0 0 auto; margin-bottom: 10px; }
-.guide-panel > .panel-intro h2 { font-family: var(--sans, inherit); font-size: 20px; }
+.guide-panel > .panel-intro { flex: 0 0 auto; margin-bottom: 8px; }
+.guide-panel > .panel-intro > h2 { font-family: var(--sans, inherit); font-size: 16px; line-height: 1.4; letter-spacing: -.4px; margin-top: 4px; }
+.guide-panel > .panel-intro > p { font-size: 10px; line-height: 1.6; margin-top: 4px; }
 .guide-ui-emoji { display: inline-block; flex: 0 0 auto; width: 18px; height: 18px; object-fit: contain; vertical-align: -.2em; }
-.guide-panel > .panel-intro h2 > .guide-ui-emoji { width: 21px; height: 21px; }
+.guide-panel > .panel-intro h2 > .guide-ui-emoji { width: 16px; height: 16px; }
 .guide-service-controls { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; margin: 0 0 8px; }
 .guide-service-controls > span { flex: 1; color: var(--basalt); font-size: 11px; }
 .guide-service-controls > button { min-height: 36px; min-width: 36px; padding: 6px 9px; font-size: 11px; border: 1px solid var(--border); background: var(--surface-subtle); border-radius: 5px; }
@@ -89,8 +90,6 @@
 
 @media (max-width: 760px) {
   .guide-panel > .panel-intro { margin-bottom: 6px; }
-  .guide-panel > .panel-intro h2 { font-size: 18px; margin-top: 5px; }
-  .guide-panel > .panel-intro p { margin-top: 4px; font-size: 9px; }
   .guide-body .guide-messages { min-height: 62px; }
   .guide-body .guide-recommendation { max-height: 160px; }
   .guide-thinking { font-size: 11px; padding-block: 5px; }
