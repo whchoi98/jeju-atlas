@@ -47,6 +47,7 @@ CloudFront와 Lambda@Edge 복제 정리는 시간이 걸릴 수 있습니다.
 |---|---|
 | 버전 관리 S3 | data/assets의 모든 객체 버전·delete marker와 버킷 보존 여부 |
 | ECR | 실습 이미지와 repository 보존 여부 |
+| DynamoDB | AI 요청 기록·접속 집계 테이블의 보존, 삭제 보호와 누적 기록 유지 여부 |
 | AgentCore Memory | 실습 Memory의 보존 여부, 본인 데이터 삭제 필요성 |
 | Runtime 로그 | CLI·Guide·Tools가 만든 로그 그룹의 보관/삭제 |
 | Lambda@Edge 로그 | 여러 리전에 만든 정확한 실습 prefix 로그 그룹 |
@@ -57,6 +58,8 @@ CloudFront와 Lambda@Edge 복제 정리는 시간이 걸릴 수 있습니다.
 보존 자료를 지우기로 결정했다면 저장한 inventory의 **정확한 실습 ID**를 사용합니다.
 버킷 삭제 전에는 버전과 delete marker까지 확인합니다.
 Memory는 이름만 비슷한 기존 운영 Memory를 선택하지 않습니다.
+DynamoDB의 AI 요청·접속 집계 테이블도 보존 자원입니다. 삭제를 선택했다면 inventory의 정확한
+실습 테이블에서 삭제 보호 상태를 확인하고 처리합니다. 접속 테이블을 지우면 누적 기록도 함께 사라집니다.
 API 키 값 자체를 조회하여 삭제 대상을 확인하지 않습니다.
 
 실습 EC2가 속한 공유 VPC, NAT·IGW·서브넷·라우트·endpoint, 기존 viewer 인증서,

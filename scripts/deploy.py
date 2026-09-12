@@ -130,7 +130,7 @@ def validate_settings(values):
         "ViewerDomainName", "ViewerCertificateArn", "OriginDomainName",
         "OriginTlsEnabled", "OriginTlsMode", "TargetHealthPath",
         "RoutingEnabled", "TaskCpu", "TaskMemory", "RoutingMemory",
-        "KakaoRestApiKeyParameter",
+        "KakaoRestApiKeyParameter", "GuideLimitsEnabled",
     } | set(integer_bounds)
     if not isinstance(values, dict) or set(values) - allowed:
         raise ValueError("Unknown production setting; secrets and networking do not belong here")
@@ -145,6 +145,10 @@ def validate_settings(values):
     result = {
         "ViewerDomainName": domain, "ViewerCertificateArn": certificate,
     }
+    guide_limits = values.get("GuideLimitsEnabled", "true")
+    if guide_limits not in ("true", "false"):
+        raise ValueError("GuideLimitsEnabled must be the string true or false")
+    result["GuideLimitsEnabled"] = guide_limits
     kakao_parameter = values.get("KakaoRestApiKeyParameter", "")
     if kakao_parameter not in ("", "/jeju-atlas/kakao-rest-api-key"):
         raise ValueError("KakaoRestApiKeyParameter must reference the owned SecureString, never a key value")

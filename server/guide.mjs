@@ -8,12 +8,13 @@ import { catalogPlaceInfo } from './guide-facts.mjs';
 const MESSAGES = {
   guide_unavailable: '여행 가이드를 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.',
   guide_busy: '여행 가이드가 다른 요청을 처리하고 있습니다. 잠시 후 다시 시도해 주세요.',
+  conversation_busy: '이 대화의 요청이 아직 처리 중입니다. 답변이 끝난 뒤 다시 질문해 주세요.',
   guide_timeout: '응답 시간이 길어 중단했습니다. 질문을 나누어 다시 시도해 주세요.',
   agent_error: '여행 가이드 응답 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.',
   invalid_response: '여행 가이드의 응답을 확인할 수 없습니다. 다시 질문해 주세요.',
   daily_limit: '오늘의 여행 가이드 이용 한도에 도달했습니다. 내일 다시 이용해 주세요.',
   hourly_limit: '한 시간 동안의 이용 한도에 도달했습니다. 잠시 후 다시 이용해 주세요.',
-  quota_unavailable: '이용 한도를 확인할 수 없어 요청을 중단했습니다. 잠시 후 다시 시도해 주세요.',
+  quota_unavailable: '요청 처리 상태를 확인할 수 없어 요청을 중단했습니다. 잠시 후 다시 시도해 주세요.',
   invalid_conversation: '대화가 만료되었거나 확인되지 않습니다. 새 대화를 시작해 주세요.',
   invalid_message: '질문은 1자 이상 2,000자 이하로 입력해 주세요.',
   invalid_request: '요청 형식을 확인해 주세요.',
@@ -374,6 +375,7 @@ function validateTurn(body) {
 
 function safeError(error) {
   if (error instanceof GuideError) return error;
+  if (error instanceof AdmissionError) return new GuideError(error.status, error.code);
   if (['ThrottlingException', 'ServiceQuotaExceededException', 'RetryableConflictException'].includes(error?.name)) {
     return new GuideError(503, 'guide_busy');
   }
@@ -382,6 +384,7 @@ function safeError(error) {
 
 function eventError(event) {
   if (['turn_timeout', 'guide_timeout'].includes(event.code)) return new GuideError(504, 'guide_timeout');
+  if (event.code === 'conversation_busy') return new GuideError(409, 'conversation_busy');
   if (['agent_busy', 'guide_busy'].includes(event.code)) return new GuideError(503, 'guide_busy');
   if (['invalid_map', 'invalid_response'].includes(event.code)) return new GuideError(502, 'invalid_response');
   return new GuideError(502, 'agent_error');
@@ -457,9 +460,10 @@ export function createGuideHandler({
   sessions, catalog, consumeQuota, invokeEvents, clock = Date.now,
   heartbeatMs = 8000, deadlineMs = 90_000, maxActors = 10_000,
   onDiagnostic = () => {},
-  admission, requestHashKey = randomBytes(32),
+  admission, requestHashKey = randomBytes(32), limitsEnabled = true,
   guideDiscovery,
 }) {
+  if (typeof limitsEnabled !== 'boolean') throw new Error('Invalid limitsEnabled option');
   // Local accounting remains only for explicitly injected legacy/local test
   // quota hooks. Configured production uses admission as the authority.
   const active = new Map();
@@ -497,8 +501,11 @@ export function createGuideHandler({
       : sessions.createConversation(actorId);
     if (!conversation) throw new GuideError(403, 'invalid_conversation');
     if (closed || draining) throw new GuideError(503, 'guide_unavailable');
+    // Removing quotas must not remove distributed deduplication and leases.
+    // Unlimited mode requires admission; legacy quota hooks cannot provide it.
+    if (!limitsEnabled && !admission) throw new GuideError(503, 'quota_unavailable');
     const now = clock();
-    if (!admission) {
+    if (limitsEnabled && !admission) {
       prune(now);
       if (active.has(actorId) || active.size >= 2) throw new GuideError(429, 'guide_busy');
       if ((usage.get(actorId)?.length || 0) >= 5) throw new GuideError(429, 'hourly_limit');

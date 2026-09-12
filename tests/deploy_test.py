@@ -93,6 +93,13 @@ class ProductionSettingsTest(unittest.TestCase):
         self.assertEqual(settings["DesiredCount"], "2")
         self.assertIn(":us-east-1:", settings["ViewerCertificateArn"])
 
+    def test_disabling_ai_limits_is_an_explicit_boolean_setting(self):
+        self.assertEqual(deploy.validate_settings(self.config())["GuideLimitsEnabled"], "true")
+        self.assertEqual(deploy.validate_settings(self.config(GuideLimitsEnabled="false"))["GuideLimitsEnabled"], "false")
+        for value in (False, True, 0, None, "off", "False"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                deploy.validate_settings(self.config(GuideLimitsEnabled=value))
+
     def test_incomplete_or_wrong_region_certificate_is_rejected_before_aws(self):
         for changes in [
             {"ViewerCertificateArn": ""},
@@ -213,6 +220,26 @@ class DetailsVerificationTest(unittest.TestCase):
         return verifier.task_iam_scoped(
             iam, "task-test", environment or self.environment, details_bucket=details_bucket,
         )
+
+    def test_presence_access_is_required_only_on_the_selected_presence_table(self):
+        environment = {**self.environment, "PRESENCE_TABLE": "presence-test"}
+        presence = {
+            "Effect": "Allow",
+            "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
+                       "dynamodb:Query", "dynamodb:ConditionCheckItem"],
+            "Resource": "arn:aws:dynamodb:ap-northeast-2:061525506239:table/presence-test",
+        }
+        self.assertTrue(self.iam_result([*self.statements, presence], environment=environment))
+        self.assertFalse(self.iam_result(self.statements, environment=environment))
+        for resource in ("*", "arn:aws:dynamodb:ap-northeast-2:061525506239:table/quota-test"):
+            with self.subTest(resource=resource):
+                self.assertFalse(self.iam_result(
+                    [*self.statements, {**presence, "Resource": resource}], environment=environment,
+                ))
+        self.assertFalse(self.iam_result(
+            [*self.statements, {**presence, "Action": [*presence["Action"], "dynamodb:Scan"]}],
+            environment=environment,
+        ))
 
     def media_result(self, *, origin=None, behavior=None, parameters=None, oac=None, cache=None,
                      extra_behavior=None, default_origin="jeju-alb"):

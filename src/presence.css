@@ -1,0 +1,17 @@
+.presence-status {
+  display: inline;
+  flex: 0 0 auto;
+  align-self: center;
+  white-space: nowrap;
+  color: var(--basalt);
+  font: inherit;
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.presence-status[data-presence-state='stale'],
+.presence-status[data-presence-state='unavailable'] {
+  color: var(--muted);
+}
+
+.presence-status[hidden] { display: none; }

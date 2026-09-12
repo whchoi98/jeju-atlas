@@ -4,6 +4,7 @@
   "DesiredCount": 2,
   "MinTaskCount": 2,
   "MaxTaskCount": 4,
+  "GuideLimitsEnabled": "false",
   "GuideDailyLimit": 30,
   "GuideHourlyLimit": 5,
   "GuideGlobalConcurrency": 2,

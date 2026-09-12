@@ -9,6 +9,7 @@ import { createKakaoService, KakaoError } from './kakao.mjs';
 import { createKakaoQuota, KakaoQuotaError } from './kakao-quota.mjs';
 import { createDiscoveryAdapter, DiscoveryError } from './discovery.mjs';
 import { createGuideDiscovery } from './guide-discovery.mjs';
+import { createPresenceService } from './presence.mjs';
 import {
   GuideError, createGuideHandler, createAgentInvoker, createDynamoQuotaConsumer, emitGuideDiagnostic,
 } from './guide.mjs';
@@ -233,20 +234,29 @@ export function createApiHandler({
   weatherOptions = {}, routingOptions = {}, kakaoOptions = {},
   onDiagnostic = () => {},
   admission: injectedAdmission,
+  presence: injectedPresence, presenceOptions = {},
 } = {}) {
+  if (env.GUIDE_LIMITS_ENABLED !== undefined && !['true', 'false'].includes(env.GUIDE_LIMITS_ENABLED)) {
+    throw new Error('GUIDE_LIMITS_ENABLED must be true or false');
+  }
+  const limitsEnabled = env.GUIDE_LIMITS_ENABLED !== 'false';
   if (!Number.isSafeInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 1000) {
     throw new Error('GUIDE_DAILY_LIMIT must be an integer between 1 and 1000');
   }
   const signingSecret = secret ?? (env.NODE_ENV === 'production' ? undefined : randomBytes(32));
   const sessions = createSessions({ secret: signingSecret, clock });
   const allowedOrigin = configuredOrigin(publicOrigin);
+  const presence = injectedPresence || createPresenceService({
+    ...presenceOptions, table: env.PRESENCE_TABLE, region: env.AWS_REGION || 'ap-northeast-2', clock,
+  });
+  const presenceEnabled = Boolean(allowedOrigin && presence.enabled);
   const enabled = Boolean(allowedOrigin && (invokeEvents || env.GUIDE_RUNTIME_ARN)
     && (injectedAdmission || consumeQuota || env.GUIDE_QUOTA_TABLE));
   const admission = injectedAdmission || (env.GUIDE_QUOTA_TABLE && !consumeQuota ? createAdmission({
     table: env.GUIDE_QUOTA_TABLE, region: env.AWS_REGION || 'ap-northeast-2', clock, dailyLimit,
     hourlyLimit: Number(env.GUIDE_HOURLY_LIMIT || 5),
     globalConcurrency: Number(env.GUIDE_GLOBAL_CONCURRENCY || 2),
-    leaseMs: Number(env.GUIDE_LEASE_MS || 120_000),
+    leaseMs: Number(env.GUIDE_LEASE_MS || 120_000), limitsEnabled,
   }) : undefined);
   const agent = invokeEvents || createAgentInvoker({
     runtimeArn: env.GUIDE_RUNTIME_ARN, region: env.AWS_REGION || 'ap-northeast-2',
@@ -303,7 +313,7 @@ export function createApiHandler({
   }) : undefined;
   const guide = createGuideHandler({
     sessions, catalog, consumeQuota: quota, invokeEvents: agent, clock, heartbeatMs, deadlineMs, maxActors, onDiagnostic,
-    admission, requestHashKey: signingSecret, guideDiscovery,
+    admission, requestHashKey: signingSecret, guideDiscovery, limitsEnabled,
   });
   const routingActors = new Map();
   const takeRoutingSlot = actorId => {
@@ -352,7 +362,7 @@ export function createApiHandler({
     res.setHeader('Cache-Control', 'no-store');
     try {
       const path = url.pathname;
-      const expectedMethod = ['/api/guide', '/api/routes', '/api/elevation', ...DISCOVERY_PATHS].includes(path) ? 'POST' : 'GET';
+      const expectedMethod = ['/api/guide', '/api/routes', '/api/elevation', '/api/presence/heartbeat', ...DISCOVERY_PATHS].includes(path) ? 'POST' : 'GET';
       if (req.method !== expectedMethod) {
         res.setHeader('Allow', expectedMethod);
         throw new ApiError(405, 'method_not_allowed', '지원하지 않는 요청 방식입니다.');
@@ -366,7 +376,10 @@ export function createApiHandler({
             guide: enabled, planner: true, pwa: true, routing: routingEnabled && !draining,
           },
           guide: {
-            daily_limit: dailyLimit,
+            daily_limit: limitsEnabled ? dailyLimit : null,
+            hourly_limit: limitsEnabled ? Number(env.GUIDE_HOURLY_LIMIT || 5) : null,
+            global_concurrency: limitsEnabled ? Number(env.GUIDE_GLOBAL_CONCURRENCY || 2) : null,
+            limits_enabled: limitsEnabled,
             ...(enabled ? { csrf_token: sessions.csrfToken(session.actorId) } : {}),
           },
           routing: {
@@ -383,7 +396,44 @@ export function createApiHandler({
             ...(discoveryEnabled && !draining ? { csrf_token: sessions.csrfToken(session.actorId) } : {}),
             categories: DISCOVERY_CATEGORIES, page_size: 15, max_results: 45,
           },
+          presence: {
+            enabled: presenceEnabled && !draining, heartbeat_ms: 30_000, window_ms: 90_000,
+            ...(presenceEnabled && !draining ? { csrf_token: sessions.csrfToken(session.actorId) } : {}),
+          },
         });
+      }
+      if (path === '/api/presence' || path === '/api/presence/heartbeat') {
+        queryParams(url, []);
+        if (draining || !presenceEnabled) throw new ApiError(503, 'presence_unavailable', '접속 집계를 확인할 수 없습니다.');
+        let actorId;
+        if (path.endsWith('/heartbeat')) {
+          const session = sessions.readCookie(req.headers.cookie);
+          if (!session) {
+            sessions.issueCookie(res);
+            throw new ApiError(401, 'session_required', '페이지를 새로고침한 뒤 다시 요청해 주세요.');
+          }
+          if (!sessions.verifyCsrf(req.headers['x-atlas-csrf'], session.actorId)) {
+            throw new ApiError(403, 'csrf_invalid', '요청 연결 확인이 만료되었습니다. 연결을 갱신해 주세요.');
+          }
+          requestRecord(await readJson(req, res), []);
+          actorId = session.actorId;
+        }
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        const disconnected = () => { if (!res.writableEnded) abort(); };
+        req.once('aborted', abort);
+        res.once('close', disconnected);
+        try {
+          if (req.aborted || res.destroyed) abort();
+          const stats = actorId
+            ? await presence.heartbeat(actorId, { signal: controller.signal })
+            : await presence.snapshot({ signal: controller.signal });
+          if (!controller.signal.aborted) return await sendJson(req, res, 200, stats);
+        } finally {
+          req.off('aborted', abort);
+          res.off('close', disconnected);
+        }
+        return;
       }
       if (DISCOVERY_PATHS.includes(path)) {
         if (draining || !discoveryEnabled) throw new KakaoError('kakao_unavailable');
@@ -616,6 +666,7 @@ export function createApiHandler({
     if (!invokeEvents) agent.close();
     if (!consumeQuota) quota.close();
     if (!injectedAdmission) admission?.close();
+    if (!injectedPresence) presence.close();
   };
   return api;
 }

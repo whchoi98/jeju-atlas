@@ -94,7 +94,7 @@
       <span class="nav-number">10</span>
       <span class="nav-title">공식 정보와 주간 보강</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="11 관측·보안·운영 제어 CloudWatch·SNS·할당량·이미지 검사·개인정보 보호를 확인합니다. 운영 스택 확인할 지표 호출 한도와 모델 권한 로그와 개인정보 이미지와 네트워크 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="11 관측·보안·운영 제어 CloudWatch·SNS·할당량·이미지 검사·개인정보 보호를 확인합니다. 운영 스택 확인할 지표 호출 한도와 모델 권한 현재 및 누적 접속 수 로그와 개인정보 이미지와 네트워크 AI CLI 프롬프트 카드">
     <a class="chapter-link" href="11-operations.html" data-chapter-link="11-operations">
       <span class="nav-number">11</span>
       <span class="nav-title">관측·보안·운영 제어</span>
@@ -247,9 +247,28 @@ python3 workshop/scripts/lab.py run status-app --config "$ATLAS_CONFIG" --execut
 웹 컨테이너에는 ECS secrets로 전달되는지 확인합니다. 브라우저 설정·JS·로그에 키가 없어야 합니다.
 장소 상세의 카카오 카드에서 이름·주소·전화·상세 링크·조회 시각을 확인합니다.
 기존 장소 ID·지도 좌표·샘플 근거와 공식 관광정보를 덮어쓰지 않습니다.</p>
+<p>키를 연결하면 맛집·카페·숙소·주차장 목록은 카카오 분류를 직접 조회합니다.
+카카오 장소 ID와 상세 링크를 함께 사용하므로 기존 이름을 다시 찾지 않습니다.
+한 페이지는 15곳이며 검색마다 최대 45곳까지 조회할 수 있습니다.
+검색 결과 수가 더 커도 제주 전체 목록을 내려받았다고 해석하지 않습니다.
+지도 범위나 주변 반경을 좁혀 확인합니다.</p>
+<p><strong>필터·지도 설정 → 검색 출처</strong>에서 <strong>자동 선택·카카오맵·기존 카탈로그</strong>를 선택합니다.
+오름·해변·올레길 등 기존 관광·자연 정보와 이전 저장 코스는 계속 사용할 수 있습니다.
+공공 사진·이용 정보는 같은 장소임을 확인할 수 있는 기존 기록에만 연결됩니다.
+검색 결과의 선택 토큰은 현재 화면에서만 사용하며 여행·즐겨찾기에 저장하지 않습니다.
+저장된 카카오 장소를 다시 열면 같은 카카오 ID의 현재 정보를 확인합니다.</p>
+<p>웹 AI의 음식점·카페 추천도 BFF의 같은 조회·사용량 한도를 사용합니다.
+선택한 장소의 근거는 전용 Guide에 별도 데이터로 전달하며, 선택 토큰과 조회 원문은 장기 Memory에 저장하지 않습니다.
+이 기능을 배포할 때는 최신 Guide 아티팩트를 먼저 반영한 뒤 웹 앱을 배포합니다.
+이전 버전을 업데이트하는 환경에서는 6장의 전용 Guide 배포를 먼저 진행합니다.
+기존 대화 실행 환경의 갱신 안내가 나오면 <strong>새 대화</strong>로 다시 질문합니다.</p>
 <p>동일한 이름의 다른 지점이나 불완전한 검색 결과는 확정 연결하지 않습니다.
+가까운 200m의 후보를 먼저 확인하고, 미검증 시드는 필요한 경우 2km까지 다시 조회합니다.
+카카오 분류 코드가 비어 있으면 세부 분류를 확인하며, 본점 표기 차이는 100m 이내에서만 허용합니다.
+연결하지 못한 경우 이름·분류·위치·검색 결과 부족 등의 사유를 구분하여 확인합니다.
 카카오 Local은 사진·후기·영업시간을 제공하지 않으므로 추가 방문 정보는 카카오 상세 페이지로 연결합니다.
-조회는 별도의 일일 한도와 동시 실행 제한을 사용하며, 카카오 결과는 DB·PWA 캐시에 저장하지 않습니다.
+조회는 별도의 일일 한도와 동시 실행 제한을 사용하며, 검색 결과 전체를 서버 DB·PWA 캐시에 저장하지 않습니다.
+사용자가 여행·즐겨찾기에 담은 최소 스냅샷은 브라우저에 저장하고, 다시 열 때 현재 정보를 조회합니다.
 API 인증이나 제공처가 실패해도 기존 장소 상세는 읽을 수 있어야 합니다.</p>
 <ul class="contains-task-list">
 <li class="task-list-item"><input type="checkbox" disabled> 숨김 입력으로 내 SSM 경로에 키를 저장했습니다.</li>

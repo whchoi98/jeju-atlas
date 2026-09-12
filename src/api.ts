@@ -1,5 +1,6 @@
 import type { AppConfig } from '../shared/api-types';
 import { getLocale, t } from './i18n.ts';
+import { withSessionConfig } from './session-config.ts';
 
 export class ApiError extends Error {
   readonly code: string;
@@ -41,7 +42,7 @@ let configPending = false;
 export function getConfig(refresh = false, maxAgeMs = 60000): Promise<AppConfig> {
   if (!configRequest || refresh || (!configPending && Date.now() - configFetchedAt >= maxAgeMs)) {
     configPending = true;
-    const request: Promise<AppConfig> = apiJSON<AppConfig>('/api/config').then((config) => {
+    const request: Promise<AppConfig> = withSessionConfig(signal => apiJSON<AppConfig>('/api/config', signal)).then((config) => {
       if (configRequest === request) configFetchedAt = Date.now();
       return config;
     }).catch((error) => {

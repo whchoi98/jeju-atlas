@@ -133,9 +133,10 @@ test('config verifies secure host-only sessions without exposing runtime setting
   assert.deepEqual(JSON.parse(first.body), {
     version: 'api-test',
     features: { catalog: true, guide: false, planner: true, pwa: true, routing: false },
-    guide: { daily_limit: 30 },
+    guide: { daily_limit: 30, hourly_limit: 5, global_concurrency: 2, limits_enabled: true },
     kakao: { enabled: false },
     discovery: { enabled: false, categories: ['맛집', '카페', '숙소', '주차장'], page_size: 15, max_results: 45 },
+    presence: { enabled: false, heartbeat_ms: 30_000, window_ms: 90_000 },
     routing: {
       enabled: false,
       modes: ['walk', 'car'],

@@ -1,6 +1,7 @@
 import type { RoutingConfig } from './routing-types';
 import type { KakaoLookup } from './kakao-types';
 import type { KakaoDiscoveryConfig } from './kakao-discovery-types';
+import type { PresenceConfig } from './presence-types';
 
 export type LatLng = { lat: number; lng: number };
 export type FieldEvidence = {
@@ -159,8 +160,9 @@ export type GuideMap = {
 export type AppConfig = {
   version: string;
   features: { catalog: boolean; guide: boolean; planner: boolean; pwa: boolean; routing: boolean };
-  guide: { daily_limit: number; csrf_token?: string };
+  guide: { daily_limit: number | null; limits_enabled?: boolean; hourly_limit?: number | null; global_concurrency?: number | null; csrf_token?: string };
   routing: RoutingConfig;
   kakao?: { enabled: boolean; csrf_token?: string };
   discovery?: KakaoDiscoveryConfig;
+  presence?: PresenceConfig;
 };

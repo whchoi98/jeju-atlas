@@ -144,6 +144,12 @@ def task_iam_scoped(iam, role_name, environment, *, details_bucket=""):
     }
     if details_bucket:
         expected_resources["s3:GetObject"].add(f"arn:aws:s3:::{details_bucket}/place-details/latest.json")
+    if environment.get("PRESENCE_TABLE"):
+        presence_arn = f"arn:aws:dynamodb:ap-northeast-2:{ACCOUNT}:table/{environment['PRESENCE_TABLE']}"
+        for action in ("dynamodb:GetItem", "dynamodb:UpdateItem"):
+            expected_resources[action].add(presence_arn)
+        for action in ("dynamodb:PutItem", "dynamodb:Query", "dynamodb:ConditionCheckItem"):
+            expected_resources[action] = {presence_arn}
     if iam.list_attached_role_policies(RoleName=role_name)["AttachedPolicies"]:
         return False
     granted = {action: set() for action in expected_resources}
@@ -403,9 +409,16 @@ def verify():
                     ssm_resources.update([resources] if isinstance(resources, str) else resources)
         check("Execution role reads only the selected Kakao parameter",
               ssm_actions == {"ssm:GetParameters"} and ssm_resources == {expected_kakao_arn})
-    check("Guide fleet limits configured", environment.get("GUIDE_DAILY_LIMIT") == settings["GuideDailyLimit"]
+    check("Guide usage-limits mode matches the selected deployment",
+          environment.get("GUIDE_LIMITS_ENABLED", "true") == settings.get("GuideLimitsEnabled", "true")
+          and parameters.get("GuideLimitsEnabled", "true") == settings.get("GuideLimitsEnabled", "true"))
+    check("Configured fallback guide caps match deployment settings", environment.get("GUIDE_DAILY_LIMIT") == settings["GuideDailyLimit"]
           and environment.get("GUIDE_HOURLY_LIMIT") == settings["GuideHourlyLimit"]
           and environment.get("GUIDE_GLOBAL_CONCURRENCY") == settings["GuideGlobalConcurrency"])
+    if outputs.get("PresenceTableName"):
+        check("Visitor presence uses its own selected table",
+              environment.get("PRESENCE_TABLE") == outputs["PresenceTableName"]
+              and environment["PRESENCE_TABLE"] != environment.get("GUIDE_QUOTA_TABLE"))
     check("Graceful shutdown precedes the ECS stop deadline", container.get("stopTimeout") == 120
           and 90_000 < int(environment.get("DRAIN_TIMEOUT_MS", "0")) < 120_000)
 
@@ -570,9 +583,33 @@ def verify():
     client = requests.Session()
     api_config = client.get(url + "/api/config", timeout=30)
     api_data = api_config.json() if api_config.status_code == 200 else {}
-    check("Private config enables bounded guide without caching", api_config.status_code == 200
+    limits_enabled = settings.get("GuideLimitsEnabled", "true") == "true"
+    public_guide = api_data.get("guide", {})
+    check("Private config reports the selected AI limits without caching", api_config.status_code == 200
           and api_config.headers.get("Cache-Control") == "no-store"
-          and api_data.get("guide", {}).get("daily_limit") == 30)
+          and public_guide.get("limits_enabled", True) == limits_enabled
+          and public_guide.get("daily_limit") == (int(settings["GuideDailyLimit"]) if limits_enabled else None)
+          and (limits_enabled or (public_guide.get("hourly_limit") is None
+                                  and public_guide.get("global_concurrency") is None)))
+    if outputs.get("PresenceTableName"):
+        presence_config = api_data.get("presence", {})
+        check("Private config enables live visitor monitoring",
+              presence_config.get("enabled") is True and presence_config.get("heartbeat_ms") == 30_000
+              and presence_config.get("window_ms") == 90_000
+              and bool(re.fullmatch(r"[A-Za-z0-9_-]{43}", presence_config.get("csrf_token", ""))))
+        presence_response = client.get(url + "/api/presence", timeout=20)
+        presence_data = presence_response.json() if presence_response.status_code == 200 else {}
+        fields = {"active_visitors", "total_visitors", "as_of", "window_seconds", "counting_since"}
+        valid_counts = all(type(presence_data.get(key)) is int and presence_data[key] >= 0
+                           for key in ("active_visitors", "total_visitors"))
+        check("Visitor counts are aggregate-only and never cached",
+              presence_response.status_code == 200 and presence_response.headers.get("Cache-Control") == "no-store"
+              and set(presence_data) == fields and valid_counts
+              and presence_data.get("window_seconds") == 90
+              and presence_data.get("total_visitors", -1) >= presence_data.get("active_visitors", 0))
+        rejected_presence = client.post(url + "/api/presence/heartbeat", json={},
+                                       headers={"X-Atlas-CSRF": "forged"}, timeout=20)
+        check("Visitor registration requires a valid session-bound proof", rejected_presence.status_code == 403)
     cookie_header = api_config.headers.get("Set-Cookie", "").lower()
     check("Session cookie is HttpOnly and Secure", "httponly" in cookie_header and "secure" in cookie_header and "samesite=lax" in cookie_header)
     csrf_token = api_data.get("guide", {}).get("csrf_token", "")

@@ -94,7 +94,7 @@
       <span class="nav-number">10</span>
       <span class="nav-title">공식 정보와 주간 보강</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="11 관측·보안·운영 제어 CloudWatch·SNS·할당량·이미지 검사·개인정보 보호를 확인합니다. 운영 스택 확인할 지표 호출 한도와 모델 권한 로그와 개인정보 이미지와 네트워크 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="11 관측·보안·운영 제어 CloudWatch·SNS·할당량·이미지 검사·개인정보 보호를 확인합니다. 운영 스택 확인할 지표 호출 한도와 모델 권한 현재 및 누적 접속 수 로그와 개인정보 이미지와 네트워크 AI CLI 프롬프트 카드">
     <a class="chapter-link" href="11-operations.html" aria-current="page" data-chapter-link="11-operations">
       <span class="nav-number">11</span>
       <span class="nav-title">관측·보안·운영 제어</span>
@@ -223,14 +223,31 @@ python3 workshop/scripts/lab.py run status-data --config "$ATLAS_CONFIG" --execu
 <td>Runtime</td>
 <td>실행·도구·모델 지연과 오류의 메타데이터</td>
 </tr>
+<tr>
+<td>접속 집계</td>
+<td>현재 접속 브라우저·누적 접속 세션·집계 기준 시각</td>
+</tr>
 </tbody>
 </table></div>
 <p>알람이 <code>INSUFFICIENT_DATA</code>이면 데이터가 아직 없는지, 전달이 끊겼는지 확인합니다.
 공식 API가 실패해도 마지막 정상 자료를 유지하는 상태와 갱신 성공을 구분합니다.</p>
 <h2 id="heading-호출-한도와-모델-권한">호출 한도와 모델 권한</h2>
-<p>기본값은 일일 30회·시간당 5회·전체 동시 2회입니다.
+<p>실습 기본값은 <code>GuideLimitsEnabled: "true"</code>이며 일일 30회·시간당 5회·전체 동시 2회입니다.
 이는 요청 입장 제한이며 금액 상한이 아닙니다.
-실습 중 제한에 도달하면 DynamoDB·로그에서 상태를 확인하고 무작정 제한을 제거하지 않습니다.</p>
+실습 중 제한에 도달하면 먼저 DynamoDB·로그에서 제한 원인을 확인합니다.
+운영자가 앱 사용량 제한을 해제하려면 준비된 실습 workspace의 <code>infra/production.json</code>에서
+<code>GuideLimitsEnabled</code>를 문자열 <code>"false"</code>로 바꾸고 <code>plan-app</code>의 변경 내용을 검토해 배포합니다.
+일일·시간당·전체 동시 제한과 사용자별 동시 제한이 해제되며, 같은 대화의 충돌·요청 중복 실행 방지는 유지됩니다.
+앱 설정으로 AWS 서비스 자체 할당량이 변경되지는 않습니다.</p>
+<h2 id="heading-현재-및-누적-접속-수">현재 및 누적 접속 수</h2>
+<p>앱 하단의 <code>접속 N · 누적 M</code>은 브라우저 세션 기준입니다.
+현재 수는 최근 90초 접속 확인, 누적 수는 집계 도입 이후 각 세션의 첫 접속을 한 번씩 더합니다.
+새로고침과 같은 브라우저의 여러 탭은 중복으로 더하지 않습니다.
+종료한 브라우저는 활동 기간이 지난 뒤 현재 수에서 제외됩니다.</p>
+<p>집계는 실습 접두사의 <code>presence</code> DynamoDB 테이블을 ECS 태스크가 공유합니다.
+활성 기록의 TTL 정리와 누적 등록 기록 보존을 구분합니다.
+API 응답은 수와 시각만 제공하고, 확인 실패를 0명으로 표시하지 않습니다.
+<code>GET /api/presence</code>로 집계 상태를 읽을 수 있으며 이 조회는 방문 수를 늘리지 않습니다.</p>
 <p>실제 Guide는 현재 프로젝트의 Global CRIS Sol/Astra와 해당 foundation model만 호출하도록 구성합니다.
 워크숍을 통과시키기 위해 다른 프로젝트의 실행 역할을 붙이거나 모델 Resource를 전부 열지 않습니다.
 Codex 사용 비용과 Bedrock·AgentCore 비용도 별도로 확인합니다.</p>
@@ -254,6 +271,7 @@ AgentCore PUBLIC 네트워크와 ECS Private Subnet을 하나의 설정으로 �
 <li class="task-list-item"><input type="checkbox" disabled> 운영·데이터 알람과 dashboard가 내 자원을 가리킵니다.</li>
 <li class="task-list-item"><input type="checkbox" disabled> SNS 구독과 실제 수신을 확인했습니다.</li>
 <li class="task-list-item"><input type="checkbox" disabled> 한도·로그 보관·내용 비기록·이미지 검사 결과를 기록했습니다.</li>
+<li class="task-list-item"><input type="checkbox" disabled> 두 브라우저·새로고침으로 현재·누적 집계와 중복 방지를 확인했습니다.</li>
 </ul>
 <p>Codex 카드: <a href="../prompts/11-operations.md" download="11-operations.md">11 · 관측·운영</a></p>
 <p>다음: <a href="12-validation.html">12 · 검증과 문제 해결</a></p>
@@ -302,7 +320,7 @@ AgentCore PUBLIC 네트워크와 ECS Private Subnet을 하나의 설정으로 �
   </a>
       </nav>
     </article>
-    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-운영-스택" data-toc-link>운영 스택</a></li><li class="toc-depth-2"><a href="#heading-확인할-지표" data-toc-link>확인할 지표</a></li><li class="toc-depth-2"><a href="#heading-호출-한도와-모델-권한" data-toc-link>호출 한도와 모델 권한</a></li><li class="toc-depth-2"><a href="#heading-로그와-개인정보" data-toc-link>로그와 개인정보</a></li><li class="toc-depth-2"><a href="#heading-이미지와-네트워크" data-toc-link>이미지와 네트워크</a></li><li class="toc-depth-2"><a href="#heading-ai-cli-프롬프트-카드" data-toc-link>AI CLI 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-운영-스택" data-toc-link>운영 스택</a></li><li class="toc-depth-2"><a href="#heading-확인할-지표" data-toc-link>확인할 지표</a></li><li class="toc-depth-2"><a href="#heading-호출-한도와-모델-권한" data-toc-link>호출 한도와 모델 권한</a></li><li class="toc-depth-2"><a href="#heading-현재-및-누적-접속-수" data-toc-link>현재 및 누적 접속 수</a></li><li class="toc-depth-2"><a href="#heading-로그와-개인정보" data-toc-link>로그와 개인정보</a></li><li class="toc-depth-2"><a href="#heading-이미지와-네트워크" data-toc-link>이미지와 네트워크</a></li><li class="toc-depth-2"><a href="#heading-ai-cli-프롬프트-카드" data-toc-link>AI CLI 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
   </div>
     </main>
     <footer class="site-footer"><span>Jeju Atlas · 배포 워크숍<span class="footer-date">2026.09.11 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 · 글꼴 라이선스</a></footer>

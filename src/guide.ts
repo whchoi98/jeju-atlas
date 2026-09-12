@@ -78,7 +78,8 @@ export class GuidePanel {
   private recommendation: GuideMap | null = null;
   private root: HTMLElement;
   private running = false;
-  private dailyLimit = 30;
+  private dailyLimit: number | null = null;
+  private limitsEnabled = true;
   private onApply: (map: GuideMap) => void;
   private notify: (message: string) => void;
   private context: () => string;
@@ -103,7 +104,7 @@ export class GuidePanel {
     this.onSelect = options.onSelect;
     root.innerHTML = `
       <div class="panel-intro"><span class="eyebrow">A LOCAL PERSPECTIVE</span><h2>${guideEmoji('🧭')} 어떤 제주를 찾으세요?</h2><p>지역을 지정하지 않으면 제주 전체에서 찾아요.</p></div>
-      <div class="guide-service-controls"><span id="guide-availability" role="status">연결 확인 중</span><button id="guide-refresh" type="button" aria-label="AI 가이드 연결 상태 다시 확인">${icon('reset')}</button><button id="guide-new-chat" type="button" title="현재 화면의 대화를 비우고 새 대화를 시작합니다. 서버 자료와 이용 한도는 유지됩니다.">새 대화</button></div>
+      <div class="guide-service-controls"><span id="guide-availability" role="status">연결 확인 중</span><button id="guide-refresh" type="button" aria-label="AI 가이드 연결 상태 다시 확인">${icon('reset')}</button><button id="guide-new-chat" type="button" title="현재 화면의 대화를 비우고 새 대화를 시작합니다. 서버 자료는 유지됩니다.">새 대화</button></div>
       <div class="guide-body">
         <div id="guide-thinking" class="guide-thinking" role="status" hidden>${guideEmoji('🤖')}<strong id="guide-thinking-text">생각 중</strong><span class="guide-thinking-dots" aria-hidden="true">···</span></div>
         <section id="guide-tools" class="guide-tools" aria-label="실행된 도구" hidden><span class="guide-tools-heading">사용 도구</span><div id="guide-tool-list" role="list"></div></section>
@@ -112,7 +113,7 @@ export class GuidePanel {
       </div>
       <div id="guide-footer" class="guide-footer">
         <p id="guide-status" class="guide-status" role="status">질문을 보내면 가이드가 시작됩니다.</p>
-        <form id="guide-form" class="guide-form"><label class="sr-only" for="guide-input">AI 가이드에게 질문</label><textarea id="guide-input" rows="2" maxlength="2000" placeholder="가고 싶은 곳, 여행 취향을 알려 주세요."></textarea><div><span id="guide-limit">하루 최대 30회 · AI 답변은 출처를 함께 확인하세요.</span><button type="button" id="guide-cancel" hidden>기다리기 중지</button><button type="submit" id="guide-send" aria-label="가이드 질문 보내기">${icon('arrow')}</button></div></form>
+        <form id="guide-form" class="guide-form"><label class="sr-only" for="guide-input">AI 가이드에게 질문</label><textarea id="guide-input" rows="2" maxlength="2000" placeholder="가고 싶은 곳, 여행 취향을 알려 주세요."></textarea><div><span id="guide-limit">${html(t('AI 답변은 출처를 함께 확인하세요.'))}</span><button type="button" id="guide-cancel" hidden>기다리기 중지</button><button type="submit" id="guide-send" aria-label="가이드 질문 보내기">${icon('arrow')}</button></div></form>
         <div class="guide-followup-heading">이어서 물어보세요 <span>선택하면 입력창에 담겨요</span></div>
         <div id="guide-followups" class="guide-quick-prompts guide-followups" aria-label="다음 질문 제안"></div>
       </div>
@@ -146,6 +147,7 @@ export class GuidePanel {
     });
     void this.refreshAvailability(false);
     window.addEventListener('atlas:locale-change', () => {
+      this.renderLimit();
       this.renderFollowups();
       this.renderTools();
     });
@@ -156,9 +158,18 @@ export class GuidePanel {
     return this.running || Boolean(this.root.querySelector<HTMLTextAreaElement>('#guide-input')?.value.trim());
   }
   private applyConfig(config: AppConfig): void {
-    this.dailyLimit = config.guide.daily_limit;
-    this.root.querySelector('#guide-limit')!.textContent = `하루 최대 ${this.dailyLimit}회 · AI 답변은 출처를 함께 확인하세요.`;
+    this.limitsEnabled = config.guide.limits_enabled !== false;
+    const limit = config.guide.daily_limit;
+    this.dailyLimit = this.limitsEnabled && typeof limit === 'number' && Number.isSafeInteger(limit) && limit > 0 ? limit : null;
+    this.renderLimit();
     this.root.querySelector('#guide-availability')!.textContent = config.features.guide ? 'AI 가이드 활성' : 'AI 가이드 일시 중지';
+  }
+  private renderLimit(): void {
+    const message = !this.limitsEnabled
+      ? '앱의 AI 이용 한도가 해제되어 있어요 · AI 답변은 출처를 함께 확인하세요.'
+      : this.dailyLimit === null ? 'AI 답변은 출처를 함께 확인하세요.'
+      : `하루 최대 ${this.dailyLimit}회 · AI 답변은 출처를 함께 확인하세요.`;
+    this.root.querySelector('#guide-limit')!.textContent = t(message);
   }
   private async refreshAvailability(force: boolean): Promise<void> {
     const button = this.root.querySelector<HTMLButtonElement>('#guide-refresh')!;
@@ -189,7 +200,7 @@ export class GuidePanel {
     this.setRunning(false);
     this.renderMessages();
     this.renderRecommendation();
-    this.status('새 대화를 시작합니다. 이 화면의 대화를 비웠으며 서버 자료와 이용 한도는 유지됩니다.');
+    this.status('새 대화를 시작합니다. 이 화면의 대화를 비웠으며 서버 자료는 유지됩니다.');
     input.focus();
   }
 
@@ -312,7 +323,13 @@ export class GuidePanel {
   cancel(): void {
     if (!this.running) return;
     this.controller?.abort();
-    this.status('기다리기를 중지했어요. 이미 시작한 요청은 일일 횟수에 포함될 수 있어요.');
+    this.status(this.cancelMessage());
+  }
+
+  private cancelMessage(): string {
+    return t(this.limitsEnabled
+      ? '기다리기를 중지했어요. 이미 시작한 요청은 일일 횟수에 포함될 수 있어요.'
+      : '기다리기를 중지했어요. 이미 시작한 요청은 서버에서 계속 처리될 수 있어요.');
   }
 
   private errorMessage(code: string, status = 0): string {
@@ -327,10 +344,18 @@ export class GuidePanel {
     if (normalized === 'conversation_refresh_required') return getLocale() === 'en'
       ? 'The guide has been updated. Ask again to start a new conversation with current place information.'
       : '가이드가 업데이트되었습니다. 다시 질문하면 새 대화에서 현재 장소 정보를 확인합니다.';
+    if (normalized === 'conversation_busy') return '이 대화의 요청이 아직 처리 중이에요. 답변이 끝난 뒤 다시 질문해 주세요.';
     if (/concurr|busy/.test(normalized)) return '다른 요청을 처리하고 있어요. 잠시 후 다시 질문해 주세요.';
+    if (normalized === 'quota_unavailable') return this.limitsEnabled
+      ? '이용 한도를 확인하지 못해 요청을 시작하지 않았어요. 잠시 후 다시 보내 주세요.'
+      : '요청 처리 상태를 확인하지 못했어요. 잠시 후 다시 보내 주세요.';
+    if (!this.limitsEnabled && /hourly|daily|quota/.test(normalized)) {
+      return '서버에서 이용 한도 오류를 받았어요. 연결 상태를 새로 확인한 뒤 다시 질문해 주세요.';
+    }
     if (/hourly/.test(normalized)) return '한 시간 이용 한도에 도달했어요. 잠시 후 다시 질문해 주세요.';
-    if (normalized === 'quota_unavailable') return '이용 한도를 확인하지 못해 요청을 시작하지 않았어요. 잠시 후 다시 보내 주세요.';
-    if (/daily|quota/.test(normalized)) return `오늘의 이용 한도에 도달했어요. 하루 최대 ${this.dailyLimit}회까지 이용할 수 있어요.`;
+    if (/daily|quota/.test(normalized)) return this.dailyLimit === null
+      ? '오늘의 이용 한도에 도달했어요. 잠시 후 다시 이용해 주세요.'
+      : `오늘의 이용 한도에 도달했어요. 하루 최대 ${this.dailyLimit}회까지 이용할 수 있어요.`;
     if (status === 429 || /limit/.test(normalized)) return '요청이 많아 잠시 쉬고 있어요. 잠시 후 다시 질문해 주세요.';
     if (/timeout/.test(normalized)) return '답변 시간이 길어 연결을 마쳤어요. 질문을 조금 줄여 다시 보내 주세요.';
     if (normalized === 'invalid_conversation') return '대화를 새로 연결하지 못했어요. 잠시 후 같은 질문을 다시 보내 주세요.';
@@ -464,7 +489,7 @@ export class GuidePanel {
         if (event === 'error') {
           serverError = true;
           const code = String(value.code ?? 'unavailable');
-          if (/session|conversation/i.test(code)) this.conversationId = undefined;
+          if (['invalid_conversation', 'conversation_refresh_required', 'session_required'].includes(code)) this.conversationId = undefined;
           const reason = this.errorMessage(code);
           this.status(reason);
           answer.state = 'interrupted';
@@ -488,7 +513,7 @@ export class GuidePanel {
       if (turn !== this.turn) return;
       answer.state = 'interrupted';
       if (controller.signal.aborted && controller.signal.reason?.name === 'AbortError') {
-        const reason = t('기다리기를 중지했어요. 이미 시작한 요청은 일일 횟수에 포함될 수 있어요.');
+        const reason = this.cancelMessage();
         this.status(reason);
         if (!answer.text) answer.text = reason;
       } else {

@@ -127,7 +127,8 @@
 .terrain-quickplaces .place-card-description, .terrain-quickplaces .place-card-coordinates { display: none; }
 .terrain-quickplaces .place-card-meta { font-size: 8px; }
 .has-catalog .experience-footer { min-height: 44px; padding: 10px 21px; font-size: 8px; justify-content: space-between; gap: 8px; }
-.experience-footer > #connection-status { font-size: 8px; line-height: 1.7; }
+.experience-footer > #connection-status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; line-height: 1.7; }
+.experience-footer > #visitor-presence { flex: 0 0 auto; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
 #pwa-install { background: var(--interactive-soft); color: var(--interactive-text); border-radius: 4px; padding: 7px 8px; white-space: nowrap; font-size: 8px; display: inline-flex; gap: 4px; align-items: center; }
 #pwa-install .icon { width: 11px; height: 11px; }
 .offline-notice { position: absolute; z-index: 25; top: 74px; left: 24px; padding: 11px 14px; background: var(--warning-soft); border: 1px solid var(--warning-border); color: var(--warning); border-radius: 7px; max-width: calc(100% - 100px); font-size: 10px; line-height: 1.8; box-shadow: var(--panel-shadow); }

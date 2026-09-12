@@ -1,5 +1,8 @@
 import { getConfig } from './api';
 import { icon } from './icons';
+import { initializePresence } from './presence';
+import { hasSessionCoordination } from './session-config';
+import './presence.css';
 
 interface InstallPrompt extends Event {
   prompt: () => Promise<void>;
@@ -7,7 +10,16 @@ interface InstallPrompt extends Event {
 }
 
 export function initializePWA(root: HTMLElement, notify: (message: string) => void, options: { isBusy?: () => boolean } = {}): void {
-  root.innerHTML = `<div id="connection-status" role="status">코스와 즐겨찾기는 이 브라우저에 저장해요.</div><button id="pwa-install" hidden>${icon('plus')}앱으로 설치</button><button id="pwa-retry" hidden>앱 저장 재시도</button><span id="pwa-status" class="sr-only"></span>`;
+  root.innerHTML = `<div id="connection-status" role="status">코스와 즐겨찾기는 이 브라우저에 저장해요.</div><span id="visitor-presence" hidden data-i18n-ignore></span><button id="pwa-install" hidden>${icon('plus')}앱으로 설치</button><button id="pwa-retry" hidden>앱 저장 재시도</button><span id="pwa-status" class="sr-only"></span>`;
+  initializePresence(root.querySelector<HTMLElement>('#visitor-presence')!, {
+    getConfig: async (refresh = false) => {
+      const presence = (await getConfig(refresh)).presence;
+      // Keep other app features usable on legacy/private transports, but do
+      // not register a count when cold-window session coordination is missing.
+      if (presence?.enabled && !hasSessionCoordination()) throw new Error('presence_coordination_unavailable');
+      return presence;
+    },
+  });
   const banner = document.createElement('section');
   banner.id = 'pwa-update';
   banner.className = 'pwa-update';
@@ -60,9 +72,11 @@ export function initializePWA(root: HTMLElement, notify: (message: string) => vo
   document.querySelector('.map-shell')!.append(offline);
   const update = () => {
     offline.hidden = navigator.onLine;
-    root.querySelector('#connection-status')!.textContent = navigator.onLine
+    const status = root.querySelector<HTMLElement>('#connection-status')!;
+    status.textContent = navigator.onLine
       ? '코스와 즐겨찾기는 이 브라우저에 저장해요.'
       : '오프라인 · 저장한 코스와 장소를 확인하세요.';
+    status.title = status.textContent;
   };
   window.addEventListener('online', () => { update(); void register(true); });
   window.addEventListener('offline', update);

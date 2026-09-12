@@ -133,6 +133,7 @@ def production_settings(config, https=False):
         "ViewerDomainName": config["domainName"],
         "ViewerCertificateArn": config["viewerCertificateArn"],
         "DesiredCount": 2, "MinTaskCount": 2, "MaxTaskCount": 4,
+        "GuideLimitsEnabled": "true",
         "GuideDailyLimit": 30, "GuideHourlyLimit": 5, "GuideGlobalConcurrency": 2,
         "RoutingEnabled": "true", "TaskCpu": 512, "TaskMemory": 1024, "RoutingMemory": 512,
         "TargetHealthPath": "/healthz", "OriginDomainName": "",

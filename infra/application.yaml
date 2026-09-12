@@ -58,12 +58,17 @@ Parameters:
     Default: 4
     MinValue: 2
     MaxValue: 4
+  GuideLimitsEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Apply the app's daily, hourly and shared concurrency limits. False keeps request deduplication and same-conversation coordination only.
   GuideDailyLimit:
     Type: Number
     Default: 30
     MinValue: 1
     MaxValue: 30
-    Description: Shared daily invocation cap. Raising the cost ceiling requires a reviewed application policy change.
+    Description: Shared daily invocation cap used when GuideLimitsEnabled is true.
   GuideHourlyLimit:
     Type: Number
     Default: 5
@@ -287,6 +292,37 @@ Resources:
       Tags:
         - Key: Project
           Value: jeju-3d
+
+  VisitorPresence:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: jeju-3d-presence
+      BillingMode: PAY_PER_REQUEST
+      DeletionProtectionEnabled: true
+      AttributeDefinitions:
+        - AttributeName: scope
+          AttributeType: S
+        - AttributeName: visitor
+          AttributeType: S
+      KeySchema:
+        - AttributeName: scope
+          KeyType: HASH
+        - AttributeName: visitor
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Project
+          Value: jeju-3d
+        - Key: Component
+          Value: visitor-presence
 
   OriginSecret:
     Type: AWS::SecretsManager::Secret
@@ -561,7 +597,7 @@ Resources:
   TaskRole:
     Type: AWS::IAM::Role
     Properties:
-      Description: Read the selected catalog, invoke the selected guide and enforce its daily quota.
+      Description: Read the selected catalog, coordinate guide requests and maintain aggregate visitor counts.
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -600,6 +636,18 @@ Resources:
                   - dynamodb:GetItem
                   - dynamodb:UpdateItem
                 Resource: !GetAtt GuideQuota.Arn
+        - PolicyName: AtlasVisitorPresence
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:ConditionCheckItem
+                Resource: !GetAtt VisitorPresence.Arn
       Tags:
         - Key: Project
           Value: jeju-3d
@@ -665,6 +713,10 @@ Resources:
               Value: !Ref GuideRuntimeArn
             - Name: GUIDE_QUOTA_TABLE
               Value: !Ref GuideQuota
+            - Name: GUIDE_LIMITS_ENABLED
+              Value: !Ref GuideLimitsEnabled
+            - Name: PRESENCE_TABLE
+              Value: !Ref VisitorPresence
             - Name: KAKAO_DAILY_LIMIT
               Value: !Ref KakaoDailyLimit
             - Name: GUIDE_DAILY_LIMIT
@@ -1265,6 +1317,10 @@ Outputs:
     Value: !Ref CatalogBucket
   GuideQuotaTableName:
     Value: !Ref GuideQuota
+  PresenceTableName:
+    Value: !Ref VisitorPresence
+  GuideLimitsEnabled:
+    Value: !Ref GuideLimitsEnabled
   OriginTlsEnabled:
     Value: !Ref OriginTlsEnabled
   OriginTlsMode:

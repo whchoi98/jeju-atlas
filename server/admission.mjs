@@ -5,6 +5,7 @@ const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{1
 const POOL = 'admission#guide';
 const RETENTION_MS = 3 * 86400_000;
 const dayOf = (now) => new Date(now + 9 * 3600_000).toISOString().slice(0, 10);
+const conversationKeyFor = (id) => `conversation#${id.toLowerCase()}`;
 
 export class AdmissionError extends Error {
   constructor(status, code, retryAfter = 0) {
@@ -117,14 +118,20 @@ function dynamoStore({ table, client, region }) {
  * only eventual record cleanup: until timestamps, not TTL deletion, release
  * expired capacity. Every guide-serving task must use this admission path;
  * legacy tasks share the daily counter but do not participate in leases.
+ * With limitsEnabled:false, new leases only write request and conversation rows:
+ * there is no fleet/actor capacity pool or hourly/daily accounting. Unknown
+ * outcomes still hold their conversation until the lease expires.
  */
 export function createAdmission({
   table, client, store: suppliedStore, region = 'ap-northeast-2', clock = Date.now,
   dailyLimit = 30, hourlyLimit = 5, actorDailyLimit = dailyLimit,
-  globalConcurrency = 2, leaseMs = 120_000,
+  globalConcurrency = 2, leaseMs = 120_000, limitsEnabled = true,
 } = {}) {
-  for (const [value, max] of [[dailyLimit, 30], [hourlyLimit, 5], [actorDailyLimit, 30], [globalConcurrency, 2]]) {
-    if (!Number.isInteger(value) || value < 1 || value > max) throw new Error('Invalid admission limit');
+  if (typeof limitsEnabled !== 'boolean') throw new Error('Invalid limitsEnabled option');
+  if (limitsEnabled) {
+    for (const [value, max] of [[dailyLimit, 30], [hourlyLimit, 5], [actorDailyLimit, 30], [globalConcurrency, 2]]) {
+      if (!Number.isInteger(value) || value < 1 || value > max) throw new Error('Invalid admission limit');
+    }
   }
   if (!Number.isInteger(leaseMs) || leaseMs < 120_000 || leaseMs > 300_000) throw new Error('Invalid admission lease duration');
   const store = suppliedStore || dynamoStore({ table, client, region });
@@ -139,7 +146,7 @@ export function createAdmission({
         await yieldToLoop();
       }
     }
-    throw new AdmissionError(429, 'guide_busy', 1);
+    throw limitsEnabled ? new AdmissionError(429, 'guide_busy', 1) : unavailable();
   }
   function duplicate(row, requestHash, actorId, now) {
     if (row.requestHash !== requestHash || row.actorId !== actorId) throw new AdmissionError(409, 'request_conflict');
@@ -152,7 +159,27 @@ export function createAdmission({
       || !UUID.test(input.conversationId ?? '') || !/^[a-f0-9]{64}$/.test(input.requestHash ?? '')) {
       throw new AdmissionError(400, 'invalid_request');
     }
-    return { actorKey: `actor#${input.actorId}`, requestKey: `request#${input.requestId.toLowerCase()}` };
+    return {
+      actorKey: `actor#${input.actorId}`, requestKey: `request#${input.requestId.toLowerCase()}`,
+      conversationId: input.conversationId.toLowerCase(), conversationKey: conversationKeyFor(input.conversationId),
+    };
+  }
+  function conversationBusy(until, now) {
+    return new AdmissionError(409, 'conversation_busy', Math.max(1, Math.ceil((until - now) / 1000)));
+  }
+  function checkConversation(row, actorId, now, owner) {
+    if (!row) return;
+    if (typeof row.actorId !== 'string' || !Number.isSafeInteger(row.until) || row.until < 0
+      || (row.owner !== null && !UUID.test(row.owner ?? ''))) throw unavailable();
+    if (row.actorId !== actorId) throw new AdmissionError(403, 'invalid_conversation');
+    if (row.until > now && row.owner !== owner) throw conversationBusy(row.until, now);
+  }
+  function conversationRow(key, lease, expiresAt) {
+    return { id: key, actorId: lease.actorId, owner: lease.owner, until: lease.until, requestKey: lease.requestKey, expiresAt };
+  }
+  function ownsRequest(request, lease) {
+    return request?.owner === lease.owner && request.actorId === lease.actorId
+      && request.conversationId?.toLowerCase() === lease.conversationId?.toLowerCase();
   }
   return {
     async ready() {
@@ -160,21 +187,50 @@ export function createAdmission({
       try { await store.read(POOL); return true; } catch { return false; }
     },
     acquire(input) {
-      const { actorKey, requestKey } = keys(input);
+      const { actorKey, requestKey, conversationKey, conversationId } = keys(input);
       return operation(async () => {
         input.signal?.throwIfAborted();
         const now = clock();
         const previous = await store.read(requestKey, { signal: input.signal });
         if (previous) duplicate(previous, input.requestHash, input.actorId, now);
+        const [conversation, actor] = await Promise.all([conversationKey, actorKey]
+          .map((id) => store.read(id, { signal: input.signal })));
+        checkConversation(conversation, input.actorId, now);
+        const owner = randomUUID();
+        const until = now + leaseMs;
+        const expiresAt = Math.floor((now + RETENTION_MS) / 1000);
+        const lease = { owner, until, actorKey, requestKey, actorId: input.actorId, requestId: input.requestId.toLowerCase(), conversationId };
+        const request = { id: requestKey, state: 'reserved', actorId: input.actorId, owner, until, requestHash: input.requestHash, conversationId, expiresAt };
+        if (!limitsEnabled) {
+          // Old limited actor rows may outlive a rolling deployment. If their
+          // conversation is unknown, conservatively wait for that lease only.
+          // Unlimited requests never renew/write an actor row, so this does not
+          // impose an ongoing per-actor cap. New limited writers name the
+          // conversation and also fence start() on its shared lease row.
+          if (actor && (!Number.isSafeInteger(actor.until) || actor.until < 0
+            || (actor.until > now && !UUID.test(actor.owner ?? ''))
+            || (actor.conversationId !== undefined && !UUID.test(actor.conversationId)))) throw unavailable();
+          if ((actor?.until ?? 0) > now
+            && (!actor.conversationId || actor.conversationId.toLowerCase() === conversationId)) {
+            throw conversationBusy(actor.until, now);
+          }
+          lease.conversationKey = conversationKey;
+          await store.commit([
+            change(conversation, conversationRow(conversationKey, lease, expiresAt)),
+            change(null, { ...request, conversationKey }),
+          ], { signal: input.signal });
+          return lease;
+        }
         const day = dayOf(now);
         const dailyKey = `day#${day}`;
-        const [pool, actor, daily] = await Promise.all([POOL, actorKey, dailyKey].map((id) => store.read(id, { signal: input.signal })));
+        const [pool, daily] = await Promise.all([POOL, dailyKey].map((id) => store.read(id, { signal: input.signal })));
         if ((pool && (!Array.isArray(pool.slots) || pool.slots.some(slot => !UUID.test(slot?.owner ?? '')
           || !Number.isSafeInteger(slot.until) || typeof slot.actorId !== 'string')))
           || (actor && (!Array.isArray(actor.starts) || actor.starts.some(time => !Number.isSafeInteger(time))
             || !Number.isSafeInteger(actor.dayCount) || actor.dayCount < 0 || !Number.isSafeInteger(actor.until)))
           || (daily && (!Number.isSafeInteger(daily.requests) || daily.requests < 0))) throw unavailable();
         const slots = (pool?.slots ?? []).filter((slot) => slot.until > now);
+        if ((actor?.until ?? 0) > now && actor.conversationId === conversationId) throw conversationBusy(actor.until, now);
         if (slots.length >= globalConcurrency || slots.some((slot) => slot.actorId === input.actorId) || (actor?.until ?? 0) > now) {
           throw new AdmissionError(429, 'guide_busy', 5);
         }
@@ -183,29 +239,37 @@ export function createAdmission({
         if ((daily?.requests ?? 0) >= dailyLimit || (actor?.day === day && actor.dayCount >= actorDailyLimit)) {
           throw new AdmissionError(429, 'daily_limit');
         }
-        const owner = randomUUID();
-        const until = now + leaseMs;
-        const expiresAt = Math.floor((now + RETENTION_MS) / 1000);
-        const lease = { owner, until, actorKey, requestKey, actorId: input.actorId, requestId: input.requestId.toLowerCase(), conversationId: input.conversationId };
         await store.commit([
           change(daily, { id: dailyKey, requests: (daily?.requests ?? 0) + 1, expiresAt }),
-          change(actor, { id: actorKey, starts: [...starts, now], day, dayCount: (actor?.day === day ? actor.dayCount : 0) + 1, owner, until, expiresAt }),
+          change(actor, { id: actorKey, starts: [...starts, now], day, dayCount: (actor?.day === day ? actor.dayCount : 0) + 1, owner, until, conversationId, expiresAt }),
           change(pool, { id: POOL, slots: [...slots, { owner, until, actorId: input.actorId }], expiresAt }),
-          change(null, { id: requestKey, state: 'reserved', actorId: input.actorId, owner, until, requestHash: input.requestHash, conversationId: input.conversationId, expiresAt }),
+          change(null, request),
         ], { signal: input.signal });
         return lease;
       });
     },
     start(lease, { signal } = {}) {
       return operation(async () => {
-        const [request, actor, pool] = await Promise.all([lease.requestKey, lease.actorKey, POOL].map((id) => store.read(id, { signal })));
-        if (!request || request.owner !== lease.owner || request.state !== 'reserved'
-          || request.until <= clock() || actor?.owner !== lease.owner || !pool?.slots.some((slot) => slot.owner === lease.owner)) {
+        const conversationKey = conversationKeyFor(lease.conversationId);
+        const [request, conversation, actor, pool] = await Promise.all([
+          lease.requestKey, conversationKey, ...(!lease.conversationKey ? [lease.actorKey, POOL] : []),
+        ].map((id) => store.read(id, { signal })));
+        const now = clock();
+        if (!ownsRequest(request, lease) || request.state !== 'reserved' || request.until <= now
+          || request.conversationKey !== lease.conversationKey
+          || (lease.conversationKey
+            ? conversation?.owner !== lease.owner || conversation.until <= now || conversation.requestKey !== lease.requestKey
+            : actor?.owner !== lease.owner || !pool?.slots.some((slot) => slot.owner === lease.owner))) {
           throw new AdmissionError(409, 'request_in_progress');
         }
+        checkConversation(conversation, lease.actorId, now, lease.owner);
+        // Limited reservations keep the old four-row transaction. Claiming the
+        // conversation here, atomically with started, also fences mixed-mode
+        // races before either handler is allowed to submit to the runtime.
         await store.commit([
           change(request, { ...request, state: 'started' }),
-          change(actor, actor), change(pool, pool),
+          change(conversation, conversationRow(conversationKey, lease, request.expiresAt)),
+          ...(!lease.conversationKey ? [change(actor, actor), change(pool, pool)] : []),
         ], { signal });
         signal?.throwIfAborted();
         if (clock() >= lease.until) throw new AdmissionError(409, 'request_unknown');
@@ -214,10 +278,16 @@ export function createAdmission({
     finish(lease, { outcome } = {}) {
       if (!['completed', 'failed', 'unknown'].includes(outcome)) throw new AdmissionError(400, 'invalid_request');
       return operation(async () => {
-        const [request, actor, pool] = await Promise.all([lease.requestKey, lease.actorKey, POOL].map((id) => store.read(id)));
-        if (!request || request.owner !== lease.owner || ['completed', 'failed', 'unknown'].includes(request.state)) return;
+        const [request, conversation, actor, pool] = await Promise.all([
+          lease.requestKey, conversationKeyFor(lease.conversationId), ...(!lease.conversationKey ? [lease.actorKey, POOL] : []),
+        ].map((id) => store.read(id)));
+        if (!ownsRequest(request, lease) || request.conversationKey !== lease.conversationKey
+          || ['completed', 'failed', 'unknown'].includes(request.state)) return;
         const changes = [change(request, { ...request, state: outcome })];
         if (outcome !== 'unknown') {
+          if (conversation?.owner === lease.owner && conversation.requestKey === lease.requestKey) {
+            changes.push(change(conversation, { ...conversation, owner: null, until: 0 }));
+          }
           if (actor?.owner === lease.owner) changes.push(change(actor, { ...actor, owner: null, until: 0 }));
           if (pool?.slots.some((slot) => slot.owner === lease.owner)) {
             changes.push(change(pool, { ...pool, slots: pool.slots.filter((slot) => slot.owner !== lease.owner) }));
