@@ -13,14 +13,19 @@
 
 [이동 경로·3D·전용 Agent 전환 현황](docs/mobility-independence-2026-09-11.md) · [이전 공개 배포 기록](docs/deployment.md)
 
-**카카오 중심의 상업 장소 탐색과 공공 관광정보 연계를 배포했습니다.**
-현재 릴리스는 `release-20260912T051454Z` / `jeju-3d:19`, 전용 Guide는 버전 `2`입니다.
-`Jeju3dApp` `UPDATE_COMPLETE`, PRIMARY `COMPLETED`, desired/running 2/2와 웹·라우터 HEALTHY를 확인했습니다.
-운영 사이트에서 음식점·카페·숙소·주차장 직접 조회, 카카오 상세 링크, 기존 즐겨찾기와 공공 사진 보존을 확인했습니다.
-AI도 선택한 카카오 장소의 연락처·출처와 협재 주변 카페 추천을 끝까지 답변했습니다.
-운영 검사 94개, 앱 Node 569개·Python 193개와 별도 Guide Python 20개가 통과했습니다.
-앱 선택 검사 3개는 건너뛰었고, 카카오 API와 실제 AI를 호출해 검증했습니다.
-[카카오 중심 탐색·AI 연계 최신 배포 기록](docs/kakao-discovery-release-2026-09-12.md) ·
+**장소 목록 공간과 사진 없는 상세보기를 개선해 배포했습니다.**
+현재 릴리스는 `release-20260912T070054Z` / `jeju-3d:21`입니다.
+`UPDATE_COMPLETE`, desired/running 2/2, ALB 대상 2개 정상 및 최종 인프라·HTTP 검사 94개 통과를 확인했습니다.
+공개 사이트의 화면 5종에서 실제 카카오 장소 카드가 처음부터 2–4개 보이는 것을 확인했습니다.
+필터를 접어 결과 공간을 확보하고, 사진 없는 장소에는 분류 일러스트와 안내를 표시합니다.
+기존 제공 사진의 출처·크레딧·원본 비율과 사진 다시 불러오기를 유지합니다.
+카카오·사진 브라우저 11개, 모바일 목록 6개, 지도·사이드바 14개 및 공개 PWA·워크숍 5개 검사가 통과했습니다.
+앱 Node 569개·Python 193개가 통과했고, 선택 검사 3개는 건너뛰었습니다.
+이번 검증에서는 실제 AI 모델을 호출하지 않았습니다.
+AI 동시 처리 한도는 서비스 전체 2개이며, 5개부터 검증하는 용량 조정과 짧은 대기는 별도 개선안입니다.
+[목록·사진 표시 최신 배포 기록](docs/explore-usability-2026-09-12.md) ·
+[여러 브라우저의 AI 혼잡 진단·개선안](docs/guide-concurrency-review-2026-09-12.md) ·
+[카카오 중심 탐색·AI 연계 배포 기록](docs/kakao-discovery-release-2026-09-12.md) ·
 [모바일 목록·경계 화살표](docs/mobile-sidebar-release-2026-09-12.md) ·
 [카카오 연결 보완](docs/kakao-matching-release-2026-09-12.md) ·
 [최초 카카오·사이드바 배포](docs/kakao-sidebar-release-2026-09-11.md) ·

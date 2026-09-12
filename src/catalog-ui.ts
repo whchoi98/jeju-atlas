@@ -11,6 +11,7 @@ import { KakaoDetails } from './kakao-details';
 import { detailKakao, discoveryBounds, discoveryConfig, discoverySource, isDiscoveryCategory, isKakaoId, KakaoDiscoveryError, KakaoSelections, nativeCatalogPlace, reopenKakao, searchKakao, selectionIsFresh } from './kakao-discovery';
 import type { DiscoverySource } from './kakao-discovery';
 import { snapshot } from './saved-data';
+import { placeVisualHTML } from './place-visual';
 import './kakao-details.css';
 
 interface CatalogOptions {
@@ -165,9 +166,9 @@ export class CatalogUI {
       <p id="catalog-scope-note" class="micro-note">서비스 카탈로그 전체에서 검색합니다.</p>
       </div>
       <div class="catalog-result-heading"><h2>장소 탐색</h2><span id="catalog-result-count" aria-live="polite"></span></div>
-      <p id="catalog-native-note" class="catalog-native-note" hidden data-i18n-ignore></p>
       <div id="catalog-list" class="catalog-list" aria-label="카탈로그 검색 결과"></div>
       <div class="catalog-pagination"><button id="catalog-prev" disabled aria-label="이전 40개 장소">← 이전</button><span id="catalog-page">1</span><button id="catalog-next" disabled aria-label="다음 40개 장소">다음 →</button></div>
+      <details id="catalog-native-info" class="catalog-native-info" hidden><summary><span>검색 출처</span> · Kakao Local</summary><p id="catalog-native-note" class="catalog-native-note" data-i18n-ignore></p></details>
       <details class="catalog-provenance"><summary>카탈로그 출처 알아보기</summary><div id="catalog-provenance-text">기본 정보와 보강 정보의 출처를 구분해 표시합니다.</div><p>큐레이션 시드의 좌표·주소·소개는 공식 대조 검증으로 간주하지 않습니다. 사진·이용시간 등은 각 항목의 보강 출처를 확인하세요.</p><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors · ODbL ↗</a></details>
     `;
     root.querySelector('#catalog-search')!.addEventListener('input', (event) => {
@@ -366,6 +367,7 @@ export class CatalogUI {
     this.root.querySelector('#catalog-prev')!.setAttribute('aria-label', t(native ? '이전 15개 장소' : '이전 40개 장소'));
     this.root.querySelector('#catalog-next')!.setAttribute('aria-label', t(native ? '다음 15개 장소' : '다음 40개 장소'));
     const note = this.root.querySelector<HTMLElement>('#catalog-native-note')!;
+    this.root.querySelector<HTMLElement>('#catalog-native-info')!.hidden = !native;
     note.hidden = !native;
     note.innerHTML = native ? `${html(t('카카오 검색은 한 번에 15곳씩, 최대 45곳까지 볼 수 있어요.'))}
       ${page && (page.truncated || page.total > page.pageable || page.pageable > 45) ? `<strong>${html(t('검색 결과의 일부만 표시합니다. 범위를 줄이거나 이름으로 찾아보세요.'))}</strong>` : ''}
@@ -406,8 +408,7 @@ export class CatalogUI {
     this.root.dataset.filtersOpen = String(open);
     const toggle = this.root.querySelector<HTMLButtonElement>('#catalog-filter-toggle')!;
     toggle.setAttribute('aria-expanded', String(open));
-    if (!open && matchMedia('(max-width: 760px)').matches
-      && this.root.querySelector('#catalog-options')!.contains(document.activeElement)) {
+    if (!open && this.root.querySelector('#catalog-options')!.contains(document.activeElement)) {
       toggle.focus({ preventScroll: true });
     }
   }
@@ -659,8 +660,8 @@ export class CatalogUI {
     this.root.querySelector('#catalog-list')!.innerHTML = this.items.map((place) => `
       <button class="catalog-card ${place.id === this.detailId ? 'is-selected' : ''}" data-catalog-id="${html(place.id)}" aria-pressed="${place.id === this.detailId}">
         <span class="catalog-category-dot catalog-category-dot--${categoryColor(place.category)}">${icon(categorySymbol(place.category).icon)}</span>
-        <span><strong data-i18n-ignore>${html(placeName(place))}</strong>${native ? `<span class="catalog-provider-category" data-i18n-ignore>${html(this.nativeSelections.get(place.id)?.provider_category || place.category)}</span>` : ''}
-        <span class="catalog-card-meta">${native ? '' : `${html(categoryName(place.category))} <span>·</span> `}${html(distanceLabel(place.distance_m ?? distanceMeters(center, place)))} ${html(t('직선'))}</span><span class="catalog-card-address" data-i18n-ignore>${html(!native && this.mode === 'view' ? t('주소는 상세에서 확인') : place.address || t('주소 정보 없음'))}</span><span class="catalog-base-source">${native ? 'Kakao Local' : `${t('기본:')} ${html(place.source_label || sourceName(place.source))}`}</span></span>${icon('chevron')}
+        <span class="catalog-card-content"><strong data-i18n-ignore>${html(placeName(place))}</strong>${native ? `<span class="catalog-provider-category" data-i18n-ignore title="${html(this.nativeSelections.get(place.id)?.provider_category || place.category)}">${html(this.nativeSelections.get(place.id)?.provider_category || place.category)}</span>` : ''}
+        <span class="catalog-card-address" data-i18n-ignore>${html(!native && this.mode === 'view' ? t('주소는 상세에서 확인') : place.address || t('주소 정보 없음'))}</span><span class="catalog-card-footer"><span class="catalog-card-meta">${native ? '' : `${html(categoryName(place.category))} <span>·</span> `}${html(distanceLabel(place.distance_m ?? distanceMeters(center, place)))} ${html(t('직선'))}</span><span class="catalog-base-source">${native ? 'Kakao Local' : `${t('기본:')} ${html(place.source_label || sourceName(place.source))}`}</span></span></span>${icon('chevron')}
       </button>`).join('') || (native
       ? `<div class="feature-empty"><strong>${html(t('이 조건의 카카오 검색 결과가 없어요'))}</strong><p>${html(t('장소 이름이나 검색 범위를 바꿔 보세요.'))}</p></div>`
       : '<div class="feature-empty"><strong>조건에 맞는 장소가 없어요</strong><p>검색어와 분류, 지도 범위를 바꿔 보세요.</p></div>');
@@ -776,7 +777,7 @@ export class CatalogUI {
         const message = native
           ? saved ? '저장한 장소 정보입니다. 현재 카카오 정보를 확인하지 못했어요.' : '앞서 조회한 장소 정보입니다. 현재 상세 정보를 확인하지 못했어요.'
           : '저장한 장소 정보입니다. 현재 상세 정보에 연결하지 못했어요.';
-        this.detailRoot.innerHTML = `<div class="detail-heading"><h2 data-i18n-ignore>${html(placeName(fallback))}</h2><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div><div class="detail-content"><p class="detail-base-note">${html(t(message))}</p><p data-i18n-ignore>${html(fallback.summary || t(noData))}</p><dl class="detail-basics"><div><dt>주소</dt><dd data-i18n-ignore>${html(fallback.address || t(noData))}</dd></div><div><dt>기본 출처</dt><dd>${html(fallback.source_label)}</dd></div><div><dt>정보 기준</dt><dd>${html(dateLabel(fallback.updated_at, native))}${native && fallback.updated_at ? ' KST' : ''}</dd></div></dl><p data-i18n-ignore>${html(fallback.base_note || '')}</p><button data-detail-action="add" class="button button--primary">내 여행에 담기</button><button data-detail-action="retry" class="button">최신 상세 다시 확인</button></div>`;
+        this.detailRoot.innerHTML = `<div class="detail-heading"><h2 data-i18n-ignore>${html(placeName(fallback))}</h2><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div><div class="detail-content"><p class="detail-base-note">${html(t(message))}</p>${placeVisualHTML(fallback)}<p data-i18n-ignore>${html(fallback.summary || t(noData))}</p><dl class="detail-basics"><div><dt>주소</dt><dd data-i18n-ignore>${html(fallback.address || t(noData))}</dd></div><div><dt>기본 출처</dt><dd>${html(fallback.source_label)}</dd></div><div><dt>정보 기준</dt><dd>${html(dateLabel(fallback.updated_at, native))}${native && fallback.updated_at ? ' KST' : ''}</dd></div></dl><p data-i18n-ignore>${html(fallback.base_note || '')}</p><button data-detail-action="add" class="button button--primary">내 여행에 담기</button><button data-detail-action="retry" class="button">최신 상세 다시 확인</button></div>`;
       } else {
         const focusInside = this.detailRoot.contains(document.activeElement);
         this.detailRoot.querySelector('.feature-empty')?.replaceChildren();
@@ -813,7 +814,7 @@ export class CatalogUI {
     if (!photo) return '';
     const original = publicProviderURL(photo.origin_url);
     return `<figure><img id="detail-photo-image" src="${html(photo.url)}" alt="${html(placeName(place))} · ${t('제공 사진')}" decoding="async">
-      <div id="detail-photo-error" class="feature-empty" role="status" hidden><p>${t('사진을 불러오지 못했어요. 다른 사진을 선택하거나 다시 시도해 주세요.')}</p><button data-detail-action="photo-retry">${t('사진 다시 불러오기')}</button></div>
+      <div id="detail-photo-error" class="feature-empty" role="status" hidden>${placeVisualHTML(place, { failed: true })}<button data-detail-action="photo-retry">${t('사진 다시 불러오기')}</button></div>
       <figcaption id="detail-photo-caption"><span class="photo-credit" data-i18n-ignore>${html(photo.credit || t('사진 크레딧 정보 없음'))}</span><span>${html(photo.license || t('이용허락 정보 없음'))} · ${html(sourceName(photo.source))}${original ? ` · <a id="detail-photo-origin" href="${html(original)}" target="_blank" rel="noopener noreferrer">${t('원본 출처')} ↗</a>` : ''}</span>${/KOGL[- ]?[34]/i.test(photo.license) ? `<span>${t('변경 금지 사진 · 원본 비율로 표시')}</span>` : ''}</figcaption></figure>`;
   }
 
@@ -826,7 +827,7 @@ export class CatalogUI {
       if (!url || seen.has(url)) return false;
       seen.add(url); return true;
     }).slice(0, 12);
-    if (!this.photoItems.length) return '';
+    if (!this.photoItems.length) return placeVisualHTML(place);
     this.photoIndex = Math.min(this.photoIndex, this.photoItems.length - 1);
     return `<section id="detail-photo-gallery" class="detail-gallery" tabindex="-1" aria-label="${t('장소 사진 갤러리')}"><div id="detail-gallery-image" class="detail-photos">${this.photoFigure(place)}</div>
       <div class="detail-gallery-controls"${this.photoItems.length < 2 ? ' hidden' : ''}>

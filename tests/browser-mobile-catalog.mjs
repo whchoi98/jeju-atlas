@@ -102,7 +102,7 @@ try {
 
     await check(`${viewport.width}×${viewport.height}: category selection leaves readable complete result cards`, async () => {
       const state = await snapshot(page);
-      assert.ok(state.fullyVisible >= 1, JSON.stringify(state));
+      assert.ok(state.fullyVisible >= 2, JSON.stringify(state));
       assert.ok(state.height >= 280, JSON.stringify(state));
       assert.ok(state.pageWidth <= viewport.width + 1);
       return state;
@@ -141,7 +141,7 @@ try {
       await ready(page);
       await page.waitForFunction(id => document.querySelector('#catalog-list [data-catalog-id]')?.getAttribute('data-catalog-id') !== id, first);
       const next = await snapshot(page);
-      assert.ok(next.fullyVisible >= 1, JSON.stringify(next));
+      assert.ok(next.fullyVisible >= 2, JSON.stringify(next));
       assert.match(await page.locator('#catalog-page').innerText(), /^2\s*\//);
       await page.locator('#language-toggle').click();
       await page.waitForFunction(() => document.documentElement.lang === 'en');

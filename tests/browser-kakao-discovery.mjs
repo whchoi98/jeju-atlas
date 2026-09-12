@@ -19,6 +19,12 @@ const place = (id, name, category = '해변') => ({
   business_status: null, tips: null, sources: [], enriched_at: null, official_details: [],
 });
 const nature = place('poi_beach', '기존 해변');
+// Controlled images exercise provider-neutral rendering and retry, never actual venue photography.
+nature.photos = ['available', 'retry'].map(name => ({
+  url: `https://upload.wikimedia.org/atlas-browser-fixture/${name}.svg`,
+  thumb_url: null, origin_url: 'https://commons.wikimedia.org/wiki/File:Atlas_browser_fixture.svg',
+  credit: '브라우저 시험 사진 크레딧', license: 'CC-BY-SA-4.0', source: 'wikimedia',
+}));
 const old = place('poi_old', '이전 저장 식당', '맛집');
 const publicPlace = {
   ...place('poi_public', '카카오 맛집 1001', '맛집'), source: 'visitjeju',
@@ -84,7 +90,7 @@ const server = createAppServer({
       const body = req.method === 'POST' ? await readBody(req) : null;
       requests.push({ path: url.pathname, query: Object.fromEntries(url.searchParams), body });
       if (url.pathname === '/api/config') return json({
-        version: 'discovery-browser-fixture', features: { catalog: true, guide: false, planner: true, routing: false, pwa: false },
+        version: 'discovery-browser-fixture', features: { catalog: true, guide: false, planner: true, routing: false, pwa: true },
         guide: { daily_limit: 0 }, routing: { enabled: false },
         kakao: { enabled: true, csrf_token: 'fixture-csrf' },
         discovery: { enabled: true, csrf_token: 'fixture-csrf', categories: nativeCategories, page_size: 15, max_results: 45 },
@@ -171,6 +177,14 @@ try {
     if (!localStorage.getItem('jeju-atlas.saved.v1')) localStorage.setItem('jeju-atlas.saved.v1', JSON.stringify(data));
   }, initialSaved);
   const page = await context.newPage();
+  let photoUnavailable = true;
+  await page.route('https://upload.wikimedia.org/atlas-browser-fixture/**', route => {
+    const missing = photoUnavailable && route.request().url().endsWith('/retry.svg');
+    return route.fulfill({
+      status: missing ? 404 : 200, contentType: 'image/svg+xml', headers: { 'Cache-Control': 'no-store' },
+      body: missing ? '' : '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><rect width="320" height="200" fill="#232f3e"/><text x="30" y="110" fill="white" font-size="24">BROWSER TEST IMAGE</text></svg>',
+    });
+  });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-catalog-id="poi_beach"]');
@@ -181,6 +195,12 @@ try {
   const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('jeju-atlas.saved.v1')));
   const closeDetail = () => page.locator('#catalog-detail [data-detail-action="close"]').click();
   const points = () => page.evaluate(() => window.__JEJU_MAP__.getSource('catalog-points').serialize().data.features);
+  const selectSource = async value => {
+    if (await page.locator('#catalog-filter-toggle').getAttribute('aria-expanded') !== 'true') {
+      await page.locator('#catalog-filter-toggle').click();
+    }
+    await page.locator('#catalog-source').selectOption(value);
+  };
 
   assert.equal((await cards().all()).length, 1);
   assert.equal(requests.find(request => request.path === '/api/catalog/search').query.exclude_commercial, 'true');
@@ -204,8 +224,51 @@ try {
   assert.match(await page.locator('.catalog-provider-category').first().innerText(), /음식점 > 한식 > 국수/);
   assert.doesNotMatch(await page.locator('#catalog-total').innerText(), /6,?724/);
   assert.match(await page.locator('#catalog-total').innerText(), /62/);
+  await page.locator('#catalog-native-info > summary').click();
   assert.match(await page.locator('#catalog-native-note').innerText(), /15|45/);
+  await page.locator('#catalog-native-info > summary').click();
   report.checks.push('Native cards and current-page markers replace a late catalog points response without a second search');
+
+  // Blocked workers show the real retry footer, which also consumes vertical space in production.
+  await page.locator('#pwa-retry').waitFor();
+  const visibility = [];
+  for (const viewport of [
+    { width: 1440, height: 900 }, { width: 1366, height: 768 }, { width: 1024, height: 600 },
+    { width: 375, height: 667 }, { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    if (viewport.width <= 760 && await page.locator('#drawer-toggle').getAttribute('aria-expanded') !== 'true') {
+      await page.locator('#drawer-toggle').click();
+    }
+    await page.evaluate(() => { document.querySelector('#catalog-explorer').scrollTop = 0; });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const state = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll('#catalog-list .catalog-card')];
+      const fullyVisible = cards.filter(card => {
+        const bounds = card.getBoundingClientRect();
+        let left = 0, top = 0, right = innerWidth, bottom = innerHeight;
+        for (let parent = card.parentElement; parent; parent = parent.parentElement) {
+          const style = getComputedStyle(parent), rect = parent.getBoundingClientRect();
+          if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
+            left = Math.max(left, rect.left); right = Math.min(right, rect.right);
+          }
+          if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
+            top = Math.max(top, rect.top); bottom = Math.min(bottom, rect.bottom);
+          }
+        }
+        return bounds.top >= top - 1 && bounds.bottom <= bottom + 1
+          && bounds.left >= left - 1 && bounds.right <= right + 1;
+      });
+      return { width: innerWidth, height: innerHeight, fullyVisible: fullyVisible.length,
+        cardHeight: cards[0].getBoundingClientRect().height, pageWidth: document.documentElement.scrollWidth };
+    });
+    visibility.push(state);
+    await page.screenshot({ path: resolve(output, `native-results-${viewport.width}.png`) });
+  }
+  report.visibility = visibility;
+  assert.ok(visibility.every(state => state.fullyVisible >= 2 && state.pageWidth <= state.width + 1), JSON.stringify(visibility));
+  report.checks.push('At least two complete native place cards are visible before scrolling on laptops and phones');
+  await page.setViewportSize({ width: 1440, height: 1000 });
 
   const originalLookupCalls = count('/api/kakao/place');
   await cards().first().click();
@@ -215,10 +278,14 @@ try {
   assert.match(await page.locator('.detail-linked-catalog').innerText(), /공공정보 보강/);
   assert.match(await page.locator('.detail-visit-summary [data-evidence-field="overview"]').innerText(), /비짓제주/);
   assert.match(await page.locator('.detail-heading h2').innerText(), /카카오 맛집 1001/);
+  assert.match(await page.locator('#catalog-detail .place-visual-title').innerText(), /제공된 실제 사진 없음/);
+  assert.equal(await page.locator('#detail-photo-image').count(), 0);
   assert.equal(count('/api/kakao/place'), originalLookupCalls);
   const searchCalls = count('/api/kakao/search'), detailCalls = count('/api/kakao/detail');
   await page.locator('#language-toggle').click();
   assert.match(await page.locator('#kakao-place-details').innerText(), /Kakao visiting information/);
+  assert.match(await page.locator('#catalog-detail .place-visual').innerText(), /Actual photo unavailable/);
+  assert.match(await page.locator('#catalog-detail .place-visual').innerText(), /Category illustration/);
   assert.equal(count('/api/kakao/search'), searchCalls);
   assert.equal(count('/api/kakao/detail'), detailCalls);
   await page.locator('#detail-favorite').click();
@@ -272,10 +339,25 @@ try {
   report.checks.push('A valid empty native search is distinguished from outage and explicit recovery');
 
   await page.locator('#catalog-search').fill('');
-  await page.locator('#catalog-source').selectOption('catalog');
+  await selectSource('catalog');
   await page.locator('[data-map-category="해변"]').click();
   await page.waitForSelector('[data-catalog-id="poi_beach"]');
-  await page.locator('#catalog-source').selectOption('kakao');
+  await page.locator('[data-catalog-id="poi_beach"]').click();
+  await page.waitForFunction(() => document.querySelector('#detail-photo-image')?.naturalWidth > 0);
+  assert.equal(await page.locator('#detail-photo-image').evaluate(image => getComputedStyle(image).objectFit), 'contain');
+  assert.match(await page.locator('#detail-photo-caption').innerText(), /CC-BY-SA-4.0/);
+  assert.match(await page.locator('#detail-photo-caption').innerText(), /브라우저 시험 사진 크레딧/);
+  await page.locator('#detail-photo-next').click();
+  await page.locator('#detail-photo-error .place-visual').waitFor();
+  assert.match(await page.locator('#detail-photo-error').innerText(), /This photo could not load/);
+  assert.equal(await page.locator('#detail-photo-image').isVisible(), false);
+  photoUnavailable = false;
+  await page.locator('[data-detail-action="photo-retry"]').click();
+  await page.waitForFunction(() => document.querySelector('#detail-photo-image')?.naturalWidth > 0);
+  assert.equal(await page.locator('#detail-photo-error').isVisible(), false);
+  await closeDetail();
+  report.checks.push('Non-TourAPI photos keep their credit and aspect ratio; missing photos disclose artwork and failed images can recover');
+  await selectSource('kakao');
   assert.equal(await page.locator('#catalog-category').inputValue(), '');
   await page.locator('#catalog-search').fill('박물관');
   await waitNative('kakao:6001');
@@ -283,7 +365,7 @@ try {
   await page.locator('[data-map-category="해변"]').click();
   await page.waitForSelector('[data-catalog-id="poi_beach"]');
   assert.equal(await page.locator('#catalog-source').inputValue(), 'auto');
-  await page.locator('#catalog-source').selectOption('catalog');
+  await selectSource('catalog');
   await page.locator('#catalog-category').selectOption('');
   await page.waitForSelector('[data-catalog-id="poi_old"]');
   assert.notEqual(requests.filter(request => request.path === '/api/catalog/search').at(-1).query.exclude_commercial, 'true');
@@ -319,8 +401,7 @@ try {
   await page.locator('#tab-explore').click();
   await page.setViewportSize({ width: 390, height: 844 });
   if (await page.locator('#drawer-toggle').getAttribute('aria-expanded') !== 'true') await page.locator('#drawer-toggle').click();
-  await page.locator('#catalog-filter-toggle').click();
-  await page.locator('#catalog-source').selectOption('auto');
+  await selectSource('auto');
   await page.locator('[data-map-category="카페"]').click();
   await waitNative('kakao:2001');
   assert.equal(await page.locator('#catalog-source').isVisible(), false);
