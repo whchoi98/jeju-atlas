@@ -16,5 +16,7 @@ export type KakaoLookup = {
   queried_at: string;
   source: 'Kakao Local';
   place: KakaoPlace | null;
+  reason?: 'no_results' | 'name_mismatch' | 'category_mismatch' | 'distance_mismatch'
+    | 'multiple_candidates' | 'incomplete_results';
   match?: { method: 'name_category_distance'; distance_m: number };
 };

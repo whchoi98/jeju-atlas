@@ -13,13 +13,15 @@
 
 [이동 경로·3D·전용 Agent 전환 현황](docs/mobility-independence-2026-09-11.md) · [이전 공개 배포 기록](docs/deployment.md)
 
-**카카오 장소 상세 연동과 사이드바 접기·펼치기를 공개 배포했습니다.**
-현재 릴리스는 `release-20260911T221928Z` / `jeju-3d:15`입니다.
+**카카오 장소 연결 누락을 보완하고 사이드바 접기·펼치기 버튼을 더 명확하게 표시했습니다.**
+현재 릴리스는 `release-20260912T015159Z` / `jeju-3d:16`입니다.
 `Jeju3dApp` `UPDATE_COMPLETE`, PRIMARY `COMPLETED`, desired/running 2/2와 웹·라우터 HEALTHY를 확인했습니다.
-운영 사이트에서 실제 카카오 주소·전화·상세 링크, 한영 전환과 사이드바 복원을 확인했습니다.
-운영 검사 94개, 앱 Node 420개·Python 193개가 통과했습니다.
+운영 사이트에서 올래국수 본점·성산일출봉의 실제 연결, 한영 전환과 사이드바 복원을 확인했습니다.
+이름·분류·위치 차이와 검색 결과 부족을 구분하여 안내하며, 가까운 장소부터 검토합니다.
+운영 검사 94개, 앱 Node 447개·Python 193개가 통과했습니다.
 앱 선택 검사 3개는 건너뛰었고, 실제 카카오 API를 호출했으며 AI 모델은 호출하지 않았습니다.
-[카카오·사이드바 배포 기록](docs/kakao-sidebar-release-2026-09-11.md) ·
+[카카오 연결 보완·최신 배포 기록](docs/kakao-matching-release-2026-09-12.md) ·
+[최초 카카오·사이드바 배포](docs/kakao-sidebar-release-2026-09-11.md) ·
 [워크숍 열기](https://jeju-atlas.whchoi.net/workshop/) · [PWA 배포 기록](docs/pwa-workshop-release-2026-09-11.md)
 
 전용 Agent·카탈로그·도보/차량 경로 엔진 전환과 실제 AI 답변 완료 검증은

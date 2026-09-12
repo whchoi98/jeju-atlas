@@ -1,6 +1,8 @@
 const KEYWORD_URL = 'https://dapi.kakao.com/v2/local/search/keyword.json';
 const PAGE_SIZE = 15;
 const MAX_PAGES = 3;
+const NEARBY_RADIUS_M = 200;
+const MAIN_BRANCH_RADIUS_M = 100;
 const MAX_BODY_BYTES = 128 * 1024;
 const CATEGORIES = new Map([
   ['맛집', ['FD6']], ['카페', ['CE7']], ['주차장', ['PK6']],
@@ -104,6 +106,41 @@ function distanceMeters(origin, candidate) {
   return 2 * 6371000 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, a))));
 }
 
+function compatibleCategory(category, groups, candidate) {
+  if (groups.includes(candidate.group)) return true;
+  if (candidate.group !== '') return false;
+  // Kakao's coarse group is optional: mountains such as Seongsan use only
+  // this structured category path. Do not treat every uncoded place as a POI.
+  const path = candidate.category.normalize('NFKC').split('>').map(part => part.trim());
+  const has = (...values) => values.some(value => path.includes(value));
+  const attraction = path[0] === '여행' && path[1] === '관광,명소';
+  const culture = path[0] === '문화,예술' && has('문화시설');
+  if (category !== '주차장'
+    && has('관광지부속시설', '주차장', '화장실', '공중화장실', '샤워장', '입구', '출구', '매표소')) return false;
+  if (category === '맛집') return path[0] === '음식점' && !has('카페');
+  if (category === '카페') return path[0] === '음식점' && has('카페');
+  if (category === '주차장') return path[0] === '교통,수송' && has('주차장');
+  if (category === '박물관') return culture && has('박물관', '미술관', '전시관');
+  if (category === '시장') return ['가정,생활', '쇼핑,유통', '쇼핑'].includes(path[0]) && has('시장', '전통시장');
+  if (category === '관광지' && culture) return true;
+  if (!attraction) return false;
+  if (category === '관광지') return true;
+  if (category === '오름') return has('산', '산봉우리', '오름');
+  if (category === '해변') return has('해수욕장,해변', '해수욕장', '해변', '바닷가');
+  if (category === '올레길') return has('도보여행', '도보코스', '산책로', '걷기코스', '둘레길', '올레길');
+  return false;
+}
+
+function nameRadius(canonical, names, candidate, radius) {
+  const name = normalizeName(candidate.name);
+  if (names.has(name)) return radius;
+  // A nearby explicit main-store label may supplement an unqualified name.
+  // Never strip a different branch, region prefix, or arbitrary suffix.
+  if (!normalizeName(canonical.name).endsWith('점') && name.endsWith('본점')
+    && names.has(name.slice(0, -2))) return Math.min(radius, MAIN_BRANCH_RADIUS_M);
+  return null;
+}
+
 /**
  * Read only a bounded stream, never response.json(). Caller settlement races the deadline;
  * cleanup stays attached to the worker so an ignored cancellation cannot free its slot.
@@ -182,13 +219,14 @@ export function createKakaoService({
   if (!Number.isSafeInteger(maxConcurrent) || maxConcurrent < 1
     || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2147483647) throw new KakaoError();
 
-  function result(canonical, status, candidate, distance) {
+  function result(canonical, status, candidate, distance, reason) {
     let queriedAt;
     try { queriedAt = new Date(clock()).toISOString(); } catch { throw new KakaoError(); }
     const dto = {
       available: true, status, canonical_id: canonical.id,
       queried_at: queriedAt, source: 'Kakao Local', place: null,
     };
+    if (reason) dto.reason = reason;
     if (candidate) {
       const { id, name, category, address, road_address, phone, url } = candidate;
       dto.place = { id, name, category, address, road_address, phone, url };
@@ -199,79 +237,90 @@ export function createKakaoService({
     return dto;
   }
 
-  async function run(canonical, groups, radius, controller) {
+  async function searchScope(canonical, radius, controller) {
     const { signal } = controller;
     const seen = new Map();
-    let uncertain = false;
-    // CATEGORIES permits at most two groups: three pages each, six requests per lookup.
-    // Every group shares the caller's controller, deadline and concurrency slot.
-    for (const group of groups) {
-      let metadata;
-      let rows = 0;
-      let complete = false;
-      for (let pageNumber = 1; pageNumber <= MAX_PAGES; pageNumber++) {
-        signal.throwIfAborted();
-        // Deliberately outside provider-error handling: parent quota errors retain their identity.
-        await consumeBudget({ signal });
-        signal.throwIfAborted();
-        const url = new URL(KEYWORD_URL);
-        url.search = new URLSearchParams({
-          query: canonical.name, x: String(canonical.lng), y: String(canonical.lat),
-          radius: String(radius), size: String(PAGE_SIZE), page: String(pageNumber),
-          category_group_code: group,
-        }).toString();
-        let response;
-        try {
-          response = await fetchImpl(url, {
-            method: 'GET', redirect: 'error', signal,
-            headers: { Accept: 'application/json', Authorization: `KakaoAK ${apiKey}` },
-          });
-        } catch (error) {
-          throw providerError(error, signal);
-        }
-        // Even a late response after abort goes through stream cancellation, never parsing.
-        const next = page(await readResponse(response, controller), pageNumber, metadata);
-        metadata = next;
-        let added = 0;
-        const pageIds = new Set();
-        for (const candidate of next.documents) {
-          // An ignored filter cannot establish completeness, even for another allowed group.
-          if (candidate.group !== group) throw invalid();
-          const existing = seen.get(candidate.id);
-          if (existing) {
-            if (JSON.stringify(existing) !== JSON.stringify(candidate)) throw invalid();
-            // An overlap across pages can replace unseen results, invalidating completeness.
-            if (!pageIds.has(candidate.id)) throw invalid();
-          } else {
-            seen.set(candidate.id, candidate);
-            added++;
-          }
-          pageIds.add(candidate.id);
-        }
-        if (next.documents.length && added === 0) throw invalid();
-        rows += next.documents.length;
-        if (next.end) {
-          complete = true;
-          break;
-        }
+    let metadata;
+    let rows = 0;
+    let complete = false;
+    for (let pageNumber = 1; pageNumber <= MAX_PAGES; pageNumber++) {
+      signal.throwIfAborted();
+      // Deliberately outside provider-error handling: parent quota errors retain their identity.
+      await consumeBudget({ signal });
+      signal.throwIfAborted();
+      const url = new URL(KEYWORD_URL);
+      url.search = new URLSearchParams({
+        query: canonical.name, x: String(canonical.lng), y: String(canonical.lat),
+        radius: String(radius), size: String(PAGE_SIZE), page: String(pageNumber),
+        sort: 'distance',
+      }).toString();
+      let response;
+      try {
+        response = await fetchImpl(url, {
+          method: 'GET', redirect: 'error', signal,
+          headers: { Accept: 'application/json', Authorization: `KakaoAK ${apiKey}` },
+        });
+      } catch (error) {
+        throw providerError(error, signal);
       }
-      // A full provider ceiling remains conservative even if it is marked as the last page.
-      // Preserve uncertainty while querying the other groups; none can repair missing results.
-      if (!complete || rows >= PAGE_SIZE * MAX_PAGES || metadata.total > metadata.pageable) uncertain = true;
+      // Even a late response after abort goes through stream cancellation, never parsing.
+      const next = page(await readResponse(response, controller), pageNumber, metadata);
+      metadata = next;
+      let added = 0;
+      const pageIds = new Set();
+      for (const candidate of next.documents) {
+        const existing = seen.get(candidate.id);
+        if (existing) {
+          if (JSON.stringify(existing) !== JSON.stringify(candidate)) throw invalid();
+          // An overlap across pages can replace unseen results, invalidating completeness.
+          if (!pageIds.has(candidate.id)) throw invalid();
+        } else {
+          seen.set(candidate.id, candidate);
+          added++;
+        }
+        pageIds.add(candidate.id);
+      }
+      if (next.documents.length && added === 0) throw invalid();
+      rows += next.documents.length;
+      if (next.end) {
+        complete = true;
+        break;
+      }
     }
     signal.throwIfAborted();
-    if (uncertain) return result(canonical, 'ambiguous');
+    return { seen, uncertain: !complete || rows >= PAGE_SIZE * MAX_PAGES || metadata.total > metadata.pageable };
+  }
+
+  async function run(canonical, groups, radius, controller) {
+    // Prefer a complete, unambiguous nearby result. Only an unverified seed
+    // without such a result needs the wider search. Two scopes × three pages
+    // retain the six-request budget and one overall deadline.
+    const radii = radius > NEARBY_RADIUS_M ? [NEARBY_RADIUS_M, radius] : [radius];
     const names = new Set([normalizeName(canonical.name)]);
     if (canonical.name_en) names.add(normalizeName(canonical.name_en));
-    const eligible = [];
-    for (const candidate of seen.values()) {
-      if (!groups.includes(candidate.group) || !names.has(normalizeName(candidate.name))
-        || !inJeju(candidate.lat, candidate.lng)) continue;
-      const distance = distanceMeters(canonical, candidate);
-      if (distance <= radius) eligible.push({ candidate, distance });
+    let reason = 'no_results';
+    for (const scope of radii) {
+      const { seen, uncertain } = await searchScope(canonical, scope, controller);
+      if (uncertain) return result(canonical, 'ambiguous', null, null, 'incomplete_results');
+      let matchingNames = 0;
+      let matchingCategories = 0;
+      const eligible = [];
+      for (const candidate of seen.values()) {
+        const allowedDistance = nameRadius(canonical, names, candidate, scope);
+        if (allowedDistance === null) continue;
+        matchingNames++;
+        if (!compatibleCategory(canonical.category, groups, candidate)) continue;
+        matchingCategories++;
+        if (!inJeju(candidate.lat, candidate.lng)) continue;
+        const distance = distanceMeters(canonical, candidate);
+        if (distance <= allowedDistance) eligible.push({ candidate, distance });
+      }
+      if (eligible.length > 1) return result(canonical, 'ambiguous', null, null, 'multiple_candidates');
+      if (eligible.length === 1) return result(canonical, 'matched', eligible[0].candidate, eligible[0].distance);
+      if (seen.size) reason = !matchingNames ? 'name_mismatch'
+        : !matchingCategories ? 'category_mismatch' : 'distance_mismatch';
     }
-    if (eligible.length !== 1) return result(canonical, eligible.length ? 'ambiguous' : 'not_found');
-    return result(canonical, 'matched', eligible[0].candidate, eligible[0].distance);
+    return result(canonical, 'not_found', null, null, reason);
   }
 
   async function lookup(place, { signal: callerSignal } = {}) {

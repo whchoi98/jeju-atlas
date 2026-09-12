@@ -18,6 +18,14 @@ const nullableText = (value: unknown, limit: number): value is string | null =>
   value === null || text(value, limit);
 const invalid = () => new Error('Kakao information unavailable');
 const copy = (value: string) => html(t(value));
+const reasonMessages: Record<NonNullable<KakaoLookup['reason']>, string> = {
+  no_results: '이 이름과 위치로는 카카오 검색 결과가 없어요. 다른 이름으로 등록되어 있을 수 있어요.',
+  name_mismatch: '등록된 이름이나 지점명이 달라 자동 연결을 확정하지 못했어요.',
+  category_mismatch: '등록된 장소 분류가 달라 자동 연결을 확정하지 못했어요.',
+  distance_mismatch: '등록된 위치가 달라 자동 연결을 확정하지 못했어요.',
+  multiple_candidates: '같은 이름의 장소가 여러 곳 있어 한 곳으로 연결하지 못했어요.',
+  incomplete_results: '검색 결과가 많거나 일부만 확인되어 자동 연결을 확정하지 못했어요.',
+};
 
 function timestamp(value: unknown): value is string {
   if (!text(value, 40) || !/^20\d{2}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-](?:0\d|1[0-4]):[0-5]\d)$/.test(value)) return false;
@@ -31,6 +39,11 @@ function lookupResult(value: unknown, id: string): KakaoLookup {
     || value.source !== 'Kakao Local' || !timestamp(value.queried_at)) throw invalid();
   const status = value.status;
   if (status !== 'matched' && status !== 'not_found' && status !== 'ambiguous' && status !== 'unsupported') throw invalid();
+  let reason: KakaoLookup['reason'];
+  if (value.reason !== undefined) {
+    if (typeof value.reason !== 'string' || !Object.hasOwn(reasonMessages, value.reason)) throw invalid();
+    reason = value.reason as NonNullable<KakaoLookup['reason']>;
+  }
   let place: KakaoPlace | null = null;
   if (status === 'matched') {
     const item = value.place;
@@ -52,7 +65,7 @@ function lookupResult(value: unknown, id: string): KakaoLookup {
     match = { method: item.method, distance_m: item.distance_m };
   }
   // Keep only validated fields, and only for the current open detail.
-  return { available: true, status, canonical_id: id, queried_at: value.queried_at, source: 'Kakao Local', place, ...(match ? { match } : {}) };
+  return { available: true, status, canonical_id: id, queried_at: value.queried_at, source: 'Kakao Local', place, ...(reason ? { reason } : {}), ...(match ? { match } : {}) };
 }
 
 async function responseJSON(response: Response, signal: AbortSignal): Promise<unknown> {
@@ -175,9 +188,8 @@ export class KakaoDetails {
         <p class="kakao-details-note">${copy('추가 방문 정보는 카카오맵에서 확인해 주세요.')}</p>
         <a class="kakao-details-action" data-kakao-focus="place" href="${html(place.url)}" target="_blank" rel="noopener noreferrer">${copy('카카오맵에서 자세히 보기')} <span aria-hidden="true">↗</span></a>`;
     } else {
-      const message = result.status === 'ambiguous' ? '장소를 한 곳으로 특정하지 못했어요.'
-        : result.status === 'unsupported' ? '이 장소는 카카오 방문 정보를 제공하기 어려워요.'
-          : '카카오에서 연결할 장소를 찾지 못했어요.';
+      const message = result.status === 'unsupported' ? '이 장소는 카카오 방문 정보를 제공하기 어려워요.'
+        : result.reason ? reasonMessages[result.reason] : '자동 연결을 확정하지 못했어요.';
       const search = result.status === 'not_found' || result.status === 'ambiguous';
       const query = encodeURIComponent(`제주 ${view.name}`);
       content = `<p class="kakao-details-message">${copy(message)}</p>

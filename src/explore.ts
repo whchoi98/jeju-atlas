@@ -169,7 +169,7 @@ export class AtlasExperience {
     this.sidebarToggle.type = 'button';
     this.sidebarToggle.setAttribute('aria-controls', 'place-drawer');
     this.sidebarToggle.setAttribute('data-i18n-ignore', '');
-    this.sidebarToggle.innerHTML = icon('chevron');
+    this.sidebarToggle.innerHTML = `${icon('chevron')}<span class="sidebar-toggle-label" aria-hidden="true"></span>`;
     document.querySelector('.app-header')!.prepend(this.sidebarToggle);
     this.sidebarToggle.addEventListener('click', () => this.setSidebarCollapsed(!this.desktopSidebarCollapsed));
     this.mobileViewport.addEventListener('change', () => {
@@ -234,9 +234,13 @@ export class AtlasExperience {
 
   private updateSidebarToggle(): void {
     const collapsed = !this.mobileViewport.matches && this.desktopSidebarCollapsed;
-    const label = getLocale() === 'en'
+    const english = getLocale() === 'en';
+    const label = english
       ? collapsed ? 'Expand sidebar' : 'Collapse sidebar'
       : collapsed ? '사이드바 펼치기' : '사이드바 접기';
+    this.sidebarToggle.querySelector<HTMLElement>('.sidebar-toggle-label')!.textContent = english
+      ? collapsed ? 'Show' : 'Hide'
+      : collapsed ? '펼치기' : '접기';
     this.sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     this.sidebarToggle.setAttribute('aria-label', label);
     this.sidebarToggle.title = label;

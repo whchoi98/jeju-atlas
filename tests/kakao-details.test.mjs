@@ -285,6 +285,77 @@ test('empty and ambiguous results offer a labelled name search, never an exact-p
   }
 });
 
+test('lookup reasons explain the matching limitation in both languages and survive remounts', async t => {
+  const cases = [
+    { reason: 'no_results', status: 'not_found', ko: /이 이름과 위치/, en: /this name and location/i },
+    { reason: 'name_mismatch', status: 'not_found', ko: /이름이나 지점명/, en: /name or branch/i },
+    { reason: 'category_mismatch', status: 'not_found', ko: /장소 분류가 달라/, en: /category differs/i },
+    { reason: 'distance_mismatch', status: 'not_found', ko: /등록된 위치가 달라/, en: /registered location differs/i },
+    { reason: 'multiple_candidates', status: 'ambiguous', ko: /같은 이름의 장소가 여러 곳/, en: /places share this name/i },
+    { reason: 'incomplete_results', status: 'ambiguous', ko: /검색 결과가 많거나 일부만/, en: /too many or incomplete search results/i },
+  ];
+  for (const { reason, status, ko, en } of cases) {
+    await t.test(reason, async t => {
+      const f = await fixture(t);
+      f.panel.show(first);
+      await tick();
+      f.pending[0].resolve(Response.json(lookup(first, { status, place: null, reason })));
+      await tick();
+      const message = f.root.innerHTML.match(/<p class="kakao-details-message">([^<]+)<\/p>/)?.[1];
+      assert.equal(f.root.hidden, false);
+      assert.match(message ?? '', ko);
+      if (reason === 'no_results') assert.match(message, /다른 이름으로 등록되어 있을 수/);
+      assert.doesNotMatch(f.root.innerHTML, /no_results|name_mismatch|category_mismatch|distance_mismatch|multiple_candidates|incomplete_results/);
+      assert.doesNotMatch(f.root.innerHTML, /data-detail-action="kakao-retry"|href="https:\/\/place\.map\.kakao\.com/);
+      assert.ok(f.root.innerHTML.includes('https://map.kakao.com/link/search/%EC%A0%9C%EC%A3%BC%20%ED%98%91%EC%9E%AC%ED%95%B4%EB%B3%80'));
+      setLocale('en', null);
+      f.root = mount();
+      f.panel.show(first);
+      const english = f.root.innerHTML.match(/<p class="kakao-details-message">([^<]+)<\/p>/)?.[1];
+      assert.match(english ?? '', en);
+      if (reason === 'no_results') assert.match(english, /may be listed under another name/i);
+      assert.match(f.root.innerHTML, /Search for this place on Kakao Map/);
+      assert.doesNotMatch(f.root.innerHTML, /place (?:does not|doesn.t) exist/i);
+      assert.equal(f.requests.length, 2, 'the reason is retained with the current result, without a language lookup');
+    });
+  }
+});
+
+test('older responses without a reason keep a generic automatic-match explanation and the search link', async t => {
+  for (const status of ['not_found', 'ambiguous']) {
+    await t.test(status, async t => {
+      const f = await fixture(t);
+      f.panel.show(first);
+      await tick();
+      f.pending[0].resolve(Response.json(lookup(first, { status, place: null })));
+      await tick();
+      assert.match(f.root.innerHTML, /자동 연결을 확정하지 못했어요\./);
+      assert.match(f.root.innerHTML, /카카오맵에서 장소 찾기/);
+      assert.doesNotMatch(f.root.innerHTML, /검색 결과가 없어요|같은 이름의 장소가 여러 곳|data-detail-action="kakao-retry"/);
+      setLocale('en', null);
+      f.root = mount();
+      f.panel.show(first);
+      assert.match(f.root.innerHTML, /An automatic match could not be confirmed\./);
+      assert.equal(f.requests.length, 2);
+    });
+  }
+});
+
+test('unknown or malformed lookup reasons fail validation without exposing provider text', async t => {
+  for (const reason of ['__proto__', 'constructor', 'new_reason', '<img src=x onerror=alert(1)>', null, 42, ['no_results'], { code: 'no_results' }]) {
+    await t.test(JSON.stringify(reason), async t => {
+      const f = await fixture(t);
+      f.panel.show(first);
+      await tick();
+      f.pending[0].resolve(Response.json(lookup(first, { status: 'not_found', place: null, reason })));
+      await tick();
+      assert.equal(f.root.hidden, false);
+      assert.match(f.root.innerHTML, /data-detail-action="kakao-retry"/);
+      assert.doesNotMatch(f.root.innerHTML, /__proto__|constructor|new_reason|onerror|no_results|map\.kakao\.com\/link\/search/);
+    });
+  }
+});
+
 test('missing road address falls back to address and unsafe phone text cannot create a tel link', async t => {
   const f = await fixture(t);
   f.panel.show(first);

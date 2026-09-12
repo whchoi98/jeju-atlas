@@ -17,7 +17,7 @@ const makePlace = (id, name, lng) => ({
 });
 const places = [makePlace('poi_0900', '검사 식당 하나', 126.55), makePlace('poi_0901', '검사 식당 둘', 126.56)];
 const before = JSON.stringify(places);
-let calls = 0, failing = false;
+let calls = 0, failing = false, differentName = false;
 const api = createApiHandler({
   env: { NODE_ENV: 'test', KAKAO_REST_API_KEY: 'browser-fixture-key' },
   secret: 'kakao-browser-test'.repeat(2), publicOrigin: 'http://localhost:5173',
@@ -41,7 +41,7 @@ const api = createApiHandler({
       const id = place.id === 'poi_0900' ? '12345' : '67890';
       return new Response(JSON.stringify({
         meta: { total_count: 1, pageable_count: 1, is_end: true },
-        documents: [{ id, place_name: name, category_group_code: 'FD6', category_group_name: '음식점',
+        documents: [{ id, place_name: differentName ? '다른 식당' : name, category_group_code: 'FD6', category_group_name: '음식점',
           category_name: '음식점 > 한식', address_name: '시험 주소', road_address_name: '시험 도로명 1',
           phone: '064-000-0000', x: String(place.lng), y: String(place.lat), distance: '0',
           place_url: `http://place.map.kakao.com/${id}` }],
@@ -84,6 +84,14 @@ try {
   report.checks.push('English labels preserve provider data without another lookup');
 
   await page.locator('[data-detail-action="close"]').click();
+  differentName = true;
+  await page.locator('[data-catalog-id="poi_0901"]').first().click();
+  await page.locator('#kakao-place-details a[data-kakao-focus="search"]').waitFor();
+  assert.match(await page.locator('#kakao-place-details').innerText(), /name or branch differs/);
+  assert.equal(await page.locator('#kakao-place-details a[data-kakao-focus="place"]').count(), 0);
+  report.checks.push('Unconfirmed name differences explain the reason and offer search without claiming absence');
+  await page.locator('[data-detail-action="close"]').click();
+  differentName = false;
   failing = true;
   await page.locator('[data-catalog-id="poi_0901"]').first().click();
   await page.locator('[data-detail-action="kakao-retry"]').waitFor();

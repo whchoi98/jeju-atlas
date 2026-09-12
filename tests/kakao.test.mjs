@@ -79,10 +79,11 @@ function abortError(error) {
   return true;
 }
 
-function emptyResult(status, canonicalId = 'osm:node:42') {
+function emptyResult(status, reason, canonicalId = 'osm:node:42') {
   return {
     available: true, status, canonical_id: canonicalId,
     queried_at: '2026-09-11T03:04:05.000Z', source: 'Kakao Local', place: null,
+    ...(reason ? { reason } : {}),
   };
 }
 
@@ -116,7 +117,7 @@ test('finds the exact place among unrelated keyword hits and returns only the sh
   assert.equal(sent.url.pathname, '/v2/local/search/keyword.json');
   assert.deepEqual(Object.fromEntries(sent.url.searchParams), {
     query: '돌담카페', x: '126.55', y: '33.45', radius: '200', size: '15', page: '1',
-    category_group_code: 'CE7',
+    sort: 'distance',
   });
   assert.equal(sent.options.method, 'GET');
   assert.equal(sent.options.redirect, 'error');
@@ -140,16 +141,28 @@ test('normalizes only NFKC, case, punctuation and whitespace, including a comple
     ['돌담\u200b카페', 'not_found'],
   ]) {
     const lookup = service(t, { fetch: async () => Response.json(page([document('101', { place_name: name })])) });
-    assert.equal((await lookup.lookup(canonical())).status, expected, name);
+    const result = await lookup.lookup(canonical());
+    assert.equal(result.status, expected, name);
+    if (expected === 'not_found') assert.deepEqual(result, emptyResult('not_found', 'name_mismatch'));
   }
 });
 
-test('homonyms with distinct eligible IDs remain ambiguous', async (t) => {
-  const lookup = service(t, { fetch: async () => Response.json(page([document(), document('102')])) });
-  assert.deepEqual(await lookup.lookup(canonical()), emptyResult('ambiguous'));
+test('nearby homonyms remain ambiguous and cannot be bypassed by a wider unique result', async (t) => {
+  for (const source of ['osm', 'sample']) {
+    const requests = [];
+    const lookup = service(t, {
+      fetch: async (url) => {
+        const radius = new URL(url).searchParams.get('radius');
+        requests.push(radius);
+        return Response.json(page(radius === '200' ? [document(), document('102')] : [document()]));
+      },
+    });
+    assert.deepEqual(await lookup.lookup(canonical({ source })), emptyResult('ambiguous', 'multiple_candidates'));
+    assert.deepEqual(requests, ['200']);
+  }
 });
 
-test('queries every compatible group, including when only the second group contains the match', async (t) => {
+test('accepts every compatible group from an unfiltered nearby search', async (t) => {
   for (const [category, allowed] of [
     ['맛집', ['FD6']], ['카페', ['CE7']], ['주차장', ['PK6']],
     ['관광지', ['AT4', 'CT1']], ['오름', ['AT4']], ['해변', ['AT4']],
@@ -160,102 +173,121 @@ test('queries every compatible group, including when only the second group conta
       const lookup = service(t, {
         fetch: async (url) => {
           const params = new URL(url).searchParams;
-          const requested = params.get('category_group_code');
-          requests.push([requested, params.get('page')]);
-          return Response.json(page(requested === group
-            ? [document('102', { category_group_code: group }), ...unrelated(1, 200, group)]
-            : []));
+          requests.push([params.get('radius'), params.get('page'), params.get('sort'), params.has('category_group_code')]);
+          return Response.json(page([
+            document('101', { category_group_code: 'BK9' }),
+            document('102', { category_group_code: group }),
+            ...unrelated(1, 200, group),
+          ]));
         },
       });
       const result = await lookup.lookup(canonical({ category }));
       assert.equal(result.status, 'matched', `${category}/${group}`);
       assert.equal(result.place.id, '102');
-      assert.deepEqual(requests, allowed.map((code) => [code, '1']));
+      assert.deepEqual(requests, [['200', '1', 'distance', false]]);
     }
   }
 });
 
-test('category filters recover an exact landmark otherwise buried in capped unrelated keyword hits', async (t) => {
+test('a complete nearby landmark match wins without searching a capped wider scope', async (t) => {
   const requests = [];
   const lookup = service(t, {
     fetch: async (url) => {
       const params = new URL(url).searchParams;
-      const group = params.get('category_group_code');
-      requests.push(group);
-      if (group === 'AT4') {
-        return Response.json(page([document('101', { place_name: '성산일출봉', category_group_code: 'AT4' })]));
+      const radius = params.get('radius');
+      requests.push([radius, params.get('sort'), params.has('category_group_code')]);
+      if (radius === '200') {
+        return Response.json(page([
+          document('101', {
+            place_name: '성산일출봉', category_group_code: '', category_group_name: '',
+            category_name: '여행 > 관광,명소 > 산봉우리', y: '33.4515',
+          }),
+          ...unrelated(2),
+        ]));
       }
-      if (group === 'CT1') return Response.json(page());
       return Response.json(page(unrelated(15, Number(params.get('page')) * 1000), {
         total: 100, pageable: 45, end: params.get('page') === '3',
       }));
     },
   });
-  const result = await lookup.lookup(canonical({ name: '성산일출봉', category: '관광지' }));
+  const result = await lookup.lookup(canonical({ name: '성산일출봉', category: '관광지', source: 'sample' }));
   assert.equal(result.status, 'matched');
   assert.equal(result.place.id, '101');
-  assert.deepEqual(requests, ['AT4', 'CT1']);
+  assert.ok(result.match.distance_m > 160 && result.match.distance_m < 200);
+  assert.equal(Object.hasOwn(result, 'reason'), false);
+  assert.deepEqual(requests, [['200', 'distance', false]]);
 });
 
-test('an ignored category filter fails even when the unexpected group is otherwise compatible', async (t) => {
-  for (const [category, group] of [['카페', 'FD6'], ['관광지', 'CT1'], ['시장', 'AT4']]) {
+test('incompatible groups and empty groups with bank or ancillary paths cannot match', async (t) => {
+  for (const [category, group, categoryName] of [
+    ['카페', 'FD6', '음식점 > 카페'],
+    ['관광지', 'BK9', '여행 > 관광,명소 > 산봉우리'],
+    ['관광지', '', '금융,보험 > 금융서비스 > 은행'],
+    ['관광지', '', '여행 > 관광지부속시설 > 샤워장'],
+    ['관광지', '', '여행 > 관광,명소 > 관광지부속시설 > 공중화장실'],
+    ['관광지', '', '여행 > 관광,명소 > 입구'],
+    ['오름', '', '여행 > 관광,명소 > 해수욕장,해변'],
+    ['카페', '', '쇼핑,유통 > 카페'],
+  ]) {
     const lookup = service(t, {
-      fetch: async () => Response.json(page([document('101', { category_group_code: group })])),
+      fetch: async () => Response.json(page([document('101', {
+        category_group_code: group, category_name: categoryName,
+      })])),
     });
-    await assert.rejects(lookup.lookup(canonical({ category })), kakaoError('kakao_invalid_response', 502));
+    assert.deepEqual(await lookup.lookup(canonical({ category })), emptyResult('not_found', 'category_mismatch'));
   }
-  const laterGroup = service(t, {
-    fetch: async (url) => Response.json(page(new URL(url).searchParams.get('category_group_code') === 'CT1'
-      ? [document('102', { category_group_code: 'AT4', place_name: '관련 없는 이름' })]
-      : [document('101', { category_group_code: 'AT4' })])),
-  });
-  await assert.rejects(laterGroup.lookup(canonical({ category: '관광지' })), kakaoError('kakao_invalid_response', 502));
 });
 
-test('an ignored category filter on a later page cannot prove completeness', async (t) => {
+test('a true nearby match waits for complete pages containing unrelated categories', async (t) => {
   let calls = 0;
   const lookup = service(t, {
     fetch: async () => Response.json(++calls === 1
       ? page([document(), ...unrelated(14)], { total: 16, end: false })
       : page([document('999', { category_group_code: 'FD6', place_name: '관련 없는 이름' })], { total: 16 })),
   });
-  await assert.rejects(lookup.lookup(canonical()), kakaoError('kakao_invalid_response', 502));
+  const result = await lookup.lookup(canonical());
+  assert.equal(result.status, 'matched');
+  assert.equal(result.place.id, '101');
   assert.equal(calls, 2);
 });
 
-test('homonyms in the second compatible category remain ambiguous', async (t) => {
+test('the wider scope retains homonyms from every compatible category', async (t) => {
   for (const [category, groups] of [['관광지', ['AT4', 'CT1']], ['시장', ['MT1', 'AT4']]]) {
     const requests = [];
     const lookup = service(t, {
       fetch: async (url) => {
-        const group = new URL(url).searchParams.get('category_group_code') ?? groups[0];
-        requests.push(group);
-        return Response.json(page([document(group === groups[0] ? '101' : '102', { category_group_code: group })]));
+        const radius = new URL(url).searchParams.get('radius');
+        requests.push(radius);
+        return Response.json(page(radius === '200' ? unrelated(1) : [
+          document('101', { category_group_code: groups[0], y: '33.455' }),
+          document('102', { category_group_code: groups[1], y: '33.456' }),
+        ]));
       },
     });
-    assert.deepEqual(await lookup.lookup(canonical({ category })), emptyResult('ambiguous'));
-    assert.deepEqual(requests, groups);
+    assert.deepEqual(await lookup.lookup(canonical({ category, source: 'sample' })), emptyResult('ambiguous', 'multiple_candidates'));
+    assert.deepEqual(requests, ['200', '2000']);
   }
 });
 
-test('the second group still requires the exact full name and unrounded distance', async (t) => {
-  for (const changes of [
-    { place_name: '돌담카페 별관' }, { place_name: 'Doldam' }, { y: '33.4517992' },
+test('the wider scope still requires the full name, compatible category and unrounded distance', async (t) => {
+  for (const [changes, reason] of [
+    [{ place_name: '돌담카페 별관' }, 'name_mismatch'],
+    [{ place_name: 'Doldam' }, 'name_mismatch'],
+    [{ category_group_code: 'FD6' }, 'category_mismatch'],
+    [{ y: '33.467987' }, 'distance_mismatch'],
   ]) {
     const requests = [];
     const lookup = service(t, {
       fetch: async (url) => {
-        const group = new URL(url).searchParams.get('category_group_code') ?? 'AT4';
-        requests.push(group);
-        return Response.json(page([document(group === 'CT1' ? '102' : '101', {
-          category_group_code: group, ...(group === 'CT1' ? changes : {}),
-        })]));
+        const radius = new URL(url).searchParams.get('radius');
+        requests.push(radius);
+        return Response.json(page(radius === '200' ? unrelated(1) : [
+          document('102', { y: '33.46', ...changes }),
+        ]));
       },
     });
-    const result = await lookup.lookup(canonical({ category: '관광지' }));
-    assert.equal(result.status, 'matched');
-    assert.equal(result.place.id, '101');
-    assert.deepEqual(requests, ['AT4', 'CT1']);
+    assert.deepEqual(await lookup.lookup(canonical({ source: 'sample' })), emptyResult('not_found', reason));
+    assert.deepEqual(requests, ['200', '2000']);
   }
 });
 
@@ -271,28 +303,32 @@ test('unsupported categories neither reserve quota nor fetch', async (t) => {
   assert.equal(calls, 0);
 });
 
-test('applies the unrounded 200 m OSM radius and 2000 m sample/curated/seed radius', async (t) => {
-  for (const [source, y, expectedRadius, expectedStatus] of [
-    ['osm', '33.4517977', '200', 'matched'],     // About 199.89 m.
-    ['osm', '33.4517992', '200', 'not_found'],   // About 200.06 m, rounds to 200.
-    ['OSM', '33.4517992', '200', 'not_found'],
-    ['sample', '33.467985', '2000', 'matched'],  // About 1999.84 m.
-    ['curated', '33.46', '2000', 'matched'],
-    ['seed', '33.46', '2000', 'matched'],
-    ['sample', '33.467987', '2000', 'not_found'], // About 2000.06 m.
-    ['unknown', '33.46', '200', 'not_found'],
+test('enforces unrounded radii and limits wider fallback to sample, curated and seed sources', async (t) => {
+  for (const [source, y, expectedRadii, expectedStatus] of [
+    ['osm', '33.4517977', ['200'], 'matched'],     // About 199.89 m.
+    ['osm', '33.4517992', ['200'], 'not_found'],   // About 200.06 m, rounds to 200.
+    ['OSM', '33.4517992', ['200'], 'not_found'],
+    ['OpenStreetMap', '33.46', ['200'], 'not_found'],
+    ['sample', '33.4517977', ['200'], 'matched'],
+    ['sample', '33.467985', ['200', '2000'], 'matched'],  // About 1999.84 m.
+    ['curated', '33.46', ['200', '2000'], 'matched'],
+    ['seed', '33.46', ['200', '2000'], 'matched'],
+    ['sample', '33.467987', ['200', '2000'], 'not_found'], // About 2000.06 m.
+    ['unknown', '33.46', ['200'], 'not_found'],
   ]) {
-    let radius;
+    const requests = [];
     const lookup = service(t, {
       fetch: async (url) => {
-        radius = new URL(url).searchParams.get('radius');
+        const params = new URL(url).searchParams;
+        requests.push([params.get('radius'), params.get('sort'), params.has('category_group_code')]);
         return Response.json(page([document('101', { y, distance: '0' })]));
       },
     });
     const result = await lookup.lookup(canonical({ source }));
     assert.equal(result.status, expectedStatus, `${source}/${y}`);
-    assert.equal(radius, expectedRadius);
-    if (result.match) assert.ok(result.match.distance_m <= Number(expectedRadius));
+    assert.deepEqual(requests, expectedRadii.map((radius) => [radius, 'distance', false]));
+    if (result.match) assert.ok(result.match.distance_m <= Number(expectedRadii.at(-1)));
+    else assert.deepEqual(result, emptyResult('not_found', 'distance_mismatch'));
   }
 });
 
@@ -306,7 +342,7 @@ test('uses longitude in distance calculations and excludes coordinates outside J
     [canonical(), '127', '37'],
   ]) {
     const lookup = service(t, { fetch: async () => Response.json(page([document('101', { x, y })])) });
-    assert.deepEqual(await lookup.lookup(input), emptyResult('not_found'));
+    assert.deepEqual(await lookup.lookup(input), emptyResult('not_found', 'distance_mismatch'));
   }
 });
 
@@ -418,46 +454,49 @@ test('finds a homonym on a later page instead of declaring a page-one match uniq
       ? page([document(), ...unrelated(14)], { total: 16, end: false })
       : page([document('999')], { total: 16 })),
   });
-  assert.deepEqual(await lookup.lookup(canonical()), emptyResult('ambiguous'));
+  assert.deepEqual(await lookup.lookup(canonical()), emptyResult('ambiguous', 'multiple_candidates'));
   assert.equal(calls, 2);
 });
 
-test('merges six complete group pages while reserving quota separately for every HTTP call', async (t) => {
+test('reads both complete scopes through six pages with quota before every HTTP call', async (t) => {
   const requests = [];
   const budgetSignals = [];
   const lookup = service(t, {
     consumeBudget: async ({ signal }) => { budgetSignals.push(signal); },
     fetch: async (url, { signal }) => {
       const params = new URL(url).searchParams;
-      const group = params.get('category_group_code') ?? 'AT4';
+      const radius = params.get('radius');
       const number = Number(params.get('page'));
-      requests.push([group, number]);
+      requests.push([radius, number]);
       assert.equal(budgetSignals.length, requests.length);
       assert.equal(signal, budgetSignals[requests.length - 1]);
-      const docs = unrelated(number === 3 ? 1 : 15, (group === 'AT4' ? 1000 : 5000) + number * 100, group);
-      if (group === 'AT4' && number === 1) docs[0] = document('101', { category_group_code: group });
+      assert.equal(params.has('category_group_code'), false);
+      assert.equal(params.get('sort'), 'distance');
+      const docs = unrelated(number === 3 ? 1 : 15, (radius === '200' ? 1000 : 5000) + number * 100);
+      if (radius === '2000' && number === 1) docs[0] = document('101', { y: '33.46' });
       return Response.json(page(docs, { total: 31, end: number === 3 }));
     },
   });
-  const result = await lookup.lookup(canonical({ category: '관광지' }));
-  assert.equal(result.status, 'matched', 'each group is complete even though merged results exceed 45 documents');
+  const result = await lookup.lookup(canonical({ source: 'sample' }));
+  assert.equal(result.status, 'matched', 'each scope is complete even though the combined response count exceeds 45');
   assert.equal(result.place.id, '101');
-  assert.deepEqual(requests, [['AT4', 1], ['AT4', 2], ['AT4', 3], ['CT1', 1], ['CT1', 2], ['CT1', 3]]);
+  assert.ok(result.match.distance_m > 200 && result.match.distance_m < 2000);
+  assert.deepEqual(requests, [['200', 1], ['200', 2], ['200', 3], ['2000', 1], ['2000', 2], ['2000', 3]]);
   assert.equal(budgetSignals.length, 6);
   assert.ok(budgetSignals.every((signal) => signal === budgetSignals[0]));
 });
 
-test('waits for second-group quota and propagates its rejection without returning a partial match', async (t) => {
+test('waits for wider-scope quota and propagates rejection instead of returning not_found', async (t) => {
   const gate = Promise.withResolvers();
   const failure = Object.assign(new Error('Quota exhausted'), { status: 429, code: 'quota_exceeded' });
   let reservations = 0;
   let calls = 0;
   const lookup = service(t, {
     consumeBudget: () => ++reservations === 1 ? Promise.resolve() : gate.promise,
-    fetch: async () => { calls++; return Response.json(page([document('101', { category_group_code: 'AT4' })])); },
+    fetch: async () => { calls++; return Response.json(page(unrelated(1))); },
   });
   let settled = false;
-  const pending = lookup.lookup(canonical({ category: '관광지' }));
+  const pending = lookup.lookup(canonical({ source: 'sample' }));
   pending.then(() => { settled = true; }, () => { settled = true; });
   await tick();
   assert.equal(reservations, 2);
@@ -486,20 +525,26 @@ test('deduplicates identical provider IDs and rejects conflicting duplicate reco
   }
 });
 
-test('the same provider ID cannot represent conflicting records across category groups', async (t) => {
+test('conflicting category records for one provider ID fail on later wider-scope pages', async (t) => {
   for (const phone of ['064-123-4567', '064-999-9999']) {
     let calls = 0;
+    const requests = [];
     const lookup = service(t, {
       fetch: async (url) => {
         calls++;
-        const group = new URL(url).searchParams.get('category_group_code') ?? 'AT4';
-        return Response.json(page([document('101', {
-          category_group_code: group, ...(group === 'CT1' ? { phone } : {}),
-        })]));
+        const params = new URL(url).searchParams;
+        const radius = params.get('radius');
+        const number = Number(params.get('page'));
+        requests.push([radius, number]);
+        if (radius === '200') return Response.json(page(unrelated(1)));
+        return Response.json(number === 1
+          ? page([document('101', { category_group_code: 'AT4', y: '33.455' }), ...unrelated(14)], { total: 16, end: false })
+          : page([document('101', { category_group_code: 'CT1', y: '33.455', phone })], { total: 16 }));
       },
     });
-    await assert.rejects(lookup.lookup(canonical({ category: '관광지' })), kakaoError('kakao_invalid_response', 502));
-    assert.equal(calls, 2);
+    await assert.rejects(lookup.lookup(canonical({ category: '관광지', source: 'sample' })), kakaoError('kakao_invalid_response', 502));
+    assert.equal(calls, 3);
+    assert.deepEqual(requests, [['200', 1], ['2000', 1], ['2000', 2]]);
   }
 });
 
@@ -526,15 +571,26 @@ test('rejects incomplete pages, invalid metadata, count changes, and pages that 
   }
 });
 
-test('overlapping pages cannot prove completeness even when some new IDs make progress', async (t) => {
-  let calls = 0;
-  const lookup = service(t, {
-    fetch: async () => Response.json(++calls === 1
-      ? page([document(), ...unrelated(14)], { total: 30, end: false })
-      : page([document(), ...unrelated(14, 500)], { total: 30 })),
-  });
-  await assert.rejects(lookup.lookup(canonical()), kakaoError('kakao_invalid_response', 502));
-  assert.equal(calls, 2);
+test('overlapping pages in either scope cannot prove completeness despite some new IDs', async (t) => {
+  for (const brokenRadius of ['200', '2000']) {
+    const requests = [];
+    const lookup = service(t, {
+      fetch: async (url) => {
+        const params = new URL(url).searchParams;
+        const radius = params.get('radius');
+        const number = Number(params.get('page'));
+        requests.push([radius, number]);
+        if (radius !== brokenRadius) return Response.json(page(unrelated(1)));
+        return Response.json(number === 1
+          ? page([document(), ...unrelated(14)], { total: 30, end: false })
+          : page([document(), ...unrelated(14, 500)], { total: 30 }));
+      },
+    });
+    await assert.rejects(lookup.lookup(canonical({ source: 'sample' })), kakaoError('kakao_invalid_response', 502));
+    assert.deepEqual(requests, brokenRadius === '200'
+      ? [['200', 1], ['200', 2]]
+      : [['200', 1], ['2000', 1], ['2000', 2]]);
+  }
 });
 
 test('the three-page/45-document cap and provider truncation never imply uniqueness', async (t) => {
@@ -552,18 +608,18 @@ test('the three-page/45-document cap and provider truncation never imply uniquen
         return Response.json(page(docs, { total, pageable, end: calls * 15 >= pageable }));
       },
     });
-    assert.deepEqual(await lookup.lookup(canonical()), emptyResult('ambiguous'));
+    assert.deepEqual(await lookup.lookup(canonical()), emptyResult('ambiguous', 'incomplete_results'));
     assert.equal(calls, 3);
     assert.equal(reservations, 3);
   }
   const truncated = service(t, {
     fetch: async () => Response.json(page([document()], { total: 20, pageable: 1 })),
   });
-  assert.deepEqual(await truncated.lookup(canonical()), emptyResult('ambiguous'));
+  assert.deepEqual(await truncated.lookup(canonical()), emptyResult('ambiguous', 'incomplete_results'));
 });
 
-test('a cap or truncation in either group prevents a unique result from the other group', async (t) => {
-  for (const cappedGroup of ['AT4', 'CT1']) {
+test('caps or truncation block uniqueness and incomplete nearby results never trigger wider search', async (t) => {
+  for (const cappedRadius of ['200', '2000']) {
     for (const [total, pageable, pages] of [[45, 45, 3], [100, 45, 3], [100, 100, 3], [20, 1, 1]]) {
       const requests = [];
       let reservations = 0;
@@ -571,56 +627,64 @@ test('a cap or truncation in either group prevents a unique result from the othe
         consumeBudget: async () => { reservations++; },
         fetch: async (url) => {
           const params = new URL(url).searchParams;
-          const group = params.get('category_group_code') ?? 'AT4';
+          const radius = params.get('radius');
           const number = Number(params.get('page'));
-          requests.push([group, number]);
-          if (group !== cappedGroup) {
-            return Response.json(page([document('101', { category_group_code: group })]));
+          requests.push([radius, number]);
+          if (radius !== cappedRadius) {
+            return Response.json(page(radius === '200' ? unrelated(1) : [document('101', { y: '33.46' })]));
           }
-          return Response.json(page(unrelated(pageable === 1 ? 1 : 15, number * 1000, group), {
+          const docs = unrelated(pageable === 1 ? 1 : 15, number * 1000);
+          if (number === 1) docs[0] = document('101', { y: radius === '200' ? '33.45' : '33.46' });
+          return Response.json(page(docs, {
             total, pageable, end: number * 15 >= pageable,
           }));
         },
       });
-      assert.deepEqual(await lookup.lookup(canonical({ category: '관광지' })), emptyResult('ambiguous'));
-      assert.equal(requests.length, pages + 1);
-      assert.equal(reservations, pages + 1);
-      assert.deepEqual([...new Set(requests.map(([group]) => group))], ['AT4', 'CT1']);
+      assert.deepEqual(await lookup.lookup(canonical({ source: 'sample' })), emptyResult('ambiguous', 'incomplete_results'));
+      const expected = [
+        ...(cappedRadius === '2000' ? [['200', 1]] : []),
+        ...Array.from({ length: pages }, (_, index) => [cappedRadius, index + 1]),
+      ];
+      assert.deepEqual(requests, expected);
+      assert.equal(reservations, expected.length);
     }
   }
 });
 
-test('two capped groups stop at six HTTP calls and six quota reservations', async (t) => {
+test('a complete nearby no-match followed by a capped wider scope stops at six HTTP calls', async (t) => {
   const requests = [];
   let reservations = 0;
   const lookup = service(t, {
     consumeBudget: async () => { reservations++; },
     fetch: async (url) => {
       const params = new URL(url).searchParams;
-      const group = params.get('category_group_code') ?? 'AT4';
+      const radius = params.get('radius');
       const number = Number(params.get('page'));
-      requests.push([group, number]);
-      return Response.json(page(unrelated(15, (group === 'AT4' ? 1000 : 5000) + number * 100, group), {
-        total: 100, pageable: 100, end: false,
-      }));
+      requests.push([radius, number]);
+      const docs = unrelated(radius === '200' && number === 3 ? 1 : 15, (radius === '200' ? 1000 : 5000) + number * 100);
+      return Response.json(page(docs, radius === '200'
+        ? { total: 31, end: number === 3 }
+        : { total: 100, pageable: 100, end: false }));
     },
   });
-  assert.deepEqual(await lookup.lookup(canonical({ category: '관광지' })), emptyResult('ambiguous'));
-  assert.deepEqual(requests, [['AT4', 1], ['AT4', 2], ['AT4', 3], ['CT1', 1], ['CT1', 2], ['CT1', 3]]);
+  assert.deepEqual(await lookup.lookup(canonical({ source: 'sample' })), emptyResult('ambiguous', 'incomplete_results'));
+  assert.deepEqual(requests, [['200', 1], ['200', 2], ['200', 3], ['2000', 1], ['2000', 2], ['2000', 3]]);
   assert.equal(reservations, 6);
 });
 
-test('incomplete pagination in either group cannot be replaced by a match from the other', async (t) => {
-  for (const brokenGroup of ['AT4', 'CT1']) {
+test('malformed pagination in either scope fails instead of falling back or reporting no match', async (t) => {
+  for (const brokenRadius of ['200', '2000']) {
+    const requests = [];
     const lookup = service(t, {
       fetch: async (url) => {
-        const group = new URL(url).searchParams.get('category_group_code') ?? 'AT4';
-        return Response.json(page([document(group === 'AT4' ? '101' : '102', { category_group_code: group })], {
-          total: group === brokenGroup ? 2 : 1,
-        }));
+        const radius = new URL(url).searchParams.get('radius');
+        requests.push(radius);
+        if (radius !== brokenRadius) return Response.json(page(radius === '200' ? unrelated(1) : [document()]));
+        return Response.json(page([document()], { total: 2 }));
       },
     });
-    await assert.rejects(lookup.lookup(canonical({ category: '관광지' })), kakaoError('kakao_invalid_response', 502));
+    await assert.rejects(lookup.lookup(canonical({ source: 'sample' })), kakaoError('kakao_invalid_response', 502));
+    assert.deepEqual(requests, brokenRadius === '200' ? ['200'] : ['200', '2000']);
   }
 });
 
@@ -631,7 +695,7 @@ test('empty complete results are not_found and sequential lookups do not cache r
     clock: () => now,
     fetch: async () => Response.json(++calls === 1 ? page() : page([document()])),
   });
-  assert.deepEqual(await lookup.lookup(canonical()), emptyResult('not_found'));
+  assert.deepEqual(await lookup.lookup(canonical()), emptyResult('not_found', 'no_results'));
   now += 1000;
   const next = await lookup.lookup(canonical());
   assert.equal(next.status, 'matched');
@@ -753,19 +817,24 @@ test('caller cancellation stops waiting for quota and late admission cannot star
   assert.equal(calls, 0);
 });
 
-test('cancellation while reserving second-group quota never starts that HTTP call', { timeout: 1500 }, async (t) => {
+test('cancellation while reserving wider-scope quota never starts that HTTP call', { timeout: 1500 }, async (t) => {
   const gate = Promise.withResolvers();
   const controller = new AbortController();
   const signals = [];
   let calls = 0;
+  const requests = [];
   const lookup = service(t, {
     consumeBudget: ({ signal }) => {
       signals.push(signal);
       return signals.length === 1 ? Promise.resolve() : gate.promise;
     },
-    fetch: async () => { calls++; return Response.json(page([document('101', { category_group_code: 'AT4' })])); },
+    fetch: async (url) => {
+      calls++;
+      requests.push(new URL(url).searchParams.get('radius'));
+      return Response.json(page(unrelated(1)));
+    },
   });
-  const pending = lookup.lookup(canonical({ category: '관광지' }), { signal: controller.signal });
+  const pending = lookup.lookup(canonical({ source: 'sample' }), { signal: controller.signal });
   pending.catch(() => {});
   await tick();
   assert.equal(signals.length, 2);
@@ -777,39 +846,43 @@ test('cancellation while reserving second-group quota never starts that HTTP cal
   gate.resolve();
   await tick();
   assert.equal(calls, 1);
+  assert.deepEqual(requests, ['200']);
 });
 
-test('both groups share one deadline, including a non-cooperating second-group fetch', { timeout: 1500 }, async (t) => {
+test('both scopes share one deadline, including a non-cooperating wider-scope fetch', { timeout: 1500 }, async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const firstResponse = Promise.withResolvers();
   const signals = [];
+  const requests = [];
   let reservations = 0;
   const lookup = service(t, {
     timeoutMs: 100, maxConcurrent: 1,
     consumeBudget: async () => { reservations++; },
-    fetch: (_url, { signal }) => {
+    fetch: (url, { signal }) => {
       signals.push(signal);
+      requests.push(new URL(url).searchParams.get('radius'));
       return signals.length === 1 ? firstResponse.promise : never();
     },
   });
   let settled = false;
   let failure;
-  const pending = lookup.lookup(canonical({ category: '관광지' }));
+  const pending = lookup.lookup(canonical({ source: 'sample' }));
   pending.then(() => { settled = true; }, (error) => { settled = true; failure = error; });
   await tick();
   t.mock.timers.tick(75);
-  firstResponse.resolve(Response.json(page([document('101', { category_group_code: 'AT4' })])));
+  firstResponse.resolve(Response.json(page(unrelated(1))));
   await tick();
   assert.equal(signals.length, 2);
   assert.equal(settled, false);
   t.mock.timers.tick(25);
   await tick();
-  assert.equal(settled, true, 'the second group must not receive a new 100 ms timeout');
+  assert.equal(settled, true, 'the wider scope must not receive a new 100 ms timeout');
   kakaoError('kakao_unavailable', 503)(failure);
   assert.equal(reservations, 2);
   assert.ok(signals.every((signal) => signal === signals[0] && signal.aborted));
-  await assert.rejects(lookup.lookup(canonical({ category: '관광지' })), kakaoError('kakao_busy', 429));
+  await assert.rejects(lookup.lookup(canonical({ source: 'sample' })), kakaoError('kakao_busy', 429));
   assert.equal(signals.length, 2);
+  assert.deepEqual(requests, ['200', '2000']);
 });
 
 test('bounds active lookups with no queue, including ignored aborts and independent same-place callers', { timeout: 1500 }, async (t) => {
