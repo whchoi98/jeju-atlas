@@ -90,7 +90,7 @@ export const en: Record<string, string> = {
   '전체 카탈로그 장소 검색': 'Search the full place catalog', '이름, 지역, 찾고 싶은 장소': 'Place name, area or interest',
   '지도 장소 분류': 'Map place categories', '카탈로그 분류': 'Catalog category', '카테고리 선택': 'Choose a category',
   '지도에 표시': 'Show on map', '대표 명소부터 둘러보세요.': 'Start with representative landmarks.',
-  '필터 초기화': 'Reset filters', '검색 범위': 'Search area', '제주 전체': 'All of Jeju',
+  '필터 초기화': 'Reset filters', '필터·지도 설정': 'Filters & map', '검색 범위': 'Search area', '제주 전체': 'All of Jeju',
   '현재 지도': 'Current view', '중심 주변': 'Near the center', '지도 중심 반경': 'Radius from map center',
   '직선 기준': 'Straight-line distance', '장소 탐색': 'Explore places', '카탈로그 검색 결과': 'Catalog search results',
   '서비스 카탈로그 전체에서 검색합니다.': 'Search the full service catalog.',

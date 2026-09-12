@@ -140,15 +140,19 @@ export class CatalogUI {
     this.detailRoot = detailRoot;
     this.options = options;
     this.kakaoDetails = new KakaoDetails(() => this.detailRoot.hidden ? null : this.detailRoot.querySelector('#kakao-place-details'));
+    root.dataset.filtersOpen = 'false';
     root.innerHTML = `
       <div class="catalog-status-line"><span id="catalog-total">서비스 카탈로그 연결 중</span><button id="catalog-refresh" aria-label="카탈로그 새로고침">${icon('reset')}</button></div>
       <label class="search-field catalog-search-field">${icon('search')}<span class="sr-only">전체 카탈로그 장소 검색</span><input id="catalog-search" type="search" placeholder="이름, 지역, 찾고 싶은 장소" maxlength="160" autocomplete="off"></label>
       <div id="catalog-category-chips" class="catalog-category-chips" aria-label="지도 장소 분류">${['해변', '오름', '카페', '맛집', '박물관', '주차장'].map((category) => `<button data-map-category="${category}" aria-pressed="false" disabled>${icon(categorySymbol(category).icon)}${category}</button>`).join('')}</div>
+      <button type="button" id="catalog-filter-toggle" class="catalog-filter-toggle" aria-expanded="false" aria-controls="catalog-options"><span>필터·지도 설정</span>${icon('chevronDown')}</button>
+      <div id="catalog-options" class="catalog-options">
       <div class="catalog-filters"><label><span class="sr-only">카탈로그 분류</span><select id="catalog-category"><option value="">카테고리 선택</option></select></label><label class="catalog-map-switch"><input id="catalog-map-toggle" type="checkbox">지도에 표시</label></div>
       <div class="catalog-discovery-note"><span id="catalog-map-hint">대표 명소부터 둘러보세요.</span><button id="catalog-reset">${icon('reset')}필터 초기화</button></div>
       <div class="catalog-scope" aria-label="검색 범위"><button data-scope="all" class="is-active" aria-pressed="true">제주 전체</button><button data-scope="view" aria-pressed="false">현재 지도</button><button data-scope="nearby" aria-pressed="false">중심 주변</button></div>
       <div id="catalog-radius-row" class="catalog-radius-row" hidden><label for="catalog-radius">지도 중심 반경</label><select id="catalog-radius"><option value="2000">2 km</option><option value="5000" selected>5 km</option><option value="10000">10 km</option><option value="20000">20 km</option></select><span>직선 기준</span></div>
       <p id="catalog-scope-note" class="micro-note">서비스 카탈로그 전체에서 검색합니다.</p>
+      </div>
       <div class="catalog-result-heading"><h2>장소 탐색</h2><span id="catalog-result-count" aria-live="polite"></span></div>
       <div id="catalog-list" class="catalog-list" aria-label="카탈로그 검색 결과"></div>
       <div class="catalog-pagination"><button id="catalog-prev" disabled aria-label="이전 40개 장소">← 이전</button><span id="catalog-page">1</span><button id="catalog-next" disabled aria-label="다음 40개 장소">다음 →</button></div>
@@ -169,6 +173,9 @@ export class CatalogUI {
     });
     root.querySelector('#catalog-category')!.addEventListener('change', (event) => {
       this.chooseCategory((event.target as HTMLSelectElement).value);
+    });
+    root.querySelector('#catalog-filter-toggle')!.addEventListener('click', () => {
+      this.setFiltersOpen(root.dataset.filtersOpen !== 'true');
     });
     root.querySelectorAll<HTMLButtonElement>('[data-map-category]').forEach((button) => {
       button.addEventListener('click', () => this.chooseCategory(button.dataset.mapCategory!));
@@ -298,9 +305,20 @@ export class CatalogUI {
     };
   }
 
+  private setFiltersOpen(open: boolean): void {
+    this.root.dataset.filtersOpen = String(open);
+    const toggle = this.root.querySelector<HTMLButtonElement>('#catalog-filter-toggle')!;
+    toggle.setAttribute('aria-expanded', String(open));
+    if (!open && matchMedia('(max-width: 760px)').matches
+      && this.root.querySelector('#catalog-options')!.contains(document.activeElement)) {
+      toggle.focus({ preventScroll: true });
+    }
+  }
+
   private chooseCategory(category: string): void {
     this.category = category;
     this.offset = 0;
+    this.setFiltersOpen(false);
     this.root.querySelector<HTMLSelectElement>('#catalog-category')!.value = category;
     this.root.querySelectorAll<HTMLButtonElement>('[data-map-category]').forEach((button) => {
       const active = button.dataset.mapCategory === category;
@@ -325,6 +343,7 @@ export class CatalogUI {
     this.mode = 'all';
     this.nearbyOrigin = undefined;
     this.offset = 0;
+    this.setFiltersOpen(false);
     this.root.querySelector<HTMLInputElement>('#catalog-search')!.value = '';
     this.root.querySelector<HTMLSelectElement>('#catalog-category')!.value = '';
     this.root.querySelector<HTMLElement>('#catalog-radius-row')!.hidden = true;
@@ -409,7 +428,7 @@ export class CatalogUI {
   }
 
   async search(): Promise<void> {
-    const restoreRetryFocus = document.activeElement?.id === 'catalog-retry';
+    const restoreResultsFocus = ['catalog-retry', 'catalog-prev', 'catalog-next'].includes(document.activeElement?.id ?? '');
     const requestId = ++this.requestId;
     this.searchController?.abort();
     const controller = new AbortController();
@@ -443,17 +462,19 @@ export class CatalogUI {
       this.items = result.items.filter((place) => place && typeof place.id === 'string' && typeof place.name === 'string' && isJejuPoint(place.lng, place.lat)).slice(0, 40);
       if (this.mode !== 'view' && (this.query || this.mode === 'nearby')) this.publishPoints(this.listPoints());
       this.renderList();
-      if (restoreRetryFocus) this.root.querySelector<HTMLButtonElement>('[data-catalog-id]')?.focus({ preventScroll: true });
+      if (restoreResultsFocus) this.root.querySelector<HTMLButtonElement>('[data-catalog-id]')?.focus({ preventScroll: true });
       this.root.querySelector('#catalog-result-count')!.textContent = `${result.total.toLocaleString('ko-KR')}곳`;
       this.root.querySelector('#catalog-page')!.textContent = result.total ? `${Math.floor(this.offset / 40) + 1} / ${Math.ceil(result.total / 40)}` : '0';
       this.root.querySelector<HTMLButtonElement>('#catalog-prev')!.disabled = this.offset === 0;
       this.root.querySelector<HTMLButtonElement>('#catalog-next')!.disabled = !result.has_more;
       list.scrollTop = 0;
+      // Phones scroll the complete explorer instead of squeezing the result list.
+      this.root.scrollTop = 0;
     } catch (error) {
       if (aborted(error) || controller.signal.aborted) return;
       list.innerHTML = '<div class="feature-empty"><strong>카탈로그에 연결하지 못했어요</strong><p>저장한 코스와 지형 명소는 계속 살펴볼 수 있어요.</p><button id="catalog-retry">다시 시도</button></div>';
       list.querySelector('#catalog-retry')!.addEventListener('click', () => void this.search());
-      if (restoreRetryFocus) list.querySelector<HTMLButtonElement>('#catalog-retry')?.focus({ preventScroll: true });
+      if (restoreResultsFocus) list.querySelector<HTMLButtonElement>('#catalog-retry')?.focus({ preventScroll: true });
       this.root.querySelector('#catalog-result-count')!.textContent = '';
     } finally {
       if (requestId === this.requestId) list.setAttribute('aria-busy', 'false');

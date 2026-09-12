@@ -69,12 +69,59 @@ try {
     const map = window.__JEJU_MAP__;
     return Math.abs(map.getCanvas().getBoundingClientRect().width - map.getContainer().clientWidth) <= 1;
   });
+  const sidebarEdge = async (collapsed = false) => {
+    const metric = await page.locator('#sidebar-toggle').evaluate(button => {
+      const layout = document.querySelector('.atlas-layout');
+      const drawer = document.querySelector('#place-drawer');
+      const rect = button.getBoundingClientRect();
+      const frame = layout.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      return {
+        x: rect.x, y: rect.y, bottom: rect.bottom, width: rect.width, height: rect.height,
+        layoutLeft: frame.left, layoutTop: frame.top, layoutBottom: frame.bottom,
+        drawerRight: drawer.getBoundingClientRect().right,
+        directLayoutChild: button.parentElement === layout, insideDrawer: drawer.contains(button),
+        position: getComputedStyle(button).position, text: button.textContent.trim(),
+        iconCount: button.querySelectorAll('.icon').length,
+        hasLabelSpan: Boolean(button.querySelector('.sidebar-toggle-label')),
+        expanded: button.getAttribute('aria-expanded'), controls: button.getAttribute('aria-controls'),
+        label: button.getAttribute('aria-label'), title: button.title,
+        locale: document.documentElement.lang,
+        inertAncestor: Boolean(button.closest('[inert]')), receivesPointer: Boolean(hit && button.contains(hit)),
+      };
+    });
+    assert.equal(metric.directLayoutChild, true, JSON.stringify(metric));
+    assert.equal(metric.insideDrawer, false, 'The reopen button must stay outside the hidden sidebar');
+    assert.equal(metric.position, 'absolute');
+    assert.equal(metric.text, '', 'Only the chevron is visible');
+    assert.equal(metric.hasLabelSpan, false);
+    assert.equal(metric.iconCount, 1);
+    assert.equal(metric.controls, 'place-drawer');
+    assert.equal(metric.expanded, String(!collapsed));
+    assert.equal(metric.label, metric.locale === 'en'
+      ? collapsed ? 'Expand sidebar' : 'Collapse sidebar'
+      : collapsed ? '사이드바 펼치기' : '사이드바 접기');
+    assert.equal(metric.title, metric.label);
+    assert.equal(metric.inertAncestor, false);
+    assert.equal(metric.receivesPointer, true, 'The control’s hit target must remain reachable');
+    assert.ok(metric.width >= 44 && metric.height >= 44, JSON.stringify(metric));
+    assert.ok(metric.y >= metric.layoutTop && metric.bottom <= metric.layoutBottom, JSON.stringify(metric));
+    assert.ok(Math.abs(metric.x - (collapsed ? metric.layoutLeft : metric.drawerRight)) <= 1, JSON.stringify(metric));
+    if (collapsed) assert.ok(Math.abs(metric.x) <= 1, 'The collapsed control must sit at the viewport’s left edge');
+    return metric;
+  };
   const normalWidth = await page.locator('.sidebar').evaluate(node => node.clientWidth);
+
+  await check('The compact sidebar chevron attaches to the sidebar edge outside the header and inert aside', async () => {
+    assert.equal(await page.locator('.app-header #sidebar-toggle').count(), 0);
+    return sidebarEdge();
+  });
 
   await check('Korean and English introduction fit on one visible line', async () => {
     const metrics = [];
     for (const locale of ['ko', 'en']) {
       if (locale === 'en') await page.locator('#language-toggle').click();
+      await sidebarEdge();
       metrics.push(await page.locator('.sidebar-intro h1').evaluate(node => ({
         locale: document.documentElement.lang, text: node.textContent,
         height: node.getBoundingClientRect().height, lineHeight: Number.parseFloat(getComputedStyle(node).lineHeight),
@@ -103,7 +150,7 @@ try {
     assert.ok(sizes.messages >= 380, JSON.stringify(sizes));
     assert.ok(sizes.heading <= 60, JSON.stringify(sizes));
     assert.ok(Math.abs(sizes.canvas - sizes.map) <= 1, JSON.stringify(sizes));
-    return sizes;
+    return { ...sizes, toggle: await sidebarEdge() };
   });
   await check('Long AI answers scroll while the composer and suggestions remain usable', async () => {
     await page.locator('#guide-send').waitFor({ state: 'visible' });
@@ -124,17 +171,20 @@ try {
     return metrics;
   });
   await check('Collapsing and restoring the sidebar preserves the AI tab, draft and answer', async () => {
-    assert.equal(await page.locator('#sidebar-toggle .sidebar-toggle-label').innerText(), '접기');
+    const expanded = await sidebarEdge();
     const answerBefore = await page.locator('#guide-messages').innerText();
     await page.locator('#guide-input').fill('사이드바 복원 검사');
     await page.locator('#sidebar-toggle').click();
     await canvasReady();
     assert.equal(await page.locator('#sidebar-toggle').getAttribute('aria-expanded'), 'false');
-    assert.equal(await page.locator('#sidebar-toggle .sidebar-toggle-label').innerText(), '펼치기');
+    const collapsed = await sidebarEdge(true);
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'sidebar-toggle');
     assert.equal(await page.locator('#place-drawer').evaluate(node => node.inert), true);
     assert.ok(await page.evaluate(() => window.__JEJU_MAP__.getContainer().clientWidth >= innerWidth - 1));
     await page.locator('#sidebar-toggle').click();
     await canvasReady();
+    const restored = await sidebarEdge();
+    assert.ok(Math.abs(restored.x - expanded.x) <= 1, JSON.stringify({ expanded, restored }));
     assert.equal(await page.locator('#tab-guide').getAttribute('aria-selected'), 'true');
     assert.equal(await page.locator('#guide-input').inputValue(), '사이드바 복원 검사');
     assert.equal(await page.locator('#guide-messages').innerText(), answerBefore);
@@ -145,6 +195,9 @@ try {
     assert.equal(await page.locator('#sidebar-toggle').getAttribute('aria-expanded'), 'true');
     assert.equal(await page.locator('#place-drawer').evaluate(node => node.inert), false);
     assert.equal(await page.evaluate(() => document.activeElement.id), 'catalog-search');
+    const search = await sidebarEdge();
+    assert.ok(Math.abs(search.x - normalWidth) <= 1, JSON.stringify(search));
+    return { expanded, collapsed, restored, search };
   });
 
   await page.locator('#tab-trip').click();
@@ -227,6 +280,14 @@ try {
   await page.locator('#tab-guide').click();
   await canvasReady();
   await check('Tablet-width AI panel and heading fit without horizontal page overflow', async () => {
+    const expanded = await sidebarEdge();
+    await page.locator('#sidebar-toggle').click();
+    await canvasReady();
+    const collapsed = await sidebarEdge(true);
+    await page.locator('#sidebar-toggle').click();
+    await canvasReady();
+    const restored = await sidebarEdge();
+    assert.ok(Math.abs(restored.x - expanded.x) <= 1, JSON.stringify({ expanded, restored }));
     const metric = await page.evaluate(() => ({
       page: document.documentElement.scrollWidth, viewport: innerWidth,
       title: document.querySelector('.sidebar-intro h1').scrollWidth,
@@ -236,15 +297,24 @@ try {
     }));
     assert.ok(metric.page <= metric.viewport + 1 && metric.title <= metric.titleWidth + 1, JSON.stringify(metric));
     assert.ok(Math.abs(metric.canvas - metric.map) <= 1, JSON.stringify(metric));
-    return metric;
+    return { ...metric, toggle: { expanded, collapsed, restored } };
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator('#drawer-toggle').click();
+  // Search/navigation may already have opened the drawer before resizing.
+  if (await page.locator('#drawer-toggle').getAttribute('aria-expanded') !== 'true') {
+    await page.locator('#drawer-toggle').click();
+  }
+  await page.waitForFunction(() => {
+    const input = document.getElementById('guide-input'), rect = input.getBoundingClientRect();
+    return !document.getElementById('sidebar-content').inert && rect.top >= 0 && rect.bottom <= innerHeight;
+  });
   await check('Mobile AI drawer retains its input and three recommendation bubbles', async () => {
     assert.ok(await page.locator('#guide-input').isVisible());
     assert.equal(await page.locator('#guide-followups button').count(), 3);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
     assert.equal(await page.locator('#sidebar-toggle').isVisible(), false);
+    assert.equal(await page.locator('#drawer-toggle').isVisible(), true);
+    assert.equal(await page.locator('#drawer-toggle').getAttribute('aria-expanded'), 'true');
     assert.equal(await page.locator('#place-drawer').evaluate(node => node.inert), false);
     await page.screenshot({ path: resolve(output, 'guide-mobile.png') });
   });
