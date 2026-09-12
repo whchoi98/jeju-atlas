@@ -41,6 +41,18 @@ test('broad family requests use real catalog tags and categories before the mode
   assert.ok(f.calls.length <= 6);
 });
 
+test('the observed one-place family question is a recommendation request, not an empty search', () => {
+  const f = fixture();
+  const message = '아이와 함께 가기 좋은 제주 관광지 한 곳과 확인된 편의 정보를 간단히 알려 주세요.';
+  const result = grounding.prepareGuideGrounding(message, f.catalog);
+  assert.equal(result.kind, 'family');
+  assert.equal(result.candidates.length, 1);
+  assert.ok(f.calls.length > 0);
+  assert.match(result.prompt, /후보 중 1곳/);
+  assert.doesNotMatch(result.prompt, /후보 2~3곳/);
+  assert.ok(result.prompt.length <= 2000);
+});
+
 test('regional, nearby, non-recommendation and adult-only requests keep their own scope', () => {
   assert.equal(typeof grounding?.prepareGuideGrounding, 'function');
   const f = fixture();

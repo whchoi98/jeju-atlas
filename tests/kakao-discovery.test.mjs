@@ -137,6 +137,21 @@ test('keyword-only discovery accepts other native groups and uncoded places with
   assert.deepEqual(result.items.map(({ id, group }) => [id, group]), [['101', 'AT4'], ['102', '']]);
 });
 
+test('name searches prioritize relevance while nearby and category-only discovery keep distance order', async (t) => {
+  const queries = [];
+  const lookup = service(t, {
+    fetch: async url => { queries.push(new URL(url).searchParams); return Response.json(page([document()])); },
+  });
+  await lookup.search(request({ query: '한림공원', category: '' }));
+  await lookup.search(request({ query: '한림공원', category: '', scope: 'view', bounds: [126.4, 33.4, 126.6, 33.5] }));
+  await lookup.search(request({ query: '국수', scope: 'nearby', radius_m: 1000 }));
+  await lookup.search(request());
+  assert.deepEqual(queries.map(query => query.get('sort')), ['accuracy', 'accuracy', 'distance', 'distance']);
+  assert.equal(queries[0].get('query'), '한림공원');
+  assert.equal(queries[1].get('rect'), '126.4,33.4,126.6,33.5');
+  assert.equal(queries[2].get('radius'), '1000');
+});
+
 test('view search uses the supplied rectangle and accepts its exact edges', async (t) => {
   let query;
   const lookup = service(t, {

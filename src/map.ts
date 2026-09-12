@@ -97,6 +97,7 @@ export function readView(): ViewState {
 
 export function cameraURL(state: ViewState): string {
   const url = new URL(window.location.href);
+  for (const key of ['atlas_place', 'atlas_name', 'atlas_category', 'atlas_lat', 'atlas_lng']) url.searchParams.delete(key);
   const params = new URLSearchParams({
     map: [state.zoom.toFixed(3), state.center[1].toFixed(6), state.center[0].toFixed(6), state.pitch.toFixed(1), state.bearing.toFixed(1)].join('/'),
     mode: state.is3D ? '3d' : '2d',

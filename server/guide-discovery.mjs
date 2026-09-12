@@ -24,6 +24,9 @@ const nativeId = value => typeof value === 'string' && /^kakao:[1-9]\d{0,19}$/.t
 const naturalAnchorCategories = new Set(['해변', '오름', '올레길']);
 // An anchor preference only: this never rewrites IDs, coordinates or enrichment.
 const landmarkAnchorCategories = new Map([['협재해수욕장', '해변']]);
+// Keep this declared service identity aligned with atlas_tools.places. It is
+// used only after exact-name/detail/category and pairwise distance validation.
+const landmarkServiceIds = new Map([['성산일출봉', { id: 'poi_0008', categories: new Set(['관광지', '오름']) }]]);
 
 function categoryFor(question) {
   const found = [];
@@ -67,11 +70,13 @@ function naturalAnchor(name, candidates) {
   // Shared English aliases alone cannot establish the same physical landmark.
   const names = new Set(candidates.map(row => row.name.normalize('NFKC').replace(/\s+/gu, '').toLowerCase()));
   if (names.size !== 1) return null;
+  const service = landmarkServiceIds.get([...names][0]);
   const declaredCategory = landmarkAnchorCategories.get([...names][0]);
   const specificCategories = new Set(candidates.map(row => row.category).filter(category => category !== '관광지'));
   const category = declaredCategory ?? (specificCategories.size === 1 ? [...specificCategories][0] : null);
-  if (!naturalAnchorCategories.has(category)
-    || candidates.some(row => row.category !== category && row.category !== '관광지')) return null;
+  if (service
+    ? candidates.some(row => !service.categories.has(row.category))
+    : !naturalAnchorCategories.has(category) || candidates.some(row => row.category !== category && row.category !== '관광지')) return null;
   const radians = Math.PI / 180;
   for (let i = 0; i < candidates.length; i++) {
     for (let j = i + 1; j < candidates.length; j++) {
@@ -82,6 +87,7 @@ function naturalAnchor(name, candidates) {
       if (distance > 200) return null;
     }
   }
+  if (service) return candidates.find(row => row.id === service.id) ?? null;
   const canonical = declaredCategory ? candidates.filter(row => row.category === declaredCategory) : [];
   if (canonical.length === 1) return canonical[0];
   const literal = candidates.filter(row => row.name === name);

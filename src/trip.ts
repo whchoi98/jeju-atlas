@@ -7,7 +7,9 @@ import type { PlaceSnapshot, SavedData, TripStop } from './saved-data';
 import { SavedDataUI } from './saved-data-ui';
 import { getLocale, placeName, t } from './i18n';
 import { RoutingController, routeGPX, routingCopy, routingMarkup } from './routing';
+import { EndpointSearch, endpointCopy } from './endpoint-search';
 import './routing.css';
+import './endpoint-search.css';
 export { snapshot } from './saved-data';
 export type { PlaceSnapshot, TripStop } from './saved-data';
 
@@ -59,6 +61,9 @@ export class TripPlanner {
   private store: SavedDataStore;
   private management: SavedDataUI;
   private root: HTMLElement;
+  private heading: HTMLElement;
+  private content: HTMLElement;
+  private endpointSearch: EndpointSearch;
   private notify: (message: string) => void;
   private onChange: (stops: TripStop[]) => void;
   private onSelect: (place: PlaceSnapshot) => void;
@@ -72,10 +77,11 @@ export class TripPlanner {
   private locationGeneration = 0;
   private locating = false;
   private pendingSharedMode: { key: string; mode: RouteMode } | null = null;
+  private pendingDestination: TripStop | null = null;
   private get state(): SavedData { return this.store.data; }
   get route(): RouteSuccess | null { return this.routing.route; }
-  get hasUnsavedChanges(): boolean { return this.store.hasUnsavedChanges || this.management.hasPendingReview; }
-  get isSaved(): boolean { return this.store.status === 'saved' && !this.store.hasUnsavedChanges; }
+  get hasUnsavedChanges(): boolean { return Boolean(this.pendingDestination) || this.store.hasUnsavedChanges || this.management.hasPendingReview; }
+  get isSaved(): boolean { return !this.pendingDestination && this.store.status === 'saved' && !this.store.hasUnsavedChanges; }
   openDataManagement(): void { this.management.open(); }
 
   constructor(root: HTMLElement, options: {
@@ -84,6 +90,7 @@ export class TripPlanner {
     onRoute?: (route: RouteSuccess | null) => void;
     getMapCenter?: () => LatLng | null;
     requestCurrentLocation?: () => Promise<LatLng>;
+    getRecentPlaces?: () => readonly PlaceSnapshot[];
   }) {
     this.root = root;
     this.notify = message => options.notify(t(message));
@@ -102,6 +109,17 @@ export class TripPlanner {
       const pending = this.pendingSharedMode;
       this.pendingSharedMode = null;
       if (pending?.key === this.stopKey(this.stops)) this.selectMode(pending.mode);
+    });
+    // Route responses repaint only the surrounding plan. Keep the search DOM
+    // alive while either routing mode completes or the saved plan changes.
+    root.innerHTML = '<div data-trip-heading></div><section id="trip-endpoint-search"></section><div data-trip-content></div>';
+    this.heading = root.querySelector<HTMLElement>('[data-trip-heading]')!;
+    this.content = root.querySelector<HTMLElement>('[data-trip-content]')!;
+    this.endpointSearch = new EndpointSearch(root.querySelector<HTMLElement>('#trip-endpoint-search')!, {
+      getCenter: this.getMapCenter, getFavorites: () => this.favorites,
+      getRecentPlaces: options.getRecentPlaces,
+      onPick: (kind, place) => this.setEndpoint(place, kind === 'origin', true),
+      onReverse: () => this.reverseOrder(), onClearDraft: () => this.clearPendingDestination(),
     });
     const dialog = document.getElementById('saved-data-dialog');
     dialog?.addEventListener('close', () => { this.pendingSharedMode = null; });
@@ -172,23 +190,69 @@ export class TripPlanner {
   async setOrigin(place: TripPlace): Promise<void> { await this.setEndpoint(place, true); }
   async setDestination(place: TripPlace): Promise<void> { await this.setEndpoint(place, false); }
 
-  private async setEndpoint(place: TripPlace, first: boolean): Promise<void> {
+  private endpointStops(stops: TripStop[], next: PlaceSnapshot, first: boolean, replace: boolean, pending: TripStop | null): TripStop[] {
+    const existing = stops.find(stop => stop.id === next.id);
+    const boundary = first ? stops[0] : stops.length > 1 ? stops.at(-1) : undefined;
+    const opposite = first ? stops.length > 1 ? stops.at(-1) : undefined : stops[0];
+    if ((first && pending?.id === next.id) || (replace && opposite?.id === next.id)
+      || (!first && stops.length === 1 && existing)) throw new Error('same_endpoint');
+    const point = next.id.startsWith('point:') && next.source === 'user_point';
+    const replacePoint = first && point && !existing && stops[0]?.source === 'user_point';
+    const removedBoundary = replace ? boundary?.id : replacePoint ? stops[0]?.id : undefined;
+    const result = stops.filter(stop => stop.id !== next.id && stop.id !== removedBoundary
+      && (!first || stop.id !== pending?.id));
+    const chosen = {
+      ...next,
+      sources: next.sources.length ? next.sources : existing?.sources ?? [],
+      stay_min: existing?.stay_min ?? (point ? 0 : 60),
+    };
+    if (first) result.unshift(chosen);
+    else result.push(chosen);
+    if (first && pending) result.push(stops.find(stop => stop.id === pending.id) ?? pending);
+    if (result.length > savedLimits.stops) throw new Error('endpoint_limit');
+    return result;
+  }
+
+  private async setEndpoint(place: TripPlace, first: boolean, replace = false): Promise<boolean> {
     let next: PlaceSnapshot;
     try { next = snapshot(place); }
-    catch { this.notify(copy[getLocale()].location_outside_jeju); return; }
-    const point = next.id.startsWith('point:') && next.source === 'user_point';
-    const replacesPoint = first && point && this.state.stops[0]?.source === 'user_point';
-    if (!this.hasStop(next.id) && !replacesPoint && this.state.stops.length >= savedLimits.stops) {
-      this.notify(copy[getLocale()].limit); return;
+    catch { this.notify(copy[getLocale()].location_outside_jeju); return false; }
+    if (!first && !this.state.stops.length) {
+      this.detachSharedFragment();
+      this.pendingSharedMode = null;
+      this.locationGeneration++;
+      this.locating = false;
+      this.pendingDestination = { ...next, stay_min: next.source === 'user_point' ? 0 : 60 };
+      this.routeInputKey = '';
+      this.routing.invalidate();
+      this.render();
+      this.notify(endpointCopy[getLocale()].pending);
+      return true;
     }
-    await this.change(data => {
-      const existing = data.stops.find(stop => stop.id === next.id);
-      data.stops = data.stops.filter(stop => stop.id !== next.id);
-      if (first && point && !existing && data.stops[0]?.source === 'user_point') data.stops.shift();
-      const stop = { ...next, stay_min: existing?.stay_min ?? (point ? 0 : 60) };
-      if (first) data.stops.unshift(stop);
-      else data.stops.push(stop);
+    try { this.endpointStops(this.state.stops, next, first, replace, this.pendingDestination); }
+    catch (error) {
+      this.notify((error as Error).message === 'endpoint_limit' ? copy[getLocale()].limit : endpointCopy[getLocale()].samePlace);
+      return false;
+    }
+    return this.change(data => {
+      // Recheck against the latest saved revision under SavedDataStore's lock.
+      // Consume the pending finish only when this mutation actually runs.
+      data.stops = this.endpointStops(data.stops, next, first, replace, this.pendingDestination);
+      if (first) this.pendingDestination = null;
     }, copy[getLocale()][first ? 'origin' : 'destination'], true);
+  }
+
+  private clearPendingDestination(): void {
+    this.pendingDestination = null;
+    this.locationGeneration++;
+    this.locating = false;
+    this.syncRouting();
+    this.render();
+  }
+
+  async reverseOrder(): Promise<void> {
+    if (this.pendingDestination || this.state.stops.length < 2) return;
+    await this.change(data => { data.stops.reverse(); }, endpointCopy[getLocale()].reversed, true);
   }
 
   private async chooseOrigin(current: boolean): Promise<void> {
@@ -230,6 +294,7 @@ export class TripPlanner {
   }
 
   get stops(): TripStop[] { return this.state.stops.map((item) => ({ ...item })); }
+  get favorites(): readonly PlaceSnapshot[] { return this.state.favorites; }
   isFavorite(id: string): boolean { return this.state.favorites.some((place) => place.id === id); }
   hasStop(id: string): boolean { return this.state.stops.some((place) => place.id === id); }
 
@@ -244,6 +309,7 @@ export class TripPlanner {
   }
 
   async add(place: CatalogPlace | PlaceDetail | PlaceSnapshot): Promise<void> {
+    if (this.pendingDestination && !this.state.stops.length) { await this.setOrigin(place); return; }
     if (this.hasStop(place.id)) { this.notify(copy[getLocale()].already); return; }
     if (this.state.stops.length >= savedLimits.stops) { this.notify(copy[getLocale()].limit); return; }
     await this.change(data => {
@@ -251,7 +317,7 @@ export class TripPlanner {
     }, t(`${placeName(place)}, 내 여행에 저장했어요.`), true);
   }
 
-  private async change(change: (data: SavedData) => void, message?: string, routeInput = false): Promise<void> {
+  private async change(change: (data: SavedData) => void, message?: string, routeInput = false): Promise<boolean> {
     this.detachSharedFragment();
     this.pendingSharedMode = null;
     if (routeInput) {
@@ -263,6 +329,7 @@ export class TripPlanner {
     const result = await this.store.update(change);
     if (!result.ok) this.notify(t(savedStatusMessage(result.reason)));
     else if (message) this.notify(message);
+    return result.ok;
   }
 
   private detachSharedFragment(): void {
@@ -404,9 +471,17 @@ export class TripPlanner {
     const distance = state.stops.reduce((sum, stop, index, stops) => index ? sum + distanceMeters(stops[index - 1], stop) : sum, 0);
     const stay = state.stops.reduce((sum, stop) => sum + stop.stay_min, 0);
     const sourceLabel = (place: PlaceSnapshot) => place.source === 'user_point' ? labels.point : t(place.source_label);
-    this.root.innerHTML = `
+    this.heading.innerHTML = `
       <div class="panel-intro" data-i18n-ignore><span class="eyebrow">YOUR ISLAND ITINERARY</span><h2>${labels.title}</h2><p>${labels.intro}</p></div>
       <div class="trip-summary"><strong>${state.stops.length}<span> / 12 ${labels.count}</span></strong><span>${locale === 'en' ? 'Straight-line total' : '직선 합계'} ${distanceLabel(distance)}<br>${labels.stay} ${stay}${locale === 'en' ? ' min' : '분'}</span></div>
+    `;
+    this.endpointSearch.update({
+      origin: state.stops[0] ?? null,
+      destination: this.pendingDestination ?? (state.stops.length > 1 ? state.stops.at(-1)! : null),
+      pendingDestination: Boolean(this.pendingDestination),
+      canReverse: !this.pendingDestination && state.stops.length > 1,
+    });
+    this.content.innerHTML = `
       ${this.getMapCenter || this.requestCurrentLocation ? `<div class="route-origin-actions" data-i18n-ignore aria-busy="${this.locating}">
         ${this.getMapCenter ? `<button data-action="route-map-origin">${icon('pin')}${routes.center}</button>` : ''}
         ${this.requestCurrentLocation ? `<button data-action="route-current-origin" ${this.locating ? 'disabled' : ''}>${icon('compass')}${this.locating ? routes.locating : routes.current}</button>` : ''}
@@ -418,13 +493,15 @@ export class TripPlanner {
         <li data-trip-id="${html(stop.id)}"><span class="trip-number">${index + 1}</span><div class="trip-stop-main">
         ${index === 0 || index === state.stops.length - 1 ? `<span class="trip-point-role" data-i18n-ignore>${index === 0 ? routes.origin : routes.destination}</span>` : ''}
         <button class="trip-place-name" data-i18n-ignore data-action="select" data-id="${html(stop.id)}">${html(placeName(stop))}</button><span class="micro-note">${html(categoryName(stop.category))} · ${html(sourceLabel(stop))}</span><label class="trip-stay">${labels.stay} <input type="number" min="0" max="720" step="5" value="${stop.stay_min}" data-stay="${html(stop.id)}" aria-label="${html(t(`${placeName(stop)} 체류 시간`))}"> ${labels.minutes}</label></div><div class="trip-reorder"><button data-action="up" data-id="${html(stop.id)}" aria-label="${html(t(`${placeName(stop)} 위로`))}" ${index === 0 ? 'disabled' : ''}>↑</button><button data-action="down" data-id="${html(stop.id)}" aria-label="${html(t(`${placeName(stop)} 아래로`))}" ${index === state.stops.length - 1 ? 'disabled' : ''}>↓</button><button data-action="remove" data-id="${html(stop.id)}" aria-label="${html(t(`${placeName(stop)} 코스에서 제거`))}">${icon('close')}</button></div></li>`).join('')}</ol>
-      ${!state.stops.length ? `<div class="feature-empty" data-i18n-ignore>${labels.empty}</div>` : ''}
-      <p id="trip-save-status" class="saved-notice${this.store.status !== 'saved' ? ' is-unsaved' : ''}" role="status">${html(t(savedStatusMessage(this.store.status)))}</p>
+      ${!state.stops.length && !this.pendingDestination ? `<div class="feature-empty" data-i18n-ignore>${labels.empty}</div>` : ''}
+      <p id="trip-save-status" class="saved-notice${this.store.status !== 'saved' || this.pendingDestination ? ' is-unsaved' : ''}" role="status">${html(this.pendingDestination ? endpointCopy[locale].pending : t(savedStatusMessage(this.store.status)))}</p>
       <div class="panel-section-heading" data-i18n-ignore><h3>${labels.favorites}</h3><span>${state.favorites.length} ${labels.count}</span></div>
       <div id="favorite-list">${state.favorites.map((place) => `<div class="favorite-row"><div><button data-i18n-ignore data-action="select" data-id="${html(place.id)}">${html(placeName(place))}</button><span>${html(sourceLabel(place))} · ${labels.savedAt} ${html(t(dateLabel(place.updated_at)))}</span></div><button data-action="add" data-id="${html(place.id)}" aria-label="${html(t(`${placeName(place)} 코스에 추가`))}">${icon('plus')}</button><button data-action="favorite" data-id="${html(place.id)}" aria-label="${html(t(`${placeName(place)} 즐겨찾기 해제`))}">${icon('close')}</button></div>`).join('') || `<p class="feature-empty" data-i18n-ignore>${labels.noFavorites}</p>`}</div>
     `;
     for (const index of opened) this.root.querySelector<HTMLDetailsElement>(`details[data-route-leg="${index}"]`)?.setAttribute('open', '');
-    if (stayId) this.root.querySelector<HTMLInputElement>(`input[data-stay="${CSS.escape(stayId)}"]`)?.focus({ preventScroll: true });
-    else if (focusId) this.root.querySelector<HTMLElement>(`#${CSS.escape(focusId)}`)?.focus({ preventScroll: true });
+    if (!focused?.isConnected) {
+      if (stayId) this.root.querySelector<HTMLInputElement>(`input[data-stay="${CSS.escape(stayId)}"]`)?.focus({ preventScroll: true });
+      else if (focusId) this.root.querySelector<HTMLElement>(`#${CSS.escape(focusId)}`)?.focus({ preventScroll: true });
+    }
   }
 }

@@ -41,3 +41,24 @@ test('individual permit closure does not exclude a venue and evidence stays qual
   assert.match(result.prompt, /검증.*아니|검증.*않|검증.*마/);
   assert.match(catalogReference('결과 없음', result).appendix, /공식 대조 검증/);
 });
+
+test('a provider parking fact remains available even when the generic parking flag is unknown', () => {
+  const candidate = place('poi_0122', '가족 항공우주박물관', {
+    facilities: { parking: 'unknown' },
+    official_details: [{
+      provider: 'tourapi', provider_id: '12345', locale: 'ko',
+      source_url: 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=fixture',
+      fetched_at: '2026-09-12T01:00:00.000Z', title: '가족 항공우주박물관',
+      address: null, phone: null, website: null, latitude: null, longitude: null, overview: null,
+      photos: [], facts: [{ key: 'parking', label_ko: '주차', label_en: 'Parking', value: '가능 (약 458대)' }],
+      match: { method: 'exact_name', distance_m: 0 },
+    }],
+  });
+  const result = prepareGuideGrounding('아이와 함께 가기 좋은 제주 관광지 한 곳과 확인된 편의 정보를 간단히 알려 주세요.', catalog([candidate]));
+  assert.match(result.prompt, /458/);
+  assert.match(result.prompt, /official_facts/);
+  assert.match(result.prompt, /tourapi/);
+  assert.match(result.prompt, /2026-09-12/);
+  assert.match(result.prompt, /미확인/);
+  assert.ok(result.prompt.length <= 2000);
+});

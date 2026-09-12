@@ -99,7 +99,7 @@
       <span class="nav-number">11</span>
       <span class="nav-title">관측·보안·운영 제어</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="12 서비스 검증과 문제 해결 한영 AI·3D 지도·실제 경로·스트리밍·복구 기준을 검증합니다. 자동 검사 실제 화면 실제 AI 질문 문제 구분 복구 기준 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="12 서비스 검증과 문제 해결 한영 AI·3D 지도·실제 경로·스트리밍·복구 기준을 검증합니다. 자동 검사 실제 화면 탐색에서 길찾기까지 실제 AI 질문 문제 구분 복구 기준 AI CLI 프롬프트 카드">
     <a class="chapter-link" href="12-validation.html" aria-current="page" data-chapter-link="12-validation">
       <span class="nav-number">12</span>
       <span class="nav-title">서비스 검증과 문제 해결</span>
@@ -219,6 +219,18 @@ HTTPS 단계 이전에는 전체 운영 검사를 통과했다고 기대하지 �
 <td>기존 ID 유지, 카카오 장소 저장 후 재열기, 선택 토큰이 백업에 포함되지 않음</td>
 </tr>
 <tr>
+<td>검색 후보·기록</td>
+<td>검색 실행·지우기, 방향키/Enter/Escape 후보 선택, 최근 검색·열람 기록</td>
+</tr>
+<tr>
+<td>저장 탭</td>
+<td>즐겨찾기 검색·분류, 자주 쓰는 장소 고정, 최근 기록 삭제와 기존 코스 보존</td>
+</tr>
+<tr>
+<td>지도 지점 동작</td>
+<td>이 지역에서 검색, 현재 위치, 우클릭·길게 누르기·Shift+F10 메뉴</td>
+</tr>
+<tr>
 <td>AI 조회 근거</td>
 <td>카카오 상업 장소 추천과 명시적 출처, 선택 토큰·조회 원문의 Memory 저장 제외</td>
 </tr>
@@ -233,6 +245,10 @@ HTTPS 단계 이전에는 전체 운영 검사를 통과했다고 기대하지 �
 <tr>
 <td>경로</td>
 <td>같은 출발/도착의 도보·차량 거리·예상 시간·고도 단면</td>
+</tr>
+<tr>
+<td>출발·도착 편집</td>
+<td>장소명 검색, 도착부터 선택, 전체 순서 뒤집기, 검색 실패 시 기존 경로 입력 보존</td>
 </tr>
 <tr>
 <td>여행</td>
@@ -250,12 +266,29 @@ HTTPS 단계 이전에는 전체 운영 검사를 통과했다고 기대하지 �
 </table></div>
 <p>지형·도로·위성 자료의 시점을 구분합니다.
 정밀 측량·실시간 교통·실시간 위성 영상이라고 설명하지 않습니다.</p>
+<h2 id="heading-탐색에서-길찾기까지">탐색에서 길찾기까지</h2>
+<ol>
+<li>장소 이름을 입력하고 Enter로 검색합니다. 방향키로 후보를 선택해 상세를 엽니다.</li>
+<li>주소와 장소 링크를 복사합니다. 장소 링크에는 현재 여행 코스나 선택 토큰이 들어가지 않아야 합니다.</li>
+<li>즐겨찾기를 저장한 뒤 <strong>저장</strong> 탭에서 찾아 고정합니다. 최근 검색·최근 본 장소를 다시 열어 봅니다.</li>
+<li><strong>길찾기</strong>에서 도착지를 먼저 고릅니다. 출발지를 고르기 전에는 임의 위치로 경로를 만들지 않아야 합니다.</li>
+<li>출발지를 선택하고 도보·차량 결과를 비교합니다. 순서를 뒤집어도 경유지·체류 시간·출처가 유지되는지 봅니다.</li>
+<li>지도를 이동한 뒤 <strong>이 지역에서 검색</strong>을 선택합니다. 이동 중에는 이전 결과가 임의로 바뀌지 않아야 합니다.</li>
+<li>지도에서 우클릭 또는 길게 누르기로 출발·도착·주변 탐색을 실행합니다. 드래그와 두 손가락 확대가 정상인지 확인합니다.</li>
+</ol>
+<p>현재 위치는 브라우저가 위치 권한을 받은 경우에만 확인합니다.
+제주 밖에서 실습한다면 위치 안내를 확인하고 지도에서 제주 안의 지점을 직접 선택합니다.
+위치 실패를 가상의 제주 좌표로 대체하지 않습니다.</p>
+<p>다른 창에서 공유 링크를 열 때 카카오 장소는 같은 ID를 다시 확인한 뒤 표시합니다.
+링크에 들어 있는 이름·좌표를 검증된 장소 정보로 바로 취급하지 않아야 합니다.
+최근 기록을 지워도 즐겨찾기와 여행 코스가 함께 삭제되지 않아야 합니다.</p>
 <h2 id="heading-실제-ai-질문">실제 AI 질문</h2>
 <p>아래 질문을 한 번씩 수행하고 완료 여부를 기록합니다.
 실제 모델 호출이며 계정 비용과 앱 한도에 포함됩니다.</p>
 <div class="code-block"><div class="code-toolbar"><span class="code-language">text</span><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="text 코드 복사">복사</button></div><pre tabindex="0" aria-label="text 코드"><code class="language-text" id="code-2">아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.
 한라산 근처 맛집을 추천하고 확인된 이용시간과 출처를 알려 주세요.
 성산일출봉 근처 맛집을 알려 주세요.
+아이와 함께 가기 좋은 제주 관광지 한 곳과 확인된 편의 정보를 간단히 알려 주세요.
 Recommend family-friendly places in Jeju and distinguish verified facilities from unknown information.
 </code></pre></div>
 <p>확인할 항목:</p>
@@ -264,6 +297,7 @@ Recommend family-friendly places in Jeju and distinguish verified facilities fro
 <li>Markdown·이모지·후속 질문·추천 장소 지도 연계가 작동합니다.</li>
 <li>기준 장소가 맞고 이름이 비슷한 다른 장소를 중심으로 잡지 않습니다.</li>
 <li>공식 자료가 없으면 미확인으로 설명합니다.</li>
+<li>한 곳을 요청하면 한 곳을 제시하고, 연결된 제공처의 편의 정보는 그 항목의 출처와 시각을 밝힙니다.</li>
 <li>한국어/English 선택이 답변에 반영됩니다.</li>
 <li>브라우저를 닫거나 요청을 취소했을 때 서버가 무한 작업을 지속하지 않습니다.</li>
 </ul>
@@ -369,7 +403,7 @@ secret 값·AWS 자격 증명·원문 사용자 대화 전체를 붙이지 않�
   </a>
       </nav>
     </article>
-    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-자동-검사" data-toc-link>자동 검사</a></li><li class="toc-depth-2"><a href="#heading-실제-화면" data-toc-link>실제 화면</a></li><li class="toc-depth-2"><a href="#heading-실제-ai-질문" data-toc-link>실제 AI 질문</a></li><li class="toc-depth-2"><a href="#heading-문제-구분" data-toc-link>문제 구분</a></li><li class="toc-depth-2"><a href="#heading-복구-기준" data-toc-link>복구 기준</a></li><li class="toc-depth-2"><a href="#heading-ai-cli-프롬프트-카드" data-toc-link>AI CLI 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-자동-검사" data-toc-link>자동 검사</a></li><li class="toc-depth-2"><a href="#heading-실제-화면" data-toc-link>실제 화면</a></li><li class="toc-depth-2"><a href="#heading-탐색에서-길찾기까지" data-toc-link>탐색에서 길찾기까지</a></li><li class="toc-depth-2"><a href="#heading-실제-ai-질문" data-toc-link>실제 AI 질문</a></li><li class="toc-depth-2"><a href="#heading-문제-구분" data-toc-link>문제 구분</a></li><li class="toc-depth-2"><a href="#heading-복구-기준" data-toc-link>복구 기준</a></li><li class="toc-depth-2"><a href="#heading-ai-cli-프롬프트-카드" data-toc-link>AI CLI 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
   </div>
     </main>
     <footer class="site-footer"><span>Jeju Atlas · 배포 워크숍<span class="footer-date">2026.09.11 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 · 글꼴 라이선스</a></footer>

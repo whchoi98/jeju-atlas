@@ -99,7 +99,7 @@
       <span class="nav-number">11</span>
       <span class="nav-title">관측·보안·운영 제어</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="12 서비스 검증과 문제 해결 한영 AI·3D 지도·실제 경로·스트리밍·복구 기준을 검증합니다. 자동 검사 실제 화면 실제 AI 질문 문제 구분 복구 기준 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="12 서비스 검증과 문제 해결 한영 AI·3D 지도·실제 경로·스트리밍·복구 기준을 검증합니다. 자동 검사 실제 화면 탐색에서 길찾기까지 실제 AI 질문 문제 구분 복구 기준 AI CLI 프롬프트 카드">
     <a class="chapter-link" href="12-validation.html" data-chapter-link="12-validation">
       <span class="nav-number">12</span>
       <span class="nav-title">서비스 검증과 문제 해결</span>
@@ -256,7 +256,10 @@ python3 workshop/scripts/lab.py run status-app --config "$ATLAS_CONFIG" --execut
 오름·해변·올레길 등 기존 관광·자연 정보와 이전 저장 코스는 계속 사용할 수 있습니다.
 공공 사진·이용 정보는 같은 장소임을 확인할 수 있는 기존 기록에만 연결됩니다.
 검색 결과의 선택 토큰은 현재 화면에서만 사용하며 여행·즐겨찾기에 저장하지 않습니다.
-저장된 카카오 장소를 다시 열면 같은 카카오 ID의 현재 정보를 확인합니다.</p>
+저장된 카카오 장소를 다시 열면 같은 카카오 ID의 현재 정보를 확인합니다.
+<strong>저장</strong> 탭에서 즐겨찾기·최근 본 장소·최근 검색을 관리하고 자주 쓰는 즐겨찾기를 고정합니다.
+최근 기록은 브라우저에 제한된 수와 기간으로 보관하며 선택 토큰은 포함하지 않습니다.
+장소 공유 링크의 이름·좌표는 조회 힌트이며 같은 카카오 ID 확인 후 화면에 반영합니다.</p>
 <p>웹 AI의 음식점·카페 추천도 BFF의 같은 조회·사용량 한도를 사용합니다.
 선택한 장소의 근거는 전용 Guide에 별도 데이터로 전달하며, 선택 토큰과 조회 원문은 장기 Memory에 저장하지 않습니다.
 이 기능을 배포할 때는 최신 Guide 아티팩트를 먼저 반영한 뒤 웹 앱을 배포합니다.
@@ -268,7 +271,7 @@ python3 workshop/scripts/lab.py run status-app --config "$ATLAS_CONFIG" --execut
 연결하지 못한 경우 이름·분류·위치·검색 결과 부족 등의 사유를 구분하여 확인합니다.
 카카오 Local은 사진·후기·영업시간을 제공하지 않으므로 추가 방문 정보는 카카오 상세 페이지로 연결합니다.
 조회는 별도의 일일 한도와 동시 실행 제한을 사용하며, 검색 결과 전체를 서버 DB·PWA 캐시에 저장하지 않습니다.
-사용자가 여행·즐겨찾기에 담은 최소 스냅샷은 브라우저에 저장하고, 다시 열 때 현재 정보를 조회합니다.
+사용자가 선택한 여행·즐겨찾기·최근 열람의 최소 스냅샷은 브라우저에 저장하고, 다시 열 때 현재 정보를 조회합니다.
 API 인증이나 제공처가 실패해도 기존 장소 상세는 읽을 수 있어야 합니다.</p>
 <ul class="contains-task-list">
 <li class="task-list-item"><input type="checkbox" disabled> 숨김 입력으로 내 SSM 경로에 키를 저장했습니다.</li>

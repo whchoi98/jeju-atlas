@@ -1,6 +1,16 @@
 // Registered interface copy only. Source descriptions and proper names are
 // preserved; placeName() uses a provider's name_en when available.
 export const en: Record<string, string> = {
+  '저장': 'Saved', '길찾기': 'Directions',
+  '검색 실행': 'Run search', '검색어 지우기': 'Clear search',
+  '주소 복사': 'Copy address', '주소를 복사했어요.': 'Address copied.',
+  '장소 링크 복사': 'Copy place link', '장소 링크를 복사했어요.': 'Place link copied.',
+  '이 장소의 공유 링크를 만들 수 없어요.': 'A share link is unavailable for this place.',
+  '공유한 장소 확인 중': 'Checking shared place',
+  '공유한 장소를 확인하지 못했어요': 'The shared place could not be verified',
+  '현재 화면의 장소를 검색합니다. 이동한 뒤에는 이 지역에서 검색을 눌러 주세요.': 'Search the current view. After moving the map, choose Search this area.',
+  '선택한 중심에서의 대략적인 직선거리입니다.': 'Approximate straight-line distance from the chosen center.',
+  '지도 검색을 갱신하지 못했어요. 이전 결과를 유지합니다.': 'The area search could not refresh. Previous results are retained.',
   '검색 출처': 'Search source', '자동 선택': 'Automatic', '기존 카탈로그': 'Original catalog', '카카오맵': 'Kakao Map',
   '카카오 검색 결과': 'Kakao search results', '카카오 장소 검색': 'Kakao place search',
   '카카오 조회 정보': 'Information retrieved from Kakao',

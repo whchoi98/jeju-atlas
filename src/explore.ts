@@ -11,6 +11,14 @@ import { categoryName, distanceLabel, html, isJejuPoint } from './api';
 import { initializePWA } from './pwa';
 import { categorySymbol, icon } from './icons';
 import { getLocale, placeName } from './i18n';
+import { MapActions } from './map-actions';
+import { currentJejuLocation, selectedMapPoint } from './map-location';
+import { copyPlainText } from './clipboard';
+import { sharedPlace } from './place-link';
+import { BrowsingHistory } from './browsing-history';
+import { SearchSuggestions } from './search-suggestions';
+import { PlaceLibrary } from './place-library';
+import './navigation-ui.css';
 import './explore.css';
 import './mobility.css';
 
@@ -41,6 +49,11 @@ export class AtlasExperience {
   private desktopSidebarCollapsed = false;
   private readonly mobileViewport = window.matchMedia('(max-width: 760px)');
   private readonly sidebarToggle = document.createElement('button');
+  private mapActions: MapActions | undefined;
+  private openedPlaceLink = false;
+  private readonly browsing = new BrowsingHistory();
+  private suggestions: SearchSuggestions | undefined;
+  private library: PlaceLibrary | undefined;
 
   constructor(options: ExperienceOptions) {
     this.options = options;
@@ -54,7 +67,7 @@ export class AtlasExperience {
     tabs.className = 'sidebar-tabs';
     tabs.setAttribute('role', 'tablist');
     tabs.setAttribute('aria-label', '제주 탐색 도구');
-    tabs.innerHTML = `<button id="tab-explore" role="tab" aria-selected="true" aria-controls="explore-panel" data-panel="explore">${icon('search')}탐색</button><button id="tab-trip" role="tab" aria-selected="false" aria-controls="trip-panel" data-panel="trip" tabindex="-1">${icon('route')}내 여행<span id="trip-tab-count">0</span></button><button id="tab-guide" role="tab" aria-selected="false" aria-controls="guide-panel" data-panel="guide" tabindex="-1">${icon('globe')}AI 가이드</button>`;
+    tabs.innerHTML = `<button id="tab-explore" role="tab" aria-selected="true" aria-controls="explore-panel" data-panel="explore">${icon('search')}탐색</button><button id="tab-trip" role="tab" aria-selected="false" aria-controls="trip-panel" data-panel="trip" tabindex="-1">${icon('route')}길찾기<span id="trip-tab-count">0</span></button><button id="tab-saved" role="tab" aria-selected="false" aria-controls="saved-panel" data-panel="saved" tabindex="-1">${icon('pin')}저장</button><button id="tab-guide" role="tab" aria-selected="false" aria-controls="guide-panel" data-panel="guide" tabindex="-1">${icon('globe')}AI 가이드</button>`;
     const browse = document.createElement('section');
     browse.id = 'explore-panel';
     browse.className = 'experience-panel explore-panel';
@@ -71,10 +84,13 @@ export class AtlasExperience {
     const trip = document.createElement('section');
     trip.id = 'trip-panel'; trip.className = 'experience-panel trip-panel'; trip.hidden = true;
     trip.setAttribute('role', 'tabpanel'); trip.setAttribute('aria-labelledby', 'tab-trip');
+    const saved = document.createElement('section');
+    saved.id = 'saved-panel'; saved.className = 'experience-panel saved-panel'; saved.hidden = true;
+    saved.setAttribute('role', 'tabpanel'); saved.setAttribute('aria-labelledby', 'tab-saved');
     const guide = document.createElement('section');
     guide.id = 'guide-panel'; guide.className = 'experience-panel guide-panel'; guide.hidden = true;
     guide.setAttribute('role', 'tabpanel'); guide.setAttribute('aria-labelledby', 'tab-guide');
-    intro.after(tabs, browse, trip, guide);
+    intro.after(tabs, browse, trip, saved, guide);
     const footer = sidebar.querySelector<HTMLElement>('.sidebar-footer')!;
     footer.classList.add('experience-footer');
     initializePWA(footer, options.notify, { isBusy: () => Boolean(this.planner?.hasUnsavedChanges || this.guide?.hasUnsavedWork) });
@@ -103,18 +119,8 @@ export class AtlasExperience {
         const center = options.atlas()?.map.getCenter();
         return center && isJejuPoint(center.lng, center.lat) ? { lng: center.lng, lat: center.lat } : null;
       },
-      requestCurrentLocation: () => new Promise((resolve, reject) => {
-        if (!navigator.geolocation) { reject(new Error('location_unavailable')); return; }
-        navigator.geolocation.getCurrentPosition(
-          position => {
-            const { longitude: lng, latitude: lat } = position.coords;
-            if (!isJejuPoint(lng, lat)) { reject(new Error('location_outside_jeju')); return; }
-            resolve({ lng, lat });
-          },
-          error => reject(new Error(error.code === 1 ? 'location_denied' : 'location_unavailable')),
-          { enableHighAccuracy: false, timeout: 10_000, maximumAge: 0 },
-        );
-      }),
+      requestCurrentLocation: currentJejuLocation,
+      getRecentPlaces: () => this.browsing.places,
     });
     this.catalog = new CatalogUI(catalogRoot, detail, {
       center: () => {
@@ -132,6 +138,51 @@ export class AtlasExperience {
       onReset: () => { options.stopTour(); options.atlas()?.reset(); },
       onTrip: () => { this.showTab('trip'); options.openDrawer(); },
       on3D: (place) => this.selectCatalog(place, true),
+      onPreview: place => this.layers?.preview(place ? { ...place, name: placeName(place) } : null),
+      onDetailVisibility: open => this.mapActions?.setDetailOpen(open),
+      onSearchStart: () => this.mapActions?.searchStamp(),
+      onSearchComplete: stamp => this.mapActions?.markSearched(stamp),
+      copyText: (value, message) => copyPlainText(value, message, options.notify),
+      onResults: places => this.suggestions?.setResults(places),
+      onQueryCommitted: query => { void this.browsing.rememberQuery(query); },
+      onViewed: place => { void this.browsing.rememberPlace(place); },
+    });
+    this.suggestions = new SearchSuggestions(
+      catalogRoot.querySelector<HTMLInputElement>('#catalog-search')!,
+      catalogRoot.querySelector<HTMLElement>('#catalog-suggestions')!,
+      {
+        history: this.browsing,
+        getFavorites: () => this.planner.favorites,
+        onSearch: (query, fromHistory) => this.catalog.searchQuery(query, Boolean(fromHistory)),
+        onPlace: place => {
+          void this.browsing.rememberQuery(catalogRoot.querySelector<HTMLInputElement>('#catalog-search')!.value);
+          if (place.id.startsWith('point:')) { this.selectCatalog(place); return; }
+          return this.catalog.openPlace(place.id, place);
+        },
+      },
+    );
+    this.library = new PlaceLibrary(saved, {
+      history: this.browsing,
+      getFavorites: () => this.planner.favorites,
+      onSelect: place => {
+        if (place.id.startsWith('point:')) { this.selectCatalog(place); return; }
+        return this.catalog.openPlace(place.id, place);
+      },
+      onAdd: place => this.planner.add(place),
+      onOrigin: place => {
+        this.showTab('trip'); options.openDrawer();
+        return this.planner.setOrigin(place);
+      },
+      onDestination: place => {
+        this.showTab('trip'); options.openDrawer();
+        return this.planner.setDestination(place);
+      },
+      onFavorite: place => this.planner.toggleFavorite(place),
+      onSearch: query => {
+        this.showTab('explore'); options.openDrawer();
+        this.catalog.searchQuery(query);
+        this.suggestions?.close();
+      },
     });
     this.guide = new GuidePanel(guide, {
       notify: options.notify,
@@ -160,9 +211,10 @@ export class AtlasExperience {
       button.addEventListener('keydown', (event) => {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault();
-        const order = ['explore', 'trip', 'guide'];
+        const order = ['explore', 'trip', 'saved', 'guide'];
         const index = order.indexOf(button.dataset.panel!);
-        const next = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (index + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? order.length - 1
+          : (index + (event.key === 'ArrowRight' ? 1 : order.length - 1)) % order.length;
         this.showTab(order[next]);
         document.querySelector<HTMLButtonElement>(`#tab-${order[next]}`)!.focus();
       });
@@ -182,6 +234,7 @@ export class AtlasExperience {
     window.addEventListener('atlas:locale-change', () => this.updateSidebarToggle());
     this.updateSidebarVisibility();
     window.addEventListener('atlas:saved-change', () => {
+      this.library?.render();
       if (this.isCatalogSelection && this.selectedCatalog) this.renderSelection(this.selectedCatalog);
     });
     window.addEventListener('hashchange', () => {
@@ -212,12 +265,14 @@ export class AtlasExperience {
   }
 
   showTab(tab: string): void {
-    if (!['explore', 'trip', 'guide'].includes(tab)) return;
+    if (!['explore', 'trip', 'saved', 'guide'].includes(tab)) return;
+    this.suggestions?.close();
+    this.layers?.preview(null);
     this.setSidebarCollapsed(false);
     const guideTransition = (this.activeTab === 'guide') !== (tab === 'guide');
     this.activeTab = tab;
     document.body.dataset.activePanel = tab;
-    for (const id of ['explore', 'trip', 'guide']) {
+    for (const id of ['explore', 'trip', 'saved', 'guide']) {
       const selected = id === tab;
       document.getElementById(`${id}-panel`)!.hidden = !selected;
       const button = document.getElementById(`tab-${id}`)!;
@@ -302,6 +357,37 @@ export class AtlasExperience {
     window.dispatchEvent(new CustomEvent('atlas:route-change', { detail: { route: this.activeRoute } }));
     if (this.recommendation) this.layers.setGuide(this.recommendation);
     this.catalog.onMapReady();
+    this.mapActions?.destroy();
+    this.mapActions = new MapActions(atlas.map, {
+      notify: this.options.notify,
+      locate: currentJejuLocation,
+      stopPlayback: () => { this.options.stopTour(); atlas.stopRoutePreview(); },
+      searchArea: () => {
+        this.options.stopTour();
+        this.showTab('explore');
+        this.options.openDrawer();
+        requestAnimationFrame(() => requestAnimationFrame(() => this.catalog.searchThisArea()));
+      },
+      action: (action, point) => {
+        if (action === 'copy') {
+          void copyPlainText(`${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`,
+            getLocale() === 'en' ? 'Coordinates copied.' : '좌표를 복사했어요.', this.options.notify);
+          return;
+        }
+        this.options.stopTour();
+        if (action === 'nearby') {
+          this.showTab('explore');
+          this.catalog.browseNearby(point);
+          return;
+        }
+        this.showTab('trip');
+        this.options.openDrawer();
+        const place = selectedMapPoint(point);
+        if (action === 'origin') void this.planner.setOrigin(place);
+        else void this.planner.setDestination(place);
+      },
+    });
+    this.mapActions.setDetailOpen(!document.querySelector<HTMLElement>('#catalog-detail')!.hidden);
     atlas.setRepresentativeSelectHandler((place) => {
       if (place.catalogId) void this.catalog.openPlace(place.catalogId);
       else {
@@ -313,6 +399,15 @@ export class AtlasExperience {
     if (this.isCatalogSelection && this.selectedCatalog) {
       this.layers.setSelection(this.selectedCatalog);
       this.renderSelection(this.selectedCatalog);
+    }
+    if (!this.openedPlaceLink) {
+      this.openedPlaceLink = true;
+      try {
+        const shared = sharedPlace(window.location.href);
+        if (shared) void this.catalog.openPlace(shared.id, shared.hint);
+      } catch {
+        this.options.notify(getLocale() === 'en' ? 'This place link could not be read.' : '장소 공유 주소를 확인할 수 없어요.');
+      }
     }
   }
 
@@ -365,8 +460,13 @@ export class AtlasExperience {
 
   private renderSelection(place: CatalogPlace | PlaceSnapshot): void {
     const target = document.getElementById('selected-place')!;
-    target.innerHTML = `<div class="selected-place-emblem">${icon(categorySymbol(place.category).icon)}</div><div class="selected-place-info"><div class="selected-eyebrow"><span>${html(categoryName(place.category))}</span><span>·</span><span>기본: ${html(place.source_label)}</span></div><div class="selected-title"><h2 data-i18n-ignore>${html(placeName(place))}</h2></div><p>${html(place.address || '주소 정보 없음')}</p></div><button class="catalog-selection-detail" id="selected-catalog-detail">상세 보기 ${icon('chevron')}</button><button class="fly-button" id="selected-add-trip" aria-label="${html(placeName(place))} 내 여행에 담기">${icon(this.planner.hasStop(place.id) ? 'check' : 'plus')}<span>내 여행</span></button>`;
-    target.querySelector('#selected-catalog-detail')!.addEventListener('click', () => void this.catalog.openPlace(place.id, snapshot(place)));
+    const point = place.id.startsWith('point:');
+    target.innerHTML = `<div class="selected-place-emblem">${icon(categorySymbol(place.category).icon)}</div><div class="selected-place-info"><div class="selected-eyebrow"><span>${html(categoryName(place.category))}</span><span>·</span><span>기본: ${html(place.source_label)}</span></div><div class="selected-title"><h2 data-i18n-ignore>${html(placeName(place))}</h2></div><p>${html(point ? `${place.lat.toFixed(5)}, ${place.lng.toFixed(5)}` : place.address || '주소 정보 없음')}</p></div>${point ? `<button class="catalog-selection-detail" id="selected-copy-point">${getLocale() === 'en' ? 'Copy coordinates' : '좌표 복사'} ${icon('share')}</button>` : `<button class="catalog-selection-detail" id="selected-catalog-detail">상세 보기 ${icon('chevron')}</button>`}<button class="fly-button" id="selected-add-trip" aria-label="${html(placeName(place))} 내 여행에 담기">${icon(this.planner.hasStop(place.id) ? 'check' : 'plus')}<span>내 여행</span></button>`;
+    target.querySelector('#selected-catalog-detail')?.addEventListener('click', () => void this.catalog.openPlace(place.id, snapshot(place)));
+    target.querySelector('#selected-copy-point')?.addEventListener('click', () => {
+      void copyPlainText(`${place.lat.toFixed(6)}, ${place.lng.toFixed(6)}`,
+        getLocale() === 'en' ? 'Coordinates copied.' : '좌표를 복사했어요.', this.options.notify);
+    });
     target.querySelector('#selected-add-trip')!.addEventListener('click', () => this.planner.add(this.catalog.selection?.id === place.id ? this.catalog.selection : place));
   }
 

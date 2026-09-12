@@ -122,6 +122,31 @@ const anchorFixture = (rows, extra = {}) => fixture({
   rows, catalogSearch: () => ({ items: rows, total: rows.length, has_more: false }), ...extra,
 });
 
+test('the declared Seongsan identity resolves co-located tourism duplicates and makes one restaurant lookup', async () => {
+  const rows = [
+    { id: 'osm:node/330006952', name: '성산일출봉', name_en: 'Seongsan Ilchulbong', category: '관광지', lat: 33.4588891, lng: 126.9408178 },
+    { id: 'poi_0008', name: '성산일출봉', name_en: 'Seongsan Ilchulbong', category: '관광지', lat: 33.45842, lng: 126.93892 },
+  ];
+  for (const ordered of [rows, rows.toReversed()]) {
+    const f = anchorFixture(ordered);
+    const result = await f.bridge.resolve({ message: '성산일출봉 근처 맛집 한 곳과 확인된 주소, 출처를 간단히 알려 주세요.', actorId: 'reader' });
+    assert.equal(result.payload.anchor?.id, 'poi_0008');
+    assert.equal(f.calls.length, 1);
+    assert.equal(f.calls[0].request.category, '맛집');
+    assert.deepEqual(f.calls[0].request.center, { lat: 33.45842, lng: 126.93892 });
+  }
+  for (const invalid of [
+    rows.map(row => ({ ...row, id: `other-${row.id}` })),
+    [rows[0], { ...rows[1], category: '카페' }],
+    [rows[0], { ...rows[1], lat: 33.47 }],
+  ]) {
+    const f = anchorFixture(invalid);
+    const result = await f.bridge.resolve({ message: '성산일출봉 근처 맛집', actorId: 'reader' });
+    assert.equal(result.payload.status, 'anchor_required');
+    assert.equal(f.calls.length, 0);
+  }
+});
+
 test('production Hyeopjae beach rows reconcile only the anchor without merging catalog or provider identities', async () => {
   const other = { id: 'non-exact-search-hit', name: '협재해수욕장 앞 카페', category: '카페', lat: 33.3943, lng: 126.24 };
   for (const rows of [[...hyeopjae, other], [other, ...hyeopjae.toReversed()]]) {

@@ -424,7 +424,8 @@ export function createKakaoService({
       const rect = input.scope === 'view' ? input.bounds : JEJU_RECT;
       const params = {
         x: String(input.center.lng), y: String(input.center.lat),
-        sort: 'distance', page: String(input.page), size: String(PAGE_SIZE),
+        sort: input.query && input.scope !== 'nearby' ? 'accuracy' : 'distance',
+        page: String(input.page), size: String(PAGE_SIZE),
       };
       if (input.query) params.query = input.query;
       if (group) params.category_group_code = group;

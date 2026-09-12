@@ -33,21 +33,25 @@ function experience() {
       if (!elements.has(id)) elements.set(id, node());
       return elements.get(id);
     },
+    querySelector(selector) { return this.getElementById(selector.replace(/^#/, '')); },
   };
   const modules = {
     './trip': { snapshot },
     './icons': { icon: () => '', categorySymbol: () => ({ icon: 'pin' }) },
     './api': { html: String, categoryName: String },
     './i18n': { placeName: place => place.name },
+    './map-actions': { MapActions: class { setDetailOpen() {} destroy() {} } },
+    './place-link': { sharedPlace: () => null },
     './catalog-map': { CatalogMap: class {
       constructor(_map, click) { mapClick = click; }
       setTrip() {}
       setSelection() {}
+      preview() {}
     } },
   };
   vm.runInNewContext(code, {
     exports, require: name => modules[name] ?? {}, document,
-    window: { dispatchEvent() {} }, CustomEvent: class {},
+    window: { dispatchEvent() {}, location: { href: 'https://atlas.example/' } }, CustomEvent: class {},
   });
   // Exercise the real selection/tab methods; map rendering is independent of
   // proof lifetime and is omitted from this small DOM harness.

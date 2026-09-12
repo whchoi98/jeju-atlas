@@ -15,6 +15,7 @@ const osmCredit = '<a href="https://www.openstreetmap.org/copyright" target="_bl
 export class CatalogMap {
   private selected: { id: string; name: string; lng: number; lat: number; category: string } | null = null;
   private hovered: { name: string; lng: number; lat: number } | null = null;
+  private previewed: { id: string; name: string; lng: number; lat: number } | null = null;
   private label: HTMLDivElement;
 
   constructor(readonly map: MapLibreMap, onSelect: (id: string) => void) {
@@ -66,6 +67,12 @@ export class CatalogMap {
         'icon-image': ['concat', 'atlas-selected-', ['get', 'category_icon']],
         'icon-allow-overlap': true, 'icon-ignore-placement': true,
       },
+    });
+    map.addSource('catalog-preview', { type: 'geojson', data: empty() });
+    map.addLayer({
+      id: 'catalog-preview-ring', type: 'circle', source: 'catalog-preview',
+      paint: { 'circle-radius': 23, 'circle-color': '#ff9900', 'circle-opacity': .14,
+        'circle-stroke-color': '#b86d00', 'circle-stroke-width': 2 },
     });
     const select = (event: MapLayerMouseEvent) => {
       if (map.getContainer().closest('.is-measuring')) return;
@@ -174,7 +181,7 @@ export class CatalogMap {
   };
 
   private updateLabel = (): void => {
-    const point = this.hovered ?? this.selected;
+    const point = this.previewed ?? this.hovered ?? this.selected;
     if (!point) { this.label.hidden = true; return; }
     const screen = this.map.project([point.lng, point.lat]);
     const container = this.map.getContainer();
@@ -203,6 +210,7 @@ export class CatalogMap {
   }
 
   setPoints(data: CatalogPoints): void {
+    this.preview(null);
     this.hovered = null;
     this.updateLabel();
     const features = data.features.map((feature) => ({
@@ -222,7 +230,19 @@ export class CatalogMap {
     for (const id of ['catalog-clusters', 'catalog-dots', 'catalog-place-labels']) {
       this.map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
     }
-    if (!visible) { this.hovered = null; this.updateLabel(); }
+    if (!visible) { this.preview(null); this.hovered = null; this.updateLabel(); }
+  }
+
+  preview(place: { id: string; name: string; lng: number; lat: number } | null): void {
+    if (place?.id === this.previewed?.id && place?.name === this.previewed?.name) return;
+    this.previewed = place;
+    (this.map.getSource('catalog-preview') as GeoJSONSource).setData(place ? {
+      type: 'FeatureCollection', features: [{
+        type: 'Feature', geometry: { type: 'Point', coordinates: [place.lng, place.lat] },
+        properties: { id: place.id },
+      }],
+    } : empty());
+    this.updateLabel();
   }
 
   setSelection(place: { id: string; name: string; lng: number; lat: number; category: string } | null): void {

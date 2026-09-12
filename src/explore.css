@@ -30,6 +30,17 @@
 .catalog-status-line .icon { width: 13px; height: 13px; }
 .catalog-search-field { margin: 0; height: 41px; padding-inline: 10px; }
 .catalog-search-field > input { font-size: 11px; }
+.catalog-search-shell { position: relative; }
+#catalog-search::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+.catalog-search-field > button { display: grid; place-items: center; flex: 0 0 28px; min-height: 30px; padding: 4px; border-radius: 4px; color: var(--interactive-text); background: transparent; }
+.catalog-search-field > button:hover { background: var(--interactive-soft); }
+.catalog-search-field > button .icon { width: 15px; height: 15px; }
+.copy-text-dialog { width: min(440px, calc(100% - 32px)); padding: 22px; border: 1px solid var(--border); border-radius: 10px; color: var(--ink); background: white; }
+.copy-text-dialog::backdrop { background: #232f3e70; }
+.copy-text-dialog h2 { font: 700 18px var(--sans); margin-bottom: 10px; }
+.copy-text-dialog p { color: var(--basalt); font-size: 12px; line-height: 1.7; }
+.copy-text-dialog textarea { display: block; width: 100%; padding: 10px; margin: 14px 0; border: 1px solid var(--border); border-radius: 5px; color: var(--ink); font: 12px/1.7 var(--sans); resize: vertical; }
+.copy-text-dialog button { padding: 9px 18px; min-height: 40px; border-radius: 6px; background: var(--interactive); color: white; }
 .catalog-category-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-top: 8px; flex-shrink: 0; }
 .catalog-category-chips > button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 3px; border: 1px solid var(--border); border-radius: 5px; background: #ffffff; color: var(--interactive-text); font-size: 10px; }
 .catalog-category-chips .icon { width: 15px; height: 15px; }
@@ -364,6 +375,7 @@
 @media (max-width: 760px) {
   .has-catalog { --mobile-drawer-height: min(80%, 650px); }
   .has-catalog[data-active-panel="explore"] { --mobile-drawer-height: min(92%, 780px); }
+  .has-catalog[data-active-panel="saved"] { --mobile-drawer-height: min(92%, 780px); }
   .has-catalog .sidebar { height: var(--mobile-drawer-height); }
   .has-catalog[data-active-panel="explore"] .map-shell.is-drawer-open .map-topline { visibility: hidden; }
   .has-catalog .map-shell.is-drawer-open .maplibregl-ctrl-bottom-right { bottom: calc(var(--mobile-drawer-height) + 4px) !important; }

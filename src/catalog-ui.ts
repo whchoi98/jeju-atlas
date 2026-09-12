@@ -12,6 +12,7 @@ import { detailKakao, discoveryBounds, discoveryConfig, discoverySource, isDisco
 import type { DiscoverySource } from './kakao-discovery';
 import { snapshot } from './saved-data';
 import { placeVisualHTML } from './place-visual';
+import { placeLink } from './place-link';
 import './kakao-details.css';
 
 interface CatalogOptions {
@@ -26,6 +27,14 @@ interface CatalogOptions {
   onReset?: () => void;
   onTrip?: () => void;
   on3D?: (place: CatalogPlace | PlaceSnapshot) => void;
+  onResults?: (places: CatalogPlace[]) => void;
+  onQueryCommitted?: (query: string) => void;
+  onViewed?: (place: PlaceDetail) => void;
+  onPreview?: (place: CatalogPlace | null) => void;
+  onSearchStart?: () => string | undefined;
+  onSearchComplete?: (stamp?: string) => void;
+  onDetailVisibility?: (open: boolean) => void;
+  copyText?: (text: string, message: string) => Promise<void>;
 }
 
 const noData = '정보 없음';
@@ -145,6 +154,11 @@ export class CatalogUI {
   private searchSource: 'catalog' | 'kakao' = 'catalog';
   private nativePage: Omit<KakaoDiscoveryResult, 'items'> | null = null;
   private nativeSelections = new KakaoSelections();
+  private viewportStamp: string | undefined;
+  private viewportCenter: { lat: number; lng: number } | undefined;
+  private nativeLocation: {
+    key: string; stamp?: string; bounds: [number, number, number, number] | null; center: { lat: number; lng: number };
+  } | null = null;
 
   constructor(root: HTMLElement, detailRoot: HTMLElement, options: CatalogOptions) {
     this.root = root;
@@ -154,7 +168,7 @@ export class CatalogUI {
     root.dataset.filtersOpen = 'false';
     root.innerHTML = `
       <div class="catalog-status-line"><span id="catalog-total">서비스 카탈로그 연결 중</span><button id="catalog-refresh" aria-label="카탈로그 새로고침">${icon('reset')}</button></div>
-      <label class="search-field catalog-search-field">${icon('search')}<span class="sr-only">전체 카탈로그 장소 검색</span><input id="catalog-search" type="search" placeholder="이름, 지역, 찾고 싶은 장소" maxlength="160" autocomplete="off"></label>
+      <div class="catalog-search-shell"><label class="search-field catalog-search-field"><span class="sr-only">전체 카탈로그 장소 검색</span><input id="catalog-search" type="search" placeholder="이름, 지역, 찾고 싶은 장소" maxlength="160" autocomplete="off"><button id="catalog-search-clear" type="button" aria-label="검색어 지우기" hidden>${icon('close')}</button><button id="catalog-search-submit" type="button" aria-label="검색 실행">${icon('search')}</button></label><div id="catalog-suggestions"></div></div>
       <div id="catalog-category-chips" class="catalog-category-chips" aria-label="지도 장소 분류">${['해변', '오름', '카페', '맛집', '숙소', '박물관', '주차장'].map((category) => `<button data-map-category="${category}" aria-pressed="false" disabled>${icon(categorySymbol(category).icon)}${category}</button>`).join('')}</div>
       <button type="button" id="catalog-filter-toggle" class="catalog-filter-toggle" aria-expanded="false" aria-controls="catalog-options"><span>필터·지도 설정</span>${icon('chevronDown')}</button>
       <div id="catalog-options" class="catalog-options">
@@ -173,6 +187,8 @@ export class CatalogUI {
     `;
     root.querySelector('#catalog-search')!.addEventListener('input', (event) => {
       this.query = (event.target as HTMLInputElement).value.trim();
+      this.options.onResults?.([]);
+      root.querySelector<HTMLButtonElement>('#catalog-search-clear')!.hidden = !this.query;
       this.offset = 0;
       clearTimeout(this.searchTimer);
       this.searchController?.abort();
@@ -180,10 +196,14 @@ export class CatalogUI {
       this.setMapEnabled(Boolean(this.query || this.category || this.mode !== 'all'));
       this.publishPoints({ type: 'FeatureCollection', features: [] }, true);
       this.searchTimer = setTimeout(() => {
-        void this.search();
-        if (!this.query || this.mode === 'view') void this.loadPoints();
+        void this.refreshScope();
       }, 300);
     });
+    root.querySelector('#catalog-search-clear')!.addEventListener('click', () => {
+      const input = root.querySelector<HTMLInputElement>('#catalog-search')!;
+      input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus();
+    });
+    root.querySelector('#catalog-search-submit')!.addEventListener('click', () => this.submitSearch());
     root.querySelector('#catalog-category')!.addEventListener('change', (event) => {
       this.chooseCategory((event.target as HTMLSelectElement).value);
     });
@@ -199,8 +219,7 @@ export class CatalogUI {
       this.viewportPoints = { type: 'FeatureCollection', features: [] };
       this.setMapEnabled(Boolean(this.query || this.category || this.mode !== 'all'));
       this.publishPoints({ type: 'FeatureCollection', features: [] }, true);
-      void this.search();
-      void this.loadPoints();
+      void this.refreshScope();
     });
     root.querySelector('#catalog-filter-toggle')!.addEventListener('click', () => {
       this.setFiltersOpen(root.dataset.filtersOpen !== 'true');
@@ -211,7 +230,7 @@ export class CatalogUI {
     root.querySelector('#catalog-radius')!.addEventListener('change', (event) => {
       this.radius = Number((event.target as HTMLSelectElement).value);
       this.offset = 0;
-      void this.search();
+      void this.refreshScope();
     });
     root.querySelector('#catalog-map-toggle')!.addEventListener('change', (event) => {
       this.setMapEnabled((event.target as HTMLInputElement).checked);
@@ -219,31 +238,27 @@ export class CatalogUI {
     });
     root.querySelector('#catalog-reset')!.addEventListener('click', () => this.resetFilters());
     root.querySelectorAll<HTMLButtonElement>('[data-scope]').forEach((button) => {
-      button.addEventListener('click', () => {
-        this.pointsController?.abort();
-        this.mode = button.dataset.scope as typeof this.mode;
-        this.nearbyOrigin = undefined;
-        this.offset = 0;
-        root.querySelectorAll<HTMLButtonElement>('[data-scope]').forEach((item) => {
-          item.classList.toggle('is-active', item === button);
-          item.setAttribute('aria-pressed', String(item === button));
-        });
-        root.querySelector<HTMLElement>('#catalog-radius-row')!.hidden = this.mode !== 'nearby';
-        root.querySelector('#catalog-scope-note')!.textContent = this.mode === 'view'
-          ? '현재 화면 안의 장소 이름을 검색합니다. 지도를 움직이면 갱신돼요.'
-          : this.mode === 'nearby' ? '현재 지도 중심에서의 대략적인 직선거리입니다.' : '서비스 카탈로그 전체에서 검색합니다.';
-        this.setMapEnabled(Boolean(this.query || this.category || this.mode !== 'all'));
-        this.publishPoints({ type: 'FeatureCollection', features: [] }, true);
-        void this.search();
-        void this.loadPoints();
-      });
+      button.addEventListener('click', () => this.setScope(button.dataset.scope as typeof this.mode));
     });
-    root.querySelector('#catalog-prev')!.addEventListener('click', () => { this.offset = Math.max(0, this.offset - (this.searchSource === 'kakao' ? 15 : 40)); void this.search(); });
-    root.querySelector('#catalog-next')!.addEventListener('click', () => { this.offset += this.searchSource === 'kakao' ? 15 : 40; void this.search(); });
-    root.querySelector('#catalog-refresh')!.addEventListener('click', () => { void this.loadStatus(); void this.search(); void this.loadPoints(); });
+    root.querySelector('#catalog-prev')!.addEventListener('click', () => { this.offset = Math.max(0, this.offset - (this.searchSource === 'kakao' ? 15 : 40)); void this.search(true); });
+    root.querySelector('#catalog-next')!.addEventListener('click', () => { this.offset += this.searchSource === 'kakao' ? 15 : 40; void this.search(true); });
+    root.querySelector('#catalog-refresh')!.addEventListener('click', () => { void this.loadStatus(); void this.refreshScope(); });
     root.querySelector('#catalog-list')!.addEventListener('click', (event) => {
       const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-catalog-id]');
-      if (target) void this.openPlace(target.dataset.catalogId!);
+      if (target) {
+        this.options.onQueryCommitted?.(this.query);
+        void this.openPlace(target.dataset.catalogId!);
+      }
+    });
+    const preview = (event: Event) => {
+      const id = (event.target as HTMLElement).closest<HTMLElement>('[data-catalog-id]')?.dataset.catalogId;
+      this.options.onPreview?.(this.items.find(place => place.id === id) ?? null);
+    };
+    root.querySelector('#catalog-list')!.addEventListener('pointerover', preview);
+    root.querySelector('#catalog-list')!.addEventListener('focusin', preview);
+    root.querySelector('#catalog-list')!.addEventListener('pointerleave', () => this.options.onPreview?.(null));
+    root.querySelector('#catalog-list')!.addEventListener('focusout', event => {
+      if (!root.querySelector('#catalog-list')!.contains((event as FocusEvent).relatedTarget as Node)) this.options.onPreview?.(null);
     });
     detailRoot.addEventListener('click', (event) => this.detailClick(event));
     detailRoot.addEventListener('keydown', event => {
@@ -309,6 +324,63 @@ export class CatalogUI {
 
   get selection(): PlaceDetail | null { return this.currentDetail; }
   get pointData(): CatalogPoints { return this.points; }
+  get results(): readonly CatalogPlace[] { return this.items; }
+
+  submitSearch(): void {
+    clearTimeout(this.searchTimer);
+    this.offset = 0;
+    this.options.onQueryCommitted?.(this.query);
+    void this.refreshScope();
+  }
+
+  searchQuery(value: string, reset = true): void {
+    const query = value.trim().slice(0, 160);
+    if (reset) {
+      this.category = '';
+      this.sourceChoice = 'auto';
+      this.setScope('all', false);
+      this.updateCategoryOptions();
+      this.root.querySelectorAll<HTMLButtonElement>('[data-map-category]').forEach(button => {
+        button.classList.remove('is-active'); button.setAttribute('aria-pressed', 'false');
+      });
+    }
+    this.query = query;
+    this.root.querySelector<HTMLInputElement>('#catalog-search')!.value = query;
+    this.root.querySelector<HTMLButtonElement>('#catalog-search-clear')!.hidden = !query;
+    this.offset = 0;
+    this.setMapEnabled(Boolean(query || this.category || this.mode !== 'all'));
+    this.submitSearch();
+  }
+
+  searchThisArea(): void { this.setScope('view'); }
+
+  private setScope(mode: 'all' | 'view' | 'nearby', refresh = true): void {
+    this.pointsController?.abort();
+    this.searchController?.abort();
+    this.mode = mode; this.nearbyOrigin = undefined; this.offset = 0;
+    this.root.querySelectorAll<HTMLButtonElement>('[data-scope]').forEach(button => {
+      const selected = button.dataset.scope === mode;
+      button.classList.toggle('is-active', selected); button.setAttribute('aria-pressed', String(selected));
+    });
+    this.root.querySelector<HTMLElement>('#catalog-radius-row')!.hidden = mode !== 'nearby';
+    this.root.querySelector('#catalog-scope-note')!.textContent = mode === 'view'
+      ? t('현재 화면의 장소를 검색합니다. 이동한 뒤에는 이 지역에서 검색을 눌러 주세요.')
+      : mode === 'nearby' ? t('선택한 중심에서의 대략적인 직선거리입니다.') : t('서비스 카탈로그 전체에서 검색합니다.');
+    this.setMapEnabled(Boolean(this.query || this.category || mode !== 'all'));
+    if (refresh) void this.refreshScope();
+  }
+
+  private async refreshScope(): Promise<void> {
+    clearTimeout(this.searchTimer);
+    await this.ensureDiscovery();
+    if (this.mode === 'view' && this.currentSource() === 'catalog') {
+      this.root.querySelector('#catalog-list')!.setAttribute('aria-busy', 'true');
+      await this.loadPoints();
+    } else {
+      await this.search();
+      void this.loadPoints();
+    }
+  }
 
   private currentSource(): 'catalog' | 'kakao' {
     return discoverySource(this.sourceChoice, this.query, this.category, Boolean(this.discovery?.enabled));
@@ -415,6 +487,13 @@ export class CatalogUI {
 
   private chooseCategory(category: string, fromChip = false): void {
     if (category && !isDiscoveryCategory(category) && (fromChip || this.sourceChoice === 'kakao')) this.sourceChoice = 'auto';
+    if (fromChip) {
+      // Category shortcuts start a category browse. The select in Filters
+      // remains available to refine an existing keyword instead.
+      this.query = '';
+      this.root.querySelector<HTMLInputElement>('#catalog-search')!.value = '';
+      this.root.querySelector<HTMLButtonElement>('#catalog-search-clear')!.hidden = true;
+    }
     this.category = category;
     this.updateCategoryOptions();
     this.offset = 0;
@@ -429,8 +508,7 @@ export class CatalogUI {
     this.viewportPoints = { type: 'FeatureCollection', features: [] };
     this.setMapEnabled(Boolean(this.query || category || this.mode !== 'all'));
     this.publishPoints({ type: 'FeatureCollection', features: [] }, true);
-    void this.search();
-    void this.loadPoints();
+    void this.refreshScope();
   }
 
   resetFilters(resetCamera = true): void {
@@ -448,6 +526,7 @@ export class CatalogUI {
     this.offset = 0;
     this.setFiltersOpen(false);
     this.root.querySelector<HTMLInputElement>('#catalog-search')!.value = '';
+    this.root.querySelector<HTMLButtonElement>('#catalog-search-clear')!.hidden = true;
     this.root.querySelector<HTMLSelectElement>('#catalog-category')!.value = '';
     this.root.querySelector<HTMLElement>('#catalog-radius-row')!.hidden = true;
     this.root.querySelector('#catalog-scope-note')!.textContent = '서비스 카탈로그 전체에서 검색합니다.';
@@ -470,7 +549,8 @@ export class CatalogUI {
     this.closeDetail();
     this.query = '';
     this.root.querySelector<HTMLInputElement>('#catalog-search')!.value = '';
-    this.root.querySelector<HTMLButtonElement>('[data-scope="nearby"]')!.click();
+    this.root.querySelector<HTMLButtonElement>('#catalog-search-clear')!.hidden = true;
+    this.setScope('nearby', false);
     this.nearbyOrigin = coordinates;
     this.chooseCategory(category);
     this.options.openDrawer();
@@ -484,21 +564,8 @@ export class CatalogUI {
 
   onMapMove(): void {
     clearTimeout(this.moveTimer);
-    this.moveTimer = setTimeout(() => {
-      if (this.currentSource() === 'kakao') {
-        if (this.mode !== 'all') {
-          this.nearbyOrigin = undefined;
-          this.offset = 0;
-          void this.search();
-        }
-        return;
-      }
-      if (this.mode === 'nearby') {
-        this.nearbyOrigin = undefined;
-        this.offset = 0;
-        void this.search();
-      } else if (!this.query || this.mode === 'view') void this.loadPoints();
-    }, 600);
+    // Keep the current result set stable. The map's explicit area-search
+    // control chooses when new bounds should replace it.
   }
 
   private async loadStatus(): Promise<void> {
@@ -527,11 +594,12 @@ export class CatalogUI {
       source_label: feature.properties.source_label, source: feature.properties.source_label,
       address: null, summary: '', tags: [], base_note: null, updated_at: null, region: null,
       avg_stay_min: null, url: null, phone: null, hours: null,
-      distance_m: distanceMeters(this.options.center(), { lng: feature.geometry.coordinates[0], lat: feature.geometry.coordinates[1] }),
+      distance_m: distanceMeters(this.viewportCenter ?? this.options.center(), { lng: feature.geometry.coordinates[0], lat: feature.geometry.coordinates[1] }),
     }));
   }
 
-  async search(): Promise<void> {
+  async search(reuseSpatialContext = false): Promise<void> {
+    this.options.onResults?.([]);
     const restoreResultsFocus = ['catalog-retry', 'catalog-prev', 'catalog-next'].includes(document.activeElement?.id ?? '');
     const requestId = ++this.requestId;
     this.searchController?.abort();
@@ -562,9 +630,10 @@ export class CatalogUI {
         this.pointsController?.abort();
         this.viewportPoints = { type: 'FeatureCollection', features: [] };
         this.publishPoints({ type: 'FeatureCollection', features: [] }, true);
-        await this.searchNative(controller.signal, requestId, restoreResultsFocus);
+        await this.searchNative(controller.signal, requestId, restoreResultsFocus, reuseSpatialContext);
         return;
       }
+      const searchStamp = this.mode === 'view' ? this.viewportStamp : this.options.onSearchStart?.();
       let result: { items: CatalogPlace[]; total: number; has_more: boolean };
       if (this.mode === 'view') {
         const items = this.viewItems();
@@ -597,6 +666,7 @@ export class CatalogUI {
       list.scrollTop = 0;
       // Phones scroll the complete explorer instead of squeezing the result list.
       this.root.scrollTop = 0;
+      this.options.onSearchComplete?.(searchStamp);
     } catch (error) {
       if (aborted(error) || controller.signal.aborted) return;
       list.innerHTML = native
@@ -614,7 +684,7 @@ export class CatalogUI {
     }
   }
 
-  private async searchNative(signal: AbortSignal, requestId: number, restoreFocus: boolean): Promise<void> {
+  private async searchNative(signal: AbortSignal, requestId: number, restoreFocus: boolean, reuseSpatialContext: boolean): Promise<void> {
     const list = this.root.querySelector<HTMLElement>('#catalog-list')!;
     if (!this.query && !this.category) {
       list.innerHTML = `<div class="feature-empty" role="status">${html(t('카카오에서 찾을 이름이나 분류를 선택해 주세요.'))}</div>`;
@@ -622,8 +692,10 @@ export class CatalogUI {
       this.root.querySelector('#catalog-page')!.textContent = '0';
       return;
     }
-    const bounds = this.mode === 'view' ? discoveryBounds(this.options.bounds()) : null;
-    const point = this.nearbyOrigin ?? this.options.center();
+    const key = JSON.stringify([this.query, this.category, this.mode, this.radius]);
+    const previous = reuseSpatialContext && this.nativeLocation?.key === key ? this.nativeLocation : null;
+    const bounds = previous ? previous.bounds : this.mode === 'view' ? discoveryBounds(this.options.bounds()) : null;
+    const point = previous?.center ?? this.nearbyOrigin ?? this.options.center();
     const center = isJejuPoint(point.lng, point.lat) ? point
       : bounds ? { lng: (bounds[0] + bounds[2]) / 2, lat: (bounds[1] + bounds[3]) / 2 }
         : this.mode === 'all' ? { lng: 126.56, lat: 33.38 } : null;
@@ -633,12 +705,15 @@ export class CatalogUI {
       this.root.querySelector('#catalog-page')!.textContent = '0';
       return;
     }
+    const stamp = previous ? previous.stamp : this.options.onSearchStart?.();
+    if (!reuseSpatialContext && this.mode !== 'all' && this.nativeLocation?.key === key && this.nativeLocation.stamp !== stamp) this.offset = 0;
     const result = await searchKakao({
       query: this.query, category: isDiscoveryCategory(this.category) ? this.category : '', scope: this.mode,
       center, page: Math.floor(this.offset / 15) + 1,
       ...(bounds ? { bounds } : {}), ...(this.mode === 'nearby' ? { radius_m: this.radius } : {}),
     }, { signal });
     if (signal.aborted || requestId !== this.requestId) return;
+    this.nativeLocation = { key, stamp, bounds, center: { ...center } };
     const { items, ...page } = result;
     this.nativePage = page;
     this.nativeSelections.replacePage(items);
@@ -652,6 +727,7 @@ export class CatalogUI {
     this.root.scrollTop = 0;
     list.scrollTop = 0;
     if (restoreFocus) this.root.querySelector<HTMLButtonElement>('[data-catalog-id]')?.focus({ preventScroll: true });
+    this.options.onSearchComplete?.(stamp);
   }
 
   private renderList(): void {
@@ -664,7 +740,8 @@ export class CatalogUI {
         <span class="catalog-card-address" data-i18n-ignore>${html(!native && this.mode === 'view' ? t('주소는 상세에서 확인') : place.address || t('주소 정보 없음'))}</span><span class="catalog-card-footer"><span class="catalog-card-meta">${native ? '' : `${html(categoryName(place.category))} <span>·</span> `}${html(distanceLabel(place.distance_m ?? distanceMeters(center, place)))} ${html(t('직선'))}</span><span class="catalog-base-source">${native ? 'Kakao Local' : `${t('기본:')} ${html(place.source_label || sourceName(place.source))}`}</span></span></span>${icon('chevron')}
       </button>`).join('') || (native
       ? `<div class="feature-empty"><strong>${html(t('이 조건의 카카오 검색 결과가 없어요'))}</strong><p>${html(t('장소 이름이나 검색 범위를 바꿔 보세요.'))}</p></div>`
-      : '<div class="feature-empty"><strong>조건에 맞는 장소가 없어요</strong><p>검색어와 분류, 지도 범위를 바꿔 보세요.</p></div>');
+       : '<div class="feature-empty"><strong>조건에 맞는 장소가 없어요</strong><p>검색어와 분류, 지도 범위를 바꿔 보세요.</p></div>');
+    this.options.onResults?.(this.items);
   }
 
   async loadPoints(): Promise<void> {
@@ -694,11 +771,15 @@ export class CatalogUI {
       return;
     }
     const params = new URLSearchParams({ bbox: bbox.map((value) => value.toFixed(6)).join(','), category: this.category });
+    const stamp = this.options.onSearchStart?.();
+    const center = this.options.center();
     if (this.publicLanding()) params.set('exclude_commercial', 'true');
     try {
       const data = await apiJSON<CatalogPoints>(`/api/catalog/points?${params}`, controller.signal);
       if (controller.signal.aborted || this.currentSource() !== 'catalog') return;
       if (!Array.isArray(data.features)) throw new Error('Invalid points');
+      this.viewportStamp = stamp;
+      this.viewportCenter = center;
       this.viewportPoints = {
         type: 'FeatureCollection', features: data.features.slice(0, 10000).filter((feature) =>
           feature?.geometry?.type === 'Point' && isJejuPoint(feature.geometry.coordinates[0], feature.geometry.coordinates[1])
@@ -710,10 +791,13 @@ export class CatalogUI {
     } catch (error) {
       if (aborted(error) || controller.signal.aborted) return;
       this.root.querySelector('#catalog-scope-note')!.textContent = '지도 장소를 갱신하지 못했어요. 목록 검색과 저장한 코스는 사용할 수 있어요.';
+      this.root.querySelector('#catalog-list')!.setAttribute('aria-busy', 'false');
+      if (this.mode === 'view') this.options.notify(t('지도 검색을 갱신하지 못했어요. 이전 결과를 유지합니다.'));
     }
   }
 
   async openPlace(id: string, saved?: PlaceSnapshot): Promise<void> {
+    this.options.onPreview?.(null);
     this.detailController?.abort();
     this.weatherController?.abort();
     const native = isKakaoId(id);
@@ -727,11 +811,13 @@ export class CatalogUI {
     this.currentDetail = null;
     if (this.detailRoot.hidden) this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const summary = saved ?? this.items.find((place) => place.id === id) ?? discovered;
-    if (summary) this.options.onSelect(summary);
+    if (summary && summary.source !== 'shared_hint') this.options.onSelect(summary);
     this.detailRoot.hidden = false;
+    this.options.onDetailVisibility?.(true);
     this.detailRoot.setAttribute('aria-busy', 'true');
     document.querySelector('.map-shell')?.classList.add('is-detail-open');
-    this.detailRoot.innerHTML = `<div class="detail-heading"><div><span class="eyebrow">PLACE NOTES</span><h2 tabindex="-1"${summary ? ' data-i18n-ignore' : ''}>${html(summary ? placeName(summary) : '장소 정보')}</h2></div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div><div class="feature-empty" role="status">장소의 출처와 상세 정보를 불러오는 중…</div>`;
+    const heading = summary?.source === 'shared_hint' ? t('공유한 장소 확인 중') : summary ? placeName(summary) : t('장소 정보');
+    this.detailRoot.innerHTML = `<div class="detail-heading"><div><span class="eyebrow">PLACE NOTES</span><h2 tabindex="-1" data-i18n-ignore>${html(heading)}</h2></div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div><div class="feature-empty" role="status">장소의 출처와 상세 정보를 불러오는 중…</div>`;
     this.detailRoot.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
     const controller = new AbortController();
     this.detailController = controller;
@@ -767,18 +853,20 @@ export class CatalogUI {
       }
       else if (!summary) this.options.onSelect(detail);
       this.renderDetail(detail);
+      this.options.onViewed?.(detail);
       this.renderList();
       void this.loadWeather(detail);
     } catch (error) {
       if (aborted(error) || controller.signal.aborted) return;
       this.currentDetail = null;
       this.detailRoot.setAttribute('aria-busy', 'false');
-      if (fallback) {
+      if (fallback && fallback.source !== 'shared_hint') {
         const message = native
           ? saved ? '저장한 장소 정보입니다. 현재 카카오 정보를 확인하지 못했어요.' : '앞서 조회한 장소 정보입니다. 현재 상세 정보를 확인하지 못했어요.'
           : '저장한 장소 정보입니다. 현재 상세 정보에 연결하지 못했어요.';
         this.detailRoot.innerHTML = `<div class="detail-heading"><h2 data-i18n-ignore>${html(placeName(fallback))}</h2><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div><div class="detail-content"><p class="detail-base-note">${html(t(message))}</p>${placeVisualHTML(fallback)}<p data-i18n-ignore>${html(fallback.summary || t(noData))}</p><dl class="detail-basics"><div><dt>주소</dt><dd data-i18n-ignore>${html(fallback.address || t(noData))}</dd></div><div><dt>기본 출처</dt><dd>${html(fallback.source_label)}</dd></div><div><dt>정보 기준</dt><dd>${html(dateLabel(fallback.updated_at, native))}${native && fallback.updated_at ? ' KST' : ''}</dd></div></dl><p data-i18n-ignore>${html(fallback.base_note || '')}</p><button data-detail-action="add" class="button button--primary">내 여행에 담기</button><button data-detail-action="retry" class="button">최신 상세 다시 확인</button></div>`;
       } else {
+        if (fallback?.source === 'shared_hint') this.detailRoot.querySelector('h2')!.textContent = t('공유한 장소를 확인하지 못했어요');
         const focusInside = this.detailRoot.contains(document.activeElement);
         this.detailRoot.querySelector('.feature-empty')?.replaceChildren();
         const status = this.detailRoot.querySelector<HTMLElement>('.feature-empty')!;
@@ -795,6 +883,7 @@ export class CatalogUI {
     this.detailController?.abort();
     this.weatherController?.abort();
     this.detailRoot.hidden = true;
+    this.options.onDetailVisibility?.(false);
     if (this.currentDetail && isKakaoId(this.currentDetail.id)) this.currentDetail = null;
     this.detailRoot.setAttribute('aria-busy', 'false');
     document.querySelector('.map-shell')?.classList.remove('is-detail-open');
@@ -935,6 +1024,8 @@ export class CatalogUI {
     const focusInside = this.detailRoot.contains(document.activeElement);
     const official = officialRecords(place);
     const native = isKakaoId(place.id);
+    let shareURL: string | null = null;
+    try { shareURL = placeLink(place, location.href); } catch { /* Arbitrary map points are copied as coordinates. */ }
     const displayedCategory = native
       ? place.kakao_lookup?.place?.category || this.nativeSelections.get(place.id)?.provider_category || place.category
       : categoryName(place.category);
@@ -950,7 +1041,7 @@ export class CatalogUI {
     const parsedHours = place.hours_source === 'tourapi_usetime' || place.field_evidence?.hours_week?.state === 'parsed';
     const baseEvidence = `<dl class="base-evidence" aria-label="기본 필드별 근거">${[['name', '이름'], ['lat', '위도'], ['lng', '경도'], ['address', '주소'], ['summary', '기본 소개']].map(([path, label]) => `<div><dt>${label}</dt><dd>${evidenceHTML(place.field_evidence, path)}</dd></div>`).join('')}</dl>`;
     this.detailRoot.innerHTML = `
-      <div class="detail-heading"><div><nav class="detail-breadcrumb" aria-label="${t('장소 탐색 경로')}"><button data-detail-action="back">${t('이전 화면')}</button><span aria-hidden="true">›</span><span data-i18n-ignore>${html(displayedCategory)}</span></nav><h2 tabindex="-1" data-i18n-ignore>${html(placeName(place))}</h2>${place.name_en ? `<span class="detail-english" data-i18n-ignore>${html(getLocale() === 'en' ? place.name : place.name_en)}</span>` : ''}</div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div>
+      <div class="detail-heading"><div><nav class="detail-breadcrumb" aria-label="${t('장소 탐색 경로')}"><button data-detail-action="back">${t('이전 화면')}</button><span aria-hidden="true">›</span><span data-i18n-ignore>${html(displayedCategory)}</span></nav><h2 tabindex="-1" data-i18n-ignore>${html(placeName(place))}</h2>${place.name_en ? `<span class="detail-english" data-i18n-ignore>${html(getLocale() === 'en' ? place.name : place.name_en)}</span>` : ''}</div>${shareURL ? `<button data-detail-action="share-place" aria-label="${t('장소 링크 복사')}" title="${t('장소 링크 복사')}">${icon('share')}</button>` : ''}<button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div>
       <div class="detail-action-bar"><button id="detail-favorite" data-detail-action="favorite" aria-pressed="${this.options.planner.isFavorite(place.id)}">${icon('pin')}즐겨찾기</button><button id="detail-add-trip" data-detail-action="add">${icon('plus')}내 여행에 담기</button><button data-detail-action="map">${icon('expand')}지도 보기</button></div>
       <div class="detail-route-actions" data-i18n-ignore>
         <button data-detail-action="origin">${icon('pin')}${getLocale() === 'en' ? 'Start here' : '출발지로'}</button>
@@ -958,7 +1049,7 @@ export class CatalogUI {
         <button data-detail-action="3d">${icon('mountain')}${getLocale() === 'en' ? 'Explore in 3D' : '3D로 보기'}</button>
       </div>
       <p id="detail-save-status" class="detail-save-status" role="status" hidden></p>
-      <div class="detail-related-actions"><button data-detail-action="nearby">${icon('compass')}주변 장소</button><button data-detail-action="category">${icon(categorySymbol(place.category).icon)}${html(categoryName(place.category))} 더 보기</button></div>
+      <div class="detail-related-actions"><button data-detail-action="nearby">${icon('compass')}주변 장소</button><button data-detail-action="category">${icon(categorySymbol(place.category).icon)}${html(categoryName(place.category))} 더 보기</button>${place.address ? `<button data-detail-action="copy-address">${icon('pin')}${t('주소 복사')}</button>` : ''}</div>
       <div class="detail-content">
         ${this.renderGallery(place)}
         <section id="kakao-place-details" class="kakao-details" hidden tabindex="-1" aria-labelledby="kakao-details-title" aria-live="polite" data-kakao-focus="panel" data-i18n-ignore></section>
@@ -1028,6 +1119,15 @@ export class CatalogUI {
     if (action === 'weather') { if (this.currentDetail) void this.loadWeather(this.currentDetail); return; }
     const place = this.currentDetail ?? this.savedFallback;
     if (!place) return;
+    if (action === 'copy-address' && place.address) {
+      void this.options.copyText?.(place.address, t('주소를 복사했어요.'));
+      return;
+    }
+    if (action === 'share-place') {
+      try { void this.options.copyText?.(placeLink(place, location.href), t('장소 링크를 복사했어요.')); }
+      catch { this.options.notify(t('이 장소의 공유 링크를 만들 수 없어요.')); }
+      return;
+    }
     if (action === 'origin' || action === 'destination') {
       const update = action === 'origin' ? this.options.planner.setOrigin(place) : this.options.planner.setDestination(place);
       void Promise.resolve(update).then(() => { this.closeDetail(false); this.options.onTrip?.(); });
@@ -1046,7 +1146,8 @@ export class CatalogUI {
       this.closeDetail();
       this.query = '';
       this.root.querySelector<HTMLInputElement>('#catalog-search')!.value = '';
-      this.root.querySelector<HTMLButtonElement>('[data-scope="all"]')!.click();
+      this.root.querySelector<HTMLButtonElement>('#catalog-search-clear')!.hidden = true;
+      this.setScope('all', false);
       this.chooseCategory(place.category);
       this.options.openDrawer();
     }
