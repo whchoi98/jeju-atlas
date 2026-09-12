@@ -10,6 +10,7 @@ import { hasCredentialQuery, normalizeOfficialDetails } from './official-details
 const JEJU = { south: 33.1, north: 33.6, west: 126.15, east: 126.98 };
 const MAX_BYTES = 32 * 1024 * 1024;
 const MAX_POINTS = 20000;
+const COMMERCIAL_CATEGORIES = ['맛집', '음식점', '카페', '숙소', '숙박', '주차장'];
 const ATTRIBUTION = '장소 데이터 © OpenStreetMap contributors (ODbL) · 큐레이션 데이터 오마이제주';
 const BASE_NOTE = '큐레이션 원자료의 기본 좌표·주소·소개는 공식 자료와 독립적으로 대조 검증되지 않았습니다. 보강 정보의 출처는 별도로 표시합니다.';
 const REGISTRATION_NOTE = '연결된 인허가 자료의 상태이며, 장소 전체의 운영 여부나 현재 시각의 영업 여부를 확정하지 않습니다.';
@@ -84,6 +85,12 @@ function numeric(value, name, min, max, integer = false) {
 
 function nonnegative(value) {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+}
+function excludeCommercial(query) {
+  if (query.exclude_commercial !== undefined && typeof query.exclude_commercial !== 'boolean') {
+    throw fail('exclude_commercial must be a boolean');
+  }
+  return query.exclude_commercial === true;
 }
 
 function sourceLabel(source) {
@@ -538,6 +545,10 @@ export class Catalog {
     const radius = hasRadius ? numeric(query.radius_m, 'radius_m', 100, 50000) : null;
     const clauses = ['1 = 1'];
     const params = [];
+    if (excludeCommercial(query)) {
+      clauses.push(`p.category NOT IN (${COMMERCIAL_CATEGORIES.map(() => '?').join(',')})`);
+      params.push(...COMMERCIAL_CATEGORIES);
+    }
     if (category) {
       clauses.push('p.category = ?');
       params.push(category);
@@ -576,14 +587,18 @@ export class Catalog {
     const { db } = this._ready();
     if (!object(query)) throw fail('Catalog query must be an object');
     const category = this._category(query.category);
+    const exclude = excludeCommercial(query);
     const box = bounds(query.bbox);
     if (!box) return { type: 'FeatureCollection', features: [] };
     const [west, south, east, north] = box;
     const rows = db.prepare(`
       SELECT id, name, category, source, lat, lng FROM places
       WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
-      ${category ? 'AND category = ?' : ''} ORDER BY id LIMIT ?
-    `).all(south, north, west, east, ...(category ? [category] : []), MAX_POINTS + 1);
+      ${category ? 'AND category = ?' : ''}
+      ${exclude ? `AND category NOT IN (${COMMERCIAL_CATEGORIES.map(() => '?').join(',')})` : ''}
+      ORDER BY id LIMIT ?
+    `).all(south, north, west, east, ...(category ? [category] : []),
+      ...(exclude ? COMMERCIAL_CATEGORIES : []), MAX_POINTS + 1);
     if (rows.length > MAX_POINTS) throw fail('Catalog map exceeds 20000 points; narrow the bounding box', 503);
     return {
       type: 'FeatureCollection',

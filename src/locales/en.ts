@@ -1,6 +1,23 @@
 // Registered interface copy only. Source descriptions and proper names are
 // preserved; placeName() uses a provider's name_en when available.
 export const en: Record<string, string> = {
+  '검색 출처': 'Search source', '자동 선택': 'Automatic', '기존 카탈로그': 'Original catalog', '카카오맵': 'Kakao Map',
+  '카카오 검색 결과': 'Kakao search results', '카카오 장소 검색': 'Kakao place search',
+  '카카오 조회 정보': 'Information retrieved from Kakao',
+  '카카오 검색은 한 번에 15곳씩, 최대 45곳까지 볼 수 있어요.': 'Kakao search shows 15 places per page, up to 45 results.',
+  '검색 결과의 일부만 표시합니다. 범위를 줄이거나 이름으로 찾아보세요.': 'Only part of the results is available. Narrow the area or search by name.',
+  '이전 15개 장소': 'Previous 15 places', '다음 15개 장소': 'Next 15 places',
+  '카카오에서 찾을 이름이나 분류를 선택해 주세요.': 'Enter a name or choose a category to search Kakao.',
+  '제주가 보이는 지도 범위에서 다시 검색해 주세요.': 'Search again with Jeju visible on the map.',
+  '카카오 검색에 연결하지 못했어요': 'Kakao search is unavailable',
+  '다시 시도하거나 검색 출처를 기존 카탈로그로 바꿔 보세요.': 'Retry or change the search source to Original catalog.',
+  '이 조건의 카카오 검색 결과가 없어요': 'No Kakao results for these search conditions',
+  '장소 이름이나 검색 범위를 바꿔 보세요.': 'Try another place name or search area.',
+  '공공정보 보강': 'Public information',
+  '아래 관광 정보는 연결된 기존 카탈로그에서 가져왔습니다. 장소 이름과 위치는 카카오 정보를 유지합니다.': 'The visitor information below comes from the linked original catalog. The place name and location remain those reported by Kakao.',
+  '저장한 장소 정보입니다. 현재 카카오 정보를 확인하지 못했어요.': 'This is saved place information. Current Kakao information could not be checked.',
+  '앞서 조회한 장소 정보입니다. 현재 상세 정보를 확인하지 못했어요.': 'This place information was retrieved earlier. Current details could not be checked.',
+  '직선': 'straight line',
   '카카오 방문 정보': 'Kakao visiting information',
   '카카오 방문 정보를 불러오는 중…': 'Loading Kakao visiting information…',
   '카카오 방문 정보를 불러오지 못했어요. 기본 장소 정보는 계속 볼 수 있어요.': 'Kakao visiting information could not load. The main place details are still available.',

@@ -135,6 +135,7 @@ test('config verifies secure host-only sessions without exposing runtime setting
     features: { catalog: true, guide: false, planner: true, pwa: true, routing: false },
     guide: { daily_limit: 30 },
     kakao: { enabled: false },
+    discovery: { enabled: false, categories: ['맛집', '카페', '숙소', '주차장'], page_size: 15, max_results: 45 },
     routing: {
       enabled: false,
       modes: ['walk', 'car'],

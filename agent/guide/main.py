@@ -33,11 +33,14 @@ from strands import Agent
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 
 from mcp_client.client import get_all_gateway_mcp_clients, warm_tools
-from memory.session import get_memory_session_manager
+from memory.session import get_memory_session_manager, redact_transient_lookup_message
 from model.load import load_model
 from atlas_agent import routing
 from atlas_agent.payload import MAX_PROMPT_CHARS, is_warm_payload, parse_payload, parse_warm_payload, prompt_for_locale
-from atlas_agent.prefetch import PREFETCH_ENV, PrefetchResult, execute_prefetch, plan_prefetch, prefetch_enabled
+from atlas_agent.prefetch import (
+    PREFETCH_ENV, PrefetchResult, execute_prefetch, plan_prefetch, prefetch_enabled,
+    grounding_prefetch, covered_discovery_call, GuideGroundingPolicy,
+)
 from atlas_agent.prompts import load_system_prompt
 from atlas_agent.streaming import TURN_TIMEOUT_S, Prefetched, make_formatter, run_turn
 from atlas_agent.tool_budget import ToolBudget
@@ -157,12 +160,14 @@ def agent_factory():
         if key in cache:
             cache.move_to_end(key)
             return cache[key]
+        memory_manager = get_memory_session_manager(session_id, actor_id)
+        grounding_policy = GuideGroundingPolicy()
         agent = Agent(
             # Every new conversation starts on the fast model: the first prompt is classified inside
             # invoke() below, same as every later turn — a fresh Agent must not pay the deep model's
             # latency on its very first turn just because it happened to be the deep route.
             model=load_model(MODEL_FAST),
-            session_manager=get_memory_session_manager(session_id, actor_id),
+            session_manager=memory_manager,
             conversation_manager=_make_conversation_manager(),
             system_prompt=SYSTEM_PROMPT,
             tools=tools,
@@ -170,8 +175,10 @@ def agent_factory():
             # One budget per cached Agent = one conversation (counters reset per turn, see tool_budget).
             # Without it the model widened `radius_m` and re-called find_places up to 27× in a single turn
             # (PLAN.md 8장 #28), which is what breaks the spec 1장 first-token/TTM gates.
-            hooks=[ToolBudget(exempt={MapResponseV2.__name__})],
+            hooks=[ToolBudget(exempt={MapResponseV2.__name__}), grounding_policy],
         )
+        agent._atlas_memory_manager = memory_manager
+        agent._atlas_grounding_policy = grounding_policy
         cache[key] = agent
         while len(cache) > MAX_CACHED_AGENTS:
             cache.popitem(last=False)
@@ -226,7 +233,10 @@ async def _guarded_stream(key: str, source: AsyncIterator[dict]) -> AsyncIterato
         async for ev in source:
             yield ev
     finally:
-        _end_turn(key)
+        try:
+            await source.aclose()
+        finally:
+            _end_turn(key)
 
 
 async def _warm_done_stream(latency_ms: int) -> AsyncIterator[dict]:
@@ -253,7 +263,7 @@ def _handle_warm(payload: dict, context, wants_stream: bool):
     return _warm_done_stream(result["ms"]) if wants_stream else result
 
 
-async def _prefetch(prompt: str) -> list[PrefetchResult]:
+async def _prefetch(prompt: str, grounding: dict | None = None) -> list[PrefetchResult]:
     """Run the tool calls this prompt obviously needs, before the model is called (plan 10).
 
     Gated on the env switch AND on there being a Gateway MCP client to call: `tools[0]` is the shared
@@ -263,25 +273,60 @@ async def _prefetch(prompt: str) -> list[PrefetchResult]:
     Never raises and never yields a user-visible error (Ruling R1): a parser bug, a Gateway failure or a
     timeout all end here as `[]`, which is exactly the ordinary tool loop the model has always run.
     """
+    seeded = grounding_prefetch(grounding)
     if not PREFETCH or not tools:
-        return []
+        return seeded
     t0 = time.monotonic()
     try:
-        calls = plan_prefetch(prompt)
+        calls = [call for call in plan_prefetch(prompt)
+                 if not covered_discovery_call(call.tool, call.arguments, grounding)]
         if not calls:
-            return []
+            return seeded
         results = await execute_prefetch(calls, tools[0])
     except Exception as exc:  # noqa: BLE001 — a cancelled turn still cancels
         log.warning("prefetch failed type=%s — running the normal tool loop", type(exc).__name__)
-        return []
+        return seeded
     log.info("prefetch tools=%s ms=%d", [safe_tool_name(r.call.tool) for r in results], int((time.monotonic() - t0) * 1000))
-    return results
+    return seeded + results
 
 
-async def _collect_map(agent: Agent, prompt: str, prefetched: Prefetched = None) -> dict:
+async def _grounded_turn(agent: Agent, prompt: str, prefetched: Prefetched, grounding: dict | None):
+    """Scope transient reference handling to this serialized conversation turn."""
+    policy = getattr(agent, "_atlas_grounding_policy", None)
+    manager = getattr(agent, "_atlas_memory_manager", None)
+    if policy is not None:
+        policy.grounding = grounding
+    if manager is not None:
+        manager.omit_lookup_content = grounding is not None
+    # Keep identities, not an index: SlidingWindowConversationManager removes
+    # old entries in place while the turn is running.
+    previous = list(getattr(agent, "messages", []))
+    source = run_turn(agent, prompt, model=MapResponseV2, mode=STRUCTURED_MODE,
+                      formatter=FORMATTER, timeout_s=TURN_TIMEOUT, prefetched=prefetched)
+    try:
+        if grounding is not None:
+            yield {"type": "grounding", "version": 1}
+        async for event in source:
+            yield event
+    finally:
+        try:
+            await source.aclose()
+        finally:
+            if grounding is not None and isinstance(getattr(agent, "messages", None), list):
+                agent.messages[:] = [
+                    message if any(message is old for old in previous) else redact_transient_lookup_message(message)
+                    for message in agent.messages
+                ]
+            if manager is not None:
+                manager.omit_lookup_content = False
+            if policy is not None:
+                policy.grounding = None
+
+
+async def _collect_map(agent: Agent, prompt: str, prefetched: Prefetched = None, grounding: dict | None = None) -> dict:
     """Non-streaming path: run the same turn, return only the map payload (MapResponseV2 as a dict)."""
     last_map: dict | None = None
-    async for ev in run_turn(agent, prompt, model=MapResponseV2, mode=STRUCTURED_MODE, formatter=FORMATTER, timeout_s=TURN_TIMEOUT, prefetched=prefetched):
+    async for ev in _grounded_turn(agent, prompt, prefetched, grounding):
         if ev.get("type") == "map":
             last_map = {k: v for k, v in ev.items() if k != "type"}
     return last_map or MapResponseV2(version="2", answer="죄송합니다. 답변을 생성하지 못했습니다.").model_dump(mode="json")
@@ -325,14 +370,14 @@ async def invoke(payload, context):
         # while the tools are still answered before the model is called (the latency win).
         # Handed over as a callable, not as a coroutine: a turn whose events are never consumed would
         # leave a coroutine unawaited (a RuntimeWarning for something that is not an error).
-        prefetching = partial(_prefetch, req.prompt)
+        prefetching = partial(_prefetch, req.prompt, req.grounding)
         if not req.stream:
             try:
-                return await _collect_map(agent, prompt, prefetching)
+                return await _collect_map(agent, prompt, prefetching, req.grounding)
             finally:
                 _end_turn(key)
         # The generator owns the claim from here on (released in _guarded_stream's finally).
-        return _guarded_stream(key, run_turn(agent, prompt, model=MapResponseV2, mode=STRUCTURED_MODE, formatter=FORMATTER, timeout_s=TURN_TIMEOUT, prefetched=prefetching))
+        return _guarded_stream(key, _grounded_turn(agent, prompt, prefetching, req.grounding))
     except BaseException:
         _end_turn(key)  # releasing twice is a no-op; never leave a claim behind on a failure
         raise

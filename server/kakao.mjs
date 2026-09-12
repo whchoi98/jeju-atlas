@@ -1,6 +1,8 @@
 const KEYWORD_URL = 'https://dapi.kakao.com/v2/local/search/keyword.json';
+const CATEGORY_URL = 'https://dapi.kakao.com/v2/local/search/category.json';
 const PAGE_SIZE = 15;
 const MAX_PAGES = 3;
+const JEJU_RECT = Object.freeze([126.15, 33.1, 126.98, 33.6]);
 const NEARBY_RADIUS_M = 200;
 const MAIN_BRANCH_RADIUS_M = 100;
 const MAX_BODY_BYTES = 128 * 1024;
@@ -9,10 +11,14 @@ const CATEGORIES = new Map([
   ['관광지', ['AT4', 'CT1']], ['오름', ['AT4']], ['해변', ['AT4']],
   ['올레길', ['AT4']], ['박물관', ['CT1']], ['시장', ['MT1', 'AT4']],
 ]);
+const DISCOVERY_CATEGORIES = new Map([
+  ['맛집', 'FD6'], ['카페', 'CE7'], ['숙소', 'AD5'], ['주차장', 'PK6'],
+]);
 const ERRORS = new Map([
   ['kakao_unavailable', [503, 'Kakao Local is unavailable.']],
   ['kakao_invalid_response', [502, 'Kakao Local returned an invalid response.']],
   ['kakao_busy', [429, 'Kakao Local lookup is busy.']],
+  ['kakao_invalid_query', [400, 'Kakao Local search request is invalid.']],
 ]);
 
 /** Accepts only a known code; upstream diagnostics and causes never become public errors. */
@@ -34,6 +40,33 @@ const count = (value) => Number.isSafeInteger(value) && value >= 0;
 const normalizeName = (value) => value.normalize('NFKC').toLowerCase().replace(/[\p{P}\s]/gu, '');
 const inJeju = (lat, lng) => typeof lat === 'number' && Number.isFinite(lat) && lat >= 33.1 && lat <= 33.6
   && typeof lng === 'number' && Number.isFinite(lng) && lng >= 126.15 && lng <= 126.98;
+
+function discoveryRequest(raw) {
+  const fail = () => new KakaoError('kakao_invalid_query');
+  if (!object(raw) || typeof raw.query !== 'string' || raw.query.length > 200
+    || /[\u0000-\u0008\u000e-\u001f\u007f]/u.test(raw.query)
+    || (raw.category !== '' && !DISCOVERY_CATEGORIES.has(raw.category))
+    || !['all', 'view', 'nearby'].includes(raw.scope)
+    || !object(raw.center) || !inJeju(raw.center.lat, raw.center.lng)
+    || !Number.isInteger(raw.page) || raw.page < 1 || raw.page > MAX_PAGES) throw fail();
+  const query = raw.query.trim();
+  if (!query && !raw.category) throw fail();
+  let bounds;
+  if (raw.bounds !== undefined) {
+    if (!Array.isArray(raw.bounds) || raw.bounds.length !== 4
+      || !inJeju(raw.bounds[1], raw.bounds[0]) || !inJeju(raw.bounds[3], raw.bounds[2])
+      || raw.bounds[0] >= raw.bounds[2] || raw.bounds[1] >= raw.bounds[3]) throw fail();
+    bounds = [...raw.bounds];
+  }
+  if (raw.scope === 'view' && !bounds) throw fail();
+  if ((raw.radius_m !== undefined || raw.scope === 'nearby')
+    && (!Number.isInteger(raw.radius_m) || raw.radius_m < 100 || raw.radius_m > 20000)) throw fail();
+  return {
+    query, category: raw.category, scope: raw.scope,
+    center: { lat: raw.center.lat, lng: raw.center.lng },
+    bounds, radius_m: raw.radius_m, page: raw.page,
+  };
+}
 
 function providerError(error, signal, code = 'kakao_unavailable') {
   if (signal.aborted) return signal.reason;
@@ -92,8 +125,8 @@ function page(raw, pageNumber, previous) {
   if (!count(total) || !count(pageable) || pageable > total || typeof end !== 'boolean'
     || (previous && (previous.total !== total || previous.pageable !== pageable))) throw invalid();
   const offset = (pageNumber - 1) * PAGE_SIZE;
-  const expected = Math.min(PAGE_SIZE, pageable - offset);
-  if (raw.documents.length !== expected || end !== (offset + raw.documents.length === pageable)) throw invalid();
+  const expected = Math.max(0, Math.min(PAGE_SIZE, pageable - offset));
+  if (raw.documents.length !== expected || end !== (offset + raw.documents.length >= pageable)) throw invalid();
   return { total, pageable, end, documents: raw.documents.map(document) };
 }
 
@@ -207,7 +240,7 @@ async function readResponse(response, controller) {
   }
 }
 
-/** Stateless, bounded supplementary lookup; the parent owns persistent quota admission. */
+/** Stateless, bounded discovery and supplementary lookup; the parent owns quota admission. */
 export function createKakaoService({
   key, fetch: fetchImpl = globalThis.fetch, clock = Date.now, consumeBudget,
   timeoutMs = 6500, maxConcurrent = 2,
@@ -219,12 +252,20 @@ export function createKakaoService({
   if (!Number.isSafeInteger(maxConcurrent) || maxConcurrent < 1
     || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2147483647) throw new KakaoError();
 
+  function queriedAt() {
+    try { return new Date(clock()).toISOString(); } catch { throw new KakaoError(); }
+  }
+
+  function rejectKeyEcho(value) {
+    let serialized;
+    try { serialized = JSON.stringify(value); } catch { throw invalid(); }
+    if (serialized?.includes(JSON.stringify(apiKey).slice(1, -1))) throw invalid();
+  }
+
   function result(canonical, status, candidate, distance, reason) {
-    let queriedAt;
-    try { queriedAt = new Date(clock()).toISOString(); } catch { throw new KakaoError(); }
     const dto = {
       available: true, status, canonical_id: canonical.id,
-      queried_at: queriedAt, source: 'Kakao Local', place: null,
+      queried_at: queriedAt(), source: 'Kakao Local', place: null,
     };
     if (reason) dto.reason = reason;
     if (candidate) {
@@ -233,8 +274,29 @@ export function createKakaoService({
       dto.match = { method: 'name_category_distance', distance_m: distance };
     }
     // A provider echo of an authorization value must not become user-visible contact data.
-    if (JSON.stringify(dto).includes(apiKey)) throw invalid();
+    rejectKeyEcho(dto);
     return dto;
+  }
+
+  async function requestPage(endpoint, params, controller) {
+    const { signal } = controller;
+    signal.throwIfAborted();
+    // Outside provider-error handling: parent quota errors retain their identity.
+    await consumeBudget({ signal });
+    signal.throwIfAborted();
+    const url = new URL(endpoint);
+    url.search = new URLSearchParams(params).toString();
+    let response;
+    try {
+      response = await fetchImpl(url, {
+        method: 'GET', redirect: 'error', signal,
+        headers: { Accept: 'application/json', Authorization: `KakaoAK ${apiKey}` },
+      });
+    } catch (error) {
+      throw providerError(error, signal);
+    }
+    // A late response after abort goes through cancellation, never parsing.
+    return readResponse(response, controller);
   }
 
   async function searchScope(canonical, radius, controller) {
@@ -244,27 +306,11 @@ export function createKakaoService({
     let rows = 0;
     let complete = false;
     for (let pageNumber = 1; pageNumber <= MAX_PAGES; pageNumber++) {
-      signal.throwIfAborted();
-      // Deliberately outside provider-error handling: parent quota errors retain their identity.
-      await consumeBudget({ signal });
-      signal.throwIfAborted();
-      const url = new URL(KEYWORD_URL);
-      url.search = new URLSearchParams({
+      const next = page(await requestPage(KEYWORD_URL, {
         query: canonical.name, x: String(canonical.lng), y: String(canonical.lat),
         radius: String(radius), size: String(PAGE_SIZE), page: String(pageNumber),
         sort: 'distance',
-      }).toString();
-      let response;
-      try {
-        response = await fetchImpl(url, {
-          method: 'GET', redirect: 'error', signal,
-          headers: { Accept: 'application/json', Authorization: `KakaoAK ${apiKey}` },
-        });
-      } catch (error) {
-        throw providerError(error, signal);
-      }
-      // Even a late response after abort goes through stream cancellation, never parsing.
-      const next = page(await readResponse(response, controller), pageNumber, metadata);
+      }, controller), pageNumber, metadata);
       metadata = next;
       let added = 0;
       const pageIds = new Set();
@@ -323,10 +369,37 @@ export function createKakaoService({
     return result(canonical, 'not_found', null, null, reason);
   }
 
-  async function lookup(place, { signal: callerSignal } = {}) {
+  function ensureAvailable(callerSignal) {
     if (!enabled || closed || typeof consumeBudget !== 'function' || typeof fetchImpl !== 'function'
       || apiKey.length > 4096 || /[\s\u0000-\u001f\u007f]/u.test(apiKey)) throw new KakaoError();
     if (callerSignal?.aborted) throw aborted();
+  }
+
+  async function execute(operation, callerSignal) {
+    if (active.size >= maxConcurrent) throw new KakaoError('kakao_busy');
+    const controller = new AbortController();
+    active.add(controller);
+    const onCancel = () => controller.abort(aborted());
+    callerSignal?.addEventListener('abort', onCancel, { once: true });
+    let onStop;
+    const stopped = new Promise((_, reject) => {
+      onStop = () => reject(controller.signal.reason);
+      controller.signal.addEventListener('abort', onStop, { once: true });
+    });
+    const timer = setTimeout(() => controller.abort(new KakaoError()), timeoutMs);
+    const work = Promise.resolve().then(() => operation(controller)).finally(() => active.delete(controller));
+    try {
+      return await Promise.race([work, stopped]);
+    } finally {
+      clearTimeout(timer);
+      callerSignal?.removeEventListener('abort', onCancel);
+      controller.signal.removeEventListener('abort', onStop);
+      // Ignored quota/fetch/cancel promises retain their slot until actual settlement.
+    }
+  }
+
+  async function lookup(place, { signal: callerSignal } = {}) {
+    ensureAvailable(callerSignal);
     // Snapshot only canonical fields, before any await; never mutate the catalog object.
     const canonical = {
       id: place?.id, name: place?.name, name_en: place?.name_en,
@@ -338,32 +411,53 @@ export function createKakaoService({
       || !inJeju(canonical.lat, canonical.lng)) throw new KakaoError();
     const groups = CATEGORIES.get(canonical.category);
     if (!groups) return result(canonical, 'unsupported');
-    if (active.size >= maxConcurrent) throw new KakaoError('kakao_busy');
     const radius = ['sample', 'curated', 'seed'].includes(canonical.source?.toLowerCase()) ? 2000 : 200;
-    const controller = new AbortController();
-    active.add(controller);
-    const onCancel = () => controller.abort(aborted());
-    callerSignal?.addEventListener('abort', onCancel, { once: true });
-    let onStop;
-    const stopped = new Promise((_, reject) => {
-      onStop = () => reject(controller.signal.reason);
-      controller.signal.addEventListener('abort', onStop, { once: true });
-    });
-    const timer = setTimeout(() => controller.abort(new KakaoError()), timeoutMs);
-    const work = run(canonical, groups, radius, controller).finally(() => active.delete(controller));
-    try {
-      return await Promise.race([work, stopped]);
-    } finally {
-      clearTimeout(timer);
-      callerSignal?.removeEventListener('abort', onCancel);
-      controller.signal.removeEventListener('abort', onStop);
-      // Do not release here: ignored quota/fetch/cancel promises must keep their bounded slot.
-    }
+    return execute((controller) => run(canonical, groups, radius, controller), callerSignal);
+  }
+
+  async function search(request, { signal: callerSignal } = {}) {
+    ensureAvailable(callerSignal);
+    const input = discoveryRequest(request);
+    if (input.query.includes(apiKey)) throw new KakaoError('kakao_invalid_query');
+    return execute(async (controller) => {
+      const group = DISCOVERY_CATEGORIES.get(input.category);
+      const rect = input.scope === 'view' ? input.bounds : JEJU_RECT;
+      const params = {
+        x: String(input.center.lng), y: String(input.center.lat),
+        sort: 'distance', page: String(input.page), size: String(PAGE_SIZE),
+      };
+      if (input.query) params.query = input.query;
+      if (group) params.category_group_code = group;
+      if (input.scope === 'nearby') params.radius = String(input.radius_m);
+      else params.rect = rect.join(',');
+      const raw = await requestPage(input.query ? KEYWORD_URL : CATEGORY_URL, params, controller);
+      controller.signal.throwIfAborted();
+      rejectKeyEcho(raw);
+      const current = page(raw, input.page);
+      const seen = new Map();
+      for (const candidate of current.documents) {
+        if (!inJeju(candidate.lat, candidate.lng) || (group && candidate.group !== group)) throw invalid();
+        if (input.scope === 'nearby') {
+          if (distanceMeters(input.center, candidate) > input.radius_m) throw invalid();
+        } else if (candidate.lng < rect[0] || candidate.lng > rect[2]
+          || candidate.lat < rect[1] || candidate.lat > rect[3]) throw invalid();
+        const existing = seen.get(candidate.id);
+        if (existing && JSON.stringify(existing) !== JSON.stringify(candidate)) throw invalid();
+        seen.set(candidate.id, candidate);
+      }
+      const pageable = Math.min(current.pageable, PAGE_SIZE * MAX_PAGES);
+      return {
+        items: [...seen.values()], total: current.total, pageable, page: input.page, page_size: PAGE_SIZE,
+        end: current.end || input.page === MAX_PAGES, truncated: current.total > pageable,
+        queried_at: queriedAt(),
+      };
+    }, callerSignal);
   }
 
   return {
     enabled,
     lookup,
+    search,
     close() {
       closed = true;
       for (const controller of active) controller.abort(new KakaoError());

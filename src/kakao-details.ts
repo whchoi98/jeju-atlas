@@ -7,6 +7,7 @@ type View = {
   name: string;
   state: 'hidden' | 'loading' | 'ready' | 'unavailable';
   result: KakaoLookup | null;
+  resolved?: boolean;
 };
 const MAX_BYTES = 32_768;
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -34,7 +35,7 @@ function timestamp(value: unknown): value is string {
     && Number.isFinite(Date.parse(value));
 }
 
-function lookupResult(value: unknown, id: string): KakaoLookup {
+export function validateKakaoLookup(value: unknown, id: string): KakaoLookup {
   if (!object(value) || value.available !== true || value.canonical_id !== id
     || value.source !== 'Kakao Local' || !timestamp(value.queried_at)) throw invalid();
   const status = value.status;
@@ -50,7 +51,8 @@ function lookupResult(value: unknown, id: string): KakaoLookup {
     if (!object(item) || typeof item.id !== 'string' || !/^[1-9]\d{0,29}$/.test(item.id)
       || !text(item.name, 500, true) || !text(item.category, 500)
       || !nullableText(item.address, 1000) || !nullableText(item.road_address, 1000)
-      || !nullableText(item.phone, 200) || item.url !== `https://place.map.kakao.com/${item.id}`) throw invalid();
+      || !nullableText(item.phone, 200) || item.url !== `https://place.map.kakao.com/${item.id}`
+      || (id.startsWith('kakao:') && item.id !== id.slice(6))) throw invalid();
     place = {
       id: item.id, name: item.name.trim(), category: item.category.trim(),
       address: item.address?.trim() || null, road_address: item.road_address?.trim() || null,
@@ -107,6 +109,21 @@ export class KakaoDetails {
     void this.load();
   }
 
+  showResolved(place: { id: string; name: string }, lookup: unknown): void {
+    this.controller?.abort();
+    this.controller = undefined;
+    if (!text(place.id, 200, true) || !/^[a-zA-Z0-9][a-zA-Z0-9:._/-]*$/.test(place.id) || !text(place.name, 500, true)) {
+      this.clear();
+      return;
+    }
+    this.view = { id: place.id, name: place.name, state: 'unavailable', result: null, resolved: true };
+    try {
+      this.view.result = validateKakaoLookup(lookup, place.id);
+      this.view.state = 'ready';
+    } catch { /* The parent detail retry refreshes native identity, never a name lookup. */ }
+    this.render();
+  }
+
   clear(): void {
     this.controller?.abort();
     this.controller = undefined;
@@ -115,7 +132,7 @@ export class KakaoDetails {
   }
 
   retry(): void {
-    if (this.view?.state === 'unavailable') void this.load(true);
+    if (this.view?.state === 'unavailable' && !this.view.resolved) void this.load(true);
   }
 
   private async load(refresh = false): Promise<void> {
@@ -158,7 +175,7 @@ export class KakaoDetails {
         }
         const data = await responseJSON(response, signal);
         signal.throwIfAborted();
-        view.result = lookupResult(data, view.id);
+        view.result = validateKakaoLookup(data, view.id);
         view.state = 'ready';
         return;
       }
@@ -216,7 +233,7 @@ export class KakaoDetails {
     const content = view.state === 'ready' && view.result ? this.resultHTML(view, view.result)
       : view.state === 'loading' ? `<p class="kakao-details-message" role="status">${copy('카카오 방문 정보를 불러오는 중…')}</p>`
         : `<p class="kakao-details-message" role="status">${copy('카카오 방문 정보를 불러오지 못했어요. 기본 장소 정보는 계속 볼 수 있어요.')}</p>
-          <button type="button" class="kakao-details-action" data-detail-action="kakao-retry" data-kakao-focus="retry" aria-label="${copy('카카오 정보 다시 시도')}">${copy('다시 시도')}</button>`;
+          <button type="button" class="kakao-details-action" data-detail-action="${view.resolved ? 'retry' : 'kakao-retry'}" data-kakao-focus="retry" aria-label="${copy('카카오 정보 다시 시도')}">${copy('다시 시도')}</button>`;
     root.innerHTML = `<div class="kakao-details-heading"><h3 id="kakao-details-title">${copy('카카오 방문 정보')}</h3><span lang="en">Kakao Local</span></div>${content}`;
     if (focusInside) {
       const target = [...root.querySelectorAll<HTMLElement>('[data-kakao-focus]')].find(node => node.dataset.kakaoFocus === focusKey);

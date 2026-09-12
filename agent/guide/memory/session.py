@@ -128,17 +128,48 @@ def redact_kakao_message(message: Any) -> Any:
     return {**message, "content": [_redact_block(b) for b in message["content"]]}
 
 
+def redact_transient_lookup_message(message: Any) -> Any:
+    """Keep the user's question/preferences, omit a grounded turn's retrieved/derived data.
+
+    Applies to copies used by Memory and by post-turn conversation cleanup.
+    Live model input and the response being streamed remain untouched.
+    """
+    if not isinstance(message, dict) or not isinstance(message.get("content"), list):
+        return message
+    content = []
+    for block in message["content"]:
+        if not isinstance(block, dict):
+            continue
+        if isinstance(block.get("toolResult"), dict):
+            content.append({"toolResult": {
+                **block["toolResult"],
+                "content": [{"text": "Transient place lookup results are not retained. Request current information again when needed."}],
+            }})
+        elif isinstance(block.get("toolUse"), dict):
+            content.append({"toolUse": {**block["toolUse"], "input": {}}})
+        elif message.get("role") == "assistant":
+            content.append({"text": "The answer used transient place information that is not retained."})
+        elif isinstance(block.get("text"), str):
+            content.append(_redact_block(block))
+        else:
+            content.append({"text": "Transient reference data omitted."})
+    return {**message, "content": content}
+
+
 class KakaoRedactingSessionManager(AgentCoreMemorySessionManager):
     """AgentCoreMemorySessionManager that never persists Kakao ids/coordinates (spec §4)."""
+    omit_lookup_content = False
 
     def append_message(self, message: Any, agent: Any, **kwargs: Any) -> None:
         # Redacting here (not only in create_message) also keeps the manager's `_latest_agent_message`
         # bookkeeping — which later update calls re-send — free of Kakao data.
-        super().append_message(redact_kakao_message(message), agent, **kwargs)
+        redact = redact_transient_lookup_message if self.omit_lookup_content else redact_kakao_message
+        super().append_message(redact(message), agent, **kwargs)
 
     def create_message(self, session_id: str, agent_id: str, session_message: Any, **kwargs: Any) -> Optional[dict[str, Any]]:
         # Defence in depth: every write path (append_message, buffered flush, offload) funnels here.
-        redacted = replace(session_message, message=redact_kakao_message(session_message.message))
+        redact = redact_transient_lookup_message if self.omit_lookup_content else redact_kakao_message
+        redacted = replace(session_message, message=redact(session_message.message))
         return super().create_message(session_id, agent_id, redacted, **kwargs)
 
 

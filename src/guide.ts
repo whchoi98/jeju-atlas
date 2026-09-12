@@ -2,7 +2,7 @@ import type { AppConfig, GuideMap, GuidePlaceInfo } from '../shared/api-types';
 import { ApiError, dateLabel, getConfig, html, isJejuPoint, publicMessage, safeURL, sourceName, withAbort } from './api';
 import { facilityText, hasFacilityRecord, hoursText } from './guide-facts';
 import { splitGuideFrames } from './guide-stream';
-import { requestGuide } from './guide-request';
+import { guideSelectionToken, requestGuide, type NativeGuideSelection } from './guide-request';
 import { renderGuideMarkdown } from './guide-markdown';
 import { buildGuideMessage } from './guide-context';
 import { guideEmoji } from './guide-emoji';
@@ -82,7 +82,8 @@ export class GuidePanel {
   private onApply: (map: GuideMap) => void;
   private notify: (message: string) => void;
   private context: () => string;
-  private onSelect: ((id: string) => void) | undefined;
+  private nativeSelection: (() => NativeGuideSelection | null) | undefined;
+  private onSelect: ((id: string, marker?: GuideMap['markers'][number]) => void) | undefined;
   private lastQuestion = '';
   private tools: ToolUse[] = [];
   private renderTimer: ReturnType<typeof setTimeout> | undefined;
@@ -91,12 +92,14 @@ export class GuidePanel {
 
   constructor(root: HTMLElement, options: {
     onApply: (map: GuideMap) => void; notify: (message: string) => void; context: () => string;
-    onSelect?: (id: string) => void;
+    onSelect?: (id: string, marker?: GuideMap['markers'][number]) => void;
+    nativeSelection?: () => NativeGuideSelection | null;
   }) {
     this.root = root;
     this.onApply = options.onApply;
     this.notify = options.notify;
     this.context = options.context;
+    this.nativeSelection = options.nativeSelection;
     this.onSelect = options.onSelect;
     root.innerHTML = `
       <div class="panel-intro"><span class="eyebrow">A LOCAL PERSPECTIVE</span><h2>${guideEmoji('🧭')} 어떤 제주를 찾으세요?</h2><p>지역을 지정하지 않으면 제주 전체에서 찾아요.</p></div>
@@ -318,6 +321,12 @@ export class GuidePanel {
 
   private errorCopy(code: string, status = 0): string {
     const normalized = code.toLowerCase();
+    if (normalized === 'kakao_selection_invalid' || normalized === 'kakao_selection_expired') return getLocale() === 'en'
+      ? 'Reopen the selected place to refresh its information, then ask again.'
+      : '선택한 장소의 상세 정보를 다시 연 뒤 질문해 주세요.';
+    if (normalized === 'conversation_refresh_required') return getLocale() === 'en'
+      ? 'The guide has been updated. Ask again to start a new conversation with current place information.'
+      : '가이드가 업데이트되었습니다. 다시 질문하면 새 대화에서 현재 장소 정보를 확인합니다.';
     if (/concurr|busy/.test(normalized)) return '다른 요청을 처리하고 있어요. 잠시 후 다시 질문해 주세요.';
     if (/hourly/.test(normalized)) return '한 시간 이용 한도에 도달했어요. 잠시 후 다시 질문해 주세요.';
     if (normalized === 'quota_unavailable') return '이용 한도를 확인하지 못해 요청을 시작하지 않았어요. 잠시 후 다시 보내 주세요.';
@@ -347,7 +356,10 @@ export class GuidePanel {
       this.notify('추천 장소를 지도에 표시했어요.');
     });
     panel.querySelectorAll<HTMLButtonElement>('[data-guide-place]').forEach((button) => {
-      button.addEventListener('click', () => this.onSelect?.(button.dataset.guidePlace!));
+      button.addEventListener('click', () => {
+        const id = button.dataset.guidePlace!;
+        this.onSelect?.(id, recommendation.markers.find(marker => marker.id === id));
+      });
     });
     panel.scrollTop = 0;
   }
@@ -376,6 +388,7 @@ export class GuidePanel {
     message = message.trim().slice(0, 2000);
     const locale = getLocale();
     const requestMessage = buildGuideMessage(message, this.context(), locale);
+    const selectionToken = guideSelectionToken(message, this.nativeSelection?.());
     this.lastQuestion = message;
     this.tools = [];
     this.setRunning(true);
@@ -401,6 +414,7 @@ export class GuidePanel {
       if (controller.signal.aborted) throw controller.signal.reason;
       const response = await requestGuide({
         message: requestMessage,
+        selectionToken,
         conversationId: this.conversationId,
         csrfToken: config.guide.csrf_token,
         requestId,

@@ -7,6 +7,8 @@ import { createWeatherService, inJeju } from './weather.mjs';
 import { createRoutingService, RoutingError } from './routing.mjs';
 import { createKakaoService, KakaoError } from './kakao.mjs';
 import { createKakaoQuota, KakaoQuotaError } from './kakao-quota.mjs';
+import { createDiscoveryAdapter, DiscoveryError } from './discovery.mjs';
+import { createGuideDiscovery } from './guide-discovery.mjs';
 import {
   GuideError, createGuideHandler, createAgentInvoker, createDynamoQuotaConsumer, emitGuideDiagnostic,
 } from './guide.mjs';
@@ -19,6 +21,8 @@ const CATALOG_BUILD_MAX_AGE_MS = 14 * 86_400_000;
 // 12-stop editing flow while keeping the local engine's separate concurrency,
 // byte and deadline limits. This does not consume or change the AI quota.
 const ROUTING_REQUESTS_PER_MINUTE = 60;
+const DISCOVERY_CATEGORIES = ['맛집', '카페', '숙소', '주차장'];
+const DISCOVERY_PATHS = ['/api/kakao/search', '/api/kakao/detail', '/api/kakao/reopen'];
 
 function catalogBuildTimestamp(value) {
   if (typeof value !== 'string' || value.length > 40 || /\s/.test(value)
@@ -140,6 +144,25 @@ function stringParam(params, name, max) {
   if (value.length > max || /[\x00-\x1f\x7f]/.test(value)) throw invalidQuery();
   return value.trim();
 }
+function booleanParam(params, name) {
+  const value = params.get(name);
+  if (value !== 'true' && value !== 'false') throw invalidQuery();
+  return value === 'true';
+}
+function requestRecord(value, allowed) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || Object.keys(value).some(key => !allowed.includes(key))) throw invalidQuery();
+  return value;
+}
+function reopenOptions(value) {
+  const body = requestRecord(value, ['id', 'name', 'category', 'lat', 'lng']);
+  if (typeof body.id !== 'string' || !/^kakao:[1-9]\d{0,19}$/.test(body.id)
+    || typeof body.name !== 'string' || !body.name.trim() || body.name.length > 500
+    || typeof body.category !== 'string' || body.category.length > 100
+    || /[\u0000-\u001f\u007f]|\p{Surrogate}/u.test(body.name + body.category)
+    || !inJeju(body.lat, body.lng)) throw invalidQuery();
+  return { id: body.id, name: body.name.trim(), category: body.category, lat: body.lat, lng: body.lng };
+}
 function coordinates(params, required = false) {
   if (!params.has('lat') && !params.has('lng') && !required) return {};
   if (!params.has('lat') || !params.has('lng')) throw invalidQuery();
@@ -149,7 +172,7 @@ function coordinates(params, required = false) {
   };
 }
 function searchOptions(url) {
-  const params = queryParams(url, ['q', 'category', 'lat', 'lng', 'radius_m', 'limit', 'offset']);
+  const params = queryParams(url, ['q', 'category', 'lat', 'lng', 'radius_m', 'limit', 'offset', 'exclude_commercial']);
   const options = {
     q: stringParam(params, 'q', 200) ?? '',
     limit: numberParam(params, 'limit', 1, 100, { integer: true, fallback: 40 }),
@@ -162,10 +185,11 @@ function searchOptions(url) {
     if (options.lat === undefined) throw invalidQuery();
     options.radius_m = numberParam(params, 'radius_m', 100, 50_000);
   }
+  if (params.has('exclude_commercial')) options.exclude_commercial = booleanParam(params, 'exclude_commercial');
   return options;
 }
 function pointOptions(url) {
-  const params = queryParams(url, ['bbox', 'category']);
+  const params = queryParams(url, ['bbox', 'category', 'exclude_commercial']);
   const options = {};
   if (params.has('bbox')) {
     const pieces = params.get('bbox').split(',');
@@ -176,6 +200,7 @@ function pointOptions(url) {
   }
   const category = stringParam(params, 'category', 80);
   if (category) options.category = category;
+  if (params.has('exclude_commercial')) options.exclude_commercial = booleanParam(params, 'exclude_commercial');
   return options;
 }
 
@@ -229,10 +254,6 @@ export function createApiHandler({
   const quota = consumeQuota || createDynamoQuotaConsumer({
     table: env.GUIDE_QUOTA_TABLE, dailyLimit, region: env.AWS_REGION || 'ap-northeast-2', clock,
   });
-  const guide = createGuideHandler({
-    sessions, catalog, consumeQuota: quota, invokeEvents: agent, clock, heartbeatMs, deadlineMs, maxActors, onDiagnostic,
-    admission, requestHashKey: signingSecret,
-  });
   const weather = createWeatherService({ fetch: fetchImpl, clock, ...weatherOptions });
   let routing;
   try {
@@ -264,6 +285,8 @@ export function createApiHandler({
   }
   const kakaoEnabled = Boolean(allowedOrigin && catalog && kakao.enabled
     && (kakaoOptions.consumeBudget || env.GUIDE_QUOTA_TABLE));
+  const discoveryEnabled = kakaoEnabled && env.KAKAO_DISCOVERY_ENABLED !== 'false';
+  const discovery = createDiscoveryAdapter({ secret: signingSecret, catalog, clock });
   const kakaoActors = new Map();
   const takeKakaoSlot = actorId => {
     const now = clock();
@@ -275,6 +298,13 @@ export function createApiHandler({
     recent.push(now);
     kakaoActors.set(actorId, recent);
   };
+  const guideDiscovery = discoveryEnabled ? createGuideDiscovery({
+    catalog, kakao, discovery, takeSlot: takeKakaoSlot, enabled: () => !draining, clock,
+  }) : undefined;
+  const guide = createGuideHandler({
+    sessions, catalog, consumeQuota: quota, invokeEvents: agent, clock, heartbeatMs, deadlineMs, maxActors, onDiagnostic,
+    admission, requestHashKey: signingSecret, guideDiscovery,
+  });
   const routingActors = new Map();
   const takeRoutingSlot = actorId => {
     const now = clock();
@@ -322,7 +352,7 @@ export function createApiHandler({
     res.setHeader('Cache-Control', 'no-store');
     try {
       const path = url.pathname;
-      const expectedMethod = ['/api/guide', '/api/routes', '/api/elevation'].includes(path) ? 'POST' : 'GET';
+      const expectedMethod = ['/api/guide', '/api/routes', '/api/elevation', ...DISCOVERY_PATHS].includes(path) ? 'POST' : 'GET';
       if (req.method !== expectedMethod) {
         res.setHeader('Allow', expectedMethod);
         throw new ApiError(405, 'method_not_allowed', '지원하지 않는 요청 방식입니다.');
@@ -348,7 +378,57 @@ export function createApiHandler({
             enabled: kakaoEnabled && !draining,
             ...(kakaoEnabled && !draining ? { csrf_token: sessions.csrfToken(session.actorId) } : {}),
           },
+          discovery: {
+            enabled: discoveryEnabled && !draining,
+            ...(discoveryEnabled && !draining ? { csrf_token: sessions.csrfToken(session.actorId) } : {}),
+            categories: DISCOVERY_CATEGORIES, page_size: 15, max_results: 45,
+          },
         });
+      }
+      if (DISCOVERY_PATHS.includes(path)) {
+        if (draining || !discoveryEnabled) throw new KakaoError('kakao_unavailable');
+        queryParams(url, []);
+        const session = sessions.readCookie(req.headers.cookie);
+        if (!session) {
+          sessions.issueCookie(res);
+          throw new ApiError(401, 'session_required', '페이지를 새로고침한 뒤 다시 요청해 주세요.');
+        }
+        // Match the existing Kakao endpoint: every request needs the session-bound
+        // proof, including browsers/PWAs whose Origin header has been filtered.
+        if (!sessions.verifyCsrf(req.headers['x-atlas-csrf'], session.actorId)) {
+          throw new ApiError(403, 'csrf_invalid', '요청 연결 확인이 만료되었습니다. 연결을 갱신해 주세요.');
+        }
+        const body = await readJson(req, res);
+        if (path === '/api/kakao/detail') {
+          const selected = requestRecord(body, ['token']);
+          takeKakaoSlot(session.actorId);
+          return await sendJson(req, res, 200, discovery.detail(selected.token, session.actorId));
+        }
+        const hint = path === '/api/kakao/reopen' ? reopenOptions(body) : null;
+        const search = hint ? {
+          query: hint.name.slice(0, 200), category: '', scope: 'nearby',
+          center: { lat: hint.lat, lng: hint.lng }, radius_m: 2000, page: 1,
+        } : requestRecord(body, ['query', 'category', 'scope', 'center', 'bounds', 'radius_m', 'page']);
+        takeKakaoSlot(session.actorId);
+        const controller = new AbortController();
+        const abort = () => controller.abort();
+        const disconnected = () => { if (!res.writableEnded) abort(); };
+        req.once('aborted', abort);
+        res.once('close', disconnected);
+        try {
+          if (req.aborted || res.destroyed) abort();
+          const result = await kakao.search(search, { signal: controller.signal });
+          if (controller.signal.aborted) return;
+          if (hint) {
+            const found = result.items.find(item => `kakao:${item.id}` === hint.id);
+            if (!found) throw new DiscoveryError('kakao_place_unavailable');
+            return await sendJson(req, res, 200, discovery.detailFor(found, result.queried_at, session.actorId));
+          }
+          return await sendJson(req, res, 200, discovery.toSearch(result, search, session.actorId));
+        } finally {
+          req.off('aborted', abort);
+          res.off('close', disconnected);
+        }
       }
       if (path === '/api/kakao/place') {
         if (draining || !kakaoEnabled) throw new KakaoError('kakao_unavailable');
@@ -496,7 +576,7 @@ export function createApiHandler({
       }
       const failure = error instanceof AdmissionError ? new GuideError(error.status, error.code)
         : error instanceof ApiError || error instanceof GuideError || error instanceof RoutingError
-          || error instanceof KakaoError || error instanceof KakaoQuotaError
+          || error instanceof KakaoError || error instanceof KakaoQuotaError || error instanceof DiscoveryError
         ? error : error instanceof RangeError || (error?.statusCode === 400 && error?.code === 'CATALOG_BAD_QUERY')
           ? invalidQuery() : new ApiError(503, 'service_unavailable', '서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       if (url.pathname === '/api/guide') {

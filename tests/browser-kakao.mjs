@@ -19,7 +19,7 @@ const places = [makePlace('poi_0900', '검사 식당 하나', 126.55), makePlace
 const before = JSON.stringify(places);
 let calls = 0, failing = false, differentName = false;
 const api = createApiHandler({
-  env: { NODE_ENV: 'test', KAKAO_REST_API_KEY: 'browser-fixture-key' },
+  env: { NODE_ENV: 'test', KAKAO_REST_API_KEY: 'browser-fixture-key', KAKAO_DISCOVERY_ENABLED: 'false' },
   secret: 'kakao-browser-test'.repeat(2), publicOrigin: 'http://localhost:5173',
   catalog: {
     status: () => ({ status: 'ready', total: 2, categories: [{ id: '맛집', count: 2 }],

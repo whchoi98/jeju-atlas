@@ -51,6 +51,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
+from strands.hooks import BeforeToolCallEvent, HookProvider, HookRegistry
 
 from .privacy import safe_tool_name
 
@@ -90,6 +91,73 @@ class PrefetchResult:
     text: str
     status: str            # "success" | "error"
     ms: int
+    service_grounding: bool = False
+
+
+def grounding_prefetch(grounding: dict | None) -> list[PrefetchResult]:
+    """Seed already-validated BFF results; this performs no provider/Gateway call."""
+    if grounding is None:
+        return []
+    items = [{**item.get("details", {}), **{key: value for key, value in item.items() if key != "details"}}
+             for item in grounding["items"]]
+    payload = {
+        "items": items, "total": len(items), "query": grounding["query"], "provider": "kakao",
+        "source": "Kakao Local", "observed_at": grounding["queried_at"],
+        "sources": [{"provider": "kakao", "label": "Kakao Local", "observed_at": grounding["queried_at"]}],
+        "anchor": grounding["anchor"], "anchor_match": "exact" if grounding["anchor"] else None,
+        "fallback": grounding["status"] != "ready", "message": grounding["message"],
+        "native_grounding": grounding["status"], "_atlas_transient_grounding": True,
+    }
+    return [PrefetchResult(
+        call=PrefetchCall("find_places", {"query": grounding["query"], "limit": 3}),
+        tool_use_id="atlas-native-1", text=json.dumps(payload, ensure_ascii=False),
+        status="success", ms=0, service_grounding=True,
+    )]
+
+
+def covered_discovery_call(tool: str, arguments: Any, grounding: dict | None) -> bool:
+    """Keep a grounded commercial request on its current source; other tools remain available."""
+    if grounding is None:
+        return False
+    tool = tool.removeprefix(GATEWAY_PREFIX)
+    args = arguments if isinstance(arguments, dict) else {}
+    if tool == "place_detail":
+        return str(args.get("id", "")).startswith("kakao:")
+    if tool != "find_places":
+        return False
+    category = str(args.get("category") or "")
+    query = str(args.get("query") or "")
+    if category in {"맛집", "음식점", "식당", "카페", "숙소", "숙박", "호텔", "주차장"}:
+        return True
+    if any(norm_text(query) == norm_text(item["name"]) for item in grounding["items"]):
+        return True
+    if re.search(r"카페|커피|맛집|음식점|식당|숙소|숙박|호텔|주차장|caf[eé]|coffee|restaurant|hotel|parking", query, re.I):
+        return True
+    if category:
+        return False
+    anchor = grounding.get("anchor")
+    if anchor and norm_text(query) == norm_text(anchor["name"]) and not str(anchor["id"]).startswith("kakao:"):
+        return False
+    return not bool(re.search(r"오름|해변|해수욕장|올레|숲|공원|한라산|일출봉|박물관|beach|trail|hallasan|museum|park|seongsan", query, re.I))
+
+
+class GuideGroundingPolicy(HookProvider):
+    """Per-conversation source guard; the existing ToolBudget still owns all call ceilings."""
+    def __init__(self):
+        self.grounding: dict | None = None
+
+    def register_hooks(self, registry: HookRegistry, **_: Any) -> None:
+        registry.add_callback(BeforeToolCallEvent, self.check)
+
+    def check(self, event: BeforeToolCallEvent) -> None:
+        if event.cancel_tool:
+            return
+        use = event.tool_use or {}
+        if covered_discovery_call(str(use.get("name") or ""), use.get("input"), self.grounding):
+            event.cancel_tool = (
+                "현재 카카오 조회 자료가 이미 제공되었습니다. 그 자료로 답하고, 조회 실패·빈 결과를 기존 상업 카탈로그로 "
+                "대신하지 마세요. Use the provided current Kakao reference; do not repeat or substitute a legacy commercial lookup."
+            )
 
 
 # ---- vocabulary ------------------------------------------------------------------------------------------
@@ -689,6 +757,10 @@ def _seedable(result: Any, prompt: str | None) -> tuple[bool, str]:
         return False, "text is not a JSON object"
     if "error" in payload:
         return False, f"payload carries error={payload.get('error')!r}"
+    if getattr(result, "service_grounding", False):
+        # BFF already resolved the signed selection/exact anchor. A user saying
+        # "here" need not repeat that native place's full name in the question.
+        return True, ""
 
     call = getattr(result, "call", None)
     tool = getattr(call, "tool", "") or ""

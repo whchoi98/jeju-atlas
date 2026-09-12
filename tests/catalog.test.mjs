@@ -117,6 +117,24 @@ test('browse pagination counts all matches and applies a stable category filter'
   assert.ok(all.items.every((item) => item.distance_m === null));
 });
 
+test('nature landing filters commercial results without removing old places or changing the database', async t => {
+  const { catalog, path } = await local(t);
+  const before = await readFile(path);
+  const filtered = catalog.search({ exclude_commercial: true });
+  assert.equal(filtered.total, 4);
+  assert.ok(filtered.items.every(place => !['맛집', '카페', '숙소', '주차장'].includes(place.category)));
+  assert.deepEqual(ids(catalog.search({ exclude_commercial: true, limit: 1, offset: 1 })), ids(filtered).slice(1, 2));
+  assert.equal(catalog.points({ exclude_commercial: true }).features.length, 4);
+  assert.equal(catalog.search({ exclude_commercial: false }).total, 9);
+  assert.equal(catalog.status().total, 9);
+  assert.equal(catalog.detail('osm:cafe').id, 'osm:cafe');
+  for (const invalid of [null, 1, 'true']) {
+    badQuery(() => catalog.search({ exclude_commercial: invalid }));
+    badQuery(() => catalog.points({ exclude_commercial: invalid }));
+  }
+  assert.deepEqual(await readFile(path), before);
+});
+
 test('radius uses exact unrounded distances before filtering, sorting and pagination', async (t) => {
   const { catalog } = await local(t);
   const query = { lat: 33.45, lng: 126.5, radius_m: 1000 };

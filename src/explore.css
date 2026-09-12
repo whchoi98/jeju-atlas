@@ -39,6 +39,14 @@
 .catalog-category-chips > button:disabled { cursor: default; }
 .catalog-filter-toggle { display: none; }
 .catalog-options { display: contents; }
+.catalog-source-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 9px; flex-shrink: 0; color: var(--basalt); font-size: 11px; }
+.catalog-source-field > select { flex: 1; min-width: 0; min-height: 34px; padding: 7px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--ink); font-size: 11px; }
+.catalog-native-note { flex-shrink: 0; margin: 0 0 9px; color: var(--basalt); font-size: 10px; line-height: 1.7; }
+.catalog-native-note > strong, .catalog-native-note > span { display: block; margin-top: 3px; }
+.catalog-native-note > strong { font-weight: 500; color: var(--interactive-hover); }
+.catalog-provider-category { color: var(--basalt); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.detail-linked-catalog { padding: 12px; margin-top: 16px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-subtle); color: var(--basalt); font-size: 11px; line-height: 1.8; }
+.detail-linked-catalog > strong { display: block; margin-bottom: 5px; color: var(--ink); }
 .catalog-discovery-note { display: flex; align-items: center; justify-content: space-between; gap: 5px; margin-top: 6px; flex-shrink: 0; }
 .catalog-discovery-note > span { color: var(--muted); font-size: 8px; line-height: 1.6; }
 .catalog-discovery-note > button { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; padding: 5px 2px; background: transparent; color: var(--interactive-text); font-size: 8px; }
@@ -359,6 +367,7 @@
   .catalog-filter-toggle > .icon { width: 14px; height: 14px; }
   .catalog-filter-toggle[aria-expanded="true"] > .icon { transform: rotate(180deg); }
   .catalog-options { display: block; }
+  .catalog-source-field > select { min-height: 40px; font-size: 12px; }
   #catalog-explorer:not([data-filters-open="true"]) .catalog-options { display: none; }
   .catalog-discovery-note { margin-top: 3px; }
   .catalog-discovery-note > span, .catalog-discovery-note > button { font-size: 8px; }

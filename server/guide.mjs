@@ -21,6 +21,9 @@ const MESSAGES = {
   request_in_progress: '같은 요청이 이미 처리 중입니다. 중복 호출하지 않았습니다.',
   request_completed: '이미 처리한 요청입니다. 중복 호출하지 않았습니다.',
   request_unknown: '이 요청의 처리 결과를 확인할 수 없어 자동으로 다시 호출하지 않았습니다.',
+  kakao_selection_invalid: '카카오 검색 결과를 다시 선택한 뒤 질문해 주세요.',
+  kakao_selection_expired: '선택한 카카오 정보가 만료되었습니다. 장소 정보를 새로 확인한 뒤 질문해 주세요.',
+  conversation_refresh_required: '새 장소 정보를 지원하는 대화로 다시 연결해야 합니다. 새 대화를 시작한 뒤 질문해 주세요.',
 };
 
 export class GuideError extends Error {
@@ -176,7 +179,7 @@ export async function* decodeAgentResponse({ response, contentType }, { signal }
 export function createAgentInvoker({ runtimeArn, region = 'ap-northeast-2', client } = {}) {
   let sdk;
   let ownedClient;
-  async function* invokeEvents({ message, actorId, conversationId, signal, locale = 'ko' }) {
+  async function* invokeEvents({ message, actorId, conversationId, signal, locale = 'ko', grounding }) {
     if (!runtimeArn) throw new GuideError(503, 'guide_unavailable');
     if (!['ko', 'en'].includes(locale)) throw new GuideError(400, 'invalid_request');
     sdk ??= import('@aws-sdk/client-bedrock-agentcore');
@@ -191,6 +194,7 @@ export function createAgentInvoker({ runtimeArn, region = 'ap-northeast-2', clie
         contentType: 'application/json', accept: 'text/event-stream',
         payload: Buffer.from(JSON.stringify({
           prompt: message, user_id: actorId, conversation_id: conversationId, locale, stream: true,
+          ...(grounding ? { grounding } : {}),
         })),
       }), { abortSignal: signal });
       signal?.throwIfAborted();
@@ -248,7 +252,7 @@ const timestamp = (value) => typeof value === 'string' && value.length <= 40 && 
 const nonnegative = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
 /** Project the untrusted MapResponseV2 onto shared/api-types.ts's GuideMap. */
-export function normalizeGuideMap(input, { catalog, locale = 'ko' } = {}) {
+export function normalizeGuideMap(input, { catalog, locale = 'ko', nativeGrounding } = {}) {
   if (!record(input) || typeof input.answer !== 'string' || !input.answer.trim()) {
     throw new GuideError(502, 'invalid_response');
   }
@@ -262,6 +266,8 @@ export function normalizeGuideMap(input, { catalog, locale = 'ko' } = {}) {
     '범위 밖 좌표가 있거나 너무 긴 경로는 지도에서 제외했습니다.': 'Routes with out-of-range coordinates or excessive length were omitted.',
     '이 연결선은 도로 이동 경로로 확인되지 않았습니다.': 'This connecting line has not been confirmed as a road route.',
     '지도 정보 없이 텍스트 답변만 제공되었습니다.': 'Only a text answer was provided; map information was unavailable.',
+    '이번 카카오 조회에서 확인되지 않은 장소를 제외했습니다.': 'Places not established by this Kakao lookup were omitted.',
+    '기존 상업 카탈로그 장소를 현재 카카오 조회 결과로 대신 표시하지 않았습니다.': 'Old commercial catalog records were not substituted for current Kakao results.',
   };
   const warn = (message) => {
     const value = locale === 'en' && Object.hasOwn(englishWarnings, message) ? englishWarnings[message] : message;
@@ -276,8 +282,15 @@ export function normalizeGuideMap(input, { catalog, locale = 'ko' } = {}) {
   for (const marker of rawMarkers.slice(0, 1000)) {
     if (markers.length >= 12) break;
     if (!record(marker) || typeof marker.id !== 'string' || !marker.id || marker.id.length > 256 || ids.has(marker.id)) continue;
+    const native = marker.id.startsWith('kakao:');
     let known;
-    try {
+    if (native) {
+      known = nativeGrounding?.places?.find(place => place.id === marker.id);
+      if (!known) {
+        warn('이번 카카오 조회에서 확인되지 않은 장소를 제외했습니다.');
+        continue;
+      }
+    } else try {
       const candidate = catalog?.detail(marker.id);
       if (candidate?.id === marker.id) known = candidate;
     } catch {
@@ -286,6 +299,10 @@ export function normalizeGuideMap(input, { catalog, locale = 'ko' } = {}) {
     const coordinates = point(known || marker);
     const name = text(known?.name ?? marker.name, 160).trim();
     const category = text(known?.category ?? marker.category, 80).trim();
+    if (!native && nativeGrounding && ['맛집', '음식점', '식당', '카페', '숙소', '숙박', '호텔', '주차장'].includes(category)) {
+      warn('기존 상업 카탈로그 장소를 현재 카카오 조회 결과로 대신 표시하지 않았습니다.');
+      continue;
+    }
     if (!coordinates || !name || !category) {
       warn('이름이나 제주 좌표를 확인할 수 없는 장소를 제외했습니다.');
       continue;
@@ -302,7 +319,7 @@ export function normalizeGuideMap(input, { catalog, locale = 'ko' } = {}) {
       if (info) placeInfo.push(info);
     }
     if (!known) warn('카탈로그에서 확인되지 않은 장소가 포함되어 있습니다. 방문 전에 확인해 주세요.');
-    if (known?.base_note || /curated|seed/i.test(known?.source || '')) {
+    if (!native && (known?.base_note || /curated|seed/i.test(known?.source || ''))) {
       warn('큐레이션 시드의 기본 정보는 공식 대조 검증을 거치지 않았습니다.');
     }
   }
@@ -339,7 +356,7 @@ export function normalizeGuideMap(input, { catalog, locale = 'ko' } = {}) {
 }
 
 function validateTurn(body) {
-  if (!record(body) || Object.keys(body).some((key) => !['message', 'conversation_id', 'request_id', 'locale'].includes(key))
+  if (!record(body) || Object.keys(body).some((key) => !['message', 'conversation_id', 'request_id', 'locale', 'selection_token'].includes(key))
     || typeof body.message !== 'string' || !body.message.trim() || body.message.length > 2000
     || (Object.hasOwn(body, 'conversation_id')
       && (typeof body.conversation_id !== 'string' || !body.conversation_id || body.conversation_id.length > 1024))) {
@@ -350,6 +367,9 @@ function validateTurn(body) {
     throw new GuideError(400, 'invalid_request');
   }
   if (Object.hasOwn(body, 'locale') && !['ko', 'en'].includes(body.locale)) throw new GuideError(400, 'invalid_request');
+  if (Object.hasOwn(body, 'selection_token') && (typeof body.selection_token !== 'string'
+    || !body.selection_token || body.selection_token.length > 16_000
+    || body.message.includes(body.selection_token))) throw new GuideError(400, 'kakao_selection_invalid');
 }
 
 function safeError(error) {
@@ -438,6 +458,7 @@ export function createGuideHandler({
   heartbeatMs = 8000, deadlineMs = 90_000, maxActors = 10_000,
   onDiagnostic = () => {},
   admission, requestHashKey = randomBytes(32),
+  guideDiscovery,
 }) {
   // Local accounting remains only for explicitly injected legacy/local test
   // quota hooks. Configured production uses admission as the authority.
@@ -456,6 +477,17 @@ export function createGuideHandler({
   async function handle(req, res, body, actorId) {
     if (res.destroyed || res.writableEnded) return;
     validateTurn(body);
+    // Cheap, local proof validation must precede both model quota admission and
+    // any provider request. Only its resolved identity enters the request hash.
+    let selection = null;
+    if (body.selection_token !== undefined) {
+      if (!guideDiscovery?.validateSelection) throw new GuideError(400, 'kakao_selection_invalid');
+      try { selection = guideDiscovery.validateSelection(body.selection_token, actorId); }
+      catch (error) {
+        throw new GuideError(400, error?.code === 'kakao_selection_expired'
+          ? 'kakao_selection_expired' : 'kakao_selection_invalid');
+      }
+    }
     const locale = body.locale ?? 'ko';
     const requestId = body.request_id?.toLowerCase() || randomUUID();
     res.setHeader('X-Request-Id', requestId);
@@ -498,8 +530,9 @@ export function createGuideHandler({
       let permitted;
       try {
         if (admission) {
-          const requestHash = createHmac('sha256', requestHashKey)
-            .update(JSON.stringify([actorId, body.message, body.conversation_id ? conversation.id : null, locale])).digest('hex');
+          const identity = [actorId, body.message, body.conversation_id ? conversation.id : null, locale];
+          if (selection) identity.push([selection.id, selection.updated_at]);
+          const requestHash = createHmac('sha256', requestHashKey).update(JSON.stringify(identity)).digest('hex');
           lease = await abortable(admission.acquire({
             actorId, requestId, requestHash, conversationId: conversation.id, signal,
           }), signal);
@@ -534,17 +567,28 @@ export function createGuideHandler({
       heartbeat.unref();
       await writeEvent(res, 'session', { conversation_id: conversation.token }, signal);
       await writeEvent(res, 'status', statusData({ stage: 'thinking' }, locale), signal);
-      const grounding = prepareGuideGrounding(body.message, catalog, locale);
+      const nativeGrounding = guideDiscovery?.resolve
+        ? await abortable(Promise.resolve().then(() => guideDiscovery.resolve({
+          message: body.message, actorId, selection, signal, locale,
+        })), signal) : null;
+      signal.throwIfAborted();
+      const grounding = nativeGrounding
+        ? { prompt: body.message, candidates: [], kind: null }
+        : prepareGuideGrounding(body.message, catalog, locale);
       const source = await abortable(Promise.resolve().then(async () => {
         if (admission) await admission.start(lease, { signal });
         signal.throwIfAborted();
         invokeAttempted = true;
-        return invokeEvents({ message: grounding.prompt, actorId, conversationId: conversation.id, signal, locale });
+        return invokeEvents({
+          message: grounding.prompt, actorId, conversationId: conversation.id, signal, locale,
+          ...(nativeGrounding ? { grounding: nativeGrounding.payload } : {}),
+        });
       }), signal);
       iterator = source?.[Symbol.asyncIterator]?.() || source?.[Symbol.iterator]?.();
       if (!iterator) throw new GuideError(502, 'invalid_response');
       let answer = '';
       let map;
+      let groundingAccepted = !nativeGrounding;
       let count = 0;
       for (;;) {
         const item = await abortable(iterator.next(), signal);
@@ -552,6 +596,16 @@ export function createGuideHandler({
         if (++count > 16_384) throw new GuideError(502, 'invalid_response');
         const event = item.value;
         if (!record(event)) continue;
+        if (!groundingAccepted && event.type !== 'error') {
+          if (event.type === 'grounding' && event.version === 1) {
+            groundingAccepted = true;
+            continue;
+          }
+          if (event.type === 'heartbeat') continue;
+          // Existing AgentCore sessions can remain on an older runtime version.
+          // Never relay their ungrounded answer or silently retry a charged turn.
+          throw new GuideError(409, 'conversation_refresh_required');
+        }
         if (event.type === 'done') { runtimeFinished = true; break; }
         if (event.type === 'error') {
           runtimeError = true;
@@ -569,14 +623,19 @@ export function createGuideHandler({
         } else if (event.type === 'map') {
           map = normalizeGuideMap({
             ...event, answer: typeof event.answer === 'string' && event.answer.trim() ? event.answer : answer,
-          }, { catalog, locale });
+          }, { catalog, locale, nativeGrounding });
         }
         // Even an immediately-resolving iterator cannot starve HTTP/timers.
         if (count % 32 === 0) await yieldToLoop(undefined, { signal });
       }
       if (!map) {
         if (!answer.trim()) throw new GuideError(502, 'invalid_response');
-        map = normalizeGuideMap({ answer, warnings: ['지도 정보 없이 텍스트 답변만 제공되었습니다.'] }, { locale });
+        map = normalizeGuideMap({ answer, warnings: ['지도 정보 없이 텍스트 답변만 제공되었습니다.'] }, { locale, nativeGrounding });
+      }
+      if (!map.markers.length && nativeGrounding?.places?.length) {
+        const normalized = value => value.normalize('NFKC').replace(/\s+/gu, '').toLowerCase();
+        const mentioned = nativeGrounding.places.filter(place => normalized(map.answer).includes(normalized(place.name)));
+        if (mentioned.length) map = normalizeGuideMap({ ...map, markers: mentioned }, { catalog, locale, nativeGrounding });
       }
       if (!map.markers.length) {
         const reference = catalogReference(map.answer, grounding, locale);

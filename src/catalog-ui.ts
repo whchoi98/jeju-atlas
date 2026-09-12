@@ -1,12 +1,16 @@
 import type { CatalogPlace, CatalogStatus, OfficialPlaceDetail, PlaceDetail, PlacePhoto, SourceRecord, WeatherResult } from '../shared/api-types';
+import type { KakaoDiscoveryConfig, KakaoDiscoveryResult } from '../shared/kakao-discovery-types';
 import type { CatalogPoints } from './catalog-map';
 import type { PlaceSnapshot, TripPlanner } from './trip';
-import { aborted, apiJSON, catalogBounds, categoryName, dateLabel, distanceLabel, distanceMeters, html, isJejuPoint, link, sourceName } from './api';
+import { aborted, apiJSON, catalogBounds, categoryName, dateLabel, distanceLabel, distanceMeters, getConfig, html, isJejuPoint, link, sourceName, withAbort } from './api';
 import { categorySymbol, icon } from './icons';
 import { hoursText } from './guide-facts';
 import { getLocale, placeName, t } from './i18n';
 import { evidenceHTML } from './field-evidence';
 import { KakaoDetails } from './kakao-details';
+import { detailKakao, discoveryBounds, discoveryConfig, discoverySource, isDiscoveryCategory, isKakaoId, KakaoDiscoveryError, KakaoSelections, nativeCatalogPlace, reopenKakao, searchKakao, selectionIsFresh } from './kakao-discovery';
+import type { DiscoverySource } from './kakao-discovery';
+import { snapshot } from './saved-data';
 import './kakao-details.css';
 
 interface CatalogOptions {
@@ -134,6 +138,12 @@ export class CatalogUI {
   private photoItems: PlacePhoto[] = [];
   private officialProvider: OfficialPlaceDetail['provider'] = 'tourapi';
   private kakaoDetails: KakaoDetails;
+  private discovery: KakaoDiscoveryConfig | null = null;
+  private discoveryReady: Promise<void> | undefined;
+  private sourceChoice: DiscoverySource = 'auto';
+  private searchSource: 'catalog' | 'kakao' = 'catalog';
+  private nativePage: Omit<KakaoDiscoveryResult, 'items'> | null = null;
+  private nativeSelections = new KakaoSelections();
 
   constructor(root: HTMLElement, detailRoot: HTMLElement, options: CatalogOptions) {
     this.root = root;
@@ -144,9 +154,10 @@ export class CatalogUI {
     root.innerHTML = `
       <div class="catalog-status-line"><span id="catalog-total">서비스 카탈로그 연결 중</span><button id="catalog-refresh" aria-label="카탈로그 새로고침">${icon('reset')}</button></div>
       <label class="search-field catalog-search-field">${icon('search')}<span class="sr-only">전체 카탈로그 장소 검색</span><input id="catalog-search" type="search" placeholder="이름, 지역, 찾고 싶은 장소" maxlength="160" autocomplete="off"></label>
-      <div id="catalog-category-chips" class="catalog-category-chips" aria-label="지도 장소 분류">${['해변', '오름', '카페', '맛집', '박물관', '주차장'].map((category) => `<button data-map-category="${category}" aria-pressed="false" disabled>${icon(categorySymbol(category).icon)}${category}</button>`).join('')}</div>
+      <div id="catalog-category-chips" class="catalog-category-chips" aria-label="지도 장소 분류">${['해변', '오름', '카페', '맛집', '숙소', '박물관', '주차장'].map((category) => `<button data-map-category="${category}" aria-pressed="false" disabled>${icon(categorySymbol(category).icon)}${category}</button>`).join('')}</div>
       <button type="button" id="catalog-filter-toggle" class="catalog-filter-toggle" aria-expanded="false" aria-controls="catalog-options"><span>필터·지도 설정</span>${icon('chevronDown')}</button>
       <div id="catalog-options" class="catalog-options">
+      <label id="catalog-source-field" class="catalog-source-field" hidden><span>검색 출처</span><select id="catalog-source"><option value="auto">자동 선택</option><option value="catalog">기존 카탈로그</option><option value="kakao">카카오맵</option></select></label>
       <div class="catalog-filters"><label><span class="sr-only">카탈로그 분류</span><select id="catalog-category"><option value="">카테고리 선택</option></select></label><label class="catalog-map-switch"><input id="catalog-map-toggle" type="checkbox">지도에 표시</label></div>
       <div class="catalog-discovery-note"><span id="catalog-map-hint">대표 명소부터 둘러보세요.</span><button id="catalog-reset">${icon('reset')}필터 초기화</button></div>
       <div class="catalog-scope" aria-label="검색 범위"><button data-scope="all" class="is-active" aria-pressed="true">제주 전체</button><button data-scope="view" aria-pressed="false">현재 지도</button><button data-scope="nearby" aria-pressed="false">중심 주변</button></div>
@@ -154,6 +165,7 @@ export class CatalogUI {
       <p id="catalog-scope-note" class="micro-note">서비스 카탈로그 전체에서 검색합니다.</p>
       </div>
       <div class="catalog-result-heading"><h2>장소 탐색</h2><span id="catalog-result-count" aria-live="polite"></span></div>
+      <p id="catalog-native-note" class="catalog-native-note" hidden data-i18n-ignore></p>
       <div id="catalog-list" class="catalog-list" aria-label="카탈로그 검색 결과"></div>
       <div class="catalog-pagination"><button id="catalog-prev" disabled aria-label="이전 40개 장소">← 이전</button><span id="catalog-page">1</span><button id="catalog-next" disabled aria-label="다음 40개 장소">다음 →</button></div>
       <details class="catalog-provenance"><summary>카탈로그 출처 알아보기</summary><div id="catalog-provenance-text">기본 정보와 보강 정보의 출처를 구분해 표시합니다.</div><p>큐레이션 시드의 좌표·주소·소개는 공식 대조 검증으로 간주하지 않습니다. 사진·이용시간 등은 각 항목의 보강 출처를 확인하세요.</p><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors · ODbL ↗</a></details>
@@ -174,11 +186,26 @@ export class CatalogUI {
     root.querySelector('#catalog-category')!.addEventListener('change', (event) => {
       this.chooseCategory((event.target as HTMLSelectElement).value);
     });
+    root.querySelector('#catalog-source')!.addEventListener('change', event => {
+      const value = (event.target as HTMLSelectElement).value;
+      if (value !== 'auto' && value !== 'catalog' && value !== 'kakao') return;
+      this.sourceChoice = value;
+      if (value === 'kakao' && this.category && !isDiscoveryCategory(this.category)) this.category = '';
+      this.updateCategoryOptions();
+      this.offset = 0;
+      this.searchController?.abort();
+      this.pointsController?.abort();
+      this.viewportPoints = { type: 'FeatureCollection', features: [] };
+      this.setMapEnabled(Boolean(this.query || this.category || this.mode !== 'all'));
+      this.publishPoints({ type: 'FeatureCollection', features: [] }, true);
+      void this.search();
+      void this.loadPoints();
+    });
     root.querySelector('#catalog-filter-toggle')!.addEventListener('click', () => {
       this.setFiltersOpen(root.dataset.filtersOpen !== 'true');
     });
     root.querySelectorAll<HTMLButtonElement>('[data-map-category]').forEach((button) => {
-      button.addEventListener('click', () => this.chooseCategory(button.dataset.mapCategory!));
+      button.addEventListener('click', () => this.chooseCategory(button.dataset.mapCategory!, true));
     });
     root.querySelector('#catalog-radius')!.addEventListener('change', (event) => {
       this.radius = Number((event.target as HTMLSelectElement).value);
@@ -210,8 +237,8 @@ export class CatalogUI {
         void this.loadPoints();
       });
     });
-    root.querySelector('#catalog-prev')!.addEventListener('click', () => { this.offset = Math.max(0, this.offset - 40); void this.search(); });
-    root.querySelector('#catalog-next')!.addEventListener('click', () => { this.offset += 40; void this.search(); });
+    root.querySelector('#catalog-prev')!.addEventListener('click', () => { this.offset = Math.max(0, this.offset - (this.searchSource === 'kakao' ? 15 : 40)); void this.search(); });
+    root.querySelector('#catalog-next')!.addEventListener('click', () => { this.offset += this.searchSource === 'kakao' ? 15 : 40; void this.search(); });
     root.querySelector('#catalog-refresh')!.addEventListener('click', () => { void this.loadStatus(); void this.search(); void this.loadPoints(); });
     root.querySelector('#catalog-list')!.addEventListener('click', (event) => {
       const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-catalog-id]');
@@ -247,6 +274,8 @@ export class CatalogUI {
       if (this.mapReady && this.mapEnabled) void this.loadPoints();
     });
     window.addEventListener('atlas:locale-change', () => {
+      this.updateSourceUI();
+      this.updateCategoryOptions();
       if (this.root.querySelector('#catalog-list [data-catalog-id]')) {
         const list = this.root.querySelector<HTMLElement>('#catalog-list')!;
         const scroll = list.scrollTop;
@@ -279,6 +308,74 @@ export class CatalogUI {
 
   get selection(): PlaceDetail | null { return this.currentDetail; }
   get pointData(): CatalogPoints { return this.points; }
+
+  private currentSource(): 'catalog' | 'kakao' {
+    return discoverySource(this.sourceChoice, this.query, this.category, Boolean(this.discovery?.enabled));
+  }
+
+  private publicLanding(): boolean {
+    return Boolean(this.discovery?.enabled && this.sourceChoice === 'auto' && !this.query && !this.category);
+  }
+
+  private ensureDiscovery(): Promise<void> {
+    if (!this.discoveryReady) {
+      this.discoveryReady = getConfig().then(config => {
+        this.discovery = discoveryConfig(config);
+      }).catch(() => { this.discovery = null; }).then(() => {
+        this.updateCategoryOptions();
+        this.updateSourceUI();
+      }).finally(() => { this.discoveryReady = undefined; });
+    }
+    return this.discoveryReady;
+  }
+
+  private updateCategoryOptions(): void {
+    const original = this.status?.categories ?? [];
+    const categories = new Map(original.map(item => [item.id, item.count]));
+    if (this.discovery) this.discovery.categories.forEach(category => { if (!categories.has(category)) categories.set(category, 0); });
+    const select = this.root.querySelector<HTMLSelectElement>('#catalog-category')!;
+    select.innerHTML = `<option value="">${html(t('카테고리 선택'))}</option>` + [...categories].filter(([category]) =>
+      this.sourceChoice !== 'kakao' || !this.discovery || isDiscoveryCategory(category)).map(([category, count]) => {
+      const native = this.discovery && this.sourceChoice !== 'catalog' && isDiscoveryCategory(category);
+      return `<option value="${html(category)}">${html(categoryName(category))} · ${native ? 'Kakao Map' : count.toLocaleString('ko-KR')}</option>`;
+    }).join('');
+    select.value = this.category;
+    this.root.querySelectorAll<HTMLButtonElement>('[data-map-category]').forEach(button => {
+      const category = button.dataset.mapCategory!;
+      button.disabled = !original.some(item => item.id === category)
+        && !(this.sourceChoice !== 'catalog' && this.discovery?.categories.some(item => item === category));
+      button.classList.toggle('is-active', category === this.category);
+      button.setAttribute('aria-pressed', String(category === this.category));
+    });
+  }
+
+  private updateSourceUI(): void {
+    const native = this.currentSource() === 'kakao';
+    this.root.dataset.searchSource = native ? 'kakao' : 'catalog';
+    this.root.querySelector<HTMLElement>('#catalog-source-field')!.hidden = !this.discovery;
+    this.root.querySelector<HTMLSelectElement>('#catalog-source')!.value = this.sourceChoice;
+    this.root.querySelector<HTMLElement>('.catalog-provenance')!.hidden = native;
+    const page = native ? this.nativePage : null;
+    this.root.querySelector('#catalog-total')!.textContent = native
+      ? page ? `${t('카카오 검색 결과')} · ${t(`${page.total.toLocaleString('ko-KR')}곳`)}` : t('카카오 장소 검색')
+      : this.status?.status === 'ready' ? t(`${this.status.total.toLocaleString('ko-KR')}곳의 제주${this.status.stale ? ' · 최근 저장본' : ''}`)
+        : t('카탈로그를 준비하고 있어요');
+    const drawer = document.querySelector('.drawer-count');
+    if (drawer) drawer.textContent = native ? page ? `Kakao · ${t(`${page.total.toLocaleString('ko-KR')}곳`)}` : 'Kakao'
+      : this.status?.status === 'ready' ? t(`${this.status.total.toLocaleString('ko-KR')}곳`) : t('탐색');
+    this.root.querySelector('#catalog-prev')!.setAttribute('aria-label', t(native ? '이전 15개 장소' : '이전 40개 장소'));
+    this.root.querySelector('#catalog-next')!.setAttribute('aria-label', t(native ? '다음 15개 장소' : '다음 40개 장소'));
+    const note = this.root.querySelector<HTMLElement>('#catalog-native-note')!;
+    note.hidden = !native;
+    note.innerHTML = native ? `${html(t('카카오 검색은 한 번에 15곳씩, 최대 45곳까지 볼 수 있어요.'))}
+      ${page && (page.truncated || page.total > page.pageable || page.pageable > 45) ? `<strong>${html(t('검색 결과의 일부만 표시합니다. 범위를 줄이거나 이름으로 찾아보세요.'))}</strong>` : ''}
+      ${page ? `<span>${html(t('조회 시각'))} <time datetime="${html(page.queried_at)}">${html(dateLabel(page.queried_at, true))} KST</time></span>` : ''}` : '';
+    if (page) {
+      const start = this.items.length ? (page.page - 1) * 15 + 1 : 0;
+      const end = this.items.length ? start + this.items.length - 1 : 0;
+      this.root.querySelector('#catalog-result-count')!.textContent = `${start}–${end} / ${Math.min(page.pageable, 45)}`;
+    }
+  }
 
   private setMapEnabled(enabled: boolean): void {
     this.mapEnabled = enabled;
@@ -315,8 +412,10 @@ export class CatalogUI {
     }
   }
 
-  private chooseCategory(category: string): void {
+  private chooseCategory(category: string, fromChip = false): void {
+    if (category && !isDiscoveryCategory(category) && (fromChip || this.sourceChoice === 'kakao')) this.sourceChoice = 'auto';
     this.category = category;
+    this.updateCategoryOptions();
     this.offset = 0;
     this.setFiltersOpen(false);
     this.root.querySelector<HTMLSelectElement>('#catalog-category')!.value = category;
@@ -340,6 +439,9 @@ export class CatalogUI {
     this.pointsController?.abort();
     this.query = '';
     this.category = '';
+    this.sourceChoice = 'auto';
+    this.nativePage = null;
+    this.nativeSelections.replacePage([]);
     this.mode = 'all';
     this.nearbyOrigin = undefined;
     this.offset = 0;
@@ -382,6 +484,14 @@ export class CatalogUI {
   onMapMove(): void {
     clearTimeout(this.moveTimer);
     this.moveTimer = setTimeout(() => {
+      if (this.currentSource() === 'kakao') {
+        if (this.mode !== 'all') {
+          this.nearbyOrigin = undefined;
+          this.offset = 0;
+          void this.search();
+        }
+        return;
+      }
       if (this.mode === 'nearby') {
         this.nearbyOrigin = undefined;
         this.offset = 0;
@@ -394,30 +504,23 @@ export class CatalogUI {
     try {
       this.status = await apiJSON<CatalogStatus>('/api/catalog/status');
       const status = this.status;
-      this.root.querySelector('#catalog-total')!.textContent = status.status === 'ready'
-        ? `${status.total.toLocaleString('ko-KR')}곳의 제주${status.stale ? ' · 최근 저장본' : ''}` : '카탈로그를 준비하고 있어요';
-      const select = this.root.querySelector<HTMLSelectElement>('#catalog-category')!;
-      select.innerHTML = '<option value="">카테고리 선택</option>' + status.categories.map((category) =>
-        `<option value="${html(category.id)}">${html(categoryName(category.id))} · ${category.count.toLocaleString('ko-KR')}</option>`).join('');
-      select.value = this.category;
-      this.root.querySelectorAll<HTMLButtonElement>('[data-map-category]').forEach((button) => {
-        button.disabled = !status.categories.some((category) => category.id === button.dataset.mapCategory);
-      });
+      this.updateCategoryOptions();
+      this.updateSourceUI();
       this.root.querySelector('#catalog-provenance-text')!.innerHTML = `
         <p>${Object.entries(status.by_source).map(([source, count]) => `${html(sourceName(source))} ${Number(count).toLocaleString('ko-KR')}곳`).join(' · ')}</p>
         <p>기본 정보: 각 장소의 기본 출처<br>보강 정보: 사진·시간·편의·인허가 항목별 출처</p>
         <p>카탈로그 작성 ${html(dateLabel(status.built_at))}<br>서버 확인 ${html(dateLabel(status.refreshed_at, true))}</p>
         ${status.stale ? '<p>원본 갱신이 지연되어 마지막 정상 카탈로그를 보여드려요.</p>' : ''}`;
-      document.querySelector('.drawer-count')!.textContent = status.status === 'ready' ? `${status.total.toLocaleString('ko-KR')}곳` : '탐색';
     } catch {
-      this.root.querySelector('#catalog-total')!.textContent = '카탈로그 연결을 확인해 주세요';
+      if (this.currentSource() !== 'kakao') this.root.querySelector('#catalog-total')!.textContent = t('카탈로그 연결을 확인해 주세요');
     }
   }
 
   private viewItems(): CatalogPlace[] {
     const query = this.query.toLocaleLowerCase();
     return this.viewportPoints.features.filter((feature) => (!query || feature.properties.name.toLocaleLowerCase().includes(query))
-      && (!this.category || feature.properties.category === this.category)).map((feature) => ({
+      && (!this.category || feature.properties.category === this.category)
+      && (!this.publicLanding() || !isDiscoveryCategory(feature.properties.category))).map((feature) => ({
       id: feature.properties.id, name: feature.properties.name, name_en: null,
       category: feature.properties.category, lng: feature.geometry.coordinates[0], lat: feature.geometry.coordinates[1],
       source_label: feature.properties.source_label, source: feature.properties.source_label,
@@ -438,7 +541,29 @@ export class CatalogUI {
     this.root.querySelector<HTMLButtonElement>('#catalog-next')!.disabled = true;
     this.root.querySelector<HTMLButtonElement>('#catalog-prev')!.disabled = true;
     list.innerHTML = '<div class="feature-empty" role="status">제주의 장소를 찾고 있어요…</div>';
+    this.items = [];
+    this.nativePage = null;
+    this.nativeSelections.replacePage([]);
+    this.updateSourceUI();
+    if (this.searchSource === 'kakao' || this.currentSource() === 'kakao') {
+      this.pointsController?.abort();
+      this.publishPoints({ type: 'FeatureCollection', features: [] }, true);
+    }
+    let native = false;
     try {
+      await withAbort(this.ensureDiscovery(), controller.signal);
+      if (requestId !== this.requestId || controller.signal.aborted) return;
+      const source = this.currentSource();
+      if (this.searchSource !== source) this.offset = 0;
+      this.searchSource = source;
+      native = source === 'kakao';
+      if (native) {
+        this.pointsController?.abort();
+        this.viewportPoints = { type: 'FeatureCollection', features: [] };
+        this.publishPoints({ type: 'FeatureCollection', features: [] }, true);
+        await this.searchNative(controller.signal, requestId, restoreResultsFocus);
+        return;
+      }
       let result: { items: CatalogPlace[]; total: number; has_more: boolean };
       if (this.mode === 'view') {
         const items = this.viewItems();
@@ -447,6 +572,7 @@ export class CatalogUI {
         this.publishPoints({ type: 'FeatureCollection', features: this.viewportPoints.features.filter((feature) => ids.has(feature.properties.id)) });
       } else {
         const params = new URLSearchParams({ q: this.query, category: this.category, limit: '40', offset: String(this.offset) });
+        if (this.publicLanding()) params.set('exclude_commercial', 'true');
         if (this.mode === 'nearby') {
           const center = this.nearbyOrigin ?? this.options.center();
           if (!isJejuPoint(center.lng, center.lat)) {
@@ -472,26 +598,82 @@ export class CatalogUI {
       this.root.scrollTop = 0;
     } catch (error) {
       if (aborted(error) || controller.signal.aborted) return;
-      list.innerHTML = '<div class="feature-empty"><strong>카탈로그에 연결하지 못했어요</strong><p>저장한 코스와 지형 명소는 계속 살펴볼 수 있어요.</p><button id="catalog-retry">다시 시도</button></div>';
+      list.innerHTML = native
+        ? `<div class="feature-empty" role="status"><strong>${html(t('카카오 검색에 연결하지 못했어요'))}</strong><p>${html(t('다시 시도하거나 검색 출처를 기존 카탈로그로 바꿔 보세요.'))}</p><button id="catalog-retry">${html(t('다시 시도'))}</button></div>`
+        : '<div class="feature-empty"><strong>카탈로그에 연결하지 못했어요</strong><p>저장한 코스와 지형 명소는 계속 살펴볼 수 있어요.</p><button id="catalog-retry">다시 시도</button></div>';
       list.querySelector('#catalog-retry')!.addEventListener('click', () => void this.search());
       if (restoreResultsFocus) list.querySelector<HTMLButtonElement>('#catalog-retry')?.focus({ preventScroll: true });
       this.root.querySelector('#catalog-result-count')!.textContent = '';
+      if (native) {
+        this.root.querySelector('#catalog-page')!.textContent = '—';
+        this.updateSourceUI();
+      }
     } finally {
       if (requestId === this.requestId) list.setAttribute('aria-busy', 'false');
     }
   }
 
+  private async searchNative(signal: AbortSignal, requestId: number, restoreFocus: boolean): Promise<void> {
+    const list = this.root.querySelector<HTMLElement>('#catalog-list')!;
+    if (!this.query && !this.category) {
+      list.innerHTML = `<div class="feature-empty" role="status">${html(t('카카오에서 찾을 이름이나 분류를 선택해 주세요.'))}</div>`;
+      this.root.querySelector('#catalog-result-count')!.textContent = '';
+      this.root.querySelector('#catalog-page')!.textContent = '0';
+      return;
+    }
+    const bounds = this.mode === 'view' ? discoveryBounds(this.options.bounds()) : null;
+    const point = this.nearbyOrigin ?? this.options.center();
+    const center = isJejuPoint(point.lng, point.lat) ? point
+      : bounds ? { lng: (bounds[0] + bounds[2]) / 2, lat: (bounds[1] + bounds[3]) / 2 }
+        : this.mode === 'all' ? { lng: 126.56, lat: 33.38 } : null;
+    if (!center || (this.mode === 'view' && !bounds)) {
+      list.innerHTML = `<div class="feature-empty" role="status">${html(t('제주가 보이는 지도 범위에서 다시 검색해 주세요.'))}</div>`;
+      this.root.querySelector('#catalog-result-count')!.textContent = '';
+      this.root.querySelector('#catalog-page')!.textContent = '0';
+      return;
+    }
+    const result = await searchKakao({
+      query: this.query, category: isDiscoveryCategory(this.category) ? this.category : '', scope: this.mode,
+      center, page: Math.floor(this.offset / 15) + 1,
+      ...(bounds ? { bounds } : {}), ...(this.mode === 'nearby' ? { radius_m: this.radius } : {}),
+    }, { signal });
+    if (signal.aborted || requestId !== this.requestId) return;
+    const { items, ...page } = result;
+    this.nativePage = page;
+    this.nativeSelections.replacePage(items);
+    this.items = items.map(nativeCatalogPlace);
+    this.publishPoints(this.listPoints());
+    this.renderList();
+    this.updateSourceUI();
+    this.root.querySelector('#catalog-page')!.textContent = result.pageable ? `${result.page} / ${Math.ceil(Math.min(result.pageable, 45) / 15)}` : '0';
+    this.root.querySelector<HTMLButtonElement>('#catalog-prev')!.disabled = result.page <= 1;
+    this.root.querySelector<HTMLButtonElement>('#catalog-next')!.disabled = !result.has_more || result.page >= 3;
+    this.root.scrollTop = 0;
+    list.scrollTop = 0;
+    if (restoreFocus) this.root.querySelector<HTMLButtonElement>('[data-catalog-id]')?.focus({ preventScroll: true });
+  }
+
   private renderList(): void {
     const center = this.options.center();
+    const native = this.searchSource === 'kakao';
     this.root.querySelector('#catalog-list')!.innerHTML = this.items.map((place) => `
       <button class="catalog-card ${place.id === this.detailId ? 'is-selected' : ''}" data-catalog-id="${html(place.id)}" aria-pressed="${place.id === this.detailId}">
         <span class="catalog-category-dot catalog-category-dot--${categoryColor(place.category)}">${icon(categorySymbol(place.category).icon)}</span>
-        <span><strong data-i18n-ignore>${html(placeName(place))}</strong><span class="catalog-card-meta">${html(categoryName(place.category))} <span>·</span> ${html(distanceLabel(place.distance_m ?? distanceMeters(center, place)))} 직선</span><span class="catalog-card-address">${html(this.mode === 'view' ? '주소는 상세에서 확인' : place.address || '주소 정보 없음')}</span><span class="catalog-base-source">기본: ${html(place.source_label || sourceName(place.source))}</span></span>${icon('chevron')}
-      </button>`).join('') || '<div class="feature-empty"><strong>조건에 맞는 장소가 없어요</strong><p>검색어와 분류, 지도 범위를 바꿔 보세요.</p></div>';
+        <span><strong data-i18n-ignore>${html(placeName(place))}</strong>${native ? `<span class="catalog-provider-category" data-i18n-ignore>${html(this.nativeSelections.get(place.id)?.provider_category || place.category)}</span>` : ''}
+        <span class="catalog-card-meta">${native ? '' : `${html(categoryName(place.category))} <span>·</span> `}${html(distanceLabel(place.distance_m ?? distanceMeters(center, place)))} ${html(t('직선'))}</span><span class="catalog-card-address" data-i18n-ignore>${html(!native && this.mode === 'view' ? t('주소는 상세에서 확인') : place.address || t('주소 정보 없음'))}</span><span class="catalog-base-source">${native ? 'Kakao Local' : `${t('기본:')} ${html(place.source_label || sourceName(place.source))}`}</span></span>${icon('chevron')}
+      </button>`).join('') || (native
+      ? `<div class="feature-empty"><strong>${html(t('이 조건의 카카오 검색 결과가 없어요'))}</strong><p>${html(t('장소 이름이나 검색 범위를 바꿔 보세요.'))}</p></div>`
+      : '<div class="feature-empty"><strong>조건에 맞는 장소가 없어요</strong><p>검색어와 분류, 지도 범위를 바꿔 보세요.</p></div>');
   }
 
   async loadPoints(): Promise<void> {
     if (!this.mapReady || (!this.mapEnabled && this.mode !== 'view')) return;
+    await this.ensureDiscovery();
+    if (this.currentSource() === 'kakao') {
+      this.pointsController?.abort();
+      if (this.searchSource === 'kakao' && this.nativePage && this.root.querySelector('#catalog-list')!.getAttribute('aria-busy') !== 'true') this.publishPoints(this.listPoints());
+      return;
+    }
     if (this.mode === 'nearby' || (this.query && this.mode !== 'view')) {
       if (this.root.querySelector('#catalog-list')!.getAttribute('aria-busy') !== 'true') this.publishPoints(this.listPoints());
       return;
@@ -511,14 +693,16 @@ export class CatalogUI {
       return;
     }
     const params = new URLSearchParams({ bbox: bbox.map((value) => value.toFixed(6)).join(','), category: this.category });
+    if (this.publicLanding()) params.set('exclude_commercial', 'true');
     try {
       const data = await apiJSON<CatalogPoints>(`/api/catalog/points?${params}`, controller.signal);
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || this.currentSource() !== 'catalog') return;
       if (!Array.isArray(data.features)) throw new Error('Invalid points');
       this.viewportPoints = {
         type: 'FeatureCollection', features: data.features.slice(0, 10000).filter((feature) =>
           feature?.geometry?.type === 'Point' && isJejuPoint(feature.geometry.coordinates[0], feature.geometry.coordinates[1])
-          && typeof feature.properties?.id === 'string' && typeof feature.properties?.name === 'string'),
+          && typeof feature.properties?.id === 'string' && typeof feature.properties?.name === 'string'
+          && (!this.publicLanding() || !isDiscoveryCategory(feature.properties.category))),
       };
       if (this.mode === 'view') { this.offset = 0; void this.search(); }
       else this.publishPoints(this.viewportPoints);
@@ -531,12 +715,17 @@ export class CatalogUI {
   async openPlace(id: string, saved?: PlaceSnapshot): Promise<void> {
     this.detailController?.abort();
     this.weatherController?.abort();
+    const native = isKakaoId(id);
+    const selected = native ? this.nativeSelections.get(id) : undefined;
+    const discovered = selected ? nativeCatalogPlace(selected) : undefined;
+    const fallback = saved ?? (discovered && selected ? snapshot({ ...discovered, updated_at: selected.queried_at }) : undefined);
+    this.nativeSelections.activate(native ? id : null);
     if (this.detailId !== id) { this.photoIndex = 0; this.officialProvider = 'tourapi'; this.kakaoDetails.clear(); }
     this.detailId = id;
-    this.savedFallback = saved;
+    this.savedFallback = fallback;
     this.currentDetail = null;
     if (this.detailRoot.hidden) this.previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const summary = saved ?? this.items.find((place) => place.id === id);
+    const summary = saved ?? this.items.find((place) => place.id === id) ?? discovered;
     if (summary) this.options.onSelect(summary);
     this.detailRoot.hidden = false;
     this.detailRoot.setAttribute('aria-busy', 'true');
@@ -546,12 +735,36 @@ export class CatalogUI {
     const controller = new AbortController();
     this.detailController = controller;
     try {
-      const detail = await apiJSON<PlaceDetail>(`/api/catalog/places/${encodeURIComponent(id)}`, controller.signal);
+      let detail: PlaceDetail;
+      if (native) {
+        const reopen = () => {
+          if (!summary) throw new KakaoDiscoveryError('selection_required', 410);
+          return reopenKakao({ id, name: summary.name, category: summary.category, lat: summary.lat, lng: summary.lng }, { signal: controller.signal });
+        };
+        if (selected && selectionIsFresh(selected)) {
+          try {
+            detail = await detailKakao(id, selected.selection_token, { signal: controller.signal });
+          } catch (error) {
+            if (controller.signal.aborted || !(error instanceof KakaoDiscoveryError)
+              || !['kakao_selection_invalid', 'kakao_selection_expired'].includes(error.code)) throw error;
+            detail = await reopen();
+          }
+        } else detail = await reopen();
+      } else detail = await apiJSON<PlaceDetail>(`/api/catalog/places/${encodeURIComponent(id)}`, controller.signal);
       if (controller.signal.aborted || this.detailId !== id) return;
       if (!isJejuPoint(detail.lng, detail.lat)) throw new Error('Invalid location');
       this.currentDetail = detail;
       this.detailRoot.setAttribute('aria-busy', 'false');
-      if (!summary) this.options.onSelect(detail);
+      if (native) {
+        this.nativeSelections.remember(detail);
+        const current = nativeCatalogPlace(detail);
+        if (this.searchSource === 'kakao' && this.items.some(item => item.id === id)) {
+          this.items = this.items.map(item => item.id === id ? current : item);
+          this.publishPoints(this.listPoints());
+        }
+        this.options.onSelect(current);
+      }
+      else if (!summary) this.options.onSelect(detail);
       this.renderDetail(detail);
       this.renderList();
       void this.loadWeather(detail);
@@ -559,8 +772,11 @@ export class CatalogUI {
       if (aborted(error) || controller.signal.aborted) return;
       this.currentDetail = null;
       this.detailRoot.setAttribute('aria-busy', 'false');
-      if (saved) {
-        this.detailRoot.innerHTML = `<div class="detail-heading"><h2 data-i18n-ignore>${html(placeName(saved))}</h2><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div><div class="detail-content"><p class="detail-base-note">저장한 장소 정보입니다. 현재 상세 정보에 연결하지 못했어요.</p><p>${html(saved.summary || noData)}</p><dl class="detail-basics"><div><dt>주소</dt><dd>${html(saved.address || noData)}</dd></div><div><dt>기본 출처</dt><dd>${html(saved.source_label)}</dd></div><div><dt>정보 기준</dt><dd>${html(dateLabel(saved.updated_at))}</dd></div></dl><p>${html(saved.base_note || '')}</p><button data-detail-action="add" class="button button--primary">내 여행에 담기</button><button data-detail-action="retry" class="button">최신 상세 다시 확인</button></div>`;
+      if (fallback) {
+        const message = native
+          ? saved ? '저장한 장소 정보입니다. 현재 카카오 정보를 확인하지 못했어요.' : '앞서 조회한 장소 정보입니다. 현재 상세 정보를 확인하지 못했어요.'
+          : '저장한 장소 정보입니다. 현재 상세 정보에 연결하지 못했어요.';
+        this.detailRoot.innerHTML = `<div class="detail-heading"><h2 data-i18n-ignore>${html(placeName(fallback))}</h2><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div><div class="detail-content"><p class="detail-base-note">${html(t(message))}</p><p data-i18n-ignore>${html(fallback.summary || t(noData))}</p><dl class="detail-basics"><div><dt>주소</dt><dd data-i18n-ignore>${html(fallback.address || t(noData))}</dd></div><div><dt>기본 출처</dt><dd>${html(fallback.source_label)}</dd></div><div><dt>정보 기준</dt><dd>${html(dateLabel(fallback.updated_at, native))}${native && fallback.updated_at ? ' KST' : ''}</dd></div></dl><p data-i18n-ignore>${html(fallback.base_note || '')}</p><button data-detail-action="add" class="button button--primary">내 여행에 담기</button><button data-detail-action="retry" class="button">최신 상세 다시 확인</button></div>`;
       } else {
         const focusInside = this.detailRoot.contains(document.activeElement);
         this.detailRoot.querySelector('.feature-empty')?.replaceChildren();
@@ -573,10 +789,12 @@ export class CatalogUI {
 
   closeDetail(restoreFocus = true): void {
     this.kakaoDetails.clear();
+    this.nativeSelections.activate(null);
     if (this.detailRoot.hidden) return;
     this.detailController?.abort();
     this.weatherController?.abort();
     this.detailRoot.hidden = true;
+    if (this.currentDetail && isKakaoId(this.currentDetail.id)) this.currentDetail = null;
     this.detailRoot.setAttribute('aria-busy', 'false');
     document.querySelector('.map-shell')?.classList.remove('is-detail-open');
     if (!restoreFocus) return;
@@ -701,6 +919,7 @@ export class CatalogUI {
     const website = publicProviderURL(place.url);
     return `<section class="detail-visit-summary"><h3>${t('방문 정보')}</h3>
       ${overview ? `<p class="official-overview" data-i18n-ignore>${html(overview)}</p>` : ''}
+      ${isKakaoId(place.id) && place.overview ? evidenceHTML(place.field_evidence, 'overview') : ''}
       <dl class="official-contacts">
         ${place.address ? `<div><dt>${t('주소')}</dt><dd data-i18n-ignore>${html(place.address)}</dd></div>` : ''}
         ${place.phone ? `<div><dt>${t('전화')}</dt><dd>${phoneHTML(place.phone)}</dd></div>` : ''}
@@ -714,6 +933,10 @@ export class CatalogUI {
   private renderDetail(place: PlaceDetail): void {
     const focusInside = this.detailRoot.contains(document.activeElement);
     const official = officialRecords(place);
+    const native = isKakaoId(place.id);
+    const displayedCategory = native
+      ? place.kakao_lookup?.place?.category || this.nativeSelections.get(place.id)?.provider_category || place.category
+      : categoryName(place.category);
     this.detailRoot.classList.toggle('has-official-details', official.length > 0);
     const curated = /curated|seed|큐레이션/i.test(`${place.source} ${place.source_label}`);
     const note = place.base_note || (curated ? '큐레이션 시드의 좌표·주소·소개는 공식 대조 검증 정보가 아닙니다. 보강된 항목의 출처를 각각 확인해 주세요.' : '기본 정보와 아래 보강 정보의 출처를 함께 확인해 주세요.');
@@ -726,7 +949,7 @@ export class CatalogUI {
     const parsedHours = place.hours_source === 'tourapi_usetime' || place.field_evidence?.hours_week?.state === 'parsed';
     const baseEvidence = `<dl class="base-evidence" aria-label="기본 필드별 근거">${[['name', '이름'], ['lat', '위도'], ['lng', '경도'], ['address', '주소'], ['summary', '기본 소개']].map(([path, label]) => `<div><dt>${label}</dt><dd>${evidenceHTML(place.field_evidence, path)}</dd></div>`).join('')}</dl>`;
     this.detailRoot.innerHTML = `
-      <div class="detail-heading"><div><nav class="detail-breadcrumb" aria-label="${t('장소 탐색 경로')}"><button data-detail-action="back">${t('이전 화면')}</button><span aria-hidden="true">›</span><span>${html(categoryName(place.category))}</span></nav><h2 tabindex="-1" data-i18n-ignore>${html(placeName(place))}</h2>${place.name_en ? `<span class="detail-english" data-i18n-ignore>${html(getLocale() === 'en' ? place.name : place.name_en)}</span>` : ''}</div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div>
+      <div class="detail-heading"><div><nav class="detail-breadcrumb" aria-label="${t('장소 탐색 경로')}"><button data-detail-action="back">${t('이전 화면')}</button><span aria-hidden="true">›</span><span data-i18n-ignore>${html(displayedCategory)}</span></nav><h2 tabindex="-1" data-i18n-ignore>${html(placeName(place))}</h2>${place.name_en ? `<span class="detail-english" data-i18n-ignore>${html(getLocale() === 'en' ? place.name : place.name_en)}</span>` : ''}</div><button data-detail-action="close" aria-label="장소 상세 닫기">${icon('close')}</button></div>
       <div class="detail-action-bar"><button id="detail-favorite" data-detail-action="favorite" aria-pressed="${this.options.planner.isFavorite(place.id)}">${icon('pin')}즐겨찾기</button><button id="detail-add-trip" data-detail-action="add">${icon('plus')}내 여행에 담기</button><button data-detail-action="map">${icon('expand')}지도 보기</button></div>
       <div class="detail-route-actions" data-i18n-ignore>
         <button data-detail-action="origin">${icon('pin')}${getLocale() === 'en' ? 'Start here' : '출발지로'}</button>
@@ -738,6 +961,7 @@ export class CatalogUI {
       <div class="detail-content">
         ${this.renderGallery(place)}
         <section id="kakao-place-details" class="kakao-details" hidden tabindex="-1" aria-labelledby="kakao-details-title" aria-live="polite" data-kakao-focus="panel" data-i18n-ignore></section>
+        ${native && place.linked_catalog ? `<p class="detail-linked-catalog"><strong>${html(t('공공정보 보강'))}: <span data-i18n-ignore>${html(place.linked_catalog.name)}</span> · ${html(sourceName(place.linked_catalog.source))}</strong>${html(t('아래 관광 정보는 연결된 기존 카탈로그에서 가져왔습니다. 장소 이름과 위치는 카카오 정보를 유지합니다.'))}</p>` : ''}
         ${official.length ? this.renderOfficialDetails(place) : this.renderCatalogVisitInfo(place)}
         <details id="catalog-reference-details" class="catalog-reference-details"><summary>${t('카탈로그 기록과 출처')}</summary>
         <section class="detail-section"><h3>기본 정보 <span>${html(place.source_label || sourceName(place.source))}</span></h3><p class="detail-base-note">${html(note)}</p>${baseEvidence}<p class="detail-overview">${html(place.summary || t('기본 소개 정보 없음'))}</p><dl class="detail-basics"><div><dt>주소</dt><dd>${html(place.address || noData)}</dd></div><div><dt>전화</dt><dd>${place.phone ? phoneHTML(place.phone) : noData}</dd></div><div><dt>좌표</dt><dd class="mono">${place.lat.toFixed(5)}° N, ${place.lng.toFixed(5)}° E</dd></div><div><dt>장소 링크</dt><dd>${place.url ? link(place.url, /openstreetmap\.org/i.test(place.url) ? 'OpenStreetMap 원문' : '장소 링크') : noData}</dd></div><div><dt>기본 정보 갱신</dt><dd>${html(dateLabel(place.updated_at))}</dd></div></dl><p class="micro-note">장소 이름·주소·소개는 제공된 원문이 표시될 수 있습니다.</p></section>
@@ -753,7 +977,10 @@ export class CatalogUI {
         </details>
         <section id="place-weather" class="detail-section" aria-live="polite"><h3>이 장소의 날씨</h3><p class="micro-note">현재 날씨와 3일 예보를 확인하는 중…</p></section>
       </div>`;
-    this.kakaoDetails.show(place);
+    if (native) {
+      if (place.kakao_lookup) this.kakaoDetails.showResolved(place, place.kakao_lookup);
+      else this.kakaoDetails.clear();
+    } else this.kakaoDetails.show(place);
     this.updateSavedButtons();
     if (focusInside) this.detailRoot.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
   }

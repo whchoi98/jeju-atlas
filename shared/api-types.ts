@@ -1,4 +1,6 @@
 import type { RoutingConfig } from './routing-types';
+import type { KakaoLookup } from './kakao-types';
+import type { KakaoDiscoveryConfig } from './kakao-discovery-types';
 
 export type LatLng = { lat: number; lng: number };
 export type FieldEvidence = {
@@ -76,6 +78,11 @@ export type PlaceDetail = CatalogPlace & {
   sources: SourceRecord[];
   enriched_at: string | null;
   official_details?: OfficialPlaceDetail[];
+  /** A fresh Kakao result can render its source card without another name lookup. */
+  kakao_lookup?: KakaoLookup;
+  linked_catalog?: { id: string; name: string; source: string; distance_m: number };
+  /** Current-view proof only; saved snapshots deliberately omit this field. */
+  selection_token?: string;
 };
 export type CatalogStatus = {
   status: 'ready' | 'unavailable';
@@ -155,4 +162,5 @@ export type AppConfig = {
   guide: { daily_limit: number; csrf_token?: string };
   routing: RoutingConfig;
   kakao?: { enabled: boolean; csrf_token?: string };
+  discovery?: KakaoDiscoveryConfig;
 };
