@@ -19,6 +19,12 @@ def main():
         raise ValueError("The course must cover chapters 00 through 13")
     if len({item["slug"] for item in course["chapters"]}) != len(course["chapters"]):
         raise ValueError("Duplicate chapter slug")
+    core_count = course.get("coreChapterCount")
+    if core_count != 5 or course.get("targetMinutes") != 120:
+        raise ValueError("The basic workshop must cover five chapters within 120 minutes")
+    core_minutes = sum(item["minutes"] for item in course["chapters"][:core_count])
+    if core_minutes + course.get("bufferMinutes", -1) != 120:
+        raise ValueError("Core lesson time and buffer must total 120 minutes")
     steps = DEPLOY_STEPS | set(AGENT_STEPS) | set(LOCAL_STEPS) | set(VERIFICATION_STEPS)
     documented = set()
     for chapter in course["chapters"]:
@@ -27,6 +33,8 @@ def main():
         if not path.is_file() or not prompt.is_file():
             raise ValueError("Missing chapter or prompt: " + chapter["slug"])
         text = path.read_text()
+        if any(mark in text or mark in prompt.read_text() for mark in ("\u2014", "\u00b7")):
+            raise ValueError("Remove em dashes and middle dots from " + chapter["slug"])
         if not text.startswith("# ") or len(text) < 500:
             raise ValueError("Chapter is incomplete: " + chapter["slug"])
         for step in re.findall(r"lab\.py\s+run\s+([a-z-]+)", text):
@@ -47,6 +55,18 @@ def main():
         raise ValueError("PC handbook must include the prompt cards")
     if not (COURSE / "reference/ai-cli-environments.md").is_file():
         raise ValueError("The three AI CLI environments must be documented")
+    basic = "\n".join(
+        (COURSE / "chapters" / (item["slug"] + ".md")).read_text()
+        for item in course["chapters"][:core_count]
+    )
+    for required in ("VSCode Server", "Codex", "Kiro CLI", "Claude Code", "--framework Strands",
+                     "--model-provider Bedrock", "agentcore dev", "agentcore deploy", "agentcore invoke"):
+        if required not in basic:
+            raise ValueError("Missing basic workshop step: " + required)
+    for folder in ("reference", "prompts"):
+        for path in (COURSE / folder).glob("*.md"):
+            if any(mark in path.read_text() for mark in ("\u2014", "\u00b7")):
+                raise ValueError("Unwanted punctuation in " + str(path.relative_to(COURSE)))
     resource_types = set()
     resource_count = 0
     for template in (ROOT / "infra").glob("*.yaml"):
@@ -57,7 +77,9 @@ def main():
     missing = [kind for kind in resource_types if kind not in coverage]
     if missing:
         raise ValueError("Infrastructure types missing from resource matrix: " + ", ".join(sorted(missing)))
-    print(json.dumps({"chapters": 14, "promptCards": 14, "documentedSteps": len(documented),
+    print(json.dumps({"chapters": 14, "coreChapters": core_count, "coreMinutes": core_minutes,
+                      "bufferMinutes": course["bufferMinutes"], "targetMinutes": 120,
+                      "promptCards": 14, "documentedSteps": len(documented),
                       "infrastructureDeclarations": resource_count, "infrastructureTypes": len(resource_types),
                       "passed": True}, ensure_ascii=False))
 

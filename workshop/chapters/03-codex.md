@@ -1,86 +1,121 @@
-# 03 · Codex로 실습용 에셋 구성
+# 03. AI CLI로 제주 가이드 구현
 
-소스와 테스트를 별도 실습 작업 공간으로 복사합니다.
-계정·자원 이름·네트워크 참조는 참가자의 설정으로 구성합니다.
-운영 출력·키·기존 카탈로그·기존 의존성 ZIP은 가져오지 않습니다.
+이 장은 35분입니다. AgentCore CLI로 Strands 프로젝트를 생성한 뒤
+선택한 AI CLI에 제주 장소 검색 도구와 응답 규칙을 구현하도록 요청합니다.
+변경 파일과 테스트는 참가자가 직접 확인합니다.
 
-## 작업 공간 생성
+## 1. AgentCore 프로젝트 생성
 
 ```bash
 cd "$ATLAS_REPO"
-python3 workshop/scripts/lab.py prepare --config "$ATLAS_CONFIG"
-python3 workshop/scripts/lab.py info --config "$ATLAS_CONFIG"
-git -C "$ATLAS_APP" status --short --branch
+agentcore create \
+  --project-name "$ATLAS_PROJECT" \
+  --name JejuGuide \
+  --framework Strands \
+  --model-provider Bedrock \
+  --language Python \
+  --build CodeZip \
+  --memory none \
+  --network-mode PUBLIC \
+  --output-dir "$ATLAS_CLI_PARENT" \
+  --skip-git \
+  --skip-python-setup \
+  --skip-install \
+  --json
 ```
 
-`deployed: false`와 예상 경로를 확인합니다.
-기존 폴더에는 덮어쓰지 않습니다. 중간에 종료됐다면 생성된 폴더와 본인 작업을 먼저 확인합니다.
-준비된 폴더를 이어 쓰는 경우 `prepare`를 반복하지 않습니다.
+생성 위치는 `$ATLAS_CLI_PARENT/$ATLAS_PROJECT`입니다.
+`--output-dir`은 프로젝트의 부모 폴더를 가리킵니다.
+같은 폴더가 있으면 덮어쓰지 말고 이전 작업을 확인합니다.
+이 명령은 실제 모델을 사용하는 Strands 코드를 생성합니다.
+모델 없는 Warmup 준비기나 `--no-agent` 예제를 기본 과정에 사용하지 않습니다.
 
-자체 Git 저장소와 `AGENTS.md`에는 계정·이름 경계, 원본 보호, 데이터 출처와 검증 규칙이 있습니다.
-근거: [공식 AGENTS.md 문서](https://developers.openai.com/codex/guides/agents-md/).
-
-## Codex 실행
+## 2. 생성된 파일 확인
 
 ```bash
-codex -C "$ATLAS_APP" --sandbox workspace-write -a on-request
+cd "$ATLAS_CLI"
+cat agentcore/agentcore.json
+cat agentcore/aws-targets.json
 ```
 
-Kiro CLI 또는 Claude Code로 진행할 때는 같은 폴더에서 한 도구만 선택합니다.
+`JejuGuide` Runtime, `CodeZip`, `app/JejuGuide/`, `PYTHON_3_14`를 확인합니다.
+`app/JejuGuide/main.py`에는 AgentCore HTTP 진입점과 Strands Agent가 있습니다.
+모델 설정은 `app/JejuGuide/model/load.py`에서 읽습니다.
+
+`aws-targets.json`이 비어 있으면 선택한 AI CLI에 다음 형식으로 작성하도록 요청합니다.
+계정 번호에는 02장에서 확인한 실제 값을 사용합니다.
+
+```json
+[
+  {
+    "name": "default",
+    "account": "실습 계정 ID",
+    "region": "ap-northeast-2"
+  }
+]
+```
+
+예시의 설명 문자열을 계정 번호 대신 저장하지 않습니다.
+수정 후 `agentcore validate --json`으로 스키마를 검사합니다.
+
+## 3. 사용할 데이터 복사
 
 ```bash
-cd "$ATLAS_APP"
+mkdir -p app/JejuGuide/data
+cp "$ATLAS_REPO/agent/tools/data/jeju_pois.json" \
+  app/JejuGuide/data/jeju_pois.json
+```
+
+137개 장소는 실습용 시드입니다. 좌표와 주소를 공식 검증값으로 설명하지 않습니다.
+사진, 전화, 영업시간처럼 비어 있는 값을 AI가 채우게 하지 않습니다.
+카카오와 공공 API 키는 이번 기본 실습에 필요하지 않습니다.
+
+## 4. AI CLI 실행
+
+현재 `$ATLAS_CLI` 폴더에서 하나만 실행합니다.
+
+```bash
+# Codex를 선택한 경우
+codex -C "$ATLAS_CLI" --sandbox workspace-write -a on-request
+```
+
+```bash
+# Kiro CLI를 선택한 경우
+cd "$ATLAS_CLI"
 kiro-cli chat
 ```
 
-Claude Code를 선택할 경우:
-
 ```bash
-cd "$ATLAS_APP"
+# Claude Code를 선택한 경우
+cd "$ATLAS_CLI"
 claude
 ```
 
-`CLAUDE.md`는 공통 `AGENTS.md`를 가져오며 `.kiro/steering/workshop.md`도 같은 계정·이름 경계를
-명시합니다. 인증과 선택적 Claude Code Bedrock 설정은 [AI CLI 환경](../reference/ai-cli-environments.md)을 따릅니다.
-개발 도구를 바꿔도 실제 Atlas의 Sol/Astra 모델 설정을 바꾸지 않습니다.
+[구현 프롬프트](../prompts/03-codex.md)를 전달합니다.
+코딩 도구가 실제 파일 구조와 데이터를 먼저 읽는지 확인합니다.
+첫 응답에서 수정할 파일과 검사 방법을 확인한 뒤 작업을 진행합니다.
 
-[03 공통 프롬프트 카드](../prompts/03-codex.md)를 선택한 도구에 전달합니다.
-첫 요청에서는 파일 구성·계정·자원 이름·현재 단계만 확인하고 배포하지 않습니다.
-원본 저장소나 `agentcore-cli`를 추가 쓰기 폴더로 지정하지 않습니다.
+이번에 요청할 구현은 다음과 같습니다.
 
-각 장에서 목표 → Codex 카드 → 명령/변경 계획 검토 → 단계 실행 → 결과 확인 순서로 진행합니다.
-Codex 명령 실행 권한과 AWS 역할 권한은 다릅니다. 필요한 접근 요청의 동작과 이유를 확인하며
-제한을 일괄 해제하는 옵션을 사용하지 않습니다.
+1. 장소 이름과 카테고리로 JSON을 검색하는 `search_jeju_places` 도구
+2. 정확히 일치하는 이름을 먼저 반환하고 결과를 최대 5개로 제한하는 처리
+3. 도구 결과만 근거로 답하고 시드 자료의 한계를 밝히는 한국어 응답 규칙
+4. 진행자가 배정한 Bedrock 모델과 서울 리전 설정
+5. 모델을 호출하지 않고 검색과 입력 검증을 확인하는 테스트
 
-## dry-run, plan, apply
+테스트에는 정상 검색, 카테고리만 지정한 검색, 결과 없음, 두 조건이 모두 빈 입력과 결과 수 제한을 포함합니다.
+실제 모델 호출은 다음 장에서 수행합니다.
 
-```bash
-cd "$ATLAS_REPO"
-python3 workshop/scripts/lab.py run plan-bootstrap --config "$ATLAS_CONFIG"
-```
+## 5. 코드 검토
 
-이 명령은 대상과 명령만 표시합니다. `executed: false`, 내 계정·프로젝트·경로를 확인합니다.
-실제로 해당 단계를 실행할 때 `--execute`를 붙입니다.
-계정 불일치, 작업 공간 바인딩 변경, 운영 SSM 참조가 발견되면 중단합니다.
+AI CLI에 변경 파일 목록을 요청하고 VSCode에서 해당 파일을 열어 확인합니다.
+반환 필드, 검색 정렬, 입력 길이 제한과 모델 ID를 읽습니다.
+AWS 계정과 자원 이름, 프로젝트 밖의 파일이 바뀌지 않았는지도 확인합니다.
 
-`plan-*`도 AWS Change Set을 만드는 실제 API 호출입니다.
-`apply-*`는 성공한 계획을 적용합니다. 소스·설정이 바뀌면 계획을 새로 확인합니다.
+예상 수정 위치는 `app/JejuGuide/main.py`, 모델 설정, 검색 도구와 테스트입니다.
+생성된 Runtime의 세션별 Agent 구분과 스트리밍 진입점은 유지합니다.
+Codex의 모델 설정과 배포된 Bedrock 모델 설정을 서로 바꾸지 않습니다.
 
-## 비대화형 실행
+프롬프트: [구현과 코드 검토](../prompts/03-codex.md)
 
-로컬 검토처럼 범위가 정해진 작업에는 다음 형태를 사용할 수 있습니다.
-
-```bash
-codex exec -C "$ATLAS_APP" --sandbox workspace-write - \
-  < "$ATLAS_REPO/workshop/prompts/03-codex.md"
-```
-
-비대화형 실행을 실제 AWS 변경의 무인 승인으로 확대하지 않습니다.
-실패를 숨기지 말고 결과를 확인합니다.
-[공식 실행 문서](https://developers.openai.com/codex/noninteractive/)를 참고합니다.
-
-- [ ] 원본과 별도 Git 작업 공간을 확인했습니다.
-- [ ] Codex가 내 계정과 자원 접두사를 알고 있습니다.
-- [ ] dry-run과 실제 실행, plan과 apply의 차이를 확인했습니다.
-
-다음: [04 · AgentCore CLI](04-agentcore-cli.md)
+다음: [04. 실행과 배포](04-agentcore-cli.md)

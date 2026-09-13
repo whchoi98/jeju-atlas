@@ -335,6 +335,8 @@ def main():
     ec2_init = commands.add_parser("init-ec2", parents=[common],
                                   help="Use this EC2's account/region/VPC and existing Codex environment")
     ec2_init.add_argument("--participant", required=True)
+    ec2_init.add_argument("--identity-only", action="store_true",
+                          help="Bind to this EC2 and verify STS without full web-network discovery")
     doc = commands.add_parser("doctor", parents=[common])
     doc.add_argument("--aws", action="store_true")
     doc.add_argument("--assistant", choices=["codex", "kiro", "claude"], default="codex")
@@ -367,10 +369,13 @@ def main():
             raise FileExistsError("Config already exists; keep the EC2 binding or select another config file")
         from ec2_context import configuration_for_ec2, read_ec2_context
         config = configuration_for_ec2(args.participant, read_ec2_context())
-        config = discover_network(config, aws_session(config).client("ec2"))
+        session = aws_session(config)
+        if not args.identity_only:
+            config = discover_network(config, session.client("ec2"))
         write_json(args.config, config)
         emit({"config": str(args.config), "ec2Context": config["ec2Context"],
               "network": config["network"], "names": resource_names(config),
+              "networkChecked": not args.identity_only,
               "createdAwsResources": False})
         return
     if args.action == "init":

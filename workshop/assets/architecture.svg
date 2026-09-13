@@ -6,7 +6,7 @@
   </defs>
   <g font-family="NanumSquare, sans-serif">
     <rect x="392" y="30" width="416" height="247" rx="16" fill="var(--interactive-soft, #f2f8fd)" fill-opacity=".48" stroke="var(--brand-orange, #ff9900)" stroke-width="1.4" stroke-dasharray="6 5"/>
-    <text x="416" y="58" font-size="13" font-weight="700" fill="var(--strong, #232f3e)">공유 VPC · 기존 서브넷 사용</text>
+    <text x="416" y="58" font-size="13" font-weight="700" fill="var(--strong, #232f3e)">공유 VPC, 기존 서브넷 사용</text>
     <g fill="none" stroke="var(--interactive, #0972d3)" stroke-width="1.8" marker-end="url(#system-arrow)">
       <path d="M161 139h43"/>
       <path d="M353 139h64"/>
@@ -34,7 +34,7 @@
       <text x="487" y="134">Public ALB</text>
       <text x="681" y="129">Private ECS</text>
       <text x="956" y="132">소유 S3 버킷</text>
-      <text x="682" y="243" font-size="13">공유 NAT · 외부 통신</text>
+      <text x="682" y="243" font-size="13">공유 NAT, 외부 통신</text>
       <text x="465" y="357">AgentCore</text>
       <text x="465" y="381">Guide</text>
       <text x="715" y="341">Gateway → Tools</text>
@@ -42,16 +42,16 @@
       <text x="956" y="360">Amazon Bedrock</text>
     </g>
     <g fill="var(--muted, #5f6b7a)" text-anchor="middle" font-size="12">
-      <text x="92" y="155">3D 지도 · AI 가이드</text>
-      <text x="278" y="155">WAF · HTTPS</text>
+      <text x="92" y="155">3D 지도, AI 가이드</text>
+      <text x="278" y="155">WAF, HTTPS</text>
       <text x="487" y="155">공개 진입점</text>
       <text x="681" y="155">Web + Valhalla</text>
-      <text x="956" y="155">카탈로그 · 정적 자산</text>
+      <text x="956" y="155">카탈로그, 정적 자산</text>
       <text x="956" y="385">가이드 모델 호출</text>
     </g>
     <path d="M649 369h132" stroke="var(--line, #d5dbdb)" stroke-width="1"/>
     <text x="27" y="367" font-size="14" font-weight="700" fill="var(--strong, #232f3e)">지도 요청에서 가이드 응답까지</text>
     <text x="27" y="391" font-size="12" fill="var(--muted, #5f6b7a)">화살표는 주요 연결을 요약합니다.</text>
-    <text x="27" y="414" font-size="12" fill="var(--muted, #5f6b7a)">실제 권한·라우팅은 각 장에서 확인합니다.</text>
+    <text x="27" y="414" font-size="12" fill="var(--muted, #5f6b7a)">실제 권한, 라우팅은 각 장에서 확인합니다.</text>
   </g>
 </svg>

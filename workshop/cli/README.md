@@ -1,6 +1,7 @@
-# AgentCore CLI 입문 모듈
+# 모델 없는 Runtime 참고 모듈
 
-이 폴더는 모델 없는 HTTP Runtime을 생성하는 독립 실습 준비기와 번들을 제공한다.
+이 폴더는 모델 없는 HTTP Runtime의 별도 검증에 사용하는 참고 번들이다.
+120분 본 실습은 03~04장의 Strands 프로젝트를 사용하며 이 준비기를 실행하지 않는다.
 실제 Atlas Guide/Tools/Gateway/Memory 스택은 다른 실습에서 배포한다.
 
 ```bash
@@ -35,7 +36,7 @@ npm --prefix agentcore/cdk run synth
 python3 checks/check_synth.py
 ```
 
-준비기는 소유권 파일, 고정 계정·Seoul 대상, Python 3.14 CodeZip Runtime, telemetry를 끈
+준비기는 소유권 파일, 고정 계정, Seoul 대상, Python 3.14 CodeZip Runtime, telemetry를 끈
 CLI/Runtime 설정을 생성한다. CDK는 자기 스택에 만든 실행 역할을 `executionRoleArn`으로
 연결한다. 따라서 L3의 기본 모델/X-Ray/넓은 로그 권한을 받아서 수정하는 과정이 없다.
 실행 역할의 쓰기 권한은 자기 Runtime 로그에만 한정된다.
@@ -57,5 +58,5 @@ python3 -B -m unittest discover -s workshop/cli -p 'test_prepare.py' -v
 ARM64 패키징, HTTP 응답, 로그 내용과 synth 경계 검사를 다시 수행한다.
 
 - [한국어 실습 장](../chapters/04-agentcore-cli.md)
-- [Codex 프롬프트 카드](../prompts/04-agentcore-cli.md)
-- [검증 명령·결과·한계·정확한 변경 파일](VALIDATION.md)
+- [AI CLI 프롬프트 카드](../prompts/04-agentcore-cli.md)
+- [검증 명령, 결과, 한계, 정확한 변경 파일](VALIDATION.md)

@@ -7,6 +7,7 @@
   const $$ = (selector) => [...document.querySelectorAll(selector)];
   const chapterLinks = $$('[data-chapter-link]');
   const chapterSlugs = chapterLinks.map((link) => link.dataset.chapterLink);
+  const coreSlugs = chapterLinks.filter(link => link.dataset.coreChapter !== 'false').map(link => link.dataset.chapterLink);
   const allowedSlugs = new Set(chapterSlugs);
   const progressKey = `jeju-atlas:workshop:${body.dataset.courseKey}:reading:v1`;
   const themeKey = 'jeju-atlas:workshop:theme';
@@ -39,15 +40,15 @@
   }
 
   function updateProgress() {
-    const count = read.size;
-    $$('[data-progress-count]').forEach((node) => { node.textContent = `${count} / ${chapterSlugs.length} 읽음`; });
+    const count = coreSlugs.filter(slug => read.has(slug)).length;
+    $$('[data-progress-count]').forEach((node) => { node.textContent = `${count} / ${coreSlugs.length} 읽음`; });
     $$('[data-reading-progress]').forEach((node) => { node.value = count; });
     chapterLinks.forEach((link) => {
       const done = read.has(link.dataset.chapterLink);
       link.classList.toggle('is-read', done);
-      link.setAttribute('aria-label', `${link.querySelector('.nav-number').textContent} ${link.querySelector('.nav-title').textContent}${done ? ' · 읽음' : ''}`);
+      link.setAttribute('aria-label', `${link.querySelector('.nav-number').textContent} ${link.querySelector('.nav-title').textContent}${done ? ', 읽음' : ''}`);
     });
-    const nextSlug = chapterSlugs.find((slug) => !read.has(slug));
+    const nextSlug = coreSlugs.find((slug) => !read.has(slug));
     $$('[data-route-slug]').forEach((node) => {
       node.classList.toggle('is-read', read.has(node.dataset.routeSlug));
       node.classList.toggle('is-next', node.dataset.routeSlug === nextSlug);
@@ -68,9 +69,9 @@
       resume.setAttribute('href', link.getAttribute('href'));
       const number = link.querySelector('.nav-number').textContent;
       $('[data-resume-label]').textContent = !nextSlug ? '처음부터 다시 읽기'
-        : count ? `이어 읽기 · ${number}` : `첫 장 읽기 · ${number}`;
+        : count ? `이어 읽기, ${number}` : `첫 장 읽기, ${number}`;
     }
-    $('[data-reset-progress]').hidden = count === 0;
+    $('[data-reset-progress]').hidden = read.size === 0;
     const note = $('[data-storage-note]');
     note.replaceChildren();
     note.append(storageAvailable ? '이 브라우저에만 저장됩니다.' : '저장할 수 없어 이 페이지에서만 표시됩니다.',
@@ -243,11 +244,38 @@
     return copied;
   }
 
+  const promptScreens = $$('[data-prompt-screen]');
+  const promptApps = { codex: 'Codex', kiro: 'Kiro CLI', claude: 'Claude Code' };
+  const promptPreferenceKey = 'jeju-atlas:workshop:prompt-app';
+  function choosePromptApp(value, persist = false) {
+    const selected = Object.hasOwn(promptApps, value) ? value : 'codex';
+    promptScreens.forEach(screen => {
+      screen.dataset.assistant = selected;
+      screen.querySelector('[data-prompt-app]').textContent = promptApps[selected];
+      screen.querySelector('[data-prompt-destination]').textContent =
+        `${promptApps[selected]}의 대화 입력창에 붙여넣으세요.`;
+      screen.querySelectorAll('[data-prompt-tool]').forEach(button =>
+        button.setAttribute('aria-pressed', String(button.dataset.promptTool === selected)));
+      const copy = screen.querySelector('[data-copy-code]');
+      copy.dataset.copyLabel = `${promptApps[selected]} 프롬프트 복사`;
+      copy.setAttribute('aria-label', copy.dataset.copyLabel);
+    });
+    if (persist) {
+      try { localStorage.setItem(promptPreferenceKey, selected); } catch (_) { /* This page still keeps the choice. */ }
+    }
+  }
+  let promptApp = 'codex';
+  try { promptApp = localStorage.getItem(promptPreferenceKey) || promptApp; } catch (_) { /* Default is available offline. */ }
+  choosePromptApp(promptApp);
+  $$('[data-prompt-tool]').forEach(button =>
+    button.addEventListener('click', () => choosePromptApp(button.dataset.promptTool, true)));
+
   $$('[data-copy-code]').forEach((button) => {
     button.addEventListener('click', async () => {
       const code = document.getElementById(button.dataset.copyCode);
       if (!code) return;
       const originalLabel = button.getAttribute('aria-label');
+      const isPrompt = Boolean(button.closest('[data-prompt-screen]'));
       let copied = false;
       button.disabled = true;
       try {
@@ -267,14 +295,14 @@
         selection.addRange(range);
       }
       button.textContent = copied ? '복사됨' : '선택됨';
-      button.setAttribute('aria-label', copied ? '코드를 복사했습니다' : '선택한 코드를 직접 복사하세요');
-      announce(copied ? '코드를 복사했습니다.' : '코드를 선택했습니다. Ctrl+C 또는 ⌘C로 복사하세요.');
-      setTimeout(() => { button.textContent = '복사'; button.setAttribute('aria-label', originalLabel); }, 2200);
+      button.setAttribute('aria-label', copied ? isPrompt ? '프롬프트를 복사했습니다' : '코드를 복사했습니다' : '선택한 내용을 직접 복사하세요');
+      announce(copied ? isPrompt ? '프롬프트를 복사했습니다.' : '코드를 복사했습니다.' : '내용을 선택했습니다. Ctrl+C 또는 ⌘C로 복사하세요.');
+      setTimeout(() => { button.textContent = '복사'; button.setAttribute('aria-label', button.dataset.copyLabel || originalLabel); }, 2200);
     });
   });
 
   const toc = $('[data-page-toc]');
-  if (toc && window.matchMedia('(max-width: 1250px)').matches) toc.open = false;
+  if (toc && window.matchMedia('(max-width: 1500px)').matches) toc.open = false;
   const tocLinks = $$('[data-toc-link]');
   if ('IntersectionObserver' in window && tocLinks.length) {
     const byId = new Map(tocLinks.map((link) => [decodeURIComponent(link.hash.slice(1)), link]));

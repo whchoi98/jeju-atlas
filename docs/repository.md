@@ -61,21 +61,25 @@ npm run check
 
 ## GitHub에 올리기
 
-GitHub 원격 저장소는 아직 연결하지 않았다. 사용할 소유자와 공개 범위를 선택해 빈 저장소를 준비한 뒤 실제 주소로 연결한다.
+원격 저장소는 `https://github.com/whchoi98/jeju-atlas.git`이며 기본 브랜치는 `main`입니다.
+새 작업 환경에서는 clone으로 원격 연결을 함께 가져옵니다.
 
 ```bash
-cd /home/ec2-user/my-project/jeju-atlas
+git clone https://github.com/whchoi98/jeju-atlas.git
+cd jeju-atlas
 git status
-git branch --show-current
-git remote add origin git@github.com:<OWNER>/jeju-atlas.git
-git push -u origin main
+git remote -v
 ```
+
+변경 검증 후 작업 브랜치를 커밋하고 푸시합니다. 저장소의 구조는
+[README](../README.md), 문서 위치는 [문서 목록](README.md), 변경 기록은
+[CHANGELOG](../CHANGELOG.md)에 정리합니다.
 
 기존 GitHub 저장소에 연결할 때는 그 저장소의 이력을 먼저 확인한다. 최초 업로드에 `--force`나 `--mirror`는 필요하지 않다. 이 저장소의 `main`에는 기존 제주 작업 이력이 포함되어 있으므로 나머지 보관 브랜치를 별도로 올리지 않아도 해당 커밋이 전달된다.
 
 `.local/`, `.env`, `node_modules/`, 데이터베이스, 경로 타일, 의존성 ZIP·wheel 등은 `.gitignore`로 제외했다. `git add -f`로 제외 규칙을 우회하거나 폴더 전체를 압축해 업로드하지 않는다. 현재 스냅샷과 모든 Git 브랜치 이력에 대한 비밀값 검사는 `.local/directory-consolidation-20260911/`에 기록한다.
 
-Gitleaks 기본 규칙을 사용하며, `tests/api.test.mjs`의 합성 세션 서명값 하나만 정확한 파일 경로와 문자열이 모두 일치할 때 제외한다. 테스트 디렉터리나 과거 커밋 전체를 제외하지 않는다.
+Gitleaks 기본 규칙을 사용하며, `tests/api.test.mjs`의 합성 세션 서명값 하나만 정확한 파일 경로와 문자열이 모두 일치할 때 제외한다. 공개 브라우저 저장 키와 접속 API의 합성 테스트 값도 정확한 파일과 문자열로만 예외 처리한다. 테스트 디렉터리나 과거 커밋 전체를 제외하지 않는다.
 
 ```bash
 gitleaks git --config=.gitleaks.toml --log-opts="--all --full-history" --redact=100 .

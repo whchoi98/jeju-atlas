@@ -14,3 +14,17 @@ condition = "AND"
 paths = ['''(^|/)tests/api\.test\.mjs$''']
 regexTarget = "secret"
 regexes = ['''^api\-test\-secret\-with\-at\-least\-32\-bytes$''']
+
+[[rules.allowlists]]
+description = "Public localStorage record name, not a credential"
+condition = "AND"
+paths = ['''(^|/)(src/browsing-history\.ts|tests/browsing-history\.test\.mjs)$''']
+regexTarget = "secret"
+regexes = ['''^jeju\-atlas\.browsing\.v1$''']
+
+[[rules.allowlists]]
+description = "Synthetic presence API signing fixture used only by its test"
+condition = "AND"
+paths = ['''(^|/)tests/presence-api\.test\.mjs$''']
+regexTarget = "secret"
+regexes = ['''^presence\-api\-fixture\-secret\-32\-characters$''']

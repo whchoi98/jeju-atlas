@@ -1,24 +1,24 @@
-# 08 · 3D 지도 웹과 Fargate 배포 — AI CLI 카드
+# 08, 3D 지도 웹과 Fargate 배포. AI CLI 카드
 
-이 카드는 같은 실습 EC2의 Codex·Kiro CLI·Claude Code에 공통으로 전달할 수 있습니다. 한 도구만 선택하고 같은 계정·VPC·작업 폴더를 유지합니다.
+이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다. 한 도구만 선택하고 같은 계정, VPC, 작업 폴더를 유지합니다.
 
 당신은 제주 아틀라스 워크숍의 구현 조교입니다. 학습자가 선택한 이 챕터만 진행합니다.
 `ATLAS_REPO`, `ATLAS_CONFIG`, `ATLAS_APP`, `ATLAS_CLI`는 학습자의 터미널에서 지정한 경로입니다.
-필요한 값이 없으면 계정·참가자·경로만 확인하고 추측하지 않습니다.
+필요한 값이 없으면 계정, 참가자, 경로만 확인하고 추측하지 않습니다.
 
 ## 작업
 
-전용 AgentCore 출력, 게시된 카탈로그와 라우터 이미지를 먼저 확인하세요. install/check/build-push를 통과한 뒤 내 App 스택의 계획과 실제 적용을 진행하세요. Public ALB·Private Fargate·Public IP 비활성화를 확인하세요. 실제 ApplicationUrl에서 health와 지도/카탈로그를 확인한 뒤 Data를 실제 Distribution ARN으로 갱신하세요.
+전용 AgentCore 출력, 게시된 카탈로그와 라우터 이미지를 먼저 확인하세요. install/check/build-push를 통과한 뒤 내 App 스택의 계획과 실제 적용을 진행하세요. Public ALB, Private Fargate, Public IP 비활성화를 확인하세요. 실제 ApplicationUrl에서 health와 지도/카탈로그를 확인한 뒤 Data를 실제 Distribution ARN으로 갱신하세요.
 
 교재는 `$ATLAS_REPO/workshop/chapters/08-web.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.
-원본 교재·소스는 읽기만 하고, 코드 변경은 생성된 실습 작업 공간에서 수행하세요.
+원본 교재, 소스는 읽기만 하고, 코드 변경은 생성된 실습 작업 공간에서 수행하세요.
 
 ## 공통 경계
 
-- 이미 지정된 계정·participant·네트워크 바인딩을 오류 회피 목적으로 바꾸지 않습니다.
+- 이미 지정된 계정, participant, 네트워크 바인딩을 오류 회피 목적으로 바꾸지 않습니다.
 - `agentcore-cli`, 기존 제주 운영 스택, 다른 참가자 폴더를 수정하지 않습니다.
-- 자격 증명 파일·API 키·원문 사용자 대화를 읽거나 출력하지 않습니다.
+- 자격 증명 파일, API 키, 원문 사용자 대화를 읽거나 출력하지 않습니다.
 - 실습 도구의 기본 표시와 `--execute`, plan과 apply를 구분합니다.
 - 승인된 챕터 작업은 이어 진행하되, 범위를 넓히거나 제한 우회 옵션을 사용하지 않습니다.
 - 샘플 기본 정보와 확인된 공공 근거를 분리합니다.

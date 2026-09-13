@@ -1,30 +1,46 @@
-# 03 · Codex로 실습용 에셋 구성 — AI CLI 카드
+# 03. 제주 가이드 구현
 
-이 카드는 같은 실습 EC2의 Codex·Kiro CLI·Claude Code에 공통으로 전달할 수 있습니다. 한 도구만 선택하고 같은 계정·VPC·작업 폴더를 유지합니다.
+현재 AgentCore 프로젝트를 열고 아래 내용을 전달합니다.
+계정 번호와 모델은 02장에서 확인한 값입니다.
 
-당신은 제주 아틀라스 워크숍의 구현 조교입니다. 학습자가 선택한 이 챕터만 진행합니다.
-`ATLAS_REPO`, `ATLAS_CONFIG`, `ATLAS_APP`, `ATLAS_CLI`는 학습자의 터미널에서 지정한 경로입니다.
-필요한 값이 없으면 계정·참가자·경로만 확인하고 추측하지 않습니다.
+```text
+AgentCore CLI 0.28.1로 생성한 이 프로젝트에 제주 여행 가이드를 구현해 주세요.
+코드는 현재 폴더 안에서만 수정합니다. Runtime 이름은 JejuGuide입니다.
+VPC, NAT Gateway, Subnet, VSCode Server와 AI CLI는 이미 준비되어 있습니다.
 
-## 작업
+먼저 AGENTS.md, agentcore/agentcore.json, app/JejuGuide/main.py,
+app/JejuGuide/model/load.py와 data/jeju_pois.json을 읽어 실제 구조를 확인하세요.
+이미 생성한 프로젝트에서 agentcore create를 다시 실행하지 마세요.
+변경할 파일과 검사 방법을 짧게 설명한 뒤 다음 구현을 진행하세요.
 
-현재 폴더의 AGENTS.md와 .local/workshop-binding.json의 비밀값 없는 소유권 정보를 확인하세요. ec2Context와 현재 EC2, 계정·VPC 바인딩이 일치하는지 확인하고 독립 Git 작업 공간·Project/Stack 접두사를 설명하세요. lab.py run plan-bootstrap을 --execute 없이 실행해 대상을 검토하세요. PC에서 읽는 HTML은 실행 환경이 아니며 이 카드 자체로 클라우드 변경을 실행하지 마세요.
+1. 생성된 Strands Agent와 BedrockAgentCoreApp 진입점을 유지합니다.
+   세션별 Agent 구분과 스트리밍 처리를 하나의 전역 대화로 바꾸지 마세요.
+2. search_jeju_places(query="", category="", limit=5) 도구를 만듭니다.
+   파일 구조를 먼저 읽고 이름과 카테고리로 검색하세요. 정확한 이름 일치를 먼저 반환합니다.
+   검색어는 최대 160자, limit는 1~5로 검증합니다. query가 비어도 category가 있으면 검색합니다.
+   두 조건이 모두 비면 입력 오류를 반환하고, 없는 장소는 빈 결과로 처리합니다.
+   데이터 경로는 실행 디렉터리가 아니라 도구 파일 위치를 기준으로 계산합니다.
+3. 반환 항목은 기존 id, 이름, 카테고리, 좌표, 주소와 출처로 제한합니다.
+   137건은 실습용 시드입니다. source=sample과 미검증 안내를 포함하세요.
+   전화, 사진, 영업시간과 편의 정보를 추측해서 추가하지 마세요.
+4. 기본 add_numbers 예제는 제주 도구로 바꾸고 Agent의 tools에 연결합니다.
+   응답은 한국어로 작성하고 도구 결과에 있는 장소만 소개합니다.
+   확인하지 않은 정보는 미확인으로 밝힙니다.
+5. 모델은 진행자가 확인한 Bedrock 모델을 사용합니다.
+   기본 예시는 global.openai.gpt-5.6-sol, 리전은 ap-northeast-2입니다.
+   생성된 model/load.py를 수정하고 필요한 모델별 요청 설정을 실제 SDK 기준으로 확인하세요.
+   Codex, Kiro CLI 또는 Claude Code 자체의 모델 설정은 바꾸지 마세요.
+6. agentcore/aws-targets.json의 default 대상에는 확인한 실습 계정과 리전을 넣습니다.
+   자격 증명이나 API 키를 파일과 프롬프트에 넣지 마세요.
+7. 순수 검색 로직과 테스트를 분리합니다. 정상 검색, 일치 우선순위, 결과 없음,
+   카테고리만 지정한 검색, 두 조건이 모두 빈 입력, 잘못된 limit를 검사합니다. 이 테스트에서는 모델이나 AWS를 호출하지 마세요.
+8. CLI가 허용하는 설정으로 질문과 답변 원문 telemetry 수집을 끕니다.
+   계정 단위 관측 설정과 기존 자원의 권한은 변경하지 마세요.
+9. 프로젝트 AGENTS.md에 작업 폴더와 계정 경계를 적습니다.
+   Claude Code는 CLAUDE.md에서 이를 참조하고, Kiro CLI는 .kiro/steering/workshop.md에
+   같은 경계를 적어 도구를 바꿔도 적용되도록 합니다.
 
-교재는 `$ATLAS_REPO/workshop/chapters/03-codex.md`입니다.
-명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.
-원본 교재·소스는 읽기만 하고, 코드 변경은 생성된 실습 작업 공간에서 수행하세요.
-
-## 공통 경계
-
-- 이미 지정된 계정·participant·네트워크 바인딩을 오류 회피 목적으로 바꾸지 않습니다.
-- `agentcore-cli`, 기존 제주 운영 스택, 다른 참가자 폴더를 수정하지 않습니다.
-- 자격 증명 파일·API 키·원문 사용자 대화를 읽거나 출력하지 않습니다.
-- 실습 도구의 기본 표시와 `--execute`, plan과 apply를 구분합니다.
-- 승인된 챕터 작업은 이어 진행하되, 범위를 넓히거나 제한 우회 옵션을 사용하지 않습니다.
-- 샘플 기본 정보와 확인된 공공 근거를 분리합니다.
-
-## 결과
-
-변경 파일, 실행한 명령과 종료 상태, 확인한 소유 자원, 실제로 검증한 항목,
-아직 실행하지 않은 클라우드 단계와 다음 재개 위치를 간결하게 보고하세요.
-코드나 계획을 작성한 사실만으로 배포 성공이라고 말하지 마세요.
+이번 요청은 코드 구현과 로컬 테스트까지입니다. AWS 배포는 다음 장에서 진행합니다.
+변경 파일, 실제 실행한 검사, 남은 문제와 다음 실행 명령을 알려 주세요.
+실행하지 않은 모델 호출이나 배포를 성공으로 보고하지 마세요.
+```

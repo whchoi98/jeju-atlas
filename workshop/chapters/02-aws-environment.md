@@ -1,88 +1,78 @@
-# 02 · AWS 계정과 기존 네트워크
+# 02. 계정과 작업 폴더
 
-**현재 실습 EC2가 배포된 계정과 VPC**를 사용합니다.
-다른 profile·기본 VPC·동일한 Name 태그의 다른 VPC를 임의로 선택하지 않습니다.
-해당 VPC의 기존 Public/Private Subnet과 NAT가 필요합니다.
-실습 도구는 VPC·서브넷·NAT·IGW·라우트 테이블을 만들지 않습니다.
+이 장은 10분입니다. EC2가 배포된 계정과 기존 네트워크를 확인하고
+참가자별 작업 위치를 정합니다. 네트워크 자원을 새로 만드는 단계는 아닙니다.
 
-## 계정과 참가자 이름
+## 참가자 이름
 
-EC2에 연결된 실습용 IAM 역할을 기본으로 사용합니다.
-액세스 키를 새로 만들거나 `aws configure`로 다른 계정에 전환하지 않습니다.
-기존 환경에 AWS profile이 설정되어 있더라도 실제 caller가 EC2 계정과 다르면 중단합니다.
-아래 변수와 명령은 EC2 터미널에서 설정합니다.
+아래의 `team01`과 `AtlasCliTeam01`을 본인에게 배정된 이름으로 바꿉니다.
+프로젝트 이름은 영문으로 시작하고 영문과 숫자만 사용합니다.
 
 ```bash
 cd "$ATLAS_REPO"
-export AWS_REGION=ap-northeast-2
 export ATLAS_TEAM=team01
+export ATLAS_PROJECT=AtlasCliTeam01
+export ATLAS_REGION=ap-northeast-2
 export ATLAS_CONFIG="$ATLAS_REPO/workshop/.local/$ATLAS_TEAM.json"
-export ATLAS_APP="$ATLAS_REPO/workshop/.local/labs/$ATLAS_TEAM/app"
-export ATLAS_CLI="$ATLAS_REPO/workshop/.local/labs/$ATLAS_TEAM/cli"
+export ATLAS_CLI_PARENT="$ATLAS_REPO/workshop/.local/labs/$ATLAS_TEAM"
+export ATLAS_CLI="$ATLAS_CLI_PARENT/$ATLAS_PROJECT"
 aws sts get-caller-identity --query '{Account:Account,Arn:Arn}'
 ```
 
-계정과 역할이 맞는지 확인합니다. 같은 계정에서 `team01`을 여러 참가자가 공유하지 않습니다.
+현재 EC2의 실습 역할인지 확인합니다.
+다른 계정의 profile로 바꾸거나 액세스 키를 새로 만들지 않습니다.
 
-## 현재 EC2에서 설정 자동 생성
+## EC2와 기존 네트워크 확인
 
 ```bash
-python3 workshop/scripts/lab.py init-ec2 \
+python3 workshop/scripts/lab.py init-ec2 --identity-only \
   --participant "$ATLAS_TEAM" \
   --config "$ATLAS_CONFIG"
-
-python3 workshop/scripts/lab.py doctor --config "$ATLAS_CONFIG"
-```
-
-IMDSv2의 instance identity document와 primary MAC의 VPC ID를 읽고,
-STS 호출 계정과 대조한 뒤 같은 VPC의 기존 네트워크를 조회합니다.
-메타데이터 token, IAM 자격 증명·user-data는 설정이나 출력에 저장하지 않습니다.
-`accountId`, `instanceId`, `region`, `vpcId`와 `createdAwsResources: false`를 확인합니다.
-
-기존 설정 파일은 덮어쓰지 않습니다. 이전 수동 설정을 바꾸어 쓰지 말고 새 EC2 설정을 생성합니다.
-참가자는 영문 소문자로 시작하는 3~10자의 영문 소문자·숫자입니다.
-운영 이름과 일부 예약 이름은 거부합니다. 설정 JSON에 API 키를 넣지 않습니다.
-
-## 기존 네트워크 검색
-
-```bash
-python3 workshop/scripts/lab.py discover --config "$ATLAS_CONFIG"
-python3 workshop/scripts/lab.py doctor --aws --config "$ATLAS_CONFIG"
 python3 workshop/scripts/lab.py info --config "$ATLAS_CONFIG"
 ```
 
-`init-ec2`는 최초 검색까지 수행합니다. 이후 `discover`로 다시 확인해도 EC2의 VPC ID에 고정됩니다.
-Name 태그가 없어도 같은 VPC를 사용하며, EC2의 계정·VPC 바인딩이 바뀌면 실행을 거부합니다.
+`--identity-only`는 IMDSv2로 EC2의 계정, 리전과 VPC를 읽고 STS 계정과 대조합니다.
+기존 네트워크의 식별자를 확인하며 Public/Private Subnet 수나 CloudFront 설정까지 요구하지 않습니다.
+출력의 `createdAwsResources: false`, `networkChecked: false`와 본인 계정, VPC, 참가자 이름을 확인합니다.
+네트워크 전체 구성을 검사했다는 의미는 아닙니다.
+같은 설정이 이미 있으면 덮어쓰지 말고 `info`로 이어서 확인합니다.
 
-- 현재 EC2 primary interface의 VPC와 일치해야 합니다.
-- 두 AZ에 Public/Private Subnet이 각각 있어야 합니다.
-- Public Subnet 기본 경로는 IGW, Private Subnet 기본 경로는 기존 NAT여야 합니다.
-- NAT는 해당 VPC에서 사용 가능해야 하고 Private Subnet 자동 Public IP 할당은 꺼져 있어야 합니다.
-- CloudFront origin-facing Prefix List 소유자는 AWS여야 합니다.
+`info`의 app/cli 경로는 기존 심화 준비기의 경로입니다.
+본 실습의 새 프로젝트는 `$ATLAS_CLI_PARENT/$ATLAS_PROJECT`에 생성합니다.
+05장에서 전체 웹 배포를 선택하면 `discover`로 그때 필요한 서브넷과 NAT 경로를 확인합니다.
 
-검색 실패 시 IMDSv2 접근·IAM 조회 권한·현재 VPC의 네트워크 준비를 확인합니다.
-IMDS가 안 되는 로컬 PC에서 대신 실행하거나 다른 VPC를 찾아 계속 진행하지 않습니다.
-이 에셋의 검증 리전은 서울이므로 다른 리전의 EC2에서는 자동으로 서울 VPC를 선택하지 않고 중단합니다.
-실습을 통과시키려고 운영 라우트나 Public IP 설정을 고치지 않습니다.
+## CLI 설정 위치
 
-## 파생 이름
+```bash
+export ATLAS_ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
+export AGENTCORE_CONFIG_DIR="$ATLAS_CLI_PARENT/cli-config"
+export AGENTCORE_TELEMETRY_DISABLED=1
+mkdir -p "$AGENTCORE_CONFIG_DIR"
+```
 
-| 용도 | team01 예 |
-|---|---|
-| Project 태그·ECR/ECS 접두사 | `jeju-atlas-lab-team01` |
-| CloudFormation 접두사 | `AtlasLabTeam01` |
-| Guide / Tools | `AtlasLabTeam01_Guide` / `AtlasLabTeam01_Tools` |
-| Memory | `AtlasLabTeam01_Memory` |
-| CLI 프로젝트 | `AtlasCliTeam01` |
-| 데이터 버킷 | `jeju-atlas-lab-team01-data-<계정>-ap-northeast-2` |
+`ATLAS_ACCOUNT`가 방금 확인한 EC2 계정과 같아야 합니다.
+CLI 설정은 이 참가자의 폴더에만 저장합니다.
+진행자가 다음 내용을 `cli-config/config.json`에 준비했는지 확인합니다.
 
-기존 `Jeju3d*`, `JejuAtlas_Guide`, `AgentCore-Ohmyjeju-default`는 배포 대상이 아닙니다.
-공유 계정·NAT·서비스 한도까지 완전히 격리되는 것은 아니므로 진행자가 용량을 관리합니다.
+```json
+{
+  "disableDependencyManagement": true,
+  "disableTransactionSearch": true,
+  "telemetry": { "enabled": false }
+}
+```
 
-- [ ] EC2 identity와 STS 계정, 현재 VPC ID·참가자 이름을 확인했습니다.
-- [ ] 네트워크와 도구 점검을 통과했습니다.
-- [ ] 내 자원의 이름을 확인했습니다.
+본 실습은 AgentCore의 관리형 PUBLIC 네트워크 모드와 IAM 인증을 사용합니다.
+이는 에이전트를 익명 공개한다는 의미가 아닙니다.
+기존 VPC의 Private Subnet에 Fargate를 배포하는 작업은 08장의 심화 실습입니다.
 
-Codex 카드: [02 · 계정·네트워크](../prompts/02-aws-environment.md)
+## 배포 준비 확인
 
-다음: [03 · Codex 작업 공간](03-codex.md)
+진행자는 Bedrock 모델 호출, Runtime 생성과 호출, CloudFormation,
+IAM 역할 전달 권한과 기존 CDK bootstrap을 미리 점검합니다.
+사용할 모델 ID도 배정받습니다. 기본 예시는 `global.openai.gpt-5.6-sol`입니다.
+모델 ID를 알고 있다는 사실만으로 호출 권한이 확인되지는 않습니다.
+
+프롬프트: [계정 확인](../prompts/02-aws-environment.md)
+
+다음: [03. AI CLI로 에이전트 구현](03-codex.md)

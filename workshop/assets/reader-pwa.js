@@ -66,11 +66,11 @@
           : failed ? '오프라인 저장을 사용할 수 없습니다. 교재는 계속 읽을 수 있습니다.'
             : ready ? navigator.onLine
               ? '전체 교재를 오프라인으로 읽을 수 있습니다.'
-              : '오프라인 · 저장된 교재를 읽고 있습니다.'
+              : '오프라인, 저장된 교재를 읽고 있습니다.'
               : '오프라인으로 읽을 교재를 저장하고 있습니다…');
   }
 
-  const installHelp = '브라우저 메뉴(또는 공유 메뉴)에서 “앱 설치”·“홈 화면에 추가”를 선택하세요.';
+  const installHelp = '브라우저 메뉴(또는 공유 메뉴)에서 “앱 설치”, “홈 화면에 추가”를 선택하세요.';
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     prompt = event;

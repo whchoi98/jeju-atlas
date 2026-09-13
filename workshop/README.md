@@ -1,89 +1,94 @@
-# 제주 아틀라스 · AgentCore CLI × AI CLI 워크숍
+# AgentCore CLI로 만드는 제주 AI 가이드
 
-Codex가 설치된 실습 EC2에서 시작하여 **그 EC2의 계정과 VPC**에 참가자 이름으로 배포합니다.
-Codex를 기본으로 사용하거나 같은 EC2의 Kiro CLI·Claude Code 환경을 선택할 수 있습니다.
-현재 저장소의 3D 지도·제주 장소 데이터·한영 AI 가이드·이동 경로를 사용합니다.
-Markdown을 순서대로 읽거나, 생성된 `site/index.html`을 브라우저에서 엽니다.
+준비된 EC2의 VSCode Server에서 제주 여행 에이전트를 구현합니다.
+Codex, Kiro CLI, Claude Code 중 하나로 코드를 작성하고,
+AgentCore CLI로 로컬 실행, AWS 배포와 호출 결과를 확인합니다.
 
-PC에서는 `workshop/site/` 전체 또는
-`workshop/.local/downloads/jeju-atlas-workshop-handbook.zip`을 내려받습니다.
-압축 해제 후 `index.html`을 열고 실제 명령은 EC2에서 실행합니다.
-[다운로드·실행 위치 안내](reference/offline-start.md) ·
-[공식 GitHub/AWS 가이드 대조](reference/official-guide-review.md) ·
-[Codex·Kiro CLI·Claude Code 환경](reference/ai-cli-environments.md)
+본 실습은 00장부터 04장까지입니다. 실습 110분과 대기 시간 10분을 합쳐
+120분으로 편성했습니다. 05장 이후는 제주 아틀라스 전체 서비스를 배포하는
+심화 자료이며 본 실습 시간에 포함하지 않습니다.
 
-`npm run build`는 앱의 `dist/workshop/`에 교재와 다운로드 ZIP도 구성합니다.
-배포 후 앱의 이용 안내에서 워크숍을 열거나 같은 호스트의 `/workshop/`로 접속합니다.
-HTTPS에서는 워크숍을 별도 앱으로 설치하고 저장 완료 후 21개 페이지를 오프라인으로 읽을 수 있습니다.
-지도 앱의 저장 코스와 워크숍의 교재 캐시는 각각 관리하며, 실제 AI·지도 타일·AWS 실습 명령은 연결이 필요합니다.
+## 준비된 환경
 
-## 시작
+VPC, NAT Gateway, Subnet, EC2의 VSCode Server와 세 AI CLI는 설치되어 있습니다.
+참가자는 환경을 새로 만들지 않고 VSCode Server의 터미널에서 시작합니다.
+AI CLI는 하나만 사용합니다. 도구를 바꿔도 실습 폴더와 AWS 계정은 유지합니다.
+
+진행자는 수업 전에 AgentCore CLI 0.28.1, Node 24, Python 3.14, uv, AWS CLI,
+CDK bootstrap과 실습 역할의 모델 호출 권한을 확인합니다.
+설치와 로그인은 별개이므로 선택한 AI CLI로 대화를 시작할 수 있는지도 확인합니다.
+[진행자 준비](reference/facilitator.md)에 확인 항목과 지연 시 대응을 정리했습니다.
+
+## 120분 진행표
+
+| 경과 시간 | 할 일 | 확인할 결과 |
+|---|---|---|
+| 0~5분 | [00. 실습 목표](chapters/00-orientation.md) | 만들 에이전트와 완료 기준 이해 |
+| 5~15분 | [01. 준비된 환경 확인](chapters/01-setup.md) | VSCode 터미널과 사용할 AI CLI 확인 |
+| 15~25분 | [02. 계정과 작업 폴더](chapters/02-aws-environment.md) | 참가자 이름과 배포 대상 확인 |
+| 25~60분 | [03. AI CLI로 에이전트 구현](chapters/03-codex.md) | AgentCore 프로젝트, 제주 검색 도구와 테스트 |
+| 60~110분 | [04. 실행과 배포](chapters/04-agentcore-cli.md) | 로컬 응답, Runtime 배포와 실제 모델 응답 |
+| 110~120분 | 지연 대응과 결과 정리 | 배포 상태와 남은 자원 기록 |
+
+결과물은 실제 모델과 제주 검색 도구를 사용하는 참가자 전용 Runtime입니다.
+코드 생성, 로컬 테스트, READY 상태, 실제 응답 완료를 각각 확인합니다.
+권한 오류나 서비스 지연으로 원격 호출을 마치지 못했다면 배포 완료로 표시하지 않습니다.
+이 시간표는 수업 설계이며, 120분 클라우드 리허설을 완료했다는 기록은 아닙니다.
+
+## AI 코딩 도구 사용
+
+코딩 도구에는 이번 단계의 목적, 수정할 폴더, 입력과 출력, 검사 방법을 전달합니다.
+답변을 읽은 뒤 실제 변경 파일과 실행 결과를 확인합니다.
+각 장의 프롬프트 카드는 세 AI CLI에서 공통으로 사용합니다.
+[도구별 실행 방법](reference/ai-cli-environments.md)을 확인하세요.
+Codex 등의 개발 도구 인증과 배포된 에이전트의 Bedrock 권한은 별개입니다.
+키나 로그인 파일을 프롬프트에 넣지 않습니다.
+
+## 심화 실습
+
+| 장 | 내용 |
+|---|---|
+| [05](chapters/05-foundation-and-data.md) | ECR과 S3, 장소 카탈로그 |
+| [06](chapters/06-atlas-agentcore.md) | Atlas Guide, Tools, Gateway, Memory |
+| [07](chapters/07-routing.md) | Valhalla 경로 데이터와 고도 |
+| [08](chapters/08-web.md) | 3D 웹과 Private Fargate |
+| [09](chapters/09-https-edge.md) | HTTPS, CloudFront, WAF |
+| [10](chapters/10-enrichment.md) | 공식 장소 정보와 사진 |
+| [11](chapters/11-operations.md) | 로그, 알람과 운영 설정 |
+| [12](chapters/12-validation.md) | 전체 서비스 검증 |
+| [13](chapters/13-cleanup.md) | 전체 실습 자원 정리 |
+
+기본 과정의 Runtime은 AgentCore CLI가 관리합니다.
+심화 과정의 Atlas Guide와 Tools는 별도의 CloudFormation 스택이 관리합니다.
+심화 과정을 시작할 때 이 경계를 먼저 확인합니다.
+
+## 교재 열기
 
 ```bash
 cd /home/ec2-user/my-project/jeju-atlas
-npm ci
 npm run workshop:build
-python3 -m http.server 8008 --directory workshop/site --bind 127.0.0.1
 ```
 
-브라우저에서 `http://127.0.0.1:8008`을 엽니다. 정적 HTML은 파일로 열어도 동작합니다.
-사이트에는 CLI를 실행하거나 AWS 키를 받는 기능이 없습니다. 진도 표시는 브라우저에 저장하는 학습 기록입니다.
+`workshop/site/index.html`을 브라우저에서 엽니다.
+PC로 옮길 때는 `workshop/site/` 전체를 복사하거나 다음 명령으로 ZIP을 만듭니다.
 
-설치된 AI CLI는 유지합니다. [01 · 개발 도구](chapters/01-setup.md)에서 버전·인증과 부족한 도구만
-확인합니다. `npm run workshop:package`로 PC용 ZIP을 다시 만들 수 있습니다.
-전체 과정을 한 번에 짧게 끝내는 실습으로 보지 않습니다. 이미지·경로 그래프 빌드,
-인증서 검증과 CloudFront 전파 시간을 포함해 진행자는 이틀의 실습 시간을 준비합니다.
+```bash
+npm run workshop:package
+```
 
-## 챕터
+ZIP은 `workshop/.local/downloads/jeju-atlas-workshop-handbook.zip`에 생성됩니다.
+PC에서는 교재를 읽고 명령은 EC2의 VSCode Server 터미널에서 실행합니다.
+[PC에서 교재 열기](reference/offline-start.md)에 파일 구성을 설명했습니다.
 
-| 순서 | 실습 |
-|---|---|
-| 00 | [완성할 서비스와 실습 흐름](chapters/00-orientation.md) |
-| 01 | [개발 도구와 CLI 설치](chapters/01-setup.md) |
-| 02 | [AWS 계정과 기존 네트워크](chapters/02-aws-environment.md) |
-| 03 | [Codex로 실습용 에셋 구성](chapters/03-codex.md) |
-| 04 | [AgentCore CLI 첫 배포](chapters/04-agentcore-cli.md) |
-| 05 | [ECR·S3·장소 카탈로그](chapters/05-foundation-and-data.md) |
-| 06 | [실제 Atlas AgentCore 배포](chapters/06-atlas-agentcore.md) |
-| 07 | [Valhalla·OSM·고도](chapters/07-routing.md) |
-| 08 | [ALB·Private Fargate·3D 웹](chapters/08-web.md) |
-| 09 | [도메인·HTTPS·CloudFront·WAF](chapters/09-https-edge.md) |
-| 10 | [공식 정보·사진·올레길 보강](chapters/10-enrichment.md) |
-| 11 | [관측·보안·운영 제어](chapters/11-operations.md) |
-| 12 | [검증·문제 해결·복구](chapters/12-validation.md) |
-| 13 | [실습 자원 정리](chapters/13-cleanup.md) |
+## 작업 위치와 검증
 
-[자원·기술 매핑](reference/resources.md) · [진행자 가이드](reference/facilitator.md) ·
-[카탈로그와 출처](reference/catalog-bootstrap.md)
-
-## 공통 작업 규칙
-
-원본 저장소와 `agentcore-cli`는 수정하지 않습니다. 참가자 작업은
-`workshop/.local/labs/<참가자>/app`과 `cli`에 저장합니다.
-현재 EC2의 VPC를 IMDSv2로 식별하고 그 VPC의 기존 서브넷·NAT를 재사용합니다.
-VPC 이름이나 기본 VPC로 대체하지 않으며 공유 네트워크를 만들거나 삭제하지 않습니다.
-
-`lab.py run`은 기본적으로 실행할 명령과 대상을 표시합니다. 해당 단계의 목적·대상·변경 계획을
-확인한 뒤 `--execute`를 붙여 실행합니다. 실행 시 실제 AWS 계정과 준비된 작업 공간의 소유권을
-다시 검사합니다. 이 장치는 실수 방지용이며 IAM 최소 권한이나 별도 AWS 계정을 대신하지 않습니다.
-
-CLI 입문 Runtime과 실제 Atlas Guide/Tools는 별도 배포입니다. 입문 Runtime은 모델을 호출하지 않으며,
-실제 가이드는 기존 Strands·Global CRIS Sol/Astra·Gateway·Memory 코드를 사용합니다.
-Codex의 로그인·과금과 배포된 AWS 모델의 권한·과금은 구분합니다.
-
-풀 구성 완료에는 사용할 수 있는 도메인·인증서, 모델 접근, 공공 API 키와 알림 수신 확인이 필요합니다.
-초기 CloudFront 주소로 웹을 확인한 뒤 09~11장의 HTTPS·WAF·공식 보강·운영 구성을 마칩니다.
-해당 준비가 없으면 “전체 배포 완료”로 기록하지 않습니다.
-
-## 문서와 검증
-
-`chapters/`가 학습 원본, `prompts/`가 세 AI CLI의 공통 카드, `scripts/`가 실습 도구, `cli/`가 검증된 AgentCore CLI 예제입니다.
-`course.json`을 기준으로 `site/`를 생성합니다. `.local/`에는 참가자 설정·데이터·ZIP·클라우드 출력이
-들어가며 Git 및 정적 사이트에서 제외합니다. API 키는 프롬프트·문서·설정 JSON에 넣지 않습니다.
+참가자는 `workshop/.local/labs/<참가자>/` 안에서 작업합니다.
+기존 제주 아틀라스 배포와 다른 프로젝트는 변경하지 않습니다.
+읽음 표시는 학습 기록이며 AWS 배포 성공을 뜻하지 않습니다.
 
 ```bash
 npm run workshop:check
 ```
 
-제작 시 실행한 로컬 검사와 실제 클라우드 리허설 여부는 `VALIDATION.md`에 기록합니다.
-챕터의 기대 결과는 참가자가 자신의 계정에서 실행해 확인하는 기준입니다.
+[검증 기록](VALIDATION.md)은 로컬 확인과 클라우드 리허설 여부를 구분합니다.
+[자원 목록](reference/resources.md)과 [공식 CLI 문서 검토](reference/official-guide-review.md)도 확인할 수 있습니다.

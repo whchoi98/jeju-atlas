@@ -1,7 +1,7 @@
 {
-  "name": "Jeju Atlas 워크숍 · 제주 아틀라스를 직접 배포하기",
+  "name": "Jeju Atlas 워크숍 · 120분 AgentCore CLI 실습",
   "short_name": "Atlas 워크숍",
-  "description": "Codex · Kiro CLI · Claude Code와 Amazon AgentCore CLI로 만드는 3D 제주 여행 가이드",
+  "description": "준비된 VSCode Server에서 Codex, Kiro CLI, Claude Code로 제주 가이드 구현",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",

@@ -99,6 +99,43 @@ async function fixture(t, options = {}) {
 const readPage = (output, path) => readFile(join(output, path), 'utf8');
 const decodeAttribute = (value) => value.replaceAll('&amp;', '&').replaceAll('&#x26;', '&');
 
+test('a timed course separates optional lessons from its time budget, progress and next step', async (t) => {
+  const course = { ...manifest(), coreChapterCount: 2, bufferMinutes: 15, targetMinutes: 60 };
+  const input = await fixture(t, { course });
+  await buildSite({ coursePath: input.coursePath, outputDir: input.outputDir });
+  const overview = await readPage(input.outputDir, 'index.html');
+  assert.match(overview, /60분 과정/);
+  assert.match(overview, /실습 45분 \+ 여유 15분/);
+  assert.match(overview, /본 실습 2개 장/);
+  assert.match(overview, /심화 선택/);
+  assert.doesNotMatch(overview, /2일 과정/);
+  assert.match(overview, /data-reading-progress max="2"/);
+  assert.equal((overview.match(/data-core-chapter="true"/g) || []).length, 2);
+  assert.equal((overview.match(/data-core-chapter="false"/g) || []).length, 1);
+  const lastCore = await readPage(input.outputDir, 'chapters/01-tools.html');
+  assert.match(lastCore, /class="pagination-link next"[^>]*href="\.\.\/index.html"/);
+  const optional = await readPage(input.outputDir, 'chapters/02-finish.html');
+  assert.match(optional, /심화 선택/);
+  assert.match(optional, /별도 일정/);
+});
+
+test('a timed course rejects misleading totals and misplaced optional lessons', async (t) => {
+  for (const change of [
+    course => { course.targetMinutes = 120; },
+    course => { course.coreChapterCount = 0; },
+    course => { course.coreChapterCount = 4; },
+    course => { course.bufferMinutes = -1; },
+    course => { course.chapters[1].day = 2; },
+    course => { delete course.bufferMinutes; },
+  ]) {
+    const course = { ...manifest(), coreChapterCount: 2, bufferMinutes: 15, targetMinutes: 60 };
+    change(course);
+    const input = await fixture(t, { course });
+    await assert.rejects(buildSite({ coursePath: input.coursePath, outputDir: input.outputDir }),
+      /core|budget|targetMinutes/);
+  }
+});
+
 test('PC handbook includes downloadable Codex cards and their copyable text', async (t) => {
   const course = { ...manifest(), includePromptCards: true };
   const cards = Object.fromEntries(course.chapters.map((chapter) => [
@@ -111,6 +148,28 @@ test('PC handbook includes downloadable Codex cards and their copyable text', as
   assert.match(page, /Codex card 01/);
   assert.equal(await readFile(join(input.outputDir, 'prompts/01-tools.md'), 'utf8'),
     cards['prompts/01-tools.md']);
+  assert.match(page, /data-prompt-screen/);
+  for (const tool of ['codex', 'kiro', 'claude']) assert.match(page, new RegExp(`data-prompt-tool="${tool}"`));
+  assert.match(page, /프롬프트 입력/);
+  assert.match(page, /AI CLI의 대화 입력창/);
+});
+
+test('terminal, file and AI prompt windows identify their destination without changing copyable text', async (t) => {
+  const code = 'echo \"$ATLAS_PROJECT\"';
+  const prompt = '제주 장소 검색 도구를 작성해 주세요.';
+  const f = await fixture(t, { documents: {
+    'chapters/00-start.md': `${documents['chapters/00-start.md']}\n\n\`\`\`bash\n${code}\n\`\`\`\n\n\`\`\`json\n{\"sample\":true}\n\`\`\`\n\n\`\`\`ai-prompt\n${prompt}\n\`\`\`\n`,
+  } });
+  await buildSite(f);
+  const page = await readPage(f.outputDir, 'chapters/00-start.html');
+  assert.match(page, /data-code-kind="terminal"/);
+  assert.match(page, /terminal-lights[^>]*aria-hidden="true"/);
+  assert.match(page, /VSCode Server 터미널에서 실행/);
+  assert.match(page, /data-code-kind="file"/);
+  assert.match(page, /파일 내용/);
+  assert.match(page, /data-prompt-screen/);
+  assert.match(page, /<code[^>]*class="language-bash"[^>]*>echo "\$ATLAS_PROJECT"\n<\/code>/);
+  assert.match(page, /<code[^>]*class="language-ai-prompt"[^>]*>제주 장소 검색 도구를 작성해 주세요\.\n<\/code>/);
 });
 
 test('portable course refuses to silently omit a required Codex card', async (t) => {
@@ -118,6 +177,18 @@ test('portable course refuses to silently omit a required Codex card', async (t)
   const input = await fixture(t, { course });
   await assert.rejects(buildSite({ coursePath: input.coursePath, outputDir: input.outputDir }),
     /prompt|프롬프트/i);
+});
+
+test('AI input copies the prompt itself while the downloadable card keeps its teaching notes', async (t) => {
+  const course = { ...manifest(), includePromptCards: true };
+  const card = '# 작성 안내\n\n교재 설명입니다.\n\n```text\n검색 도구를 구현해 주세요.\n```\n';
+  const cards = Object.fromEntries(course.chapters.map(chapter => [`prompts/${chapter.slug}.md`, card]));
+  const f = await fixture(t, { course, documents: cards });
+  await buildSite(f);
+  const page = await readPage(f.outputDir, 'chapters/00-start.html');
+  const input = page.match(/<code class="language-ai-prompt"[^>]*>([\s\S]*?)<\/code>/)?.[1];
+  assert.equal(input, '검색 도구를 구현해 주세요.\n');
+  assert.equal(await readFile(join(f.outputDir, 'prompts/00-start.md'), 'utf8'), card);
 });
 
 async function assertClosedSite(output) {

@@ -56,12 +56,13 @@ def package_handbook(site, output):
             raise ValueError("Handbook exceeds the expected static-file size")
         files.append((relative, path))
     instructions = (
-        "제주 아틀라스 워크숍 — 로컬 PC 교재\n\n"
+        "제주 AgentCore CLI 워크숍\n로컬 PC 교재\n\n"
         "1. ZIP을 압축 해제합니다. 압축 파일 안에서 index.html만 직접 열지 마세요.\n"
         "2. jeju-atlas-workshop/index.html을 브라우저로 엽니다.\n"
         "3. chapters, reference, assets, prompts 폴더를 함께 유지합니다.\n"
-        "4. 명령과 선택한 Codex·Kiro CLI·Claude Code는 실습 EC2 터미널에서 실행합니다.\n"
-        "5. EC2에는 제주 아틀라스 전체 Git 저장소가 필요합니다.\n\n"
+        "4. 명령과 선택한 AI CLI는 준비된 EC2의 VSCode Server 터미널에서 실행합니다.\n"
+        "5. EC2에는 제주 아틀라스 전체 Git 저장소가 필요합니다.\n"
+        "6. 본 실습은 00~04장 110분과 여유 10분입니다. 05장 이후는 심화 자료입니다.\n\n"
         "이 묶음은 읽기용입니다. AWS 키, 실습 설정, 배포 상태, DB, 런타임 ZIP은 포함하지 않습니다.\n"
         "prompts/*.md는 EC2에서 선택한 AI CLI에 전달할 공통 프롬프트 카드입니다.\n"
         "HTTPS 사이트에서는 워크숍을 설치하고 챕터를 오프라인으로 읽을 수 있습니다.\n"

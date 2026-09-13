@@ -58,6 +58,20 @@ function validateManifest(input) {
   }
   if (!Array.isArray(input.chapters) || !input.chapters.length) manifestError('chapters must not be empty');
   if (!Array.isArray(input.references)) manifestError('references must be an array');
+  const timedCourse = ['coreChapterCount', 'bufferMinutes', 'targetMinutes'].some(key => input[key] !== undefined);
+  if (timedCourse) {
+    if (!Number.isInteger(input.coreChapterCount) || input.coreChapterCount < 1
+      || input.coreChapterCount > input.chapters.length) manifestError('coreChapterCount is invalid');
+    if (!Number.isInteger(input.bufferMinutes) || input.bufferMinutes < 0
+      || !Number.isInteger(input.targetMinutes) || input.targetMinutes <= 0) manifestError('course time budget is invalid');
+    const minutes = input.chapters.slice(0, input.coreChapterCount).reduce((sum, chapter) => sum + chapter.minutes, 0);
+    if (!Number.isFinite(minutes) || minutes + input.bufferMinutes !== input.targetMinutes) {
+      manifestError('core lessons and buffer must equal targetMinutes');
+    }
+    if (input.chapters.some((entry, index) => entry.day !== (index < input.coreChapterCount ? 1 : 2))) {
+      manifestError('core lessons must precede optional lessons');
+    }
+  }
   if (input.includePromptCards !== undefined && typeof input.includePromptCards !== 'boolean') {
     manifestError('includePromptCards must be boolean');
   }
@@ -85,6 +99,7 @@ function validateManifest(input) {
       }
       entries.push({
         ...entry, kind, index,
+        ...(kind === 'chapters' && timedCourse ? { core: index < input.coreChapterCount } : {}),
         sourceFile: `${route}.md`,
         outputFile: `${route}.html`,
       });
@@ -167,13 +182,50 @@ function decorateBlocks(node, counter) {
   code.properties.id = id;
   node.properties.tabIndex = 0;
   node.properties.ariaLabel = `${language} 코드`;
-  return element('div', { className: ['code-block'] }, [
+  const prompt = language === 'ai-prompt';
+  const terminal = ['bash', 'sh', 'shell', 'zsh', 'console'].includes(language.toLowerCase());
+  if (prompt) {
+    node.properties.ariaLabel = 'AI CLI에 붙여넣을 프롬프트';
+    return element('section', {
+      className: ['code-block', 'prompt-screen'], dataPromptScreen: '', dataAssistant: 'codex',
+      ariaLabel: 'AI CLI 프롬프트 입력',
+    }, [
+      element('div', { className: ['prompt-tools', 'js-only'], role: 'group', ariaLabel: '프롬프트를 전달할 AI CLI 선택' },
+        [['codex', 'Codex'], ['kiro', 'Kiro CLI'], ['claude', 'Claude Code']].map(([value, label]) =>
+          element('button', { type: 'button', dataPromptTool: value, ariaPressed: value === 'codex' ? 'true' : 'false' }, [text(label)]))),
+      element('div', { className: ['code-toolbar', 'prompt-toolbar'] }, [
+        element('div', { className: ['prompt-heading'] }, [
+          element('strong', { dataPromptApp: '' }, [text('Codex')]),
+          element('span', {}, [text('프롬프트 입력')]),
+        ]),
+        element('button', {
+          type: 'button', className: ['copy-button', 'js-only'], dataCopyCode: id,
+          dataCopyLabel: 'Codex 프롬프트 복사', ariaLabel: 'Codex 프롬프트 복사',
+        }, [text('복사')]),
+      ]),
+      element('p', { className: ['prompt-destination'], dataPromptDestination: '' },
+        [text('선택한 AI CLI의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.')]),
+      node,
+    ]);
+  }
+  const label = terminal ? '터미널' : ['text', 'plaintext'].includes(language) ? '참고 내용' : '파일 내용';
+  node.properties.ariaLabel = `${label}: ${language}`;
+  return element('div', {
+    className: ['code-block', terminal ? 'terminal-window' : 'file-window'],
+    dataCodeKind: terminal ? 'terminal' : 'file',
+  }, [
     element('div', { className: ['code-toolbar'] }, [
-      element('span', { className: ['code-language'] }, [text(language)]),
+      element('div', { className: ['code-window-title'] }, [
+        ...(terminal ? [element('span', { className: ['terminal-lights'], ariaHidden: 'true' },
+          ['close', 'minimize', 'zoom'].map(state => element('span', { className: [`terminal-light-${state}`] }, [])))] : []),
+        element('strong', {}, [text(label)]),
+        element('span', { className: ['code-language'] }, [text(language)]),
+      ]),
       element('button', {
         type: 'button', className: ['copy-button', 'js-only'], dataCopyCode: id, ariaLabel: `${language} 코드 복사`,
       }, [text('복사')]),
     ]),
+    ...(terminal ? [element('div', { className: ['terminal-destination'] }, [text('VSCode Server 터미널에서 실행')])] : []),
     node,
   ]);
 }
@@ -348,14 +400,18 @@ const icon = (name) => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke
 const duration = (minutes) => `${minutes >= 60 ? `${Math.floor(minutes / 60)}시간` : ''}${minutes >= 60 && minutes % 60 ? ' ' : ''}${minutes % 60 || minutes < 60 ? `${minutes % 60}분` : ''}`;
 const pageHref = (page, target) => posix.relative(posix.dirname(page), target);
 const totalMinutes = (entries) => entries.reduce((sum, entry) => sum + entry.minutes, 0);
+const courseGroup = (course, day) => course.coreChapterCount
+  ? day === 1 ? '본 실습' : '심화 선택'
+  : `DAY ${day}`;
 
 function sidebar(course, docs, currentFile) {
   const chapters = docs.filter((doc) => doc.kind === 'chapters');
   const references = docs.filter((doc) => doc.kind === 'reference');
   const days = [...new Set(chapters.map((doc) => doc.day))];
+  const core = chapters.filter(doc => doc.core !== false);
   const current = (doc) => doc.outputFile === currentFile ? ' aria-current="page"' : '';
   const navItem = (doc) => `<li data-nav-entry data-search="${escapeHtml([doc.id, doc.navTitle, doc.summary, ...doc.headings.map((heading) => heading.label)].filter(Boolean).join(' '))}">
-    <a class="${doc.kind === 'chapters' ? 'chapter-link' : 'reference-link'}" href="${pageHref(currentFile, doc.outputFile)}"${current(doc)}${doc.kind === 'chapters' ? ` data-chapter-link="${escapeHtml(doc.slug)}"` : ''}>
+    <a class="${doc.kind === 'chapters' ? 'chapter-link' : 'reference-link'}" href="${pageHref(currentFile, doc.outputFile)}"${current(doc)}${doc.kind === 'chapters' ? ` data-chapter-link="${escapeHtml(doc.slug)}"${typeof doc.core === 'boolean' ? ` data-core-chapter="${doc.core}"` : ''}` : ''}>
       ${doc.kind === 'chapters' ? `<span class="nav-number">${doc.id}</span>` : icon('book')}
       <span class="nav-title">${escapeHtml(doc.navTitle)}</span>
       ${doc.kind === 'chapters' ? `<span class="read-indicator" aria-hidden="true">${icon('check')}</span>` : ''}
@@ -369,23 +425,23 @@ function sidebar(course, docs, currentFile) {
       <button class="icon-button mobile-only js-only" type="button" data-nav-close aria-label="목차 닫기">${icon('close')}</button>
     </div>
     <div class="nav-search js-only">
-      <label class="sr-only" for="chapter-search">챕터와 참고 자료의 제목·주제 검색</label>
-      ${icon('search')}<input id="chapter-search" type="search" placeholder="제목·주제 검색" autocomplete="off" spellcheck="false" aria-controls="chapter-navigation">
+      <label class="sr-only" for="chapter-search">챕터와 참고 자료의 제목과 주제 검색</label>
+      ${icon('search')}<input id="chapter-search" type="search" placeholder="제목과 주제 검색" autocomplete="off" spellcheck="false" aria-controls="chapter-navigation">
       <kbd aria-hidden="true">/</kbd>
     </div>
     <p class="search-result sr-only" data-search-result role="status" aria-live="polite"></p>
     <nav class="chapter-navigation" id="chapter-navigation" aria-label="전체 과정과 챕터">
-      <a class="overview-link" href="${pageHref(currentFile, 'index.html')}"${currentFile === 'index.html' ? ' aria-current="page"' : ''}>전체 과정<span aria-hidden="true">${chapters[0].id} — ${chapters.at(-1).id}</span></a>
-      ${days.map((day) => `<section class="nav-group" data-nav-group aria-label="${day}일 차">
-        <h2><span>DAY ${day}</span><span>${duration(totalMinutes(chapters.filter((doc) => doc.day === day)))}</span></h2>
+      <a class="overview-link" href="${pageHref(currentFile, 'index.html')}"${currentFile === 'index.html' ? ' aria-current="page"' : ''}>전체 과정<span aria-hidden="true">${chapters[0].id} ~ ${chapters.at(-1).id}</span></a>
+      ${days.map((day) => `<section class="nav-group" data-nav-group aria-label="${courseGroup(course, day)}">
+        <h2><span>${courseGroup(course, day)}</span><span>${course.coreChapterCount && day === 2 ? '시간 별도' : duration(totalMinutes(chapters.filter((doc) => doc.day === day)))}</span></h2>
         <ol>${chapters.filter((doc) => doc.day === day).map(navItem).join('')}</ol>
       </section>`).join('')}
       ${references.length ? `<section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul>${references.map(navItem).join('')}</ul></section>` : ''}
       <p class="search-empty" data-search-empty hidden>검색 결과가 없습니다.<br>다른 제목이나 주제를 입력하세요.</p>
     </nav>
     <div class="reading-progress">
-      <div class="progress-label"><span>나의 읽기 기록</span><strong data-progress-count>0 / ${chapters.length} 읽음</strong></div>
-      <progress data-reading-progress max="${chapters.length}" value="0" aria-label="읽은 챕터 수"></progress>
+      <div class="progress-label"><span>${course.coreChapterCount ? '본 실습 읽기 기록' : '읽기 기록'}</span><strong data-progress-count>0 / ${core.length} 읽음</strong></div>
+      <progress data-reading-progress max="${core.length}" value="0" aria-label="읽은 챕터 수"></progress>
       <p data-storage-note>이 브라우저에만 저장됩니다.<br>AWS 배포 상태를 나타내지 않습니다.</p>
       <button class="text-button js-only" type="button" data-reset-progress hidden>읽기 기록 초기화</button>
     </div>
@@ -396,21 +452,26 @@ function courseOverview(course, docs, architecture) {
   const chapters = docs.filter((doc) => doc.kind === 'chapters');
   const references = docs.filter((doc) => doc.kind === 'reference');
   const days = [...new Set(chapters.map((doc) => doc.day))];
+  const core = chapters.filter(doc => doc.core !== false);
   return `<div class="overview">
     <header class="overview-header">
-      <p class="eyebrow"><span class="eyebrow-dot"></span>JEJU ATLAS · HANDS-ON WORKSHOP</p>
+      <p class="eyebrow"><span class="eyebrow-dot"></span>JEJU ATLAS WORKSHOP</p>
       <h1 id="overview-title">${escapeHtml(course.title)}</h1>
       <p class="overview-subtitle">${escapeHtml(course.subtitle)}</p>
-      <p class="overview-intro">준비부터 배포, 검증과 정리까지.<br>번호 순서대로 읽고, 터미널에서 직접 연결하며 완성하는 실습입니다.</p>
-      <div class="course-meta"><span>${days.length}일 과정</span><span>${chapters.length}개 챕터</span><span>약 ${duration(totalMinutes(chapters))}</span></div>
-      <a class="button primary-button" data-resume-link href="${chapters[0].outputFile}"><span data-resume-label>첫 장 읽기 · ${chapters[0].id}</span>${icon('arrow')}</a>
+      <p class="overview-intro">${course.coreChapterCount
+        ? '준비된 EC2의 VSCode Server에서 시작합니다.<br>AI CLI로 코드를 작성하고 AgentCore CLI로 실행과 배포를 확인합니다.'
+        : '번호 순서대로 읽고 터미널에서 실습 결과를 확인합니다.'}</p>
+      <div class="course-meta">${course.coreChapterCount
+        ? `<span>${course.targetMinutes}분 과정</span><span>본 실습 ${core.length}개 장</span><span>실습 ${totalMinutes(core)}분 + 여유 ${course.bufferMinutes}분</span>`
+        : `<span>${days.length}일 과정</span><span>${chapters.length}개 챕터</span><span>약 ${duration(totalMinutes(chapters))}</span>`}</div>
+      <a class="button primary-button" data-resume-link href="${chapters[0].outputFile}"><span data-resume-label>첫 장 읽기, ${chapters[0].id}</span>${icon('arrow')}</a>
     </header>
     <section class="route-section" id="course-route" aria-labelledby="route-title">
-      <div class="section-heading"><div><p class="eyebrow">LEARNING ROUTE</p><h2 id="route-title">한 장씩, 배포의 끝까지</h2></div><span class="route-range">${chapters[0].id} <span aria-hidden="true">→</span> ${chapters.at(-1).id}</span></div>
+      <div class="section-heading"><div><h2 id="route-title">진행 순서</h2></div><span class="route-range">${core[0].id} ~ ${core.at(-1).id}${course.coreChapterCount ? ' 본 실습' : ''}</span></div>
       ${days.map((day) => {
         const entries = chapters.filter((doc) => doc.day === day);
         return `<section class="route-day" aria-labelledby="day-${day}">
-          <div class="day-heading"><h3 id="day-${day}">DAY ${day}</h3><span>${entries.length}개 챕터 · ${duration(totalMinutes(entries))}</span></div>
+          <div class="day-heading"><h3 id="day-${day}">${courseGroup(course, day)}</h3><span>${entries.length}개 장, ${course.coreChapterCount && day === 2 ? '본 실습 이후 선택' : duration(totalMinutes(entries))}</span></div>
           <ol class="route-list" start="${entries[0].index + 1}">
           ${entries.map((doc) => `<li class="route-step" data-route-slug="${doc.slug}">
             <a href="${doc.outputFile}"><span class="route-number">${doc.id}</span><span class="route-description"><strong>${escapeHtml(doc.navTitle)}<span class="route-read-label">읽음</span></strong><span>${escapeHtml(doc.summary ?? '')}</span></span><span class="route-duration">${doc.minutes}<small>분</small></span><span class="route-arrow">${icon('arrow')}</span></a>
@@ -421,34 +482,36 @@ function courseOverview(course, docs, architecture) {
     </section>
     <section class="architecture-section" id="architecture" aria-labelledby="architecture-heading">
       <details class="architecture-details">
-        <summary><span><span class="eyebrow">SYSTEM MAP</span><strong id="architecture-heading">실습에서 연결할 자원</strong></span><span class="details-hint">구조 펼치기<span aria-hidden="true">＋</span></span></summary>
-        <figure><div class="architecture-scroll" tabindex="0" role="region" aria-label="배포 구조, 가로로 스크롤 가능">${architecture}</div><figcaption>브라우저에서 데이터와 AI 가이드까지의 연결 흐름. VPC·서브넷·NAT는 준비된 공유 네트워크를 사용하며, 참가자가 소유하는 실습 자원과 구분합니다.</figcaption></figure>
+        <summary><span><strong id="architecture-heading">${course.coreChapterCount ? '심화 과정의 전체 구성' : '실습에서 연결할 자원'}</strong></span><span class="details-hint">구조 펼치기<span aria-hidden="true">＋</span></span></summary>
+        <figure><div class="architecture-scroll" tabindex="0" role="region" aria-label="배포 구조, 가로로 스크롤 가능">${architecture}</div><figcaption>${course.coreChapterCount ? '심화 과정에서 다루는 전체 Atlas 구성입니다. 본 실습은 모델과 검색 도구를 연결한 AgentCore Runtime을 배포합니다. ' : ''}VPC, 서브넷과 NAT는 준비된 네트워크를 사용합니다.</figcaption></figure>
       </details>
     </section>
-    ${references.length ? `<section class="reference-section" id="references" aria-labelledby="reference-heading"><div class="section-heading"><div><p class="eyebrow">KEEP AT HAND</p><h2 id="reference-heading">실습 옆에 두는 참고 자료</h2></div></div><div class="reference-grid">${references.map((doc) => `<a class="reference-card" href="${doc.outputFile}">${icon('book')}<strong>${escapeHtml(doc.navTitle)}</strong>${icon('arrow')}</a>`).join('')}</div></section>` : ''}
+    ${references.length ? `<section class="reference-section" id="references" aria-labelledby="reference-heading"><div class="section-heading"><div><h2 id="reference-heading">참고 자료</h2></div></div><div class="reference-grid">${references.map((doc) => `<a class="reference-card" href="${doc.outputFile}">${icon('book')}<strong>${escapeHtml(doc.navTitle)}</strong>${icon('arrow')}</a>`).join('')}</div></section>` : ''}
   </div>`;
 }
 
 function documentPage(doc, docs) {
   const chapters = docs.filter((entry) => entry.kind === 'chapters');
   const chapter = doc.kind === 'chapters';
+  const core = chapters.filter(entry => entry.core !== false);
   const previous = chapter ? chapters[doc.index - 1] : null;
-  const next = chapter ? chapters[doc.index + 1] : null;
+  const candidate = chapter ? chapters[doc.index + 1] : null;
+  const next = doc.core && candidate?.core === false ? null : candidate;
   const toc = doc.headings.filter((heading) => heading.depth <= 3);
   const paginationLink = (target, direction) => `<a class="pagination-link ${direction}"${target ? ` rel="${direction}"` : ''} href="${pageHref(doc.outputFile, target?.outputFile ?? 'index.html')}">
-    ${direction === 'prev' ? icon('back') : ''}<span><small>${target ? direction === 'prev' ? '이전 장' : '다음 장' : '전체 과정'}</small><strong>${target ? `${target.id} · ${escapeHtml(target.navTitle)}` : chapter && !next ? '읽기 경로 돌아보기' : '워크숍 둘러보기'}</strong></span>${direction === 'next' ? icon('arrow') : ''}
+    ${direction === 'prev' ? icon('back') : ''}<span><small>${target ? direction === 'prev' ? '이전 장' : '다음 장' : '전체 과정'}</small><strong>${target ? `${target.id}, ${escapeHtml(target.navTitle)}` : chapter && !next ? '목차로 돌아가기' : '워크숍 둘러보기'}</strong></span>${direction === 'next' ? icon('arrow') : ''}
   </a>`;
   return `<div class="article-layout${toc.length ? '' : ' without-toc'}">
     <article class="lesson" aria-labelledby="${doc.titleId}">
       <header class="lesson-header">
-        <p class="eyebrow">${chapter ? `<span class="chapter-stamp">${doc.id}</span>DAY ${doc.day}<span class="meta-separator">/</span>${doc.minutes}분 실습` : `${icon('book')}REFERENCE · 참고 자료`}</p>
+        <p class="eyebrow">${chapter ? `<span class="chapter-stamp">${doc.id}</span>${typeof doc.core === 'boolean' ? doc.core ? '본 실습' : '심화 선택' : `DAY ${doc.day}`}<span class="meta-separator">/</span>${doc.minutes}분${doc.core === false ? ', 별도 일정' : ' 실습'}` : `${icon('book')}참고 자료`}</p>
         <h1 id="${doc.titleId}">${escapeHtml(doc.title)}</h1>
         ${doc.summary ? `<p class="lesson-summary">${escapeHtml(doc.summary)}</p>` : ''}
-        ${chapter ? `<div class="lesson-location"><span>${doc.index + 1} / ${chapters.length}번째 챕터</span><span class="lesson-read-state" data-chapter-state>아직 읽지 않음</span></div>` : ''}
+        ${chapter ? `<div class="lesson-location"><span>${doc.core ? `${doc.index + 1} / ${core.length} 본 실습` : doc.core === false ? '선택한 사람만 진행하는 심화 자료' : `${doc.index + 1} / ${chapters.length}번째 챕터`}</span><span class="lesson-read-state" data-chapter-state>아직 읽지 않음</span></div>` : ''}
       </header>
       <div class="prose">${doc.html}</div>
       ${chapter ? `<section class="reading-check js-only" aria-label="이 장의 읽기 기록">
-        <div><p class="eyebrow">READING CHECK</p><h2>이 장을 읽었나요?</h2><p>읽음 표시는 이 브라우저에만 저장됩니다.<br>실제 실습 결과는 터미널에서 확인하세요.</p></div>
+        <div><h2>읽기 기록</h2><p>읽음 표시는 이 브라우저에만 저장됩니다.<br>실제 실습 결과는 터미널에서 확인하세요.</p></div>
         <button class="button primary-button" type="button" data-progress-toggle aria-pressed="false">${icon('check')}<span data-toggle-label>읽음으로 표시</span></button>
       </section>` : ''}
       <nav class="page-pagination" aria-label="${chapter ? '이전 다음 장' : '과정으로 돌아가기'}">
@@ -462,7 +525,7 @@ function documentPage(doc, docs) {
 function renderPage(course, docs, doc, architecture, hasFontLicense, publicDownloads = false) {
   const currentFile = doc?.outputFile ?? 'index.html';
   const asset = (file) => pageHref(currentFile, `assets/${file}`);
-  const title = doc ? `${doc.navTitle} · Jeju Atlas 워크숍` : `${course.title} · Jeju Atlas`;
+  const title = doc ? `${doc.navTitle}, Jeju Atlas 워크숍` : `${course.title}, Jeju Atlas`;
   const courseKey = createHash('sha256')
     .update(`${course.title}\0${course.chapters.map((chapter) => chapter.slug).join('\0')}`)
     .digest('hex').slice(0, 16);
@@ -503,10 +566,10 @@ function renderPage(course, docs, doc, architecture, hasFontLicense, publicDownl
       </div>
     </aside>
     <main id="main-content" tabindex="-1">
-      <noscript><p class="noscript-note">목차와 본문은 그대로 읽을 수 있습니다. 검색·코드 복사·읽기 기록은 JavaScript를 켜면 사용할 수 있습니다.</p></noscript>
+      <noscript><p class="noscript-note">목차와 본문은 그대로 읽을 수 있습니다. 검색, 코드 복사, 읽기 기록은 JavaScript를 켜면 사용할 수 있습니다.</p></noscript>
       ${doc ? documentPage(doc, docs) : courseOverview(course, docs, architecture)}
     </main>
-    <footer class="site-footer"><span>Jeju Atlas · 배포 워크숍${course.updatedAt ? `<span class="footer-date">${escapeHtml(course.updatedAt.replaceAll('-', '.'))} 기준</span>` : ''}</span>${hasFontLicense ? `<a href="${asset('fonts/OFL-NanumSquare.txt')}">나눔스퀘어 · 글꼴 라이선스</a>` : ''}</footer>
+    <footer class="site-footer"><span>Jeju Atlas 워크숍${course.updatedAt ? `<span class="footer-date">${escapeHtml(course.updatedAt.replaceAll('-', '.'))} 기준</span>` : ''}</span>${hasFontLicense ? `<a href="${asset('fonts/OFL-NanumSquare.txt')}">나눔스퀘어 글꼴 라이선스</a>` : ''}</footer>
   </div>
   <p class="reader-status" role="status" aria-live="polite" data-reader-status></p>
 </body>
@@ -671,9 +734,12 @@ export async function buildSite({
         throw new Error(`Invalid workshop prompt: ${name}`);
       }
       promptAsset = { name, contents: Buffer.from(prompt, 'utf8') };
-      const fence = '`'.repeat(Math.max(3, ...[...prompt.matchAll(/`+/g)].map((match) => match[0].length + 1)));
-      source += `\n\n## AI CLI 프롬프트 카드\n\n아래 카드 전체를 복사해 실습 EC2에서 선택한 Codex·Kiro CLI·Claude Code에 전달합니다. `
-        + `[Markdown 카드 다운로드](../${name})\n\n${fence}markdown\n${prompt}${prompt.endsWith('\n') ? '' : '\n'}${fence}\n`;
+      const promptBlocks = markdownProcessor.parse(prompt).children
+        .filter(node => node.type === 'code' && ['text', 'ai-prompt'].includes(node.lang));
+      const promptInput = promptBlocks.length === 1 ? promptBlocks[0].value : prompt;
+      const fence = '`'.repeat(Math.max(3, ...[...promptInput.matchAll(/`+/g)].map((match) => match[0].length + 1)));
+      source += `\n\n## AI CLI 프롬프트 카드\n\n아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. `
+        + `[Markdown 카드 다운로드](../${name})\n\n${fence}ai-prompt\n${promptInput}${promptInput.endsWith('\n') ? '' : '\n'}${fence}\n`;
     }
     return { entry, source, sourcePath, promptAsset };
   }));

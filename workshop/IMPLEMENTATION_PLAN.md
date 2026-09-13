@@ -1,85 +1,45 @@
-# Jeju Atlas AgentCore CLI · Codex Workshop
+# 120분 AgentCore CLI 워크숍 개편
 
-> For agentic workers: implement the tasks below independently where their write sets do not overlap. Keep the production application and reference repositories unchanged.
+## 목표
 
-**Goal:** Provide a chapter-based, executable Korean workshop that uses Codex and Amazon AgentCore CLI to deploy the existing Jeju Atlas assets, including the independent AgentCore implementation and the complete AWS application.
+준비된 VSCode Server에서 Codex, Kiro CLI, Claude Code 중 하나를 선택한다.
+AgentCore CLI로 생성한 Strands 프로젝트에 제주 검색 도구를 구현하고,
+로컬 테스트와 실제 모델 응답, Runtime 배포와 원격 호출을 확인한다.
 
-**Architecture:** Markdown is the source of truth; a local Node builder produces a static HTML course. Workshop automation creates a separate, namespaced copy of the existing assets under ignored local storage. Existing deployers run only inside that copy, with checked account, region and resource names. An AgentCore CLI introductory deployment is separate from the complete Atlas AgentCore stack.
+## 시간과 범위
 
-**Tech Stack:** Node 24, Python, uv, AWS CLI, `@aws/agentcore` 0.28.1, Codex CLI, existing CloudFormation and container assets, Markdown/GFM and static HTML.
+00~04장을 본 실습으로 사용한다. 시간은 5, 10, 10, 35, 50분으로 총 110분이다.
+10분의 지연 대응 시간을 더해 120분으로 편성한다.
+VPC, NAT Gateway, Subnet, VSCode Server와 세 AI CLI는 이미 설치된 환경이다.
+설치 실습을 반복하지 않고 현재 계정, 버전과 실행 가능 여부만 확인한다.
 
-## Updated starting environment and distribution
+AgentCore CLI, 언어 의존성, CDK bootstrap, 배포 권한과 모델 접근은
+네트워크 설치만으로 확인되지 않으므로 진행자의 사전 점검에 명시한다.
+실제 클라우드 리허설을 수행하지 않은 상태에서 120분 완료를 보장하지 않는다.
 
-The workshop now starts on an EC2 instance with Codex already installed. `init-ec2`
-uses IMDSv2 and STS to bind the lab to that instance's account, region and primary VPC;
-Name-tag/default-VPC fallback is not used. A local PC reads the complete HTML handbook
-and copies commands/cards into the EC2 session. The generated site bundles prompt cards,
-fonts and assets and can be exported as a whitelist-checked ZIP. Application and workshop
-colors follow the AWS navy/orange palette with accessible interactive colors.
-Kiro CLI and Claude Code are supported alternative development environments on the same EC2.
-Prepared app and CLI projects include shared AGENTS, Claude import guidance, and Kiro steering.
-The selected-assistant doctor check does not require the other assistant binaries.
+05~13장은 기존 전체 Atlas 배포의 심화 자료로 유지한다.
+기본 Runtime과 심화 CloudFormation 스택의 소유권을 분리한다.
 
-## Constraints and delivery contract
+## 작성 기준
 
-- Write workshop material and helpers under `workshop/`. Root changes are limited to navigation, ignore rules and workshop npm commands.
-- Do not modify `agentcore-cli`, its worktrees, existing AWS stacks, VPCs, NAT gateways, certificates or production data.
-- The executable region is `ap-northeast-2`; global CloudFront/WAF/Lambda@Edge resources remain in `us-east-1`.
-- Use an existing VPC with public/private subnets and NAT. Missing shared networking is a prerequisite failure, not permission to create or replace it.
-- A participant identifier, AWS account and optional profile define an isolated lab. Never copy `.local`, credentials or production deployment outputs into a participant workspace.
-- Preserve all application features: real terrain, imagery, MapLibre, catalog evidence, Olle tours, Valhalla routes/elevation, Korean/English UI, PWA, Markdown AI output, tool status, suggested questions and NanumSquare.
-- Preserve Global CRIS Sol/Astra configuration for the Atlas guide. Codex authentication is separate from the deployed Bedrock model configuration.
-- Deploy both a CLI-managed introductory Runtime and the actual Atlas Guide/Tools/Gateway/Memory stack. Clearly distinguish their ownership and cleanup.
-- Full application deployment includes ECR, ALB/SG, private ECS, CloudFront/WAF, static/media S3 and OAC, DynamoDB quota, Secrets Manager/SSM, data Scheduler, CloudWatch/SNS, origin ACM/Lambda@Edge and terrain caching.
-- Full custom-domain HTTPS requires a domain and certificates the participant can use. Do not invent domain ownership, certificate issuance or model access.
-- Bootstrap dependencies from the committed application lock files; do not require private production dependency objects for a fresh participant installation.
-- Build a catalog from the shipped sample seeds, with an optional bounded OSM import. Keep sample provenance explicit and allow official enrichment to preserve evidence.
-- Never put provider API keys in source, HTML, command examples or JSON config. Secret input belongs in a scoped parameter/secret with no echoed value.
-- Include diagnosis, expected observations, Codex prompt cards, checkpoints and cleanup in the chapters. Report local validation separately from any live AWS deployment.
+문장은 짧게 쓰고 실행할 명령 다음에 확인할 결과를 적는다.
+엠대시와 가운데점은 교재 본문, 제목, 메뉴와 ZIP 안내에서 사용하지 않는다.
+기술 이름과 실제 명령, 데이터 출처는 유지한다.
+과장된 수식, 반복되는 대조 문구와 불필요한 승인 절차를 추가하지 않는다.
+모델 없는 Warmup을 실제 모델 기반 기본 실습의 완료 결과로 사용하지 않는다.
 
-## Task 1 — Executable lab isolation and asset preparation
+## 변경 범위
 
-Files: `workshop/scripts/lab.py`, supporting Python modules under `workshop/scripts/`, `workshop/config.example.json`, `workshop/tests/`.
+수정은 workshop 아래 교재, 프롬프트, 독자 화면 생성기와 관련 검사에 한정한다.
+원본 애플리케이션, AWS 설정과 배포, 기존 Git 상태를 변경하지 않는다.
+생성 HTML과 PC용 ZIP을 새 원문에서 만든다.
 
-- [x] Define validated configuration, derived names, lab state and workspace paths.
-- [x] Implement `init`, `doctor`, `prepare` and a guarded command runner around the existing deployers.
-- [x] Implement dependency archive and sample/OSM catalog preparation without the reference repository.
-- [x] Verify account/name boundaries, source isolation, malformed configurations and data provenance with offline tests.
+## 검증
 
-## Task 2 — AgentCore CLI lifecycle
-
-Files: `workshop/cli/`, `workshop/chapters/04-agentcore-cli.md`, `workshop/prompts/04-agentcore-cli.md`.
-
-- [x] Verify installed CLI syntax and the official schema.
-- [x] Provide a reproducible isolated introductory Runtime project and commands for validation, development, deployment, invocation, logs and removal.
-- [x] State the distinction between the CLI Runtime and the Atlas CloudFormation Runtime stack.
-- [x] Keep the tutorial entry point free of provider credentials and unintended model calls.
-
-## Task 3 — Complete chapter and resource coverage
-
-Files: `workshop/chapters/`, `workshop/prompts/`, `workshop/reference/`.
-
-- [x] Cover environment, AWS account/network, Codex workflow, registry/data, AgentCore, routes, application, HTTPS/edge, data enrichment, observability, validation and cleanup.
-- [x] Map every existing infrastructure resource and application technology to a chapter and verification step.
-- [x] Give commands that match the implemented helper interfaces and actual existing deployers.
-- [x] Include facilitator preparation, multiple participants, model/data permissions and retained-resource cleanup.
-
-## Task 4 — Static HTML course
-
-Files: `workshop/scripts/build.mjs`, `workshop/assets/`, `workshop/site/`, `workshop/README.md`.
-
-- [x] Generate HTML from Markdown using the existing Markdown dependencies.
-- [x] Provide chapter navigation, code copy, local progress, print styling, responsive layout and NanumSquare.
-- [x] Keep the generated site independent of `.local` files and executable Python state.
-- [x] Verify HTML links, chapter coverage and browser interactions locally.
-
-## Task 5 — Final validation and integration
-
-- [x] Run workshop tests, render/lint the prepared infrastructure and validate the CLI project without deployment.
-- [x] Build application/Agent artifacts where the local toolchain permits and record actual outcomes.
-- [x] Run the relevant existing checks and secret scan; keep synthetic fixtures narrowly scoped.
-- [x] Record the final tested commands and the distinction between local checks and real account deployment.
-
-## Recorded scope of validation
-
-All checked implementation tasks refer to local preparation, tests, packaging, CLI validation/synthesis, and static HTML. No new AWS stacks, model calls, secret writes, or cloud deletion were executed during workshop creation. See `VALIDATION.md`.
+- 본 실습 110분과 여유 10분의 합계가 120분인지 확인
+- 모든 기본 장과 프롬프트에 실행할 과제와 확인 기준이 있는지 확인
+- 실제 설치된 AgentCore CLI 0.28.1의 생성 명령과 결과 경로 확인
+- 스키마, 링크, 메뉴, 기본 과정과 심화 과정 표시 검사
+- 문서와 화면의 엠대시 및 가운데점 검사
+- ZIP의 파일 구성과 체크섬 확인
+- 로컬 검증과 실제 AWS 배포 여부를 따로 기록

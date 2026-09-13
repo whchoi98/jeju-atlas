@@ -1,5 +1,6 @@
 """The workshop must bind to this EC2's account and VPC without reading credentials."""
 import importlib
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -108,6 +109,40 @@ class EC2ContextTests(unittest.TestCase):
         with patch("boto3.Session", return_value=session):
             with self.assertRaises(ValueError):
                 aws_session(config)
+
+    def test_identity_only_init_checks_account_without_requiring_full_web_network(self):
+        self.module()
+        import lab
+        with tempfile.TemporaryDirectory(prefix="atlas-identity-test-") as directory:
+            output = Path(directory) / "team01.json"
+            with patch.object(sys, "argv", ["lab.py", "init-ec2", "--identity-only",
+                                           "--participant", "team01", "--config", str(output)]), \
+                    patch("ec2_context.read_ec2_context", return_value=self.context()), \
+                    patch("lab.aws_session") as session, patch("lab.discover_network") as discover, \
+                    patch("lab.emit") as emit:
+                lab.main()
+            session.assert_called_once()
+            discover.assert_not_called()
+            config = json.loads(output.read_text())
+            self.assertEqual(config["ec2Context"], self.context())
+            self.assertEqual(config["network"], {})
+            self.assertFalse(emit.call_args.args[0]["networkChecked"])
+            self.assertFalse(emit.call_args.args[0]["createdAwsResources"])
+
+    def test_identity_only_init_cannot_write_a_config_for_a_mismatched_account(self):
+        self.module()
+        import lab
+        with tempfile.TemporaryDirectory(prefix="atlas-identity-test-") as directory:
+            output = Path(directory) / "team01.json"
+            with patch.object(sys, "argv", ["lab.py", "init-ec2", "--identity-only",
+                                           "--participant", "team01", "--config", str(output)]), \
+                    patch("ec2_context.read_ec2_context", return_value=self.context()), \
+                    patch("lab.aws_session", side_effect=ValueError("AWS account mismatch")), \
+                    patch("lab.discover_network") as discover:
+                with self.assertRaisesRegex(ValueError, "account mismatch"):
+                    lab.main()
+            self.assertFalse(output.exists())
+            discover.assert_not_called()
 
     def test_prepared_ec2_workspace_checks_vpc_identity_instead_of_name_tag(self):
         module = self.module()
