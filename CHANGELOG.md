@@ -8,6 +8,7 @@
 
 ### Docs
 
+- 운영 서비스의 3D 지도, 장소 검색, 도보·차량 경로와 모바일 화면을 캡처해 한국어·영문 README에 추가했습니다.
 - 저장소와 워크숍의 AGENTS.md, 로컬 온보딩, 구현 참조 색인과 .editorconfig를 추가했습니다.
 - 새 안내를 README·기여 안내·아키텍처에 연결하고, Guide의 로컬 의존성과 배포 ZIP 처리 설명을 바로잡았습니다.
 - GitHub 공개용 한국어 README와 English README를 구성했습니다.

@@ -12,6 +12,10 @@
 
 [서비스 열기](https://jeju-atlas.whchoi.net/) | [120분 워크숍](https://jeju-atlas.whchoi.net/workshop/) | [문서](docs/README.md) | [변경 이력](CHANGELOG.md)
 
+![제주 아틀라스에서 한라산을 확대한 실제 3D 지도 화면](docs/images/app-terrain-ko.webp)
+
+*앱 화면은 2026-09-13 운영 서비스의 한국어 UI를 캡처했습니다.*
+
 ## 개요
 
 TypeScript와 Vite로 만든 화면을 Node.js API 서버와 연결합니다.
@@ -40,6 +44,28 @@ AI 가이드는 전용 Bedrock AgentCore Runtime에서 Strands로 실행합니�
 
 기본 지도는 대표 지형 명소부터 표시합니다. 장소 마커는 선택한 검색 결과를 사용합니다.
 카카오 조회는 한 번에 15건, 최대 45건이며 넓은 범위의 모든 장소를 한꺼번에 표시하지 않습니다.
+
+## 실제 화면
+
+### 장소 검색
+
+성산일출봉 검색 결과와 선택한 장소를 지도에서 함께 확인하는 화면입니다.
+
+![카카오 장소 검색 결과와 성산일출봉·우도 주변 위성 지도](docs/images/app-search-ko.webp)
+
+### 도보·차량 경로 비교
+
+같은 출발·도착 지점의 도보와 차량 이동 거리·예상 시간을 비교하고, 실제 도로 경로를 지도에 표시합니다.
+
+![도보와 차량 경로 비교, 이동 시간과 지도에 표시된 여행 경로](docs/images/app-routing-ko.webp)
+
+### 모바일
+
+390px 너비의 모바일 화면에서 3D 지도를 살펴보고, 아래 패널을 펼쳐 장소를 검색한 모습입니다.
+
+| 3D 지도 | 장소 탐색 |
+| :---: | :---: |
+| <img src="docs/images/app-mobile-map-ko.webp" alt="모바일에서 한라산을 확대한 3D 지도" width="320"> | <img src="docs/images/app-mobile-search-ko.webp" alt="모바일 장소 탐색 패널의 성산일출봉 검색 결과" width="320"> |
 
 ## 아키텍처
 

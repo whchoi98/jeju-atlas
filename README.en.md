@@ -12,6 +12,10 @@ MapLibre renders the map, Kakao Local supplies place searches, and Valhalla comp
 
 [Live application](https://jeju-atlas.whchoi.net/) | [Workshop](https://jeju-atlas.whchoi.net/workshop/) | [Documentation](docs/README.md) | [Changelog](CHANGELOG.md)
 
+![Live Jeju Atlas 3D terrain view zoomed in on Hallasan](docs/images/app-terrain-en.webp)
+
+*Application screenshots captured from the live English UI on September 13, 2026.*
+
 ## Overview
 
 The frontend uses TypeScript and Vite. A Node.js API runs behind CloudFront, WAF and a public ALB on private ARM64 ECS Fargate tasks.
@@ -34,6 +38,28 @@ These are release observations, not a live status indicator. See the [deployment
 - Current and cumulative browser-session counts.
 
 The initial map displays representative terrain landmarks. Kakao search returns 15 places per page and at most 45 accessible results per query.
+
+## Screenshots
+
+### Place search
+
+Search results for Seongsan Ilchulbong appear alongside the selected place on the map.
+
+![Kakao place search results and satellite imagery around Seongsan Ilchulbong and Udo](docs/images/app-search-en.webp)
+
+### Walking and driving routes
+
+Compare walking and driving distances and estimates for the same endpoints, with the actual road route displayed on the map.
+
+![Walking and driving comparison, travel estimates and the trip route on the map](docs/images/app-routing-en.webp)
+
+### Mobile
+
+The 390px-wide mobile view shows the 3D map and an expanded place-search panel.
+
+| 3D map | Place search |
+| :---: | :---: |
+| <img src="docs/images/app-mobile-map-en.webp" alt="Mobile 3D map zoomed in on Hallasan" width="320"> | <img src="docs/images/app-mobile-search-en.webp" alt="Seongsan Ilchulbong search results in the mobile place panel" width="320"> |
 
 ## Architecture
 
