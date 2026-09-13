@@ -4,12 +4,15 @@
 
 - [한국어 README](../README.md)
 - [English README](../README.en.md)
+- [로컬 개발과 온보딩](onboarding.md)
+- [저장소 작업 지침](../AGENTS.md)
 - [변경 이력](../CHANGELOG.md)
 - [기여 안내](../CONTRIBUTING.md)
 - [보안 안내](../SECURITY.md)
 
 ## 구현
 
+- [구현 참조와 설계 기록 색인](reference/INDEX.md)
 - [아키텍처와 데이터 흐름](architecture.md)
 - [API 경로와 인증](api-reference.md)
 - [AgentCore 구성](agentcore-components.md)
@@ -29,6 +32,7 @@
 ## 워크숍
 
 - [120분 실습 안내](../workshop/README.md)
+- [워크숍 소스와 생성물 작업 지침](../workshop/AGENTS.md)
 - [진행자 준비](../workshop/reference/facilitator.md)
 - [AI CLI 환경](../workshop/reference/ai-cli-environments.md)
 - [전체 자원 매핑](../workshop/reference/resources.md)

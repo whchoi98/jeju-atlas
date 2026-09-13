@@ -24,11 +24,18 @@ Memory ID가 없으면 Memory manager를 생성하지 않습니다. 모델은
 명시적인 대화 Memory는 telemetry와 별도이며 기존 actor/session 구분과
 Kakao 데이터 저장 제한을 보존합니다.
 
-의존성은 이 디렉터리의 `uv.lock`으로 고정합니다. 프로젝트 루트에서
+로컬 의존성은 이 디렉터리의 `uv.lock`으로 고정합니다. 프로젝트 루트에서
 `UV_PROJECT_ENVIRONMENT="$PWD/.local/atlas-guide-venv" uv sync --project agent/guide --frozen --no-dev`
 로 별도 환경을 만들 수 있습니다. 이 명령은 패키지만 설치합니다.
 `main.py` 실행은 Gateway warming을 시작할 수 있으므로 오프라인 검증에서는
 `tests/agent`의 네트워크 차단 fixture를 사용합니다.
+
+CodeZip 배포 빌드는 [`dependency-artifacts.json`](../dependency-artifacts.json)의
+버전과 해시가 고정된 의존성 ZIP에 현재 소스를 합칩니다. `uv.lock`만 수정해도
+배포 의존성이 갱신되는 것은 아닙니다. 의존성을 바꿀 때는 배포용 아카이브도
+별도로 준비하고 검증해야 합니다.
+`scripts/deploy-atlas-agent.py build`는 AWS 계정과 버킷 소유권도 확인하므로
+오프라인 검사 명령으로 사용하지 않습니다.
 
 전용 리소스·역할·배포 구성은 `infra/agentcore.yaml`,
 `scripts/deploy-atlas-agent.py`가 소유합니다. 이 패키지는 기존 프로젝트 ARN이나

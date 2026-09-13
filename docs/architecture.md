@@ -30,6 +30,21 @@ CloudFront는 정적 자산과 사진을 S3 OAC로 읽고 고도 타일을 별�
 브라우저는 MapLibre와 WebGL로 지도를 렌더링합니다. Fargate가 GPU 렌더링을 수행하는 구조는 아닙니다.
 동적 API 요청은 ALB를 거쳐 Node.js 서버로 전달합니다.
 
+## 로컬 실행과 소스 경계
+
+`index.html`은 `src/main.ts`를 불러오고 지도 초기화와 각 화면 기능을 연결합니다.
+MapLibre worker는 `src/map.ts`에서 별도로 번들에 포함해 해시가 붙은 빌드에서도
+읽을 수 있도록 합니다. 공유 요청·응답 타입은 `shared/`에서 관리합니다.
+
+개발 중 Vite는 `/api`를 `127.0.0.1:8097`의 별도 Node.js 서버로 전달합니다.
+`server/server.mjs`는 기본적으로 `dist/`를 정적 루트로 사용하며, 카탈로그,
+Guide Runtime 또는 라우팅 설정이 있을 때 `server/api.mjs`를 초기화합니다.
+카탈로그는 `server/catalog.mjs`에서 읽기 전용 SQLite 스냅샷으로 엽니다.
+따라서 새 clone에서는 시드 생성과 빌드가 API 시작보다 먼저 필요합니다.
+
+[온보딩](onboarding.md)에 두 프로세스의 실행 순서와 origin 설정을,
+[구현 참조 색인](reference/INDEX.md)에 계층별 코드와 기존 설계 기록을 정리했습니다.
+
 ## 실행 자원
 
 | 구분 | 역할과 경계 |

@@ -30,7 +30,7 @@ These are release observations, not a live status indicator. See the [deployment
 - Actual Valhalla walking/driving route geometry, distances and estimates.
 - Korean/English AI responses, streamed Markdown, tool progress and suggested follow-up questions.
 - Available official photos and visitor facts with source and observation dates.
-- PWA installation and offline access to the app shell, saved trips and workshop material.
+- PWA installation and offline access to the app shell and saved trips; the workshop has its own cache and update lifecycle.
 - Current and cumulative browser-session counts.
 
 The initial map displays representative terrain landmarks. Kakao search returns 15 places per page and at most 45 accessible results per query.
@@ -78,6 +78,7 @@ Production catalogs, enrichment responses and routing graphs are not stored in G
 
 For Vite development, copy `.env.example` to `.env`, run `node --env-file=.env server/server.mjs` in one terminal and `npm run dev` in another.
 The example origin is `http://localhost:5173`.
+See [local development](docs/onboarding.md) for the Python check environment, port configuration and catalog verification.
 
 ## 120-minute AgentCore CLI workshop
 
@@ -137,6 +138,9 @@ See [data quality](docs/data-quality.md) and [official details](docs/official-de
 | `routing/` | Valhalla runtime |
 | `infra/`, `scripts/` | CloudFormation, build, deploy and verification |
 | `tests/`, `workshop/`, `docs/` | Tests, course material and documentation |
+
+See [AGENTS.md](AGENTS.md) for repository guidance and the
+[implementation index](docs/reference/INDEX.md) for code pointers and design records.
 
 ## Testing and contributing
 

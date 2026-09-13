@@ -6,13 +6,16 @@
 ## 작업 순서
 
 1. 저장소를 fork하거나 작업 브랜치를 만듭니다.
-2. 관련 코드와 문서를 읽고 수정 범위를 정합니다.
+2. [AGENTS.md](AGENTS.md), 해당 디렉터리의 작업 지침과 관련 코드를 읽고 수정 범위를 정합니다.
 3. 변경에 맞는 검사를 실행합니다.
 4. 사용자 동작이 달라지면 README와 CHANGELOG를 갱신합니다.
 5. Pull Request에 변경 전후 동작, 검사 결과와 남은 제한을 적습니다.
 
 커밋 메시지는 `feat(workshop): ...`, `fix(guide): ...`, `docs: ...`처럼 목적이 드러나게 작성합니다.
 기존 이력을 정리하려고 다른 사람의 커밋을 강제로 덮어쓰지 않습니다.
+새 환경은 [로컬 개발 안내](docs/onboarding.md)를 따라 준비합니다.
+편집 형식은 `.editorconfig`를 따릅니다. 기본 들여쓰기는 공백 2개,
+Python은 4개이며 Markdown의 줄바꿈용 끝 공백은 보존합니다.
 
 ## 검사
 
@@ -22,6 +25,8 @@ npm run workshop:check
 ```
 
 전체 앱 검사는 Node 24 계열, Python의 boto3/requests와 cfn-lint를 사용합니다.
+워크숍 검사에는 PyYAML도 필요합니다. 공통 설치 목록은
+[`workshop/requirements.txt`](workshop/requirements.txt)에 있습니다.
 실제 브라우저를 준비했다면 `WORKSHOP_BROWSER_TEST=1 npm run workshop:check`도 실행합니다.
 필요한 경우 `PLAYWRIGHT_MODULE`과 `CHROME_EXECUTABLE`로 설치 경로를 지정합니다.
 
@@ -29,6 +34,7 @@ npm run workshop:check
 코드 변경은 해당 동작의 회귀 검사를 포함합니다. 배포나 실제 모델 호출을 실행하지 않았다면 그렇게 기록합니다.
 워크숍 원본은 `workshop/chapters`, `prompts`, `reference`와 `assets`입니다.
 `npm run workshop:build`로 `workshop/site`를 다시 만들고 생성물도 함께 제출합니다.
+[워크숍 작업 지침](workshop/AGENTS.md)에 교재 ZIP과 공개 빌드의 경계를 정리했습니다.
 
 ## 작업 경계
 

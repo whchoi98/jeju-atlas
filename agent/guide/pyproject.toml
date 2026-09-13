@@ -12,8 +12,9 @@ requires-python = ">=3.10"
 #   strands-agents 1.54: BedrockModel(cache_config=CacheConfig(...), cache_tools=...),
 #     Agent.stream_async(structured_output_model=..., cancel_signal=...), StructuredOutputEvent
 #   bedrock-agentcore 1.22: memory.integrations.strands (AgentCoreMemoryConfig/SessionManager)
-# CodeZip deploys resolve from the committed uv.lock (`uv sync --frozen --no-dev`), so these floors are
-# for reproducibility and for anyone installing without the lock — keep them in step with uv.lock.
+# Local environments resolve from uv.lock (`uv sync --frozen --no-dev`); keep these floors aligned.
+# CodeZip builds overlay source onto pinned ZIPs in ../dependency-artifacts.json.
+# Updating uv.lock alone does not refresh the deployed dependency archives.
 dependencies = [
     "aws-opentelemetry-distro",
     "bedrock-agentcore >= 1.22.0",

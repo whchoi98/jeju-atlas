@@ -101,6 +101,9 @@ node --env-file=.env server/server.mjs
 npm run dev
 ```
 
+Python 검사 환경, 포트 설정과 카탈로그 확인은
+[로컬 개발 안내](docs/onboarding.md)에 정리했습니다.
+
 ## 120분 AgentCore CLI 워크숍
 
 VPC, NAT Gateway, Subnet, VSCode Server와 Codex/Kiro CLI/Claude Code가 준비된 EC2에서 시작합니다.
@@ -169,6 +172,7 @@ jeju-atlas/
 ├── tests/               # 앱과 인프라 회귀 검사
 ├── workshop/            # 120분 교재와 심화 자료
 ├── docs/                # 아키텍처, API와 운영 절차
+├── AGENTS.md            # 저장소 작업 지침
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 └── SECURITY.md
@@ -189,7 +193,7 @@ WORKSHOP_BROWSER_TEST=1 npm run workshop:check
 
 ## 문서와 문의
 
-[문서 목록](docs/README.md) | [API](docs/api-reference.md) | [배포](docs/runbooks/deploy.md) | [복구](docs/runbooks/rollback.md) | [보안](SECURITY.md)
+[문서 목록](docs/README.md) | [구현 참조](docs/reference/INDEX.md) | [API](docs/api-reference.md) | [배포](docs/runbooks/deploy.md) | [복구](docs/runbooks/rollback.md) | [보안](SECURITY.md)
 
 - 유지관리: [@whchoi98](https://github.com/whchoi98)
 - 일반 문의와 버그: [GitHub Issues](https://github.com/whchoi98/jeju-atlas/issues)

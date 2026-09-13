@@ -8,6 +8,8 @@
 
 ### Docs
 
+- 저장소와 워크숍의 AGENTS.md, 로컬 온보딩, 구현 참조 색인과 .editorconfig를 추가했습니다.
+- 새 안내를 README·기여 안내·아키텍처에 연결하고, Guide의 로컬 의존성과 배포 ZIP 처리 설명을 바로잡았습니다.
 - GitHub 공개용 한국어 README와 English README를 구성했습니다.
 - 아키텍처, API, 배포와 복구 절차, 문서 목차를 추가했습니다.
 - CONTRIBUTING과 SECURITY 안내를 추가했습니다.
