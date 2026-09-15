@@ -4,9 +4,18 @@
 준비된 EC2의 VSCode Server를 열고 선택한 AI CLI와 AgentCore CLI로
 제주 여행 질문에 답하는 에이전트를 만듭니다.
 
+AI CLI가 응답하더라도 실습 소스와 언어 도구까지 준비된 것은 아닙니다.
+01장의 사전검사를 통과해야 다음 장으로 진행합니다.
+PC의 교재 ZIP과 EC2에서 실행할 전체 Git 소스는 별도로 준비합니다.
+
 AI CLI는 코드 작성과 오류 수정에 사용합니다.
 AgentCore CLI는 프로젝트 생성, 로컬 실행, AWS 배포와 호출에 사용합니다.
 참가자는 Codex, Kiro CLI, Claude Code 중 하나를 선택합니다.
+
+터미널 명령은 VSCode의 **별도 Bash 터미널**에, AI 프롬프트 카드는 선택한
+CLI의 대화창에 붙여넣습니다. 이미 다른 프로젝트를 처리 중인 Claude 세션에
+실습 명령을 전달하지 않습니다. 실습 폴더에서 새 Claude 세션을 여는 절차는
+[도구별 안내](../reference/ai-cli-environments.md)에 있습니다.
 
 ## 결과물
 
@@ -31,7 +40,7 @@ AgentCore CLI는 프로젝트 생성, 로컬 실행, AWS 배포와 호출에 사
 | 합계 | 120분 |
 
 본 실습은 04장에서 끝납니다. 05장 이후는 선택한 사람만 이어서 진행합니다.
-3D 지도, Fargate, Valhalla, 도메인과 공공 데이터 수집은 심화 과정에서 다룹니다.
+3D 지도, Fargate, Valhalla, CloudFront 기본 HTTPS와 공공 데이터 수집은 심화 과정에서 다룹니다.
 기본 Runtime에 심화 과정의 Gateway나 Memory가 연결되어 있다고 가정하지 않습니다.
 
 ## 완료 확인

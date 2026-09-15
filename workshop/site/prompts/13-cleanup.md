@@ -8,7 +8,9 @@
 
 ## 작업
 
-cleanup을 먼저 계획 모드로 조회하고 소유 태그, 접두사, 계정, 삭제 순서와 보존 자원을 설명하세요. 학습자가 정리 실행을 요청하고 participant가 일치하는 경우에만 실행하세요. CLI 입문과 Atlas 스택을 각각 정리하며 공유 VPC/NAT, viewer 인증서, CDK bootstrap, 다른 프로젝트는 제외하세요. S3 버전, Memory, 로그, SSM 잔존 여부를 기록하세요.
+cleanup을 먼저 계획 모드로 조회하고 소유 태그, 접두사, 계정, 삭제 순서와 보존 자원을 설명하세요. 학습자가 정리 실행을 요청하고 participant가 일치하는 경우에만 실행하세요. CLI 입문과 Atlas 스택을 각각 정리하며 공유 VPC/NAT, 기존 인증서/DNS, CDK bootstrap, 다른 프로젝트는 제외하세요. S3 버전, Memory, 로그, SSM 잔존 여부를 기록하세요.
+이번 과정은 기본 CloudFront 도메인을 사용하므로 ACM, Route 53 레코드와 origin Host
+함수/TLS probe를 만들거나 정리하지 않습니다. 실제 소유 Distribution의 삭제 상태를 확인하세요.
 
 교재는 `$ATLAS_REPO/workshop/chapters/13-cleanup.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.

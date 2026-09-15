@@ -119,46 +119,22 @@ class LabExecutionTests(unittest.TestCase):
             self.assertTrue(any(arn.endswith(":parameter" + name) for arn in arns))
         self.assertNotIn(":parameter/jeju-atlas/", json.dumps(resources))
 
-    def test_initial_owned_domain_is_accepted_by_origin_function_template(self):
-        domain = "team01.training.example.org"
-        configured = configuration(
-            domainName=domain,
-            viewerCertificateArn=(
+    def test_custom_domain_is_rejected_before_a_participant_copy_is_created(self):
+        with self.assertRaisesRegex(ValueError, "CloudFront"):
+            configuration(domainName="team01.training.example.org", viewerCertificateArn=(
                 "arn:aws:acm:us-east-1:123456789012:certificate/"
-                "11111111-1111-1111-1111-111111111111"),
-        )
-        app = prepare_workspace(configured, ROOT, self.directory / "domain-labs")
-        template = read_template(app / "infra/origin-routing.yaml")
-        pattern = template["Parameters"]["CanonicalHostName"]["AllowedPattern"]
-        self.assertIsNotNone(
-            re.fullmatch(pattern, domain),
-            f"The rendered canonical-host pattern rejects the configured host: {pattern}",
-        )
+                "11111111-1111-1111-1111-111111111111"))
+        self.assertFalse((self.directory / "domain-labs").exists())
 
-    def test_configure_domain_rebinds_origin_certificate_after_blank_prepare(self):
-        args = SimpleNamespace(
-            domain="team01.training.example.org",
-            viewer_certificate=(
-                "arn:aws:acm:us-east-1:123456789012:certificate/"
-                "11111111-1111-1111-1111-111111111111"),
-            execute=True, config=self.config_path,
-        )
-        session = Mock()
-        session.client.return_value.describe_certificate.return_value = {
-            "Certificate": {
-                "Status": "ISSUED", "SubjectAlternativeNames": [args.domain],
-            },
-        }
-        with patch.object(lab, "aws_session", return_value=session):
-            lab.configure_domain(self.config, args)
-        template = read_template(self.app / "infra/origin.yaml")
-        certificate = template["Parameters"]["CertificateDomainName"]["Default"]
-        matches = source_function(
-            self.app / "scripts/deploy.py", "domain_matches", {})
-        self.assertTrue(
-            matches(certificate, args.domain),
-            f"The origin certificate still targets {certificate}",
-        )
+    def test_altered_viewer_settings_are_rejected_without_rewriting_them(self):
+        path = self.app / "infra/production.json"
+        value = json.loads(path.read_text())
+        value["ViewerDomainName"] = "team01.training.example.org"
+        path.write_text(json.dumps(value))
+        before = path.read_bytes()
+        with self.assertRaisesRegex(ValueError, "CloudFront"):
+            lab.verify_workspace(self.config, self.app)
+        self.assertEqual(path.read_bytes(), before)
 
     def test_cleanup_retry_preserves_previously_recorded_retained_ids(self):
         names = resource_names(self.config)
@@ -173,7 +149,7 @@ class LabExecutionTests(unittest.TestCase):
         }]
         # After App deletion, a retry can only discover later stacks.
         second = [{
-            "name": names["stackPrefix"] + "OriginRouting",
+            "name": names["stackPrefix"] + "Edge",
             "arn": "arn:aws:cloudformation:us-east-1:123456789012:stack/lab/edge",
             "region": "us-east-1", "status": "DELETE_FAILED", "resources": [],
         }]

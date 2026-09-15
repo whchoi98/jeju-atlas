@@ -8,6 +8,8 @@ import shutil
 import subprocess
 
 from lab_config import binding_digest, resource_names, validate_config, write_json
+from lab_cloudfront import require_default_settings
+from model_config import MODEL_ID
 
 SOURCE_ACCOUNT = "061525506239"
 SOURCE_VPC = "vpc-0dfa5610180dfa628"
@@ -24,8 +26,8 @@ PUBLIC_WORKSHOP_FILES = {"workshop/course.json", "workshop/scripts/build.mjs",
 
 
 def placeholder_hostname(config):
-    # Reserved example domain, syntactically compatible with URL validation.
-    # Cloud deployment of ACM/Host routing still requires an explicitly configured hostname.
+    # Anonymize copied production examples only. Never use this as a deployed
+    # URL: that comes exclusively from the participant App stack's outputs.
     return "atlas-" + config["participant"] + ".workshop.example.org"
 
 
@@ -75,6 +77,9 @@ def rewrite_text(text, config):
 
 def data_bootstrap_template(template):
     template = deepcopy(template)
+    media = template["Parameters"]["PublicMediaOrigin"]
+    media["Default"] = ""
+    media["AllowedPattern"] = r"^$|^https://d[a-z0-9]+\.cloudfront\.net$"
     parameter = template["Parameters"]["DistributionArn"]
     parameter["Default"] = ""
     parameter["AllowedPattern"] = r"^$|^arn:aws:cloudfront::[0-9]{12}:distribution/[A-Za-z0-9]+$"
@@ -112,7 +117,115 @@ def adapt_deployer(text):
     media_needle = '        operations = optional_stack_outputs(session, "operations")'
     if text.count(media_needle) != 1:
         raise ValueError("Review the source data-origin configuration before preparing the lab")
-    return text.replace(media_needle, '        values["PublicMediaOrigin"] = outputs["ApplicationUrl"]\n' + media_needle)
+    text = text.replace(media_needle, '        values["PublicMediaOrigin"] = cloudfront_url(outputs)\n' + media_needle)
+    replacements = {
+        "import json\n": "import json\nfrom workshop_cloudfront import cloudfront_url, require_default_settings\n",
+        "def optional_stack_outputs(session, kind):\n":
+            'def optional_stack_outputs(session, kind):\n'
+            '    if kind in ("origin", "origin-routing", "tls-probe"):\n'
+            '        return {}  # Never attach certificates/functions from older domain workflows.\n',
+        "def plan(session, kind, overrides=None):\n":
+            'def plan(session, kind, overrides=None):\n'
+            '    if kind in ("origin", "origin-routing", "tls-probe"):\n'
+            '        raise ValueError("The workshop uses the CloudFront default domain; certificate/probe stacks are excluded")\n',
+        '        params.update(atlas_agent_parameters())':
+            '        params.update(atlas_agent_parameters())\n'
+            '        require_default_settings(settings)',
+        '    change_name = "jeju-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")':
+            '    if kind == "app":\n'
+            '        require_default_settings(params)  # Also reject inherited certificate parameters.\n'
+            '    change_name = "jeju-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")',
+    }
+    return replace_once(text, replacements)
+
+
+def replace_once(text, replacements):
+    for before, after in replacements.items():
+        if text.count(before) != 1:
+            raise ValueError("Review the source before applying the workshop adapter: " + before.splitlines()[0])
+        text = text.replace(before, after)
+    return text
+
+
+def adapt_cloudfront_verifiers(workspace):
+    """Change generated copies only; keep all production verification contracts."""
+    workspace = Path(workspace)
+    path = workspace / "scripts/verify.py"
+    path.write_text(replace_once(path.read_text(), {
+        "import json\n": "import json\nfrom workshop_cloudfront import cloudfront_url, require_default_viewer\n",
+        '''    check("Confirmed custom domain and certificate are preserved",
+          config.get("Aliases", {}).get("Items") == [settings["ViewerDomainName"]]
+          and config.get("ViewerCertificate", {}).get("ACMCertificateArn") == settings["ViewerCertificateArn"])''':
+            '''    require_default_viewer(distribution, outputs)
+    check("The participant distribution uses its default HTTPS domain and certificate", True)''',
+        '''    url = outputs["ApplicationUrl"]''': '''    url = cloudfront_url(outputs)''',
+        '''    for host in dict.fromkeys([f"https://{settings['ViewerDomainName']}", outputs.get("CloudFrontUrl", url)]):''':
+            '''    for host in [url]:''',
+        '''        check("Both served origins accept the app proof before model invocation",''':
+            '''        check("The default CloudFront origin accepts app proof before model invocation",''',
+        '''    check("Existing NAT Gateways reused", nat_ids == {"nat-00b8a70dc184a4d0c", "nat-08379e076e2e6e234"}, sorted(nat_ids))''':
+            '''    check("Existing NAT routes were validated against this participant VPC",
+          bool(nat_ids) and all(value.startswith("nat-") for value in nat_ids), sorted(nat_ids))''',
+    }))
+    path = workspace / "scripts/verify-shared-assets.py"
+    path.write_text(replace_once(path.read_text(), {
+        "import json\n": "import json\nfrom workshop_cloudfront import cloudfront_url\n",
+        '''    app = stack_outputs(cf, APP)''': '''    app = stack_outputs(cf, APP)
+    url = cloudfront_url(app)''',
+        '''http.get(app["ApplicationUrl"] + "/" + path''': '''http.get(url + "/" + path''',
+    }))
+    path = workspace / "scripts/verify-terrain-cache.py"
+    text = replace_once(path.read_text(), {
+        "import json\n": "import json\nfrom workshop_cloudfront import cloudfront_origin\n",
+        "    verify(args.url, args.rounds, args.report)":
+            "    verify(cloudfront_origin(args.url), args.rounds, args.report)",
+    })
+    text, count = re.subn(r'parser\.add_argument\("--url", default="https://[a-z0-9]+\.cloudfront\.net"\)',
+                          'parser.add_argument("--url", required=True)', text)
+    if count != 1:
+        raise ValueError("Review the terrain verifier URL argument before copying it")
+    path.write_text(text)
+
+
+def adapt_workshop_models(workspace):
+    """Pin participant model code and environment only; never rewrite IAM policy."""
+    workspace = Path(workspace)
+    path = workspace / "agent/guide/model/load.py"
+    text = replace_once(path.read_text(), {
+        'MODEL_ID = "global.openai.gpt-6-astra"': f'MODEL_ID = "{MODEL_ID}"',
+        'BEDROCK_REGION = "ap-northeast-2"': 'BEDROCK_REGION = os.environ.get("ATLAS_BEDROCK_REGION", "")',
+        '    resolved_id = model_id or MODEL_ID':
+            '    if not BEDROCK_REGION:\n'
+            '        raise ValueError("Configure the organizer-verified ATLAS_BEDROCK_REGION; no deployment-region fallback")\n'
+            '    resolved_id = model_id or MODEL_ID',
+    })
+    path.write_text(text)
+    path = workspace / "agent/guide/atlas_agent/routing.py"
+    path.write_text(replace_once(path.read_text(), {
+        'MODEL_FAST_DEFAULT = "global.openai.gpt-5.6-sol"': f'MODEL_FAST_DEFAULT = "{MODEL_ID}"',
+        'MODEL_DEEP_DEFAULT = "global.openai.gpt-6-astra"': f'MODEL_DEEP_DEFAULT = "{MODEL_ID}"',
+    }))
+    path = workspace / "infra/agentcore.yaml"
+    template = read_template(path)
+    template["Parameters"]["BedrockCallerRegion"] = {
+        "Type": "String", "AllowedPattern": "^[a-z]{2}(-[a-z0-9]+)+-[0-9]+$",
+        "Description": "Organizer-verified Bedrock caller endpoint; deployment stays in the workshop region.",
+    }
+    env = template["Resources"]["GuideRuntime"]["Properties"]["EnvironmentVariables"]
+    env.update(ATLAS_MODEL_FAST=MODEL_ID, ATLAS_MODEL_DEEP=MODEL_ID,
+               ATLAS_BEDROCK_REGION={"Ref": "BedrockCallerRegion"},
+               ATLAS_THINKING="disabled", ATLAS_THINKING_DEEP="disabled")
+    path.write_text(json.dumps(template, ensure_ascii=False, indent=2) + "\n")
+    path = workspace / "scripts/deploy-atlas-agent.py"
+    text = path.read_text()
+    if "import os\n" not in text:
+        text = replace_once(text, {"import json\n": "import json\nimport os\n"})
+    text = replace_once(text, {
+        '    parameters = [{"ParameterKey": "DataBucketName", "ParameterValue": BUCKET}]':
+            '    parameters = [{"ParameterKey": "DataBucketName", "ParameterValue": BUCKET},\n'
+            '                  {"ParameterKey": "BedrockCallerRegion", "ParameterValue": os.environ.get("ATLAS_BEDROCK_REGION", "")}]',
+    })
+    path.write_text(text)
 
 
 def adapt_ec2_network_check(text, config):
@@ -129,45 +242,19 @@ def adapt_ec2_network_check(text, config):
 
 
 def production_settings(config, https=False):
+    config = validate_config(config)
+    if https:
+        raise ValueError("CloudFront already supplies viewer HTTPS; the workshop does not issue origin certificates")
     return {
-        "ViewerDomainName": config["domainName"],
-        "ViewerCertificateArn": config["viewerCertificateArn"],
+        "ViewerDomainName": "",
+        "ViewerCertificateArn": "",
         "DesiredCount": 2, "MinTaskCount": 2, "MaxTaskCount": 4,
         "GuideLimitsEnabled": "true",
         "GuideDailyLimit": 30, "GuideHourlyLimit": 5, "GuideGlobalConcurrency": 2,
         "RoutingEnabled": "true", "TaskCpu": 512, "TaskMemory": 1024, "RoutingMemory": 512,
         "TargetHealthPath": "/healthz", "OriginDomainName": "",
-        "OriginTlsEnabled": "true" if https else "false", "OriginTlsMode": "canonical-host",
+        "OriginTlsEnabled": "false", "OriginTlsMode": "dns",
     }
-
-
-def configure_hostname_templates(workspace, config):
-    """Pin certificate and Lambda Host validation to this exact participant hostname."""
-    workspace = Path(workspace)
-    host = config["domainName"] or placeholder_hostname(config)
-    origin_path = workspace / "infra/origin.yaml"
-    origin = read_template(origin_path)
-    parameter = origin["Parameters"]["CertificateDomainName"]
-    parameter["Default"] = host
-    parameter["AllowedValues"] = [host]
-    origin["Description"] = "Workshop regional ACM certificate for the exact lab hostname; DNS validation required."
-    origin_path.write_text(json.dumps(origin, indent=2) + "\n")
-    routing_path = workspace / "infra/origin-routing.yaml"
-    routing_text = routing_path.read_text()
-    pattern = "^" + re.escape(host) + "$"
-    if routing_text.lstrip().startswith("{"):
-        routing = json.loads(routing_text)
-        routing["Parameters"]["CanonicalHostName"]["AllowedPattern"] = pattern
-        routing_path.write_text(json.dumps(routing, indent=2) + "\n")
-    else:
-        # Keep the exact deployed inline Lambda source in YAML block form:
-        # the existing Node regression tests execute that source directly.
-        routing_text, count = re.subn(
-            r"(?m)(^  CanonicalHostName:\n    Type: String\n    AllowedPattern:)[^\n]*",
-            lambda match: match.group(1) + " " + json.dumps(pattern), routing_text)
-        if count != 1:
-            raise ValueError("Review the source canonical-host parameter before adapting it")
-        routing_path.write_text(routing_text)
 
 
 def adapt_data_tests(path):
@@ -236,9 +323,15 @@ def prepare_workspace(config, source_root, labs_root):
         shutil.copymode(source, target)
     deploy = destination / "scripts/deploy.py"
     deploy.write_text(adapt_ec2_network_check(adapt_deployer(deploy.read_text()), config))
+    support = Path(__file__).with_name("lab_cloudfront.py")
+    if support.is_symlink() or not support.is_file():
+        raise ValueError("Use the bundled CloudFront helper source")
+    (destination / "scripts/workshop_cloudfront.py").write_bytes(support.read_bytes())
+    manifest["workshop/scripts/lab_cloudfront.py"] = hashlib.sha256(support.read_bytes()).hexdigest()
+    adapt_cloudfront_verifiers(destination)
+    adapt_workshop_models(destination)
     template = destination / "infra/data.yaml"
     template.write_text(json.dumps(data_bootstrap_template(read_template(template)), indent=2) + "\n")
-    configure_hostname_templates(destination, config)
     adapt_data_tests(destination / "tests/data_detail_infra_test.py")
     write_json(destination / "infra/production.json", production_settings(config))
     write_json(destination / "infra/data-settings.json", {"ScheduleState": "DISABLED"})
@@ -257,6 +350,7 @@ def prepare_workspace(config, source_root, labs_root):
         "- Preserve workshop-binding.json and account/network/name checks.\n"
         "- Use the workshop lab.py runner for cloud steps. Review the selected step and its change set.\n"
         "- Use the existing VPC/subnets/NAT without creating, replacing or deleting them.\n"
+        "- Access this workshop only through its stack's default CloudFront HTTPS domain; do not issue certificates or configure DNS.\n"
         "- Do not read or print credentials, .env files or provider key values. Use the hidden-input helper.\n"
         "- Preserve sample provenance and official evidence; do not invent opening hours or facilities.\n"
         "- Run npm run check for app changes. A local build is not proof of AWS deployment.\n",
@@ -321,4 +415,5 @@ def verify_workspace(config, workspace):
         raise ValueError("Prepared VPC binding was changed")
     if "/jeju-atlas/" in (workspace / "scripts/fetch-place-details.py").read_text():
         raise ValueError("Collector would read the production provider parameters")
+    require_default_settings(json.loads((workspace / "infra/production.json").read_text()))
     return workspace

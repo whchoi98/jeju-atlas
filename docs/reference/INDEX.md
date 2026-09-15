@@ -26,6 +26,9 @@ commands apply to both language versions of the application.
 | Request coordination and presence | [admission.mjs](../../server/admission.mjs), [presence.mjs](../../server/presence.mjs) | [AI limits and presence record](../ai-presence-release-2026-09-12.md) |
 | Deployment and recovery | [deploy.py](../../scripts/deploy.py), [application.yaml](../../infra/application.yaml), [rollback-release.py](../../scripts/rollback-release.py) | [Deploy](../runbooks/deploy.md), [rollback](../runbooks/rollback.md) |
 | Workshop and PWA packaging | [course.json](../../workshop/course.json), [reader builder](../../workshop/scripts/build.mjs), [public packager](../../scripts/build-workshop-public.mjs), [app PWA builder](../../scripts/build-pwa.mjs) | [Workshop](../../workshop/README.md), [offline handbook](../../workshop/reference/offline-start.md) |
+| Core participant setup | [source/session checker](../../workshop/scripts/core.py), [private tool installer](../../workshop/scripts/install_core.sh) | [Chapter 01](../../workshop/chapters/01-setup.md), [source transfer and facilitator setup](../../workshop/reference/facilitator.md) |
+| Workshop Sonnet verification | [model configuration](../../workshop/scripts/model_config.py), [explicit real-model check](../../workshop/scripts/model_check.py) | [Account and caller region](../../workshop/chapters/02-aws-environment.md), [official references](../../workshop/reference/official-guide-review.md) |
+| Workshop CloudFront access | [owned URL helper](../../workshop/scripts/lab_cloudfront.py), [participant copy adapter](../../workshop/scripts/lab_workspace.py) | [Default HTTPS and edge](../../workshop/chapters/09-https-edge.md) |
 
 ### Key decisions
 
@@ -74,6 +77,9 @@ not a substitute for checking current deployments or provider data.
 | 요청 조정과 접속 집계 | [admission.mjs](../../server/admission.mjs), [presence.mjs](../../server/presence.mjs) | [AI 한도와 접속 집계 기록](../ai-presence-release-2026-09-12.md) |
 | 배포와 복구 | [deploy.py](../../scripts/deploy.py), [application.yaml](../../infra/application.yaml), [rollback-release.py](../../scripts/rollback-release.py) | [배포](../runbooks/deploy.md), [복구](../runbooks/rollback.md) |
 | 워크숍과 PWA 패키징 | [course.json](../../workshop/course.json), [교재 빌더](../../workshop/scripts/build.mjs), [공개 패키저](../../scripts/build-workshop-public.mjs), [앱 PWA 빌더](../../scripts/build-pwa.mjs) | [워크숍](../../workshop/README.md), [오프라인 교재](../../workshop/reference/offline-start.md) |
+| 본 실습 참가자 준비 | [소스와 세션 검사](../../workshop/scripts/core.py), [전용 도구 설치기](../../workshop/scripts/install_core.sh) | [01장](../../workshop/chapters/01-setup.md), [소스 전달과 진행자 준비](../../workshop/reference/facilitator.md) |
+| 워크숍 Sonnet 검증 | [모델 설정](../../workshop/scripts/model_config.py), [명시적 실제 호출](../../workshop/scripts/model_check.py) | [계정과 호출 리전](../../workshop/chapters/02-aws-environment.md), [공식 문서 대조](../../workshop/reference/official-guide-review.md) |
+| 워크숍 CloudFront 접속 | [소유 스택 URL 조회](../../workshop/scripts/lab_cloudfront.py), [참가자 사본 변환](../../workshop/scripts/lab_workspace.py) | [기본 HTTPS와 엣지](../../workshop/chapters/09-https-edge.md) |
 
 ### 주요 결정
 

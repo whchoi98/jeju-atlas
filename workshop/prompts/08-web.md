@@ -9,6 +9,8 @@
 ## 작업
 
 전용 AgentCore 출력, 게시된 카탈로그와 라우터 이미지를 먼저 확인하세요. install/check/build-push를 통과한 뒤 내 App 스택의 계획과 실제 적용을 진행하세요. Public ALB, Private Fargate, Public IP 비활성화를 확인하세요. 실제 ApplicationUrl에서 health와 지도/카탈로그를 확인한 뒤 Data를 실제 Distribution ARN으로 갱신하세요.
+lab.py url로 참가자 App 스택의 기본 CloudFront HTTPS 주소를 읽고 ApplicationUrl과
+CloudFrontUrl이 같은지 확인하세요. 도메인 등록이나 인증서 발급을 요청하지 마세요.
 
 교재는 `$ATLAS_REPO/workshop/chapters/08-web.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.

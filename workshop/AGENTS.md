@@ -22,6 +22,23 @@ substitution tokens and narrower workspace instructions are intentional.
 
 Run from the repository root after `npm ci`. Install
 `workshop/requirements.txt` in the chosen Python environment for checks.
+The core participant helper `scripts/core.py` is an exception: `prepare` and
+`doctor` start with Python 3.9+ and the standard library, without root npm
+dependencies. Its doctor checks only the selected assistant and core tools.
+The existing `lab.py doctor` remains the advanced app check.
+
+`scripts/install_core.sh` is an explicit facilitator action with downloads and
+local writes under an owned `workshop/.local/toolchain/`. Preserve its ownership
+checks, Node checksum verification and uv `--no-bin` behavior. Participant
+activation files are sourced in Bash and do not replace shell startup files,
+system executables or assistant login settings.
+
+The workshop model is `global.anthropic.claude-sonnet-4-6`; Claude Code examples
+use `claude --model claude-sonnet-4-6`. Keep the deployment region separate from
+the organizer-verified Bedrock caller region. `model_check.py --execute` is an
+explicit real request and must never run inside doctor, build or ordinary tests.
+Keep real failures (including the reported Seoul SCP deny) separate from local
+test success. Do not change IAM/SCP to make a test pass.
 
 | Command | Result |
 |---|---|
@@ -53,5 +70,9 @@ the flag absent, report the browser test as skipped.
 - Local build/check/package commands do not publish the course or deploy a
   participant Runtime. Operational procedures are in [README.md](README.md)
   and [the deployment runbook](../docs/runbooks/deploy.md).
+- Participant web/handbook access uses the App stack's actual default
+  `*.cloudfront.net` HTTPS URL. Do not add ACM issuance, custom-domain/DNS steps,
+  origin Host functions or TLS probes to the workshop. Keep production domain
+  templates and deployed resources intact; adapt only participant copies.
 - Preserve dated `DEPLOYMENT.md` and `VALIDATION.md` observations. New local
   checks do not establish a completed cloud rehearsal or live model call.

@@ -6,8 +6,8 @@
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#232f3e">
   <meta name="referrer" content="no-referrer">
-  <meta name="description" content="ACM, WAF, S3 OAC, Lambda@Edge와 고도 캐시를 구성합니다.">
-  <title>도메인, HTTPS, 엣지 구성, Jeju Atlas 워크숍</title>
+  <meta name="description" content="실제 스택의 CloudFront 기본 URL로 접속하고 WAF, OAC와 고도 캐시를 검증합니다.">
+  <title>CloudFront 기본 HTTPS와 엣지, Jeju Atlas 워크숍</title>
   <link rel="icon" type="image/svg+xml" href="../assets/mark.svg">
   <link rel="apple-touch-icon" href="../assets/icons/atlas-192.png">
   <link rel="manifest" data-workshop-manifest="../manifest.webmanifest">
@@ -41,12 +41,12 @@
       <span class="nav-number">00</span>
       <span class="nav-title">이번 실습에서 만들 것</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="01 준비된 환경 확인 VSCode Server에서 이미 설치된 AI CLI와 실습 도구를 확인합니다. 사용할 AI CLI 선택 실습 명령 확인 Python과 패키지 준비 상태 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="01 준비된 환경 확인 VSCode Server에서 이미 설치된 AI CLI와 실습 도구를 확인합니다. 사용할 AI CLI 선택 1. 전체 소스와 참가자 위치 확인 2. 같은 Bash에서 환경 활성화와 사전검사 새 터미널을 열었을 때 AI CLI 프롬프트 카드">
     <a class="chapter-link" href="01-setup.html" data-chapter-link="01-setup" data-core-chapter="true">
       <span class="nav-number">01</span>
       <span class="nav-title">준비된 환경 확인</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="02 계정과 작업 폴더 현재 EC2의 계정과 기존 네트워크, 참가자별 폴더를 확인합니다. 참가자 이름 EC2와 기존 네트워크 확인 CLI 설정 위치 배포 준비 확인 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="02 계정과 작업 폴더 현재 EC2의 계정과 기존 네트워크, 참가자별 폴더를 확인합니다. 참가자 환경과 계정 EC2와 기존 네트워크 확인 계정 변수와 CLI 설정 배포 준비 확인 배포 리전과 Bedrock 호출 리전 작은 실제 모델 검사 AI CLI 프롬프트 카드">
     <a class="chapter-link" href="02-aws-environment.html" data-chapter-link="02-aws-environment" data-core-chapter="true">
       <span class="nav-number">02</span>
       <span class="nav-title">계정과 작업 폴더</span>
@@ -84,10 +84,10 @@
       <span class="nav-number">08</span>
       <span class="nav-title">3D 지도 웹과 Fargate 배포</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="09 도메인, HTTPS, 엣지 구성 ACM, WAF, S3 OAC, Lambda@Edge와 고도 캐시를 구성합니다. 도메인과 viewer 인증서 서울 origin 인증서 WAF와 공유 자산 Lambda@Edge와 독립 HTTPS probe 확인과 문제 해결 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="09 CloudFront 기본 HTTPS와 엣지 실제 스택의 CloudFront 기본 URL로 접속하고 WAF, OAC와 고도 캐시를 검증합니다. 참가자 환경과 실제 URL WAF와 공유 자산 OAC 앱에 WAF와 정적 자산 연결 확인과 문제 해결 AI CLI 프롬프트 카드">
     <a class="chapter-link" href="09-https-edge.html" aria-current="page" data-chapter-link="09-https-edge" data-core-chapter="false">
       <span class="nav-number">09</span>
-      <span class="nav-title">도메인, HTTPS, 엣지 구성</span>
+      <span class="nav-title">CloudFront 기본 HTTPS와 엣지</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
     </a></li><li data-nav-entry data-search="10 공식 장소 정보와 사진 TourAPI와 VISIT JEJU로 공식 상세와 사진을 보강합니다. 키 입력 수집 이미지와 Schedule 결과 해석 올레길과 웹 확인 선택 실습, 카카오 장소 정보 AI CLI 프롬프트 카드">
     <a class="chapter-link" href="10-enrichment.html" data-chapter-link="10-enrichment" data-core-chapter="false">
@@ -111,12 +111,12 @@
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
     </a></li></ol>
       </section>
-      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="AWS 자원, 기술 전체 매핑 본 실습 심화 과정의 전체 자원 기반, 저장소, 비밀값 심화 Atlas AgentCore 웹 컴퓨팅, 로드 밸런싱 HTTPS, 캐시, 엣지 공식 데이터 작업, 관측 지도, 라우팅, 데이터, 사용자 화면 조건과 제외 범위">
+      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="AWS 자원, 기술 전체 매핑 본 실습 심화 과정의 전체 자원 기반, 저장소, 비밀값 심화 Atlas AgentCore 웹 컴퓨팅, 로드 밸런싱 HTTPS, 캐시, 엣지 운영 전용 참고 구성 공식 데이터 작업, 관측 지도, 라우팅, 데이터, 사용자 화면 조건과 제외 범위">
     <a class="reference-link" href="../reference/resources.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">AWS 자원, 기술 전체 매핑</span>
 
-    </a></li><li data-nav-entry data-search="진행자 준비 가이드 이미 제공된 환경 수업 전에 추가로 확인할 항목 리허설 수업 중 확인 시점 심화 과정 운영">
+    </a></li><li data-nav-entry data-search="진행자 준비 가이드 이미 제공된 환경 수업 전에 추가로 확인할 항목 확인된 실제 호출 실패 1. 참가자 EC2에 전체 소스 전달 2. 전용 도구 경로 준비와 설치 3. 활성화, 사전검사와 Claude 재개 리허설 수업 중 확인 시점 심화 과정 운영">
     <a class="reference-link" href="../reference/facilitator.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">진행자 준비 가이드</span>
@@ -126,17 +126,17 @@
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">카탈로그 생성과 출처</span>
 
-    </a></li><li data-nav-entry data-search="공식 AgentCore CLI 가이드 대조 이 교재에서 확인한 명령 공식 문서">
+    </a></li><li data-nav-entry data-search="공식 AgentCore CLI 가이드 대조 이 교재에서 확인한 명령 공식 문서 Sonnet 4.6과 세 리전 구분">
     <a class="reference-link" href="../reference/official-guide-review.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">공식 AgentCore CLI 가이드 대조</span>
 
-    </a></li><li data-nav-entry data-search="PC 다운로드, EC2 실행 내려받을 파일 시간표와 프롬프트 교재 다시 만들기 오프라인 사용">
+    </a></li><li data-nav-entry data-search="PC 다운로드, EC2 실행 내려받을 파일 시간표와 프롬프트 EC2의 실행 소스 준비 교재 다시 만들기 오프라인 사용">
     <a class="reference-link" href="../reference/offline-start.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">PC 다운로드, EC2 실행</span>
 
-    </a></li><li data-nav-entry data-search="Codex, Kiro CLI, Claude Code 환경 실행 위치 공통 과제 전달 인증과 권한 오류를 수정할 때 공식 문서">
+    </a></li><li data-nav-entry data-search="Codex, Kiro CLI, Claude Code 환경 Bash와 AI 대화창 구분 새 터미널에서 복원하고 Claude 열기 공통 과제 전달 인증과 권한 오류를 수정할 때 공식 문서">
     <a class="reference-link" href="../reference/ai-cli-environments.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">Codex, Kiro CLI, Claude Code 환경</span>
@@ -169,90 +169,116 @@
     <main id="main-content" tabindex="-1">
       <noscript><p class="noscript-note">목차와 본문은 그대로 읽을 수 있습니다. 검색, 코드 복사, 읽기 기록은 JavaScript를 켜면 사용할 수 있습니다.</p></noscript>
       <div class="article-layout">
-    <article class="lesson" aria-labelledby="heading-09-도메인-https-엣지-구성">
+    <article class="lesson" aria-labelledby="heading-09-cloudfront-기본-https와-엣지">
       <header class="lesson-header">
         <p class="eyebrow"><span class="chapter-stamp">09</span>심화 선택<span class="meta-separator">/</span>60분, 별도 일정</p>
-        <h1 id="heading-09-도메인-https-엣지-구성">도메인, HTTPS, 엣지 구성</h1>
-        <p class="lesson-summary">ACM, WAF, S3 OAC, Lambda@Edge와 고도 캐시를 구성합니다.</p>
+        <h1 id="heading-09-cloudfront-기본-https와-엣지">CloudFront 기본 HTTPS와 엣지</h1>
+        <p class="lesson-summary">실제 스택의 CloudFront 기본 URL로 접속하고 WAF, OAC와 고도 캐시를 검증합니다.</p>
         <div class="lesson-location"><span>선택한 사람만 진행하는 심화 자료</span><span class="lesson-read-state" data-chapter-state>아직 읽지 않음</span></div>
       </header>
       <div class="prose">
-<p>이 장은 120분 본 실습 이후에 선택하는 심화 자료입니다.</p>
-<p>사용자→CloudFront와 CloudFront→ALB를 HTTPS로 구성하고 WAF, 공유 자산 OAC를 연결합니다.
-전체 과정에는 소유 도메인, us-east-1의 viewer 인증서, 서울의 origin 인증서와 DNS 검증이 필요합니다.
-CloudFront 기본 주소로 접속된다는 사실만으로 이 장을 완료하지 않습니다.</p>
-<h2 id="heading-도메인과-viewer-인증서">도메인과 viewer 인증서</h2>
-<p>진행자가 사용을 허용한 <strong>실습 전용 hostname</strong>과 이를 포함하는 발급 완료 ACM 인증서를 준비합니다.
-Viewer 인증서는 같은 계정의 <code>us-east-1</code>에 있어야 합니다.
-<code>jeju-atlas.whchoi.net</code>과 <code>ohmyjeju.whchoi.net</code>을 실습 도메인으로 쓰지 않습니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd "$ATLAS_REPO"
-# 실제 실습 값으로 설정합니다.
-export ATLAS_DOMAIN=atlas-team01.example.com
-export ATLAS_VIEWER_CERT='arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000'
-
-python3 workshop/scripts/lab.py configure-domain \
-  --domain "$ATLAS_DOMAIN" \
-  --viewer-certificate "$ATLAS_VIEWER_CERT" \
-  --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py doctor --aws --config "$ATLAS_CONFIG"
+<p>이 장은 120분 본 실습 이후에 선택하는 심화 자료입니다.
+08장에서 만든 참가자 Distribution의 <strong>기본 HTTPS 주소</strong>로 앱과 교재를 엽니다.
+별도 도메인 등록, Route 53/DNS 레코드 설정과 ACM 인증서 발급은 필요하지 않습니다.</p>
+<p>브라우저에서 CloudFront까지는 기본 인증서의 HTTPS를 사용합니다.
+CloudFront에서 ALB까지는 템플릿의 HTTP 경로를 사용하며, 기존 CloudFront Prefix List와
+원본 검증 헤더 제한을 유지합니다. 이 구성을 운영의 origin TLS 구성과 같은 것으로 설명하지 않습니다.
+기존 운영 도메인, 인증서, Lambda@Edge와 DNS 설정은 변경하지 않습니다.</p>
+<h2 id="heading-참가자-환경과-실제-url">참가자 환경과 실제 URL</h2>
+<p>새 Bash라면 01장의 본인 <code>activate.sh</code>를 먼저 source합니다.
+심화 앱은 <code>$ATLAS_REPO/workshop/.local/labs/$ATLAS_TEAM/app</code>이며 05장에서 준비한 사본입니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">python3 "${ATLAS_REPO:?}/workshop/scripts/lab.py" doctor \
+  --assistant "${ATLAS_ASSISTANT:?}" --aws --config "${ATLAS_CONFIG:?}"
 </code></pre></div>
-<p>예시 ARN을 실제 인증서처럼 사용하지 않습니다.
-신규 인증서가 필요하면 진행자가 ACM DNS 검증을 완료합니다.
-DNS에서는 실습 hostname을 내 <code>CloudFrontUrl</code>의 호스트로 연결합니다.
-인증서 검증 CNAME과 서비스 CNAME은 서로 다른 레코드입니다.</p>
-<p>도메인 설정을 앱에 반영합니다. 이 시점의 origin은 아직 초기 HTTP 경로입니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">python3 workshop/scripts/lab.py run plan-app --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-app --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-app --config "$ATLAS_CONFIG" --execute
+<p>앱 스택의 완료 상태를 확인한 뒤 URL을 읽습니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">python3 "${ATLAS_REPO:?}/workshop/scripts/lab.py" run status-app \
+  --config "${ATLAS_CONFIG:?}" --execute
 </code></pre></div>
-<h2 id="heading-서울-origin-인증서">서울 origin 인증서</h2>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">python3 workshop/scripts/lab.py run plan-origin --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-origin --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-origin --config "$ATLAS_CONFIG" --execute
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">ATLAS_URL="$(python3 "${ATLAS_REPO:?}/workshop/scripts/lab.py" url \
+  --config "${ATLAS_CONFIG:?}" --plain)" &#x26;&#x26;
+export ATLAS_URL &#x26;&#x26;
+printf '앱: %s\n교재: %s/workshop/\n' "$ATLAS_URL" "$ATLAS_URL"
 </code></pre></div>
-<p>ACM의 DNS 검증 레코드를 확인하고 소유 DNS에 추가합니다.
-Certificate가 <code>ISSUED</code>, 스택이 완료된 뒤 진행합니다.
-us-east-1 인증서를 ALB에 붙이거나 서울 인증서를 viewer 인증서로 사용하지 않습니다.</p>
-<h2 id="heading-waf와-공유-자산">WAF와 공유 자산</h2>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">python3 workshop/scripts/lab.py run plan-edge --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-edge --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-edge --config "$ATLAS_CONFIG" --execute
-
-python3 workshop/scripts/lab.py run plan-static --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-static --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-static --config "$ATLAS_CONFIG" --execute
+<p><code>url</code>은 현재 참가자의 App 스택을 CloudFormation에서 읽는 조회 명령입니다.
+계정, 리전, 스택 이름과 Project 태그를 확인하고 실제 <code>CloudFrontUrl</code>,
+<code>ApplicationUrl</code>, <code>DistributionId</code>를 대조합니다. 두 URL은 같은
+<code>https://d....cloudfront.net</code> 루트 주소여야 합니다.
+스택이나 출력이 없으면 중단하며, 예시 주소나 운영 Distribution으로 대신하지 않습니다.
+<code>export ATLAS_URL="$(...)"</code> 한 줄로 합치면 조회 실패의 종료 상태가 가려질 수 있으므로
+위처럼 조회와 export를 구분합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">curl --fail --silent "${ATLAS_URL:?}/healthz"
 </code></pre></div>
-<p>엣지 스택은 us-east-1의 WAF와 CloudFront 로그 전송, 관측 구성을 포함합니다.
-공유 자산 S3는 내 Distribution에만 OAC 읽기를 허용합니다.
-새 static 스택이 준비된 뒤 이미지를 다시 빌드하면 자산을 게시하고 manifest를 기록합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">python3 workshop/scripts/lab.py run build-push --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run plan-app --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-app --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-app --config "$ATLAS_CONFIG" --execute
+<p>같은 주소의 <code>/workshop/</code>에서 교재와 다운로드 ZIP도 확인합니다.
+URL 조회 성공만으로 서비스 안정화나 CloudFront 전파 완료가 확인된 것은 아닙니다.</p>
+<h2 id="heading-waf와-공유-자산-oac">WAF와 공유 자산 OAC</h2>
+<p>실제 Distribution이 만들어진 뒤 이 순서로 진행합니다.
+각 plan 결과의 계정, Project 이름과 변경 자원을 읽은 후 같은 단계의 apply를 실행합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">(
+  set -e
+  cd -- "${ATLAS_REPO:?}"
+  python3 workshop/scripts/lab.py run plan-edge --config "${ATLAS_CONFIG:?}" --execute
+)
 </code></pre></div>
-<p>이 업데이트로 WAF, 정적 자산, 발급된 origin 인증서를 앱에 연결합니다.</p>
-<h2 id="heading-lambdaedge와-독립-https-probe">Lambda@Edge와 독립 HTTPS probe</h2>
-<p>Lambda@Edge는 ALB 연결 주소를 유지하며 origin 요청의 Host를 실습 hostname으로 맞춥니다.
-viewer 요청, 정적 자산, 미디어, 고도 원본에 무조건 붙이는 함수가 아닙니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-6">python3 workshop/scripts/lab.py run plan-origin-routing --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-origin-routing --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-origin-routing --config "$ATLAS_CONFIG" --execute
-
-python3 workshop/scripts/lab.py run plan-tls-probe --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-tls-probe --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-tls-probe --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run verify-tls --config "$ATLAS_CONFIG" --execute
+<p>Edge 계획을 확인한 뒤 적용하고 Static 계획을 만듭니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-6">(
+  set -e
+  cd -- "${ATLAS_REPO:?}"
+  python3 workshop/scripts/lab.py run apply-edge --config "${ATLAS_CONFIG:?}" --execute
+  python3 workshop/scripts/lab.py run status-edge --config "$ATLAS_CONFIG" --execute
+  python3 workshop/scripts/lab.py run plan-static --config "$ATLAS_CONFIG" --execute
+)
 </code></pre></div>
-<p>별도 probe의 함수 버전, ALB, hostname이 실제 실습 대상과 일치하고 검증을 통과해야 합니다.
-원본 검증 secret 값은 출력하지 않습니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-7" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-7">python3 workshop/scripts/lab.py enable-https --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run plan-app --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-app --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-app --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run verify-assets --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run verify-terrain --config "$ATLAS_CONFIG" --execute
+<p>Static 계획의 비공개 버킷과 소유 Distribution을 확인한 뒤 적용합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-7" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-7">(
+  set -e
+  cd -- "${ATLAS_REPO:?}"
+  python3 workshop/scripts/lab.py run apply-static --config "${ATLAS_CONFIG:?}" --execute
+  python3 workshop/scripts/lab.py run status-static --config "$ATLAS_CONFIG" --execute
+)
+</code></pre></div>
+<p>Edge 스택은 us-east-1의 WAF와 CloudFront 로그 전송을 포함합니다.
+Static 스택의 비공개 S3는 내 Distribution에만 OAC 읽기를 허용합니다.
+인증서 스택, origin Host 함수와 독립 TLS probe는 이 과정에서 만들지 않습니다.</p>
+<h2 id="heading-앱에-waf와-정적-자산-연결">앱에 WAF와 정적 자산 연결</h2>
+<p>Static 준비 후 새 이미지를 빌드하면 자산을 게시하고 manifest를 기록합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-8" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-8">(
+  set -e
+  cd -- "${ATLAS_REPO:?}"
+  python3 workshop/scripts/lab.py run build-push --config "${ATLAS_CONFIG:?}" --execute
+  python3 workshop/scripts/lab.py run plan-app --config "$ATLAS_CONFIG" --execute
+)
+</code></pre></div>
+<p>앱 계획의 <code>ViewerDomainName</code>, <code>ViewerCertificateArn</code>, <code>OriginDomainName</code>은 비어 있고
+<code>OriginTlsEnabled</code>는 false여야 합니다. 기존 도메인/인증서 매개변수가 남아 있으면
+자동으로 제거하지 말고 해당 스택이 이번 참가자의 새 실습인지 확인합니다.
+계획이 맞으면 앱을 적용하고 Data 갱신 계획을 확인합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-9" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-9">(
+  set -e
+  cd -- "${ATLAS_REPO:?}"
+  python3 workshop/scripts/lab.py run apply-app --config "${ATLAS_CONFIG:?}" --execute
+  python3 workshop/scripts/lab.py run status-app --config "$ATLAS_CONFIG" --execute
+  python3 workshop/scripts/lab.py run plan-data --config "$ATLAS_CONFIG" --execute
+)
+</code></pre></div>
+<p>Data의 <code>PublicMediaOrigin</code>이 실제 App 스택의 기본 CloudFront URL인지 확인한 뒤 적용합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-10" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-10">(
+  set -e
+  cd -- "${ATLAS_REPO:?}"
+  python3 workshop/scripts/lab.py run apply-data --config "${ATLAS_CONFIG:?}" --execute
+  python3 workshop/scripts/lab.py run status-data --config "$ATLAS_CONFIG" --execute
+)
 </code></pre></div>
 <h2 id="heading-확인과-문제-해결">확인과 문제 해결</h2>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-11" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-11">(
+  set -e
+  cd -- "${ATLAS_REPO:?}"
+  python3 workshop/scripts/lab.py run verify-assets --config "${ATLAS_CONFIG:?}" --execute
+  python3 workshop/scripts/lab.py run verify-terrain --config "$ATLAS_CONFIG" --execute
+)
+</code></pre></div>
+<p>검사기는 참가자의 이미지 receipt와 실제 스택 URL을 사용합니다.
+고정된 운영 CloudFront 주소를 기본값으로 사용하지 않습니다.
+전체 서비스와 실제 모델 응답 검증은 12장에서 수행합니다.</p>
 <div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
 <thead>
 <tr>
@@ -262,38 +288,43 @@ python3 workshop/scripts/lab.py run verify-terrain --config "$ATLAS_CONFIG" --ex
 </thead>
 <tbody>
 <tr>
-<td>사용자 도메인</td>
-<td>DNS, CloudFront Alias, viewer 인증서가 같은 hostname</td>
+<td>접속 주소</td>
+<td>실제 스택의 CloudFrontUrl과 ApplicationUrl이 일치</td>
 </tr>
 <tr>
-<td>origin</td>
-<td>HTTPS-only, ALB 인증서 발급 완료, 해당 Host와 일치</td>
+<td>viewer</td>
+<td>기본 CloudFront 인증서, 사용자 Alias 없음, HTTP에서 HTTPS로 이동</td>
 </tr>
 <tr>
-<td>SG</td>
-<td>80/443 수신은 AWS CloudFront Prefix List, task는 ALB SG만</td>
+<td>ALB 원본</td>
+<td>HTTP, 원본 검증 헤더와 CloudFront Prefix List 제한 유지</td>
 </tr>
 <tr>
-<td>자산, 미디어</td>
-<td>OAC 접근, 직접 S3 공개 접근 차단</td>
+<td>WAF</td>
+<td>이 참가자의 WebACL이 Distribution에 연결됨</td>
+</tr>
+<tr>
+<td>자산과 미디어</td>
+<td>OAC로 접근하며 직접 S3 공개 접근은 차단</td>
 </tr>
 <tr>
 <td>고도</td>
-<td><code>/terrarium/</code> 캐시, ALB origin secret 미전달</td>
+<td><code>/terrarium/</code> 캐시와 CORS, ALB 원본 secret 미전달</td>
 </tr>
 <tr>
-<td>probe</td>
-<td>실제 앱과 별도 Distribution, 적용 검증 후 정리 가능</td>
+<td>교재</td>
+<td>같은 CloudFront 주소의 <code>/workshop/</code>, ZIP과 독립 PWA 캐시</td>
 </tr>
 </tbody>
 </table></div>
-<p>CNAME만 만들면 Alias, 인증서 설정을 대신하지 못합니다.
-403이면 origin/Host/cookie/검증 헤더, 502/504이면 TLS, ALB target, 시간 제한을 구분해서 확인합니다.</p>
-<p>AI CLI 프롬프트: <a href="../prompts/09-https-edge.md" download="09-https-edge.md">09, HTTPS, 엣지</a></p>
+<p>403은 WAF, Origin/CSRF와 검증 헤더를 구분해 확인합니다.
+502/504는 ALB target, 원본 HTTP 연결과 응답 제한을 확인합니다.
+인증서 발급이나 DNS 등록으로 우회하지 않습니다.</p>
+<p>AI CLI 프롬프트: <a href="../prompts/09-https-edge.md" download="09-https-edge.md">09, CloudFront 기본 HTTPS</a></p>
 <p>다음: <a href="10-enrichment.html">10, 공식 정보 보강</a></p>
 <h2 id="heading-ai-cli-프롬프트-카드">AI CLI 프롬프트 카드</h2>
 <p>아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. <a href="../prompts/09-https-edge.md" download="09-https-edge.md">Markdown 카드 다운로드</a></p>
-<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="AI CLI 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 AI CLI 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-8" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 AI CLI의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="AI CLI에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-8"># 09, 도메인, HTTPS, 엣지 구성. AI CLI 카드
+<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="AI CLI 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 AI CLI 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-12" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 AI CLI의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="AI CLI에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-12"># 09, CloudFront 기본 HTTPS와 엣지. AI CLI 카드
 
 이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다. 한 도구만 선택하고 같은 계정, VPC, 작업 폴더를 유지합니다.
 
@@ -303,7 +334,17 @@ python3 workshop/scripts/lab.py run verify-terrain --config "$ATLAS_CONFIG" --ex
 
 ## 작업
 
-제공받은 실습 도메인과 해당 계정 us-east-1 viewer 인증서를 검증하세요. configure-domain, 지역 origin 인증서, edge/static, 앱 연결, origin-routing, 독립 TLS probe 순서를 따라 진행하세요. probe가 통과하기 전에 origin HTTPS-only로 전환하지 마세요. DNS/인증서를 소유한다고 가정하거나 운영 hostname을 재사용하지 마세요.
+lab.py url --config ATLAS_CONFIG로 참가자 App 스택의 실제 CloudFrontUrl을 조회하세요.
+계정, 리전, 스택 이름과 Project 태그, DistributionId와 ApplicationUrl 일치를 확인합니다.
+기본 *.cloudfront.net HTTPS 주소만 사용하며 임의 URL이나 운영 도메인을 대신 넣지 마세요.
+
+WAF/Static 계획과 적용, 자산 게시, 앱과 Data 업데이트, 자산/고도 검증 순서로 진행합니다.
+CloudFront 기본 인증서와 Alias 없음, 브라우저 HTTPS 이동을 확인하세요.
+ALB 원본은 HTTP이며 CloudFront Prefix List와 원본 검증 헤더 제한을 유지합니다.
+ACM 인증서 발급, DNS/Route 53/사용자 도메인 등록, origin Host Lambda와 TLS probe는
+이 과정의 작업이 아닙니다. 기존 운영 도메인 인프라와 인증서는 변경하지 마세요.
+URL 조회 실패를 export로 가리지 말고 중단하세요. verify-assets는 참가자 이미지,
+verify-terrain은 실제 스택 URL을 사용하는지 확인합니다.
 
 교재는 `$ATLAS_REPO/workshop/chapters/09-https-edge.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.
@@ -336,10 +377,10 @@ python3 workshop/scripts/lab.py run verify-terrain --config "$ATLAS_CONFIG" --ex
   </a>
       </nav>
     </article>
-    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-도메인과-viewer-인증서" data-toc-link>도메인과 viewer 인증서</a></li><li class="toc-depth-2"><a href="#heading-서울-origin-인증서" data-toc-link>서울 origin 인증서</a></li><li class="toc-depth-2"><a href="#heading-waf와-공유-자산" data-toc-link>WAF와 공유 자산</a></li><li class="toc-depth-2"><a href="#heading-lambdaedge와-독립-https-probe" data-toc-link>Lambda@Edge와 독립 HTTPS probe</a></li><li class="toc-depth-2"><a href="#heading-확인과-문제-해결" data-toc-link>확인과 문제 해결</a></li><li class="toc-depth-2"><a href="#heading-ai-cli-프롬프트-카드" data-toc-link>AI CLI 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-참가자-환경과-실제-url" data-toc-link>참가자 환경과 실제 URL</a></li><li class="toc-depth-2"><a href="#heading-waf와-공유-자산-oac" data-toc-link>WAF와 공유 자산 OAC</a></li><li class="toc-depth-2"><a href="#heading-앱에-waf와-정적-자산-연결" data-toc-link>앱에 WAF와 정적 자산 연결</a></li><li class="toc-depth-2"><a href="#heading-확인과-문제-해결" data-toc-link>확인과 문제 해결</a></li><li class="toc-depth-2"><a href="#heading-ai-cli-프롬프트-카드" data-toc-link>AI CLI 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
   </div>
     </main>
-    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.12 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
+    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.15 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
   </div>
   <p class="reader-status" role="status" aria-live="polite" data-reader-status></p>
 </body>

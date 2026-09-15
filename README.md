@@ -132,9 +132,20 @@ Python 검사 환경, 포트 설정과 카탈로그 확인은
 
 ## 120분 AgentCore CLI 워크숍
 
-VPC, NAT Gateway, Subnet, VSCode Server와 Codex/Kiro CLI/Claude Code가 준비된 EC2에서 시작합니다.
-AI CLI 하나를 선택해 제주 검색 도구를 구현하고 AgentCore CLI로 생성, 로컬 실행, 배포와 호출을 확인합니다.
+VPC, NAT Gateway, Subnet과 VSCode Server가 제공된 EC2에서 시작합니다.
+Codex/Kiro CLI/Claude Code 중 준비된 도구 하나를 사용합니다.
+제주 검색 도구를 구현하고 AgentCore CLI로 생성, 로컬 실행, 배포와 호출을 확인합니다.
 AgentCore CLI 0.28.1, 언어 의존성, CDK bootstrap과 모델 권한은 진행자가 사전에 확인합니다.
+
+참가자 EC2에는 전체 Git 소스가 필요합니다. 교재 ZIP에는 실행 스크립트와 데이터가 없습니다.
+01장의 `core.py prepare`가 참가자 `activate.sh`를 만들고, `core.py doctor`가
+Node 24, Python 3.14, 선택한 AI CLI와 본 실습 의존성을 확인합니다.
+누락 도구는 `workshop/.local/toolchain/`에 설치하며 시스템 도구와 Claude 인증을 유지합니다.
+새 Bash마다 활성화한 뒤 참가자 폴더에서 AI CLI를 엽니다.
+워크숍 Runtime은 Sonnet 4.6을 사용하고, Claude Code는 `claude --model claude-sonnet-4-6`으로 고정합니다.
+실제 모델 검사는 doctor와 분리하며 배포 리전과 주최자가 확인한 Bedrock 호출 리전을 구분합니다.
+심화 앱과 교재 접속에는 참가자 App 스택의 기본 CloudFront HTTPS URL을 사용합니다.
+ACM 발급과 DNS/사용자 도메인 등록은 워크숍 준비 사항이 아닙니다.
 
 | 구분 | 구성 |
 |---|---|

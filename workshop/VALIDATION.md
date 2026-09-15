@@ -1,5 +1,143 @@
 # 120분 워크숍 검증 기록
 
+## Sonnet 4.6 실제 호출 상태
+
+소스 검증은 워크숍 Python 86개, Warmup 9개, Node/브라우저 41개, 총 136개를 통과했습니다.
+전체 저장소 검사는 Node 683개 통과/선택 5개 생략, Python 202개 통과/선택 2개 생략,
+CloudFormation lint, npm audit(취약점 0건), production build를 통과했습니다.
+이 수치에는 네트워크를 모킹한 모델 검사 테스트가 포함되며 실제 모델 접근 성공을 뜻하지 않습니다.
+
+참가자가 실제 AWS CLI Converse 결과를 전달했습니다. 모델은
+`global.anthropic.claude-sonnet-4-6`, 호출 리전은 `ap-northeast-2`이며
+`bedrock:InvokeModel`에 대한 SCP 명시적 거부로 `AccessDeniedException`을 반환했습니다.
+**이 실제 호출은 실패입니다.** 모델 응답을 받은 것으로 기록하지 않습니다.
+정확한 정책 조건과 성공한 다른 호출 리전은 아직 확인되지 않았습니다.
+
+참가자의 호스트·계정·ARN과 원본 기록은 공개 자료에서 제외했습니다.
+편집 호스트에서 참가자 호출을 대신 수행하거나 다른 리전을 순회하지 않았습니다.
+읽기 전용 doctor, 모킹된 테스트, Runtime 설정 완료는 이 실패를 해결한 증거가 아닙니다.
+
+`model_check.py --execute`는 지정한 호출 리전에 최대 출력 16토큰의 고정 Converse 요청을
+한 번만 보내고 성공 응답 또는 실패를 별도 `.local` 보고서에 기록합니다.
+`model_config.py`는 Sonnet 모델과 명시적 호출 리전을 설정하지만 IAM/SCP는 바꾸지 않습니다.
+배포 리전은 계속 서울이며 호출 리전은 주최자의 정책 및 실측 확인 후 지정합니다.
+Claude Code 예시는 `claude --model claude-sonnet-4-6`으로 고정하고 이 Codex 세션의 모델은 유지했습니다.
+
+기존 서비스의 정적 교재 게시 후보도 별도로 검사했습니다.
+현재 운영 이미지에서 변경된 경로 58개는 모두 `/app/dist/workshop/` 아래였고,
+비워크숍 파일의 내용/권한/소유자/링크 및 이미지 실행 설정은 동일했습니다.
+게시 도구는 기존 TaskDefinition/Service의 Modify와 ImageUri 변경만 허용합니다.
+이 절의 후보 검증은 실제 게시 완료 기록과 구분합니다.
+
+## 2026-09-15 CloudFront 기본 도메인 추가 보완
+
+참가자의 추가 요구에 따라 심화 앱과 교재 접속은 실제 App 스택 출력의 기본
+`*.cloudfront.net` HTTPS 주소만 사용합니다. ACM 발급, 사용자 도메인/DNS/Route 53 등록,
+origin Host 함수와 TLS probe 단계 및 해당 정리 대상은 제외했습니다.
+브라우저에서 CloudFront까지는 기본 인증서의 HTTPS, CloudFront에서 ALB까지는
+기존 검증 헤더와 Prefix List로 제한된 HTTP입니다. 운영 도메인의 원본 템플릿,
+설정, 배포기와 앱 소스는 변경하지 않았습니다.
+
+| 확인 | 실제 결과 |
+|---|---|
+| 워크숍 검사 | Python 74개, Warmup 9개, Node/브라우저 41개, 총 124개 통과. 생략 없음 |
+| CloudFront 회귀 검사 | 9개 포함. 소유 스택 URL, 잘못된/빈 출력, 기본 인증서, 사용자 도메인 거부, 삭제 제외와 검증 인자 확인 |
+| 참가자 앱 사본 | Node 683개 통과/선택 5개 생략, Python 197개 통과/선택 2개 생략 |
+| 참가자 사본 후속 검사 | CloudFormation lint, npm audit(취약점 0건), 앱 및 공개 교재 빌드 통과 |
+| 실제 09장 화면 | 1366px/390px에서 본문 넘침과 브라우저 오류 없음, Claude 선택 정상, 외부 HTTP 요청 0건 |
+| 셸 구문 | 활성 장/참고 문서의 Bash 71개 블록 통과 |
+| 배포 전제 제거 | 활성 장/프롬프트/참고 문서에 도메인 설정과 인증서/probe 실행 명령 없음 |
+| 추가 패치 | 기존 환경 패치 위에 적용하여 변경 파일 62개 해시 일치 확인 |
+| 기존 참가자 상태 | 추가 패치 후 activate.sh, CLI 설정과 별도 참가자 메모 보존. 기존 활성화 파일 재실행 성공 |
+| 교재 빌드/패키징 | workshop:check/build/package 종료 0. ZIP 21페이지, 49파일, 737,943바이트 |
+
+생성된 참가자 검증기에서 고정 운영 NAT ID와 사용자 도메인 검사, 빈 `https://` 별칭을
+제거하고 실제 참가자 구성으로 검사하도록 했습니다. 고도 검사에는 실제 스택 URL,
+자산 검사에는 참가자의 불변 이미지 URI를 전달합니다. 공개 미디어 주소는 App 스택이
+생기기 전에는 비어 있고, 이후 실제 CloudFront 출력으로 설정합니다.
+
+참가자 전체 검사에서 처음 발견한 Runtime 준비 오류와 도메인 오류의 보고 순서를
+조정한 뒤 전체 검사를 다시 통과했습니다. 운영 원본과 기존 테스트의 단언은 완화하지 않았습니다.
+Vite의 기존 큰 청크 안내와 선택 검사 생략은 실제 AWS 실행 결과가 아닙니다.
+
+실행과 결과는 `workshop/.local/cloudfront-participant-validation.json`,
+해당 사본의 `.local/checks.json`, `cloudfront-reader-review/results.json`,
+`cloudfront-handoff-verification.json`에 기록했습니다.
+
+| 전달 파일 | SHA-256 |
+|---|---|
+| jeju-atlas-cloudfront-default.patch | b2e82fad6ffb505f16b88f2f9d32cf8b08b8bb38f1d8afe75c19ff5980f40c4e |
+| jeju-atlas-workshop-handbook.zip | 0569cb32e94a52324aed915bf9bc73d8dfd9dfe5cf737c4b120de564936733c8 |
+
+추가 패치는 아래 환경 패치가 적용된 소스에 사용합니다. 사용자 확인 경로는
+`/home/ec2-user/my-project/jeju-atlas`이며 전용 도구는 그 아래
+`workshop/.local/toolchain/`에 유지합니다. 두 패치 모두 실행 소스를 위한 것이고
+교재 ZIP은 읽기용입니다.
+
+실제 AWS 자원 생성/변경, 운영 배포, 모델 호출과 Git push는 수행하지 않았습니다.
+실제 참가자 Distribution은 아직 조회한 것으로 기록하지 않습니다.
+배포 후 `lab.py url --config "$ATLAS_CONFIG"`가 계정/스택/Project 태그와 실제
+CloudFormation 출력을 확인하여 주소를 반환합니다.
+
+## 2026-09-15 본 실습 준비 보완
+
+이 절은 원본 호스트의 로컬 수정과 검증 기록입니다. 운영 교재 배포와 Git push,
+AWS 자원 생성/변경, 모델 호출은 수행하지 않았습니다.
+
+참가자가 전달한 두 번째 EC2는 Amazon Linux 2023 ARM64,
+`/home/ec2-user/claude-lab`에서 Claude Code 2.1.272의 대화와 Bash 도구가
+동작하는 환경입니다. 그러나 저장소와 ATLAS_REPO, AgentCore CLI, Python 3.14,
+boto3가 없고 Node가 20.20 계열이어서 기존 01장에서 중단됐습니다.
+이 실측과 원본 호스트의 검증을 같은 실행 결과로 취급하지 않습니다.
+
+| 검사 | 실제 결과 |
+|---|---|
+| 신규 core 성공/실패 경로 | 15개 통과. 소스/helper 누락, 잘못된 버전, 선택한 CLI만 요구, 경로와 소유권, 새 Bash 복원, CLI 설정, 체크섬, npm 실패 시 부분 설치 방지, 프로젝트 대상과 데이터 검사 |
+| 전체 workshop Python | 65개 통과 |
+| 기존 Warmup 준비기 | 9개 통과. JejuGuide 모델 호출과는 별개 |
+| Node 리더/PWA/브라우저 | 41개 통과, 생략 0개 |
+| 본문 Bash | 31개 블록과 설치 스크립트의 Bash 구문 검사 통과 |
+| 전체 명령 | workshop:check, workshop:build, workshop:package 종료 0 |
+| 전용 도구 설치 | 원본 ARM64와 새 임시 소스 경로에서 설치 성공. Node 24.21.0, Python 3.14.3, boto3 1.42.86, requests 2.32.5, npm AgentCore 0.28.1 |
+| 설치 후 doctor | 두 전용 환경에서 passed=true, awsChecked=false, modelInvoked=false |
+| 실제 npm CLI | 자격 증명/metadata를 비활성화한 임시 경로에서 Strands/Bedrock/CodeZip create와 합성 계정의 validate 성공 |
+| 소스 전달 | 공개 GitHub를 인증 없이 새 clone하고 bead20a 기준 패치 적용. 변경 파일 53개의 SHA-256, source 검사와 prepare 실행 확인 |
+| 교재 ZIP | 21페이지, 49파일, 735,770바이트. 실행 소스/도구 설치물은 포함하지 않음 |
+
+원본 검증에서는 uv 0.10.9와 Claude Code 2.1.263의 버전 명령을 사용했습니다.
+참가자의 uv 0.12.15와 Claude Code 2.1.272 환경에서의 수정본 실행 결과는
+참가자가 설치 후 별도로 확인합니다. 시스템 실행 파일과 로그인 설정은 바꾸지 않았습니다.
+
+실제 CLI가 생성하는 `codeLocation`은 `app/JejuGuide/`입니다.
+배포 전 검사에서 끝의 `/`를 허용하도록 실제 출력으로 회귀 검사를 추가했습니다.
+CLI create의 의존성 설치는 생략했고 Runtime 서버나 모델은 실행하지 않았습니다.
+
+검사 명령은 원본의 검증용 참가자 `activate.sh`를 source한 Bash에서 실행했습니다.
+
+```bash
+WORKSHOP_BROWSER_TEST=1 PYTHONDONTWRITEBYTECODE=1 npm run workshop:check
+npm run workshop:build
+npm run workshop:package
+```
+
+처음 샌드박스 실행에서는 기존 Node 자식 출력 검사와 Chromium의
+`setsockopt: Operation not permitted`가 실패했습니다. 테스트 코드는 완화하지 않았고
+같은 검사를 승인된 호스트 실행 환경에서 다시 실행해 모두 통과했습니다.
+
+전달 패치는 실행 소스, 수정 본문/프롬프트와 생성 리더를 포함합니다.
+이 유지관리 검증 기록과 구현 계획, `.local` 상태, 도구 설치물은 패치에 넣지 않았습니다.
+다음 파일은 원본의 `workshop/.local/downloads/`에 있습니다.
+
+| 산출물 | SHA-256 |
+|---|---|
+| jeju-atlas-core-readiness.patch | a5f3c68e58b5022cb88fdb2c1cc01f8da3dae0764fca885c72caf27ef12e0afa |
+| jeju-atlas-workshop-handbook.zip | ec3d50f2fd90f30d6b62378ae0864f8ccf876519a818ce3a6e8fa46829a0254a |
+
+운영 URL은 여전히 별도 배포된 버전입니다. IAM, CDK bootstrap,
+실제 Runtime 배포와 모델 응답은 이번 검사의 완료 범위가 아닙니다.
+
+## 이전 교재 배포와 개편 기록
+
 이후 운영 교재에 본문 폭과 터미널/AI 입력 화면 구분을 반영하고 공개 배포를 완료했습니다.
 최신 상태와 실제 브라우저 검사는 [워크숍 배포 기록](DEPLOYMENT.md)에 있습니다.
 아래 개편 단계의 기록과 참가자용 에이전트 리허설 여부는 구분해서 읽습니다.

@@ -3,51 +3,89 @@
 이 장은 50분입니다. 로컬 검사에 15분, 배포에 20분, 원격 응답 확인에 10분,
 결과와 정리 계획 기록에 5분을 사용합니다. 전체 과정의 마지막 10분은 지연 대응 시간입니다.
 이번에는 실제 제주 가이드의 모델 응답을 확인합니다.
+02장의 작은 Converse 검사가 SCP 거부 등으로 실패한 상태라면 모델 실행과 배포로 넘어가지 않습니다.
+로컬 소스/도구 검사를 통과했다는 사실로 실제 모델 접근 실패를 덮지 않습니다.
 
 ## 1. 의존성과 검색 도구 검사
 
 ```bash
-cd "$ATLAS_CLI"
-npm --prefix agentcore/cdk install
-cd app/JejuGuide
-uv sync --python 3.14
-uv run python -m unittest discover -s tests -v
-cd ../..
-agentcore validate --json
+(
+  set -e
+  python3 -B "${ATLAS_REPO:?}/workshop/scripts/core.py" doctor \
+    --assistant "${ATLAS_ASSISTANT:?}" --project
+  cd -- "${ATLAS_CLI:?}"
+  if [[ -f agentcore/cdk/package-lock.json ]]; then
+    npm --prefix agentcore/cdk ci
+  else
+    npm --prefix agentcore/cdk install
+  fi
+  cd app/JejuGuide
+  if [[ -f uv.lock ]]; then
+    uv sync --python 3.14 --frozen
+  else
+    uv sync --python 3.14
+  fi
+  uv run --frozen python -m unittest discover -s tests -v
+  cd ../..
+  agentcore validate --json
+)
 ```
 
 최초 설치에서 생성한 `package-lock.json`과 `uv.lock`을 보관합니다.
 그 뒤 재설치에는 `npm ci`와 `uv sync --frozen`을 사용합니다.
 검색 테스트는 모델을 호출하지 않아야 합니다.
+`Ran 0 tests`는 완료가 아닙니다. `--project` 검사는 참가자 소유 설정,
+저장한 계정과 default 대상, JejuGuide 소스와 복사한 데이터, 테스트 파일을 확인합니다.
+이 검사로 IAM 권한이나 실제 모델 응답까지 확인되지는 않습니다.
 
 스키마 검사가 성공하면 AI CLI에 변경 내용을 설명하게 합니다.
-`default` 대상의 계정, 서울 리전, 참가자 프로젝트 이름과 모델 설정을 확인합니다.
+`default` 대상의 계정, 서울 배포 리전, 참가자 프로젝트 이름을 확인합니다.
+모델은 `global.anthropic.claude-sonnet-4-6`, 호출 리전은 Runtime의
+`ATLAS_BEDROCK_REGION`이며 배포 리전과 별도로 확인합니다.
 실행 역할에는 선택한 추론 프로필과 모델 호출에 필요한 권한이 있어야 합니다.
 진행자는 수업 전에 같은 배포 구성으로 이를 확인합니다.
 
 ## 2. 로컬에서 실제 모델 호출
 
-터미널 A에서 서버를 시작합니다.
+터미널 A에서 참가자 환경을 불러온 뒤 서버를 시작합니다.
+8080이 다른 프로젝트에서 사용 중이면 해당 프로세스를 종료하지 말고
+아래 서버와 호출 명령 모두에 같은 빈 포트를 지정합니다.
 
 ```bash
-cd "$ATLAS_CLI"
-agentcore dev \
-  --runtime JejuGuide \
-  --port 8080 \
-  --skip-deploy \
-  --no-traces \
-  --no-browser \
-  --logs
+(
+  set -e
+  cd -- "${ATLAS_CLI:?activate.sh를 먼저 source하세요}"
+  test -f agentcore/agentcore.json
+  agentcore dev \
+    --runtime JejuGuide \
+    --port 8080 \
+    --skip-deploy \
+    --no-traces \
+    --no-browser \
+    --logs
+)
 ```
 
 `--skip-deploy`는 로컬 확인 중 AWS 자원이 자동 배포되는 것을 막습니다.
-VSCode Server에서 터미널 B를 열고 같은 참가자 환경 변수를 불러온 뒤 호출합니다.
+같은 EC2의 VSCode Server에서 **별도 Bash 터미널 B**를 엽니다.
+다음 경로를 01장 준비기가 출력한 본인의 `activationPath`로 바꿉니다.
 
 ```bash
-cd "$ATLAS_CLI"
-curl --fail --silent http://127.0.0.1:8080/ping
-agentcore dev "제주 해변 두 곳을 찾아주고 자료의 출처를 알려줘" \
-  --runtime JejuGuide --port 8080
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
+python3 -B "$ATLAS_REPO/workshop/scripts/core.py" doctor \
+  --assistant "$ATLAS_ASSISTANT" --project
+```
+
+사전검사가 통과한 뒤 호출합니다. 여기부터는 실제 모델을 사용합니다.
+
+```bash
+(
+  set -e
+  cd -- "${ATLAS_CLI:?}"
+  curl --fail --silent http://127.0.0.1:8080/ping
+  agentcore dev "제주 해변 두 곳을 찾아주고 자료의 출처를 알려줘" \
+    --runtime JejuGuide --port 8080
+)
 ```
 
 한국어로 답하고 실제 검색 도구가 반환한 장소를 사용해야 합니다.
@@ -61,9 +99,15 @@ agentcore dev "제주 해변 두 곳을 찾아주고 자료의 출처를 알려�
 ## 3. 배포 계획 확인
 
 ```bash
-cd "$ATLAS_CLI"
-aws sts get-caller-identity --query Account --output text
-agentcore deploy --target default --dry-run
+(
+  set -e
+  python3 -B "${ATLAS_REPO:?}/workshop/scripts/core.py" doctor \
+    --assistant "${ATLAS_ASSISTANT:?}" --project
+  actual_account="$(aws sts get-caller-identity --query Account --output text)"
+  test "$actual_account" = "${ATLAS_ACCOUNT:?02장 계정을 확인하세요}"
+  cd -- "${ATLAS_CLI:?}"
+  agentcore deploy --target default --dry-run
+)
 ```
 
 계정과 프로젝트 이름이 맞는지 확인하고 생성할 Runtime과 실행 역할을 검토합니다.
@@ -75,8 +119,12 @@ agentcore deploy --target default --dry-run
 ## 4. AWS 배포
 
 ```bash
-agentcore deploy --target default
-agentcore status --target default --runtime JejuGuide --json
+(
+  set -e
+  cd -- "${ATLAS_CLI:?}"
+  agentcore deploy --target default
+  agentcore status --target default --runtime JejuGuide --json
+)
 ```
 
 처음 실행한 배포가 끝나기 전에는 같은 배포를 다시 시작하지 않습니다.
@@ -87,9 +135,13 @@ agentcore status --target default --runtime JejuGuide --json
 ## 5. 배포한 Runtime 호출
 
 ```bash
-agentcore invoke "제주 해변 두 곳을 찾아주고 자료의 출처를 알려줘" \
-  --runtime JejuGuide --target default --json
-agentcore logs --runtime JejuGuide --since 10m --limit 30 --json
+(
+  set -e
+  cd -- "${ATLAS_CLI:?}"
+  agentcore invoke "제주 해변 두 곳을 찾아주고 자료의 출처를 알려줘" \
+    --runtime JejuGuide --target default --json
+  agentcore logs --runtime JejuGuide --since 10m --limit 30 --json
+)
 ```
 
 응답이 끝까지 도착했는지, 검색 도구를 사용했는지, 실제 반환된 장소를 소개했는지 확인합니다.
@@ -116,10 +168,23 @@ VSCode에서 다음 내용을 `RESULTS.md`에 기록합니다.
 Runtime을 지우기로 했다면 같은 프로젝트에서 로컬 정의를 제거한 뒤 다시 배포합니다.
 
 ```bash
-agentcore remove agent --name JejuGuide --yes --json
-agentcore deploy --target default --dry-run
-agentcore deploy --target default
-agentcore status --target default --json
+(
+  set -e
+  cd -- "${ATLAS_CLI:?}"
+  agentcore remove agent --name JejuGuide --yes --json
+  agentcore deploy --target default --dry-run
+)
+```
+
+삭제 계획이 본인의 자원만 대상으로 하는지 확인한 뒤 적용합니다.
+
+```bash
+(
+  set -e
+  cd -- "${ATLAS_CLI:?}"
+  agentcore deploy --target default
+  agentcore status --target default --json
+)
 ```
 
 `remove agent`만으로 AWS 자원이 즉시 삭제되지는 않습니다.

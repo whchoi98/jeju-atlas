@@ -14,14 +14,14 @@ from datetime import datetime, timezone
 from lab_config import (
     aws_session, discover_network, read_config, resource_names, validate_config, write_json,
 )
-from lab_workspace import configure_hostname_templates, placeholder_hostname, prepare_workspace, verify_workspace
+from lab_workspace import prepare_workspace, verify_workspace
+from lab_cloudfront import read_stack_url
+from model_config import MODEL_ID, caller_region
 
 ROOT = Path(__file__).resolve().parents[2]
 LOCAL = ROOT / "workshop/.local"
-STACK_KINDS = ["bootstrap", "app", "origin", "edge", "operations", "data",
-               "origin-routing", "tls-probe", "static"]
-DEPLOY_STEPS = {"network", "build-push", "build-data-push", "build-routing-push", "invalidate",
-                "plan-tls-probe-disable", "delete-tls-probe"} | {
+STACK_KINDS = ["bootstrap", "app", "edge", "operations", "data", "static"]
+DEPLOY_STEPS = {"network", "build-push", "build-data-push", "build-routing-push", "invalidate"} | {
     f"{verb}-{kind}" for verb in ["plan", "apply", "status"] for kind in STACK_KINDS}
 AGENT_STEPS = {"agent-" + action: action for action in ["build", "publish", "plan", "apply", "status", "configure-logs"]}
 LOCAL_STEPS = {
@@ -36,7 +36,6 @@ VERIFICATION_STEPS = {
     "verify": "verify.py",
     "verify-terrain": "verify-terrain-cache.py",
     "verify-assets": "verify-shared-assets.py",
-    "verify-tls": "verify-tls-probe.py",
 }
 
 
@@ -54,6 +53,7 @@ def cli_path(config):
 
 def environment(config):
     env = {**os.environ, "AWS_REGION": config["region"], "AWS_DEFAULT_REGION": config["region"]}
+    env["ATLAS_BEDROCK_REGION"] = config.get("bedrockCallerRegion", "")
     if config["profile"]:
         env["AWS_PROFILE"] = config["profile"]
     return env
@@ -78,6 +78,24 @@ def command_for(step):
     raise ValueError("Unknown workshop step; arbitrary commands are not accepted")
 
 
+def participant_url(config, session):
+    names = resource_names(config)
+    return read_stack_url(session, config["accountId"], config["region"],
+                          names["stackPrefix"] + "App", names["project"])
+
+
+def participant_image(config, workspace):
+    path = Path(workspace) / ".local/image.json"
+    if path.is_symlink():
+        raise ValueError("Use this workspace's own image receipt")
+    value = json.loads(path.read_text()).get("imageUri", "")
+    prefix = (f"{config['accountId']}.dkr.ecr.{config['region']}.amazonaws.com/"
+              f"{resource_names(config)['project']}@sha256:")
+    if not isinstance(value, str) or not re.fullmatch(re.escape(prefix) + r"[a-f0-9]{64}", value):
+        raise ValueError("Build and publish this participant's immutable app image before verifying assets")
+    return value
+
+
 def run_step(config, args):
     workspace = verify_workspace(config, workspace_path(config))
     command, uses_aws = command_for(args.step)
@@ -85,10 +103,15 @@ def run_step(config, args):
           "project": resource_names(config)["project"], "command": command})
     if not require_execute(args, args.step):
         return
-    if args.step in {"plan-origin", "plan-origin-routing", "plan-tls-probe"} and not config["domainName"]:
-        raise ValueError("Configure an owned hostname and issued viewer certificate for the full HTTPS chapter")
+    if args.step in {"agent-plan", "agent-apply"}:
+        caller_region(config.get("bedrockCallerRegion", ""))
     if uses_aws:
-        aws_session(config)
+        session = aws_session(config)
+        if args.step == "verify-terrain":
+            command.extend(["--url", participant_url(config, session)])
+        elif args.step == "verify-assets":
+            command.extend(["--image-uri", participant_image(config, workspace)])
+        emit({"command": command})
     result = subprocess.run(command, cwd=workspace, env=environment(config))
     write_json(workspace / ".local/workshop-last-step.json", {
         "step": args.step, "exitCode": result.returncode, "at": datetime.now(timezone.utc).isoformat(),
@@ -129,47 +152,8 @@ def doctor(config, include_aws, assistant="codex"):
         session = aws_session(config)
         discovered = discover_network(config, session.client("ec2"))
         result.update(awsChecked=True, network=discovered["network"])
-        if config["domainName"]:
-            certificate = session.client("acm", region_name="us-east-1").describe_certificate(
-                CertificateArn=config["viewerCertificateArn"])["Certificate"]
-            host = config["domainName"]
-            covered = any(name == host or (name.startswith("*.") and host.split(".", 1)[-1] == name[2:])
-                          for name in certificate.get("SubjectAlternativeNames", []))
-            if certificate["Status"] != "ISSUED" or not covered:
-                raise ValueError("Viewer certificate is not issued for this lab hostname")
     result["passed"] = all(row["ok"] for row in rows)
     return result
-
-
-def configure_domain(config, args):
-    workspace = verify_workspace(config, workspace_path(config))
-    previous = config["domainName"] or placeholder_hostname(config)
-    changed = validate_config({**config, "domainName": args.domain,
-                               "viewerCertificateArn": args.viewer_certificate}, require_network=True)
-    aws = aws_session(changed) if args.execute else None
-    if aws:
-        cert = aws.client("acm", region_name="us-east-1").describe_certificate(
-            CertificateArn=changed["viewerCertificateArn"])["Certificate"]
-        if cert["Status"] != "ISSUED":
-            raise ValueError("Issue the viewer certificate before configuring the lab domain")
-    emit({"previousDomain": previous, "newDomain": changed["domainName"],
-          "viewerCertificateArn": changed["viewerCertificateArn"]})
-    if not require_execute(args, "configure-domain"):
-        return
-    for directory in ["infra", "scripts", "server", "agent", "tests"]:
-        for path in (workspace / directory).rglob("*"):
-            if path.suffix not in {".py", ".json", ".yaml", ".yml", ".mjs"} or path.is_symlink():
-                continue
-            text = path.read_text()
-            replacement = text.replace(previous, changed["domainName"]).replace(
-                re.escape(previous), re.escape(changed["domainName"]))
-            if replacement != text:
-                path.write_text(replacement)
-    settings = json.loads((workspace / "infra/production.json").read_text())
-    settings.update(ViewerDomainName=changed["domainName"], ViewerCertificateArn=changed["viewerCertificateArn"])
-    configure_hostname_templates(workspace, changed)
-    write_json(workspace / "infra/production.json", settings)
-    write_json(args.config, changed)
 
 
 def set_provider_secret(config, args):
@@ -195,11 +179,11 @@ def set_provider_secret(config, args):
 
 def cleanup_inventory(config, session):
     names = resource_names(config)
-    order = [("TlsProbe", config["region"]), ("App", config["region"]),
-             ("Operations", config["region"]), ("Data", config["region"]),
-             ("Static", config["region"]), ("OriginRouting", "us-east-1"),
-             ("Edge", "us-east-1"), ("AgentCore", config["region"]),
-             ("Origin", config["region"]), ("Registry", config["region"])]
+    order = [("App", config["region"]),
+              ("Operations", config["region"]), ("Data", config["region"]),
+              ("Static", config["region"]),
+              ("Edge", "us-east-1"), ("AgentCore", config["region"]),
+              ("Registry", config["region"])]
     stacks = []
     from botocore.exceptions import ClientError
     for suffix, region in order:
@@ -222,9 +206,10 @@ def cleanup_inventory(config, session):
                              for item in page["StackResourceSummaries"])
         forbidden = {"AWS::EC2::VPC", "AWS::EC2::Subnet", "AWS::EC2::NatGateway", "AWS::EC2::EIP",
                      "AWS::EC2::Route", "AWS::EC2::RouteTable", "AWS::EC2::InternetGateway",
-                     "AWS::Route53::HostedZone", "AWS::Route53::RecordSet"}
+                     "AWS::Route53::HostedZone", "AWS::Route53::RecordSet",
+                     "AWS::CertificateManager::Certificate"}
         if any(item["type"] in forbidden for item in resources):
-            raise ValueError("Cleanup refuses stacks containing shared networking or DNS")
+            raise ValueError("Cleanup refuses stacks containing shared networking, DNS or certificates")
         stacks.append({"name": stack_name, "arn": stack["StackId"], "region": region,
                        "status": stack["StackStatus"], "resources": resources})
     return stacks
@@ -330,24 +315,28 @@ def main():
     init.add_argument("--account-id", required=True)
     init.add_argument("--profile", default="")
     init.add_argument("--vpc-name", default="cc-on-bedrock-vpc")
-    init.add_argument("--domain", default="")
-    init.add_argument("--viewer-certificate", default="")
     ec2_init = commands.add_parser("init-ec2", parents=[common],
                                   help="Use this EC2's account/region/VPC and existing Codex environment")
     ec2_init.add_argument("--participant", required=True)
     ec2_init.add_argument("--identity-only", action="store_true",
                           help="Bind to this EC2 and verify STS without full web-network discovery")
-    doc = commands.add_parser("doctor", parents=[common])
+    doc = commands.add_parser("doctor", parents=[common],
+                              help="Advanced app prerequisites; use core.py doctor for chapters 00–04")
     doc.add_argument("--aws", action="store_true")
     doc.add_argument("--assistant", choices=["codex", "kiro", "claude"], default="codex")
     commands.add_parser("discover", parents=[common])
     commands.add_parser("prepare", parents=[common])
     commands.add_parser("info", parents=[common])
+    url = commands.add_parser("url", parents=[common], help="Read the participant App stack's default CloudFront HTTPS URL")
+    url.add_argument("--plain", action="store_true", help="Print only the verified URL for a Bash assignment")
+    model_region = commands.add_parser("model-region", parents=[common],
+                                       help="Record an organizer-selected Bedrock caller region locally; no IAM or model call")
+    model_region.add_argument("--caller-region", required=True)
     run = commands.add_parser("run", parents=[common])
     run.add_argument("step", choices=sorted(DEPLOY_STEPS | set(AGENT_STEPS) | set(LOCAL_STEPS) | set(VERIFICATION_STEPS)))
     run.add_argument("--execute", action="store_true")
-    for action in ["deps-build", "deps-publish", "publish-catalog", "cli-prepare", "enable-https",
-                   "enable-schedule", "cleanup"]:
+    for action in ["deps-build", "deps-publish", "publish-catalog", "cli-prepare",
+                    "enable-schedule", "cleanup"]:
         command = commands.add_parser(action, parents=[common])
         command.add_argument("--execute", action="store_true")
         if action == "cleanup":
@@ -356,10 +345,6 @@ def main():
     catalog.add_argument("--osm", action="store_true")
     catalog.add_argument("--osm-file", type=Path)
     catalog.add_argument("--execute", action="store_true")
-    domain = commands.add_parser("configure-domain", parents=[common])
-    domain.add_argument("--domain", required=True)
-    domain.add_argument("--viewer-certificate", required=True)
-    domain.add_argument("--execute", action="store_true")
     secret = commands.add_parser("set-secret", parents=[common])
     secret.add_argument("--provider", choices=["visitjeju", "tourapi", "kakao"], required=True)
     secret.add_argument("--execute", action="store_true")
@@ -383,13 +368,19 @@ def main():
             raise FileExistsError("Config already exists; preserve it or select another --config path")
         config = validate_config({
             "participant": args.participant, "accountId": args.account_id, "profile": args.profile,
-            "vpcName": args.vpc_name, "domainName": args.domain,
-            "viewerCertificateArn": args.viewer_certificate,
+            "vpcName": args.vpc_name,
         })
         write_json(args.config, config)
         emit({"config": str(args.config), "names": resource_names(config)})
         return
     config = read_config(args.config)
+    if args.action == "model-region":
+        region = caller_region(args.caller_region)
+        updated = validate_config({**config, "bedrockCallerRegion": region})
+        write_json(args.config, updated)
+        emit({"modelId": MODEL_ID, "deploymentRegion": config["region"], "callerRegion": region,
+              "modelAccessVerified": False, "awsChanged": False})
+        return
     if args.action == "info":
         emit({"config": str(args.config.resolve()), "names": resource_names(config),
               "workspace": str(workspace_path(config)), "cliWorkspace": str(cli_path(config)),
@@ -401,6 +392,15 @@ def main():
         emit(result)
         if not result["passed"]:
             raise SystemExit(1)
+        return
+    if args.action == "url":
+        verify_workspace(config, workspace_path(config))
+        value = participant_url(config, aws_session(config))
+        if args.plain:
+            print(value)
+        else:
+            emit({"url": value, "workshopUrl": value + "/workshop/",
+                  "source": "participant App CloudFormation stack outputs"})
         return
     if args.action == "discover":
         updated = discover_network(config, aws_session(config).client("ec2"))
@@ -414,9 +414,6 @@ def main():
         return
     if args.action == "run":
         run_step(config, args)
-        return
-    if args.action == "configure-domain":
-        configure_domain(config, args)
         return
     if args.action == "set-secret":
         set_provider_secret(config, args)
@@ -473,17 +470,6 @@ def main():
             "--account-id", config["accountId"], "--region", config["region"],
             "--output", str(cli_path(config)),
         ], check=True, cwd=ROOT, env=environment(config))
-    elif args.action == "enable-https":
-        if not config["domainName"]:
-            raise ValueError("Configure the lab hostname/certificate and verify the TLS probe first")
-        proof_path = workspace / ".local/tls-probe-verification.json"
-        proof = json.loads(proof_path.read_text()) if proof_path.exists() else {}
-        if not proof.get("passed") or proof.get("canonicalHostName") != config["domainName"]:
-            raise ValueError("The matching isolated HTTPS probe has not passed")
-        settings = json.loads((workspace / "infra/production.json").read_text())
-        settings.update(OriginTlsEnabled="true", OriginTlsMode="canonical-host", TargetHealthPath="/readyz")
-        write_json(workspace / "infra/production.json", settings)
-        emit({"settingsUpdated": True, "next": "run plan-app, review, then run apply-app"})
     elif args.action == "enable-schedule":
         write_json(workspace / "infra/data-settings.json", {"ScheduleState": "ENABLED"})
         emit({"scheduleSetting": "ENABLED", "next": "run plan-data, review, then run apply-data"})

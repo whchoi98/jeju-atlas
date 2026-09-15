@@ -24,6 +24,9 @@ Gateway와 별도 Memory는 06장의 심화 과정에서 다룹니다.
 
 아래 표는 저장소의 인프라와 앱을 연결한 목록입니다.
 참가자 계정에 모두 배포되었다는 의미는 아닙니다.
+참가자 접속은 실제 App 스택의 기본 `*.cloudfront.net` HTTPS 주소를 사용합니다.
+ACM, DNS/Route 53, 사용자 도메인과 origin Host/TLS probe는 워크숍에서 제외합니다.
+운영 전용 구성은 아래 별도 참고 표에 남기며 기존 인프라는 변경하지 않습니다.
 현재 논리 자원과 유형의 수는 `workshop/scripts/check_content.py`에서 확인합니다.
 `Parameters.VpcId.Type: AWS::EC2::VPC::Id` 같은 입력 타입은 VPC 생성 자원으로 세지 않습니다.
 
@@ -60,7 +63,7 @@ Retain 설정의 자원은 스택 삭제 후에도 남아 있는지 확인합니
 | `AWS::BedrockAgentCore::Memory`. `Memory` | `infra/agentcore.yaml`, `agent/guide/memory/session.py` | `06-atlas-agentcore.md`, `13-cleanup.md` | 자기 Memory ID, 네 전략의 상태, namespace, IAM 조회 범위 확인. 단기 이벤트 저장과 장기 추출, 회상을 별도 관측 | 실습, 보존. 이전 사용자 자료를 가져오지 않음 |
 | Semantic / User Preference 전략 | `infra/agentcore.yaml: SemanticMemoryStrategy, UserPreferenceMemoryStrategy`, `agent/guide/memory/session.py: retrieval_namespaces` | `06-atlas-agentcore.md` | 사실 `/users/{actorId}/facts`, 선호 `/users/{actorId}/preferences` 저장, 조회 경로 일치. 서로 다른 actor의 조회 경계 확인 | 위 Memory 내부 전략 두 개 |
 | Summary / Episodic 전략 | `infra/agentcore.yaml: SummaryMemoryStrategy, EpisodicMemoryStrategy`, `agent/guide/memory/session.py` | `06-atlas-agentcore.md` | 요약 `/summaries/{actorId}/{sessionId}`, 경험 `/episodes/{actorId}/{sessionId}`, reflection `/episodes/{actorId}` 확인. 추출 대기 중을 성공으로 처리하지 않음 | 위 Memory 내부 전략 두 개 |
-| Strands Agents, Bedrock Converse, 규칙 기반 Global CRIS 모델 선택 | `agent/guide/model/load.py`, `agent/guide/atlas_agent/routing.py`, `infra/agentcore.yaml` | `06-atlas-agentcore.md`, `12-validation.md` | 일반 질문 `global.openai.gpt-5.6-sol`, 일정 `global.openai.gpt-6-astra`, `auto` 설정과 inference-profile/foundation-model 권한 대조. 계정 접근성, 모델 메타데이터는 별도 실측 | 모델, 프로필은 서비스 제공 자원. 코드가 모델이나 접근 허가를 생성하지 않음 |
+| Strands Agents, Bedrock Converse, Sonnet 4.6 | 참가자 사본의 `agent/guide/model/load.py`, `agent/guide/atlas_agent/routing.py`, `infra/agentcore.yaml` | `02-aws-environment.md`, `06-atlas-agentcore.md`, `12-validation.md` | `global.anthropic.claude-sonnet-4-6` 고정, 배포 리전과 별도 호출 리전 확인. 작은 실제 Converse 결과와 EC2/Runtime 역할 권한을 구분 | 모델과 프로필은 서비스 자원. IAM/SCP 자동 변경 없음. 서울의 실제 SCP 거부는 실패로 유지 |
 | 프리페치, 도구 예산, 구조화 지도 응답 | `agent/guide/main.py`, `agent/guide/atlas_agent/prefetch.py`, `agent/guide/atlas_agent/tool_budget.py`, `agent/guide/atlas_agent/derive.py`, `agent/guide/atlas_contracts/mapresponse_v2.py` | `06-atlas-agentcore.md`, `08-web.md` | 규칙 분류에는 추가 모델 호출 없음. 기본 `derive`의 실제 도구 결과 기반 지도, Pydantic 한도, 취소, 실패 fallback, 반복 호출 제한 확인 | 실습 코드. “한 질문 = 항상 모델 한 번” 보장 없음 |
 | FastMCP / streamable HTTP / MCP 도구 8개 | `agent/tools/main.py`, `agent/tools/atlas_tools/` | `06-atlas-agentcore.md`, `10-enrichment.md` | `find_places`, `place_detail`, `route`, `weather`, `sun_times`, `layer`, `festivals`, `plan_day` 목록, 스키마 확인. 데이터 유무, `source`, `stale`, `fallback` 확인 | 실습 Tools. 목록 존재는 제공처 연결 성공과 다름 |
 | Python, uv 잠금, 배포 ZIP, CRT/OTel 의존성 | `agent/guide/pyproject.toml`, `agent/guide/uv.lock`, `agent/tools/pyproject.toml`, `agent/tools/uv.lock`, `agent/dependency-artifacts.json`, `scripts/deploy-atlas-agent.py` | `01-setup.md`, `05-foundation-and-data.md`, `06-atlas-agentcore.md` | 잠금 파일에서 참가자용 의존성을 새로 준비하고 Runtime Python/플랫폼 호환성, ZIP 경로, hash 확인. 원본 `build`의 사설 S3 fetch는 오프라인 빌드가 아님 | 새 아티팩트는 실습. 운영 manifest는 참가자의 다운로드 권한 증거가 아님 |
@@ -72,12 +75,12 @@ Memory의 `EventExpiryDuration: 30`은 단기 이벤트 설정이다. 추출된 
 
 | 리소스 / 기술 | 기존 파일, 식별 지점 | 실습 장 | 기대 검증 | 공유 / 실습 소유 |
 | --- | --- | --- | --- | --- |
-| `AWS::EC2::SecurityGroup`. `AlbSecurityGroup`, `TaskSecurityGroup`, `AlbTlsSecurityGroup` | `infra/application.yaml` | `08-web.md`, `09-https-edge.md` | ALB 80/443은 CloudFront prefix list만, 앱 8080은 ALB SG만 허용. TLS SG는 `HasOriginCertificate` 조건. HTTP/TLS prefix 규칙 분리 이유와 실제 SG quota 확인 | 실습 SG, 공유 VPC에 배치 |
+| `AWS::EC2::SecurityGroup`. `AlbSecurityGroup`, `TaskSecurityGroup` | `infra/application.yaml` | `08-web.md`, `09-https-edge.md` | ALB 80은 CloudFront prefix list만, 앱 8080은 ALB SG만 허용. 인증서가 필요한 AlbTlsSecurityGroup은 사용하지 않음 | 실습 SG, 공유 VPC에 배치 |
 | `AWS::EC2::SecurityGroupIngress`. `AlbToTaskIngress` | `infra/application.yaml` | `08-web.md` | Task SG TCP 8080 source가 팀 ALB SG인지 확인. 8002 공개 규칙은 없어야 함 | 실습 |
 | `AWS::ElasticLoadBalancingV2::LoadBalancer`. `LoadBalancer` | `infra/application.yaml` | `08-web.md` | internet-facing ALB의 Public Subnet, 두 AZ, SG, 대상 확인. 인터넷 직접 접근과 CloudFront 경유 구분 | 실습 ALB. 서브넷/IGW는 공유 |
 | `AWS::ElasticLoadBalancingV2::TargetGroup`. `TargetGroup` | `infra/application.yaml`, `server/server.mjs` | `08-web.md`, `11-operations.md` | IP target, 8080, `/readyz`, 정상 target 수 확인. `/healthz`만으로 전체 의존성 성공을 판단하지 않음 | 실습 |
-| `AWS::ElasticLoadBalancingV2::Listener`. `Listener`, `TlsListener` | `infra/application.yaml` | `08-web.md`, `09-https-edge.md` | 기본 응답 403, TLS 인증서, 정책 확인. `TlsListener`는 `HasOriginCertificate`일 때만 생성 | 실습 |
-| `AWS::ElasticLoadBalancingV2::ListenerRule`. `OriginRule`, `TlsOriginRule` | `infra/application.yaml` | `09-https-edge.md` | 원본 검증 헤더가 일치하는 요청만 전달. `TlsOriginRule`도 `HasOriginCertificate` 조건 | 실습. 비밀값을 보고서에 복사하지 않음 |
+| `AWS::ElasticLoadBalancingV2::Listener`. `Listener` | `infra/application.yaml` | `08-web.md`, `09-https-edge.md` | HTTP listener의 기본 응답 403과 원본 검증 규칙 확인. 인증서가 필요한 TlsListener는 사용하지 않음 | 실습 |
+| `AWS::ElasticLoadBalancingV2::ListenerRule`. `OriginRule` | `infra/application.yaml` | `09-https-edge.md` | HTTP 원본 검증 헤더가 일치하는 요청만 전달. TlsOriginRule 분기는 사용하지 않음 | 실습. 비밀값을 보고서에 복사하지 않음 |
 | `AWS::ECS::Cluster`. `Cluster` | `infra/application.yaml` | `08-web.md` | 팀 클러스터, 서비스 연결 확인. 템플릿의 Container Insights는 `disabled` | 실습. EKS/EC2 노드 클러스터가 아님 |
 | `AWS::IAM::Role`. `ExecutionRole`, `TaskRole` | `infra/application.yaml` | `08-web.md`, `12-validation.md` | 이미지, 로그, 세션 비밀 주입과 S3 읽기, Guide 호출, quota 쓰기 역할 분리. 교차 팀 접근 확인 | 실습 |
 | `AWS::ECS::TaskDefinition`. `TaskDefinition` | `infra/application.yaml`, `Dockerfile`, `Dockerfile.routing` | `07-routing.md`, `08-web.md` | Linux ARM64/Fargate/awsvpc, digest, 비루트, 읽기 전용 root, `/tmp`, capability 제거 확인. `RoutingEnabled`이면 같은 task에 routing 컨테이너 추가 | 실습 revision. 라우터는 별도 ECS 서비스가 아님 |
@@ -92,22 +95,27 @@ Memory의 `EventExpiryDuration: 30`은 단기 이벤트 설정이다. 추출된 
 
 | 리소스 / 기술 | 기존 파일, 식별 지점 | 실습 장 | 기대 검증 | 공유 / 실습 소유 |
 | --- | --- | --- | --- | --- |
-| 사용자 DNS, viewer ACM 인증서 입력 | `infra/application.yaml: ViewerDomainName, ViewerCertificateArn`, `scripts/deploy.py: assert_domain` | `02-aws-environment.md`, `09-https-edge.md` | 실제 DNS 관리 권한, hostname의 CloudFront 연결, **us-east-1** 인증서 `ISSUED`, SAN 일치 확인. 기본 CloudFront 인증서 사용은 사용자 도메인 FULL parity와 구분 | 공유/사전 준비. DNS 생성 리소스 없음 |
-| `AWS::CertificateManager::Certificate`. `Certificate` | `infra/origin.yaml`, `scripts/deploy.py: assert_origin_tls` | `09-https-edge.md`, `13-cleanup.md` | **서울 리전** origin 인증서 DNS 검증, SAN, 상태 확인. 원본 도메인 제약은 팀 사본에서 검토 | 새로 발급하면 실습, 보존. 기존 제공 인증서는 공유이며 재발급, 삭제하지 않음 |
-| `AWS::IAM::Role`. `OriginHostRole` | `infra/origin-routing.yaml` | `09-https-edge.md` | Lambda와 edgelambda 신뢰, 자기 지역별 로그 쓰기 범위 확인 | 실습 |
-| `AWS::Lambda::Function`. `OriginHostFunction` | `infra/origin-routing.yaml` | `09-https-edge.md` | us-east-1의 Node.js 22/x86_64 함수. 예상 ALB, HTTPS 443, origin-request 확인 후 인증서의 canonical Host만 설정; 본문 수집 없음 | 실습. ARM64 ECS와 아키텍처가 다름 |
-| `AWS::Lambda::Version`. `OriginHostVersion` | `infra/origin-routing.yaml`, `scripts/deploy.py: assert_origin_tls` | `09-https-edge.md`, `13-cleanup.md` | 숫자로 게시된 버전 ARN, revision, ALB, hostname 일치. `$LATEST` 대신 게시 버전 사용. 연결 해제, 엣지 복제본 정리 대기 확인 | 실습, 보존 |
-| `AWS::CloudFront::Distribution`. 앱 `Distribution` | `infra/application.yaml` | `08-web.md`, `09-https-edge.md` | `Deployed`, HTTPS redirect, HTTP/2, 3, origin, behavior 순서, alias/WAF/인증서 연결 확인. 조건별 실제 구성 대조 | 실습. 원본 HTTP 기본 단계와 FULL 원본 HTTPS 단계를 구분 |
+| 기본 CloudFront HTTPS URL | `workshop/scripts/lab.py: url`, `lab_cloudfront.py`, App 스택 출력 | `08-web.md`, `09-https-edge.md` | 계정/스택/Project 태그, 실제 CloudFrontUrl과 ApplicationUrl 일치, DistributionId 확인. 예시 URL 대입 금지 | 실습 스택에서 조회. 도메인 등록과 ACM 발급 없음 |
+| `AWS::CloudFront::Distribution`. 앱 `Distribution` | `infra/application.yaml` | `08-web.md`, `09-https-edge.md` | `Deployed`, HTTPS redirect, HTTP/2, 3, 기본 인증서, Alias 없음, WAF/OAC 연결 확인 | 실습. 브라우저 HTTPS, ALB 원본 HTTP와 검증 헤더/Prefix List 유지 |
 | `AWS::CloudFront::CachePolicy`. `CachePolicy`, `CatalogCachePolicy`, `TerrainCachePolicy` | `infra/application.yaml` | `09-https-edge.md` | HTML 재검증; catalog 기본 60초, query 포함, cookie 제외; DEM 기본 7일, 최대 30일, 사용자별 키 제외 확인 | 실습 정책 |
 | `AWS::CloudFront::CachePolicy`. `MediaCachePolicy`, `AssetsCachePolicy` | `infra/application.yaml` | `09-https-edge.md` | 각각 `HasDetails`, `HasSharedAssets` 조건. content-addressed media/assets 장기 캐시, 사용자 정보, 세션 미전달 확인 | 실습 정책 |
 | AWS 관리 `CachingDisabled` | `infra/application.yaml`의 `/api/*` | `09-https-edge.md`, `12-validation.md` | `/api/catalog/*` 우선 분리와 설정, 경로, 고도, AI의 비캐시/no-store 확인. SSE compression 비활성 확인 | AWS 관리 정책 ID 참조. 신규 리소스 아님 |
-| `AWS::CloudFront::OriginRequestPolicy`. `ApiOriginRequestPolicy`, `HostOnlyOriginRequestPolicy` | `infra/application.yaml` | `09-https-edge.md` | private API의 cookie, query, Origin, Content-Type, Accept, CSRF 전달. Host-only 정책은 `UseCanonicalHost`일 때 공개 ALB 요청에 사용 | 실습 |
+| `AWS::CloudFront::OriginRequestPolicy`. `ApiOriginRequestPolicy` | `infra/application.yaml` | `09-https-edge.md` | private API의 cookie, query, Origin, Content-Type, Accept, CSRF 전달. HostOnlyOriginRequestPolicy 분기는 사용하지 않음 | 실습 |
 | `AWS::CloudFront::ResponseHeadersPolicy`. `ResponseHeadersPolicy`, `TerrainResponseHeadersPolicy` | `infra/application.yaml` | `09-https-edge.md` | 보안 헤더, HSTS, DEM CORS, Timing-Allow-Origin, 기본 `no-store` 확인. API 자격 증명 CORS와 DEM 공개 CORS 구분 | 실습 |
 | `AWS::CloudFront::Function`. `TerrainBrowserCacheFunction` | `infra/application.yaml`, `tests/terrain-cache-function.test.mjs`, `scripts/verify-terrain-cache.py` | `09-https-edge.md` | viewer-response의 정상/304 브라우저 TTL 1일, 오류 `no-store`, 원본 PNG hash 확인. origin-request Lambda@Edge와 별개 | 실습. 서울 DEM 복제본을 만들지 않음 |
-| canonical Host / DNS origin 두 모드 | `infra/application.yaml`, `infra/origin-routing.yaml`, `scripts/deploy.py: assert_origin_tls` | `09-https-edge.md` | canonical-host는 ALB DNS에 접속하며 Host를 인증서 이름으로 고정. 기본, catalog, private API의 세 ALB behavior에만 함수 연결, assets/media/terrarium 제외. dns 모드는 별도 ALB CNAME 검증 | 도메인, 인증서 권한은 공유/사전 준비, 함수와 연결은 실습 |
-| `AWS::CloudFront::OriginRequestPolicy`. 프로브 `RequestPolicy` | `infra/tls-probe.yaml` | `09-https-edge.md`, `13-cleanup.md` | Host, Origin, Content-Type, Accept, CSRF와 세션/query 보존 확인 | 임시 실습 |
-| `AWS::CloudFront::Distribution`. 프로브 `Distribution` | `infra/tls-probe.yaml`, `scripts/verify-tls-probe.py`, `scripts/deploy.py: delete_tls_probe` | `09-https-edge.md`, `13-cleanup.md` | 독립 CloudFront URL로 TLS 검증. `ProbeEnabled`는 **생성 조건이 아니라 Enabled 속성 선택**. 비활성 상태 전파 후 자기 프로브만 삭제 | 임시 실습. WAF, origin secret, 함수 버전은 입력 참조 |
 | `AWS::WAFv2::WebACL`. `WebAcl` | `infra/edge.yaml` | `09-https-edge.md`, `11-operations.md` | us-east-1/CLOUDFRONT, 앱 WebACLId 연결, 정규화한 `/api/`만 IP rate limit, CommonRuleSet 및 `SizeRestrictions_BODY` Count 확인. request sampling 비활성 | 실습. API rate 규칙에서 타일 제외가 모든 WAF 규칙 면제를 뜻하지 않음 |
+
+## 운영 전용 참고 구성
+
+다음은 기존 운영 소스의 매핑입니다. 워크숍의 준비, 배포와 정리 단계에 포함하지 않습니다.
+
+| 기존 구성 | 소스 | 워크숍 처리 |
+|---|---|---|
+| 사용자 DNS, viewer ACM 입력 | `ViewerDomainName`, `ViewerCertificateArn` | 참가자 설정은 빈 값. 등록/발급/변경하지 않음 |
+| `AWS::CertificateManager::Certificate` | `infra/origin.yaml` | 운영 인증서 소스 보존. 실습 스택 생성/삭제 대상에서 제외 |
+| `AWS::IAM::Role`, `AWS::Lambda::Function`, `AWS::Lambda::Version`의 origin Host 구성 | `infra/origin-routing.yaml` | 운영 Lambda@Edge와 지역별 로그 보존. 실습에 연결하지 않음 |
+| canonical Host와 origin DNS TLS 분기 | `infra/application.yaml`, `scripts/deploy.py` | 원본 구현 보존. 참가자는 ALB HTTP 분기 사용 |
+| `AWS::CloudFront::OriginRequestPolicy`, `AWS::CloudFront::Distribution`의 TLS probe | `infra/tls-probe.yaml` | 실습 생성/정리 대상에서 제외 |
 
 ## 공식 데이터 작업, 관측
 
@@ -118,8 +126,8 @@ Memory의 `EventExpiryDuration: 30`은 단기 이벤트 설정이다. 추출된 
 | `AWS::ECS::TaskDefinition`. `WorkerTask` | `infra/data.yaml`, `Dockerfile.data`, `scripts/fetch-place-details.py` | `10-enrichment.md` | `HasWorker`일 때 ARM64 Fargate 수집기 생성. 실제 task exit code, `collection_complete`, provider 실패, 갱신 건수 동시 확인 | 실습. 상시 ECS Service를 추가하지 않음 |
 | `AWS::Scheduler::Schedule`. `RefreshSchedule` | `infra/data.yaml`, `infra/data-settings.json` | `10-enrichment.md`, `13-cleanup.md` | `HasWorker`일 때 생성. 상태는 별도 `ScheduleState`; YAML 기본값은 DISABLED. Asia/Seoul 03:00, task 1개, retry 0, Public IP 없음 확인 | 실습. 정상 첫 실행을 확인한 뒤 활성화 |
 | 수집 실행 한도, 동시 갱신 보호 | `scripts/fetch-place-details.py` | `10-enrichment.md` | task 설정 최대 900곳/900초, 종료 여유, operation별 상한, 완전한 페이지 목록만 매칭, ETag 조건부 latest 갱신 확인. 보존 기록의 `fetched_at` 유지 | 실습 코드/데이터. 하루에 전체 장소 갱신을 보장하지 않음 |
-| `AWS::Logs::LogGroup`. `LogGroup`, `WorkerLogs`, `EdgeAccessLogs`, `OriginLogs` | `infra/application.yaml`, `infra/data.yaml`, `infra/edge.yaml`, `infra/origin-routing.yaml` | `11-operations.md`, `13-cleanup.md` | 앱/worker/origin 14일, edge 기본 14일(입력으로 30일 가능) 확인. `WorkerLogs`는 `HasWorker` 조건. 내용, 정책, 보관을 따로 확인 | 모두 실습, 보존 |
-| Runtime 및 지역별 Lambda@Edge 로그 관리 | `scripts/deploy-atlas-agent.py: configure_logs`, `scripts/deploy.py: prepare_edge_log_groups` | `06-atlas-agentcore.md`, `09-https-edge.md`, `13-cleanup.md` | Runtime ID, 역할, 코드 소유권 확인 후 로그 보관 적용. origin 배포기가 추가 준비한 여러 리전의 로그 목록도 기록 | 실습이지만 일부는 **CloudFormation 밖에서 관리**. 기존 중앙 추적 저장소는 공유 |
+| `AWS::Logs::LogGroup`. `LogGroup`, `WorkerLogs`, `EdgeAccessLogs` | `infra/application.yaml`, `infra/data.yaml`, `infra/edge.yaml` | `11-operations.md`, `13-cleanup.md` | 앱/worker 14일, edge 기본 14일(입력으로 30일 가능) 확인. `WorkerLogs`는 `HasWorker` 조건 | 실습, 보존. 운영 OriginLogs는 제외 |
+| Runtime 로그 관리 | `scripts/deploy-atlas-agent.py: configure_logs` | `06-atlas-agentcore.md`, `13-cleanup.md` | Runtime ID, 역할, 코드 소유권 확인 후 로그 보관 적용 | 일부는 CloudFormation 밖에서 관리. 기존 중앙 추적과 Lambda@Edge 로그는 보존 |
 | `AWS::Logs::DeliverySource`. `CloudFrontDeliverySource` | `infra/edge.yaml` | `09-https-edge.md`, `11-operations.md` | 입력 `DistributionArn`과 ACCESS_LOGS source 일치 | 실습. distribution을 소유하지 않음 |
 | `AWS::Logs::DeliveryDestination`. `CloudFrontDeliveryDestination` | `infra/edge.yaml` | `11-operations.md` | 정확한 로그 그룹 ARN과 JSON 출력 확인 | 실습 |
 | `AWS::Logs::Delivery`. `CloudFrontAccessDelivery` | `infra/edge.yaml` | `11-operations.md`, `12-validation.md` | 표준 로그 V2 전달, 실제 유입, 명시한 11개 `RecordFields` 확인. IP, URI, query, cookie, user-agent, 본문이 기본 필드로 되돌아오지 않아야 함 | 실습. Firehose나 S3 access-log 버킷 생성 선언 없음 |
@@ -164,7 +172,7 @@ Memory의 `EventExpiryDuration: 30`은 단기 이벤트 설정이다. 추출된 
 
 ## 조건과 제외 범위
 
-`HasDetails`는 상세 버킷 이름, `HasSharedAssets`는 자산 버킷 도메인, `RoutingEnabled`는 라우팅 이미지 URI의 존재를 검사한다. 해당 값이 채워졌다는 사실만으로 객체, 그래프, OAC 권한이 검증되지는 않는다. `HasWebAcl`과 `HasViewerDomain`은 distribution 속성 연결 조건이다. `HasOriginCertificate`는 TLS listener 준비이며 `UseOriginTls` 전환 완료와 다르다.
+`HasDetails`는 상세 버킷 이름, `HasSharedAssets`는 자산 버킷 도메인, `RoutingEnabled`는 라우팅 이미지 URI의 존재를 검사한다. 해당 값이 채워졌다는 사실만으로 객체, 그래프, OAC 권한이 검증되지는 않는다. `HasWebAcl`은 WebACL 연결 조건이다. 워크숍에서는 `HasViewerDomain`, `HasOriginCertificate`, `UseOriginTls`가 false이며 해당 운영 분기를 사용하지 않는다.
 
 소스 범위에 다음 배포를 추가하지 않는다.
 

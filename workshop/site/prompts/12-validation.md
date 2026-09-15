@@ -9,6 +9,9 @@
 ## 작업
 
 현재 배포의 실제 결과를 검증하세요. 로컬 check와 AWS/HTTP verify를 구분하고 한영 여행 질문, 생각 중, 도구, SSE 완료, Markdown, 추천 질문, 지도, 경로, 고도를 확인하세요. 실제 모델 호출은 학습자가 요청한 테스트 질문만 수행하세요. 오류는 계정/모델, Host/TLS/cookie, 도구/데이터, quota로 분류하세요. 미검증 항목을 통과로 적지 마세요.
+브라우저 URL은 실제 참가자 스택의 기본 CloudFront HTTPS 주소여야 합니다.
+기본 인증서와 Alias 없음, WAF/OAC, ALB 원본 HTTP와 검증 헤더를 확인합니다.
+ACM/DNS 설정이나 고정된 운영 CloudFront 주소를 검사 전제에 넣지 마세요.
 
 교재는 `$ATLAS_REPO/workshop/chapters/12-validation.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.

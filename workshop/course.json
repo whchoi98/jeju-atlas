@@ -1,7 +1,7 @@
 {
   "title": "120분 AgentCore CLI 실습",
   "subtitle": "준비된 VSCode Server에서 Codex, Kiro CLI, Claude Code로 제주 가이드 구현",
-  "updatedAt": "2026-09-12",
+  "updatedAt": "2026-09-15",
   "language": "ko",
   "includePromptCards": true,
   "chapters": [
@@ -80,10 +80,10 @@
     {
       "id": "09",
       "slug": "09-https-edge",
-      "title": "도메인, HTTPS, 엣지 구성",
+      "title": "CloudFront 기본 HTTPS와 엣지",
       "day": 2,
       "minutes": 60,
-      "summary": "ACM, WAF, S3 OAC, Lambda@Edge와 고도 캐시를 구성합니다."
+      "summary": "실제 스택의 CloudFront 기본 URL로 접속하고 WAF, OAC와 고도 캐시를 검증합니다."
     },
     {
       "id": "10",

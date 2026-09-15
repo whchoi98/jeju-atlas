@@ -57,6 +57,6 @@ def configuration_for_ec2(participant, context):
     return validate_config({
         "version": 1, "participant": participant, "accountId": context["accountId"],
         "region": context["region"], "profile": "", "vpcName": context["vpcId"],
-        "network": {}, "domainName": "", "viewerCertificateArn": "",
+        "network": {},
         "ec2Context": context,
     })

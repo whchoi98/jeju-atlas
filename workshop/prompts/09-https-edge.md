@@ -1,4 +1,4 @@
-# 09, 도메인, HTTPS, 엣지 구성. AI CLI 카드
+# 09, CloudFront 기본 HTTPS와 엣지. AI CLI 카드
 
 이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다. 한 도구만 선택하고 같은 계정, VPC, 작업 폴더를 유지합니다.
 
@@ -8,7 +8,17 @@
 
 ## 작업
 
-제공받은 실습 도메인과 해당 계정 us-east-1 viewer 인증서를 검증하세요. configure-domain, 지역 origin 인증서, edge/static, 앱 연결, origin-routing, 독립 TLS probe 순서를 따라 진행하세요. probe가 통과하기 전에 origin HTTPS-only로 전환하지 마세요. DNS/인증서를 소유한다고 가정하거나 운영 hostname을 재사용하지 마세요.
+lab.py url --config ATLAS_CONFIG로 참가자 App 스택의 실제 CloudFrontUrl을 조회하세요.
+계정, 리전, 스택 이름과 Project 태그, DistributionId와 ApplicationUrl 일치를 확인합니다.
+기본 *.cloudfront.net HTTPS 주소만 사용하며 임의 URL이나 운영 도메인을 대신 넣지 마세요.
+
+WAF/Static 계획과 적용, 자산 게시, 앱과 Data 업데이트, 자산/고도 검증 순서로 진행합니다.
+CloudFront 기본 인증서와 Alias 없음, 브라우저 HTTPS 이동을 확인하세요.
+ALB 원본은 HTTP이며 CloudFront Prefix List와 원본 검증 헤더 제한을 유지합니다.
+ACM 인증서 발급, DNS/Route 53/사용자 도메인 등록, origin Host Lambda와 TLS probe는
+이 과정의 작업이 아닙니다. 기존 운영 도메인 인프라와 인증서는 변경하지 마세요.
+URL 조회 실패를 export로 가리지 말고 중단하세요. verify-assets는 참가자 이미지,
+verify-terrain은 실제 스택 URL을 사용하는지 확인합니다.
 
 교재는 `$ATLAS_REPO/workshop/chapters/09-https-edge.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 470" role="img" aria-labelledby="system-map-title system-map-description">
   <title id="system-map-title">Jeju Atlas 실습 연결 구조</title>
-  <desc id="system-map-description">브라우저가 CloudFront와 WAF를 거쳐 Public ALB와 Private ECS의 웹 및 Valhalla에 연결됩니다. 웹은 참가자 소유 S3와 AgentCore Guide를 사용합니다. Guide는 Gateway 및 Tools, Memory, Bedrock과 연결됩니다. VPC, 서브넷과 NAT는 사전에 준비된 공유 네트워크입니다.</desc>
+  <desc id="system-map-description">브라우저는 참가자 스택의 기본 cloudfront.net HTTPS 주소와 WAF를 사용합니다. CloudFront는 원본 검증 헤더와 Prefix List로 제한된 HTTP ALB를 거쳐 Private ECS의 웹과 Valhalla에 연결됩니다. 웹은 소유 S3와 AgentCore Guide를 사용합니다. VPC, 서브넷과 NAT는 준비된 공유 네트워크입니다. 도메인 등록과 ACM 발급은 실습에 포함하지 않습니다.</desc>
   <defs>
     <marker id="system-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="var(--interactive, #0972d3)"/></marker>
   </defs>
@@ -43,7 +43,10 @@
     </g>
     <g fill="var(--muted, #5f6b7a)" text-anchor="middle" font-size="12">
       <text x="92" y="155">3D 지도, AI 가이드</text>
-      <text x="278" y="155">WAF, HTTPS</text>
+      <text x="278" y="86" font-size="11">*.cloudfront.net</text>
+      <text x="181" y="125" font-size="10">HTTPS</text>
+      <text x="385" y="125" font-size="10">HTTP</text>
+      <text x="278" y="155">기본 HTTPS, WAF</text>
       <text x="487" y="155">공개 진입점</text>
       <text x="681" y="155">Web + Valhalla</text>
       <text x="956" y="155">카탈로그, 정적 자산</text>

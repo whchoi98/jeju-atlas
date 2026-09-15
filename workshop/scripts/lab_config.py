@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import re
 
-FIELDS = {"version", "participant", "accountId", "region", "profile", "vpcName",
+FIELDS = {"version", "participant", "accountId", "region", "profile", "vpcName", "bedrockCallerRegion",
           "network", "domainName", "viewerCertificateArn", "ec2Context"}
 NETWORK_FIELDS = {"vpcId", "publicSubnetIds", "privateSubnetIds", "cloudFrontPrefixListId"}
 PROTECTED_DOMAINS = {"jeju-atlas.whchoi.net", "ohmyjeju.whchoi.net"}
@@ -29,7 +29,7 @@ def validate_config(value, require_network=False):
     if not isinstance(value, dict) or set(value) - FIELDS:
         raise ValueError("Configuration accepts only the documented non-secret fields")
     result = deepcopy(value)
-    defaults = {"version": 1, "region": "ap-northeast-2", "profile": "",
+    defaults = {"version": 1, "region": "ap-northeast-2", "profile": "", "bedrockCallerRegion": "",
                 "vpcName": "cc-on-bedrock-vpc", "network": {},
                 "domainName": "", "viewerCertificateArn": ""}
     result = {**defaults, **result}
@@ -44,6 +44,9 @@ def validate_config(value, require_network=False):
         raise ValueError("An explicit 12-digit AWS accountId is required")
     if result["region"] != "ap-northeast-2":
         raise ValueError("Use the workshop EC2 in ap-northeast-2; no cross-region VPC fallback is allowed")
+    caller = result["bedrockCallerRegion"]
+    if not isinstance(caller, str) or caller and not re.fullmatch(r"[a-z]{2}(?:-[a-z0-9]+)+-[0-9]+", caller):
+        raise ValueError("bedrockCallerRegion must be explicitly provided by the organizer; do not use a URL or alias")
     if "ec2Context" in result:
         context = validate_ec2_context(result["ec2Context"])
         if context["accountId"] != account or context["region"] != result["region"]:
@@ -54,14 +57,8 @@ def validate_config(value, require_network=False):
     if not isinstance(result["vpcName"], str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}", result["vpcName"]):
         raise ValueError("Invalid existing VPC Name tag")
     domain, certificate = result["domainName"], result["viewerCertificateArn"]
-    if not isinstance(domain, str) or not isinstance(certificate, str) or bool(domain) != bool(certificate):
-        raise ValueError("domainName and viewerCertificateArn must be supplied together")
-    if domain and (domain in PROTECTED_DOMAINS or not re.fullmatch(
-            r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}", domain)):
-        raise ValueError("Use your lab hostname, never an existing production hostname")
-    if certificate and not re.fullmatch(
-            rf"arn:aws:acm:us-east-1:{account}:certificate/[a-f0-9-]{{36}}", certificate):
-        raise ValueError("Viewer certificate must belong to the target account in us-east-1")
+    if domain != "" or certificate != "":
+        raise ValueError("This workshop uses the CloudFront default HTTPS domain, without domainName or viewerCertificateArn. Preserve existing custom-domain configurations separately.")
     network = result["network"]
     if not isinstance(network, dict) or set(network) - NETWORK_FIELDS:
         raise ValueError("Invalid network configuration")
@@ -100,7 +97,7 @@ def resource_names(config):
 
 def binding_digest(config):
     config = validate_config(config, require_network=True)
-    # DNS can be configured after the initial CloudFront deployment. Ownership cannot.
+    # CloudFront allocates the hostname at deployment; ownership is fixed here.
     binding = {key: config[key] for key in ["participant", "accountId", "region", "vpcName", "network"]}
     if config.get("ec2Context"):
         binding["ec2Context"] = config["ec2Context"]

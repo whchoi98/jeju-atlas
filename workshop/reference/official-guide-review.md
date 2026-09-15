@@ -39,3 +39,32 @@ Strands/Bedrock/CodeZip 프로젝트를 의존성 설치 없이 생성했습니�
 공식 문서는 계속 갱신됩니다. 수업 중 새 버전으로 바꾸기보다,
 진행자가 검증한 버전의 `agentcore <명령> --help`와 생성 파일을 기준으로 진행합니다.
 CLI 설치, 로컬 테스트, 배포 상태와 실제 응답 성공은 각각 확인해야 합니다.
+
+## Sonnet 4.6과 세 리전 구분
+
+2026-09-15 공식 문서를 대조했습니다. 이 워크숍의 모델은
+`global.anthropic.claude-sonnet-4-6`이며 Claude Code 실행에는
+`claude --model claude-sonnet-4-6`을 사용합니다.
+
+| 구분 | 의미와 워크숍 처리 |
+|---|---|
+| 배포 리전 | AgentCore Runtime과 참가자 스택의 위치. `aws-targets.json`과 `ATLAS_REGION`은 서울 유지 |
+| Bedrock 호출 리전 | SDK가 요청하는 Bedrock Runtime endpoint. 주최자가 확인한 `ATLAS_BEDROCK_REGION`을 명시 |
+| 실제 추론 목적지 | Global 추론 프로필이 선택하는 처리 위치. 호출 리전과 같다고 가정하지 않음 |
+
+Boto3는 클라이언트에 지정한 `region_name`으로 해당 서비스 endpoint를 선택합니다.
+따라서 코드에서 Bedrock 클라이언트만 다른 허용 리전을 사용하도록 구성할 수 있습니다.
+이는 권한 부여나 모델 가용성 확인이 아니며, Runtime 배포 리전을 자동으로 바꾸지 않습니다.
+Global 추론 프로필에는 별도의 목적지 및 SCP 조건이 적용되므로 주최자가 정책을 검토해야 합니다.
+이 교재는 IAM/SCP 변경 명령이나 다른 리전 순회 호출을 제공하지 않습니다.
+
+Converse에도 `bedrock:InvokeModel` 권한이 필요합니다.
+참가자의 실제 서울 호출에서 확인된 AccessDeniedException과 SCP 명시적 거부는
+실패입니다. 이 결과로 특정 다른 리전이 성공한다고 결론 내릴 수 없습니다.
+`model_check.py`는 명시한 리전에서 작은 실제 요청을 한 번만 수행하고 결과를 기록합니다.
+
+- [Bedrock cross-Region inference](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html)
+- [Inference profile prerequisites](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-prereq.html)
+- [Converse API와 권한](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html)
+- [Boto3 Session/client region_name](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html)
+- [Claude Code 모델 고정](https://code.claude.com/docs/en/model-config)

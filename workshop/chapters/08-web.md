@@ -4,7 +4,8 @@
 
 기존 지도, 한영 UI, 카탈로그, AI 스트리밍, PWA를 사용합니다.
 Private Fargate의 웹, 라우터를 Public ALB와 새 CloudFront에 연결합니다.
-최종 원본 HTTPS와 WAF/OAC 구성은 다음 장에서 완성합니다.
+CloudFront 기본 도메인의 HTTPS로 접속하며, WAF/OAC 구성은 다음 장에서 완성합니다.
+도메인 등록과 인증서 발급은 실습에 포함하지 않습니다.
 
 ## 빌드
 
@@ -41,11 +42,14 @@ python3 workshop/scripts/lab.py run status-app --config "$ATLAS_CONFIG" --execut
 ## 첫 접속
 
 ```bash
-export ATLAS_URL="$(python3 -c 'import json,os; print(json.load(open(os.environ["ATLAS_APP"]+"/.local/app-outputs.json"))["ApplicationUrl"])')"
+ATLAS_URL="$(python3 "${ATLAS_REPO:?}/workshop/scripts/lab.py" url \
+  --config "${ATLAS_CONFIG:?}" --plain)" &&
+export ATLAS_URL &&
 curl --fail --silent "$ATLAS_URL/healthz"
 ```
 
-브라우저에서 같은 URL을 엽니다. 도메인을 설정하지 않았으면 CloudFront 주소입니다.
+이 명령은 참가자 App 스택의 실제 출력을 조회합니다. 브라우저에서 같은 CloudFront
+기본 HTTPS URL을 엽니다. 출력이 없으면 중단하며 예시 주소나 운영 도메인을 사용하지 않습니다.
 
 - 대표 명소가 먼저 보이고 모든 장소 식별자가 한꺼번에 나타나지 않습니다.
 - 카테고리, 검색, 주변 찾기가 동작합니다.
@@ -88,4 +92,4 @@ python3 workshop/scripts/lab.py run status-data --config "$ATLAS_CONFIG" --execu
 
 AI CLI 프롬프트: [08, 웹 배포](../prompts/08-web.md)
 
-다음: [09, HTTPS와 엣지](09-https-edge.md)
+다음: [09, CloudFront 기본 HTTPS와 엣지](09-https-edge.md)

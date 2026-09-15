@@ -13,7 +13,7 @@
 | Tools | 장소, 주변 검색, 공식 상세, 날씨, 코스 등의 MCP 도구 |
 | Gateway | IAM 인증으로 자기 Tools Runtime에 연결 |
 | Memory | facts, preferences, summaries, episodes, 30일 event 만료 |
-| 모델 | 서울 Global CRIS Sol 기본, 일정, 복합 요청 Astra |
+| 모델 | Global Sonnet 4.6, 주최자가 확인한 Bedrock 호출 리전 |
 | 관측 | 메타데이터 중심 OTel, 입력, 답변 내용 capture 비활성화 |
 
 AgentCore는 관리형 `PUBLIC` 네트워크와 IAM 인증을 사용합니다.
@@ -67,16 +67,27 @@ python3 workshop/scripts/lab.py run agent-configure-logs --config "$ATLAS_CONFIG
 ## 모델 설정
 
 ```text
-ATLAS_MODEL_FAST=global.openai.gpt-5.6-sol
-ATLAS_MODEL_DEEP=global.openai.gpt-6-astra
+ATLAS_MODEL_FAST=global.anthropic.claude-sonnet-4-6
+ATLAS_MODEL_DEEP=global.anthropic.claude-sonnet-4-6
 ATLAS_MODEL_ROUTING=auto
+ATLAS_THINKING=disabled
+ATLAS_THINKING_DEEP=disabled
 ```
 
-배포된 Bedrock 호출용 ID이며 Codex의 `--model` 값이 아닙니다.
+배포된 Bedrock 호출용 ID이며 Codex의 모델 설정을 바꾸는 값이 아닙니다.
+배포 대상은 서울에 유지하고 `BedrockCallerRegion` 매개변수로 별도
+`ATLAS_BEDROCK_REGION`을 Runtime에 전달합니다. 02장의 `lab.py model-region`으로
+주최자가 확인한 값을 기록해야 합니다.
 계정의 모델 접근, 서비스 가용성, Global CRIS IAM 정책을 확인해야 합니다.
 목록 조회만으로 호출 성공을 보장하지 않습니다.
 `agent/guide/model/load.py`의 BedrockModel과 모델별 reasoning 설정을 확인합니다.
 기존 설정을 확인하지 않고 모델 ID만 교체하지 않습니다.
+준비기는 참가자 사본의 모델 기본값과 Runtime 환경만 Sonnet으로 바꿉니다.
+운영 원본의 모델과 IAM/SCP는 변경하지 않습니다. 기존 GuideRole의 모델 권한도
+자동 확장하지 않으므로 **Sonnet과 선택한 호출 리전에 맞는 Runtime 역할 검토를
+주최자가 완료하기 전에는 agent-plan/apply를 진행하지 않습니다.**
+EC2에서의 작은 Converse 성공이 Runtime 역할의 권한을 대신하지 않습니다.
+현재 기록된 서울 실측은 SCP 명시적 거부이며 성공한 호출 리전은 아직 배정되지 않았습니다.
 
 실제 여행 질문과 도구, Memory 동작은 웹을 연결한 뒤 12장에서 확인합니다.
 Runtime READY만으로 여행 답변까지 검증됐다고 기록하지 않습니다.

@@ -22,7 +22,7 @@ python3 workshop/scripts/lab.py cleanup --config "$ATLAS_CONFIG"
 ```
 
 이 호출은 내 접두사의 스택과 Project 태그를 조회하고 계획을 기록합니다.
-다른 프로젝트, VPC, 서브넷, NAT, 공유 viewer 인증서가 목록에 포함되지 않아야 합니다.
+다른 프로젝트, VPC, 서브넷, NAT, 기존 인증서와 DNS 자원이 목록에 포함되지 않아야 합니다.
 `workshop-cleanup-plan.json`의 자원 식별자를 보관합니다.
 
 목록과 참가자 이름을 확인한 후 실행합니다.
@@ -37,7 +37,9 @@ python3 workshop/scripts/lab.py cleanup \
 먼저 내 Schedule을 비활성화하고 내 collector task family의 작업을 종료, 대기합니다.
 웹 service task나 다른 task family를 이 과정에서 중지하지 않습니다.
 그다음 앱/Distribution과 의존하는 운영, 데이터, 엣지, AgentCore, registry를 순서대로 정리합니다.
-CloudFront와 Lambda@Edge 복제 정리는 시간이 걸릴 수 있습니다.
+CloudFront Distribution의 비활성화와 삭제 전파는 시간이 걸릴 수 있습니다.
+이 과정은 인증서, origin Host 함수와 TLS probe를 만들지 않으며 해당 과거 스택을
+자동 정리 목록에 넣지 않습니다.
 진행 중 작업이나 실패 이벤트가 있으면 원인을 확인하고 재개하며, 다른 스택을 지워 해결하지 않습니다.
 
 재조회할 때도 이전 inventory를 보존하므로 이미 삭제된 스택의 보존 자원 ID를 잃지 않습니다.
@@ -52,10 +54,9 @@ CloudFront와 Lambda@Edge 복제 정리는 시간이 걸릴 수 있습니다.
 | DynamoDB | AI 요청 기록, 접속 집계 테이블의 보존, 삭제 보호와 누적 기록 유지 여부 |
 | AgentCore Memory | 실습 Memory의 보존 여부, 본인 데이터 삭제 필요성 |
 | Runtime 로그 | CLI, Guide, Tools가 만든 로그 그룹의 보관/삭제 |
-| Lambda@Edge 로그 | 여러 리전에 만든 정확한 실습 prefix 로그 그룹 |
 | SSM | 실습 prefix의 Visit Jeju/TourAPI 두 SecureString |
-| SNS/DNS | 실습 구독과 실습 전용 DNS 레코드 |
-| 인증서 | 실습 전용으로 새로 만든 인증서인지, 공유/기존 것인지 |
+| SNS | 이번 실습에서 만든 구독 |
+| CloudFront | 실제 App 스택의 Distribution 삭제 상태. 별도 DNS 레코드 정리는 없음 |
 
 보존 자료를 지우기로 결정했다면 저장한 inventory의 **정확한 실습 ID**를 사용합니다.
 버킷 삭제 전에는 버전과 delete marker까지 확인합니다.
@@ -64,7 +65,7 @@ DynamoDB의 AI 요청, 접속 집계 테이블도 보존 자원입니다. 삭제
 실습 테이블에서 삭제 보호 상태를 확인하고 처리합니다. 접속 테이블을 지우면 누적 기록도 함께 사라집니다.
 API 키 값 자체를 조회하여 삭제 대상을 확인하지 않습니다.
 
-실습 EC2가 속한 공유 VPC, NAT, IGW, 서브넷, 라우트, endpoint, 기존 viewer 인증서,
+실습 EC2가 속한 공유 VPC, NAT, IGW, 서브넷, 라우트, endpoint, 기존 인증서와 DNS,
 CDK bootstrap, 중앙 추적 설정과 다른 프로젝트의 IAM 정책은 유지합니다.
 
 ## 마지막 점검
@@ -72,7 +73,7 @@ CDK bootstrap, 중앙 추적 설정과 다른 프로젝트의 IAM 정책은 유�
 - [ ] CLI 입문 Runtime과 실제 Atlas 스택을 각각 확인했습니다.
 - [ ] 진행 중/실패한 삭제가 없습니다.
 - [ ] 보존, 수동 자원의 유지 또는 삭제 결정을 기록했습니다.
-- [ ] 공유 네트워크, 인증서, 다른 프로젝트가 유지됩니다.
+- [ ] 공유 네트워크, 기존 인증서/DNS, 운영 도메인과 다른 프로젝트가 유지됩니다.
 - [ ] 이후 비용 화면에서 남은 과금 자원을 확인합니다.
 
 보존 자원이 남아 있다면 비용이 완전히 없어졌다고 기록하지 않습니다.

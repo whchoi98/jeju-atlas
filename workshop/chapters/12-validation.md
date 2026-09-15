@@ -16,8 +16,11 @@ python3 workshop/scripts/lab.py run verify-terrain --config "$ATLAS_CONFIG" --ex
 ```
 
 `check`는 로컬 소스 검사입니다. `verify` 계열은 실제 AWS와 HTTP를 확인합니다.
-HTTPS 단계 이전에는 전체 운영 검사를 통과했다고 기대하지 않습니다.
+09장의 WAF/OAC 연결 이전에는 전체 검사를 통과했다고 기대하지 않습니다.
 현재 코드, 이미지, 검증 결과의 시점을 함께 기록합니다.
+검사 URL은 참가자 App 스택의 실제 CloudFrontUrl입니다.
+기본 CloudFront 인증서와 Alias 없음, ApplicationUrl 일치를 확인합니다.
+ACM 발급이나 DNS 등록을 완료 기준에 넣지 않습니다.
 
 ## 실제 화면
 
@@ -91,8 +94,8 @@ Memory는 같은 사용자, 세션 범위의 기록과 보관 정책으로 확�
 
 | 현상 | 확인 순서 |
 |---|---|
-| 현재 페이지 요청 불허/403 | ApplicationUrl, Domain Alias, origin/Host, cookie, 검증 헤더 |
-| 502/504 | origin TLS, ALB target, 상태, 연결/응답 제한 |
+| 현재 페이지 요청 불허/403 | 실제 CloudFrontUrl, WAF, Origin/CSRF, cookie, 검증 헤더 |
+| 502/504 | ALB 원본 HTTP 연결, target 상태, 응답 제한 |
 | Runtime READY인데 답 없음 | 모델 권한, endpoint, 도구 Gateway, turn timeout, SSE 완료 |
 | 도구는 보이나 결과 없음 | 카탈로그, 공식 snapshot, schema, 정확한 장소 anchor |
 | 사진, 시간이 비어 있음 | 실제 수집, match, 라이선스, 미디어 OAC, 미확인 값을 생성하지 않음 |

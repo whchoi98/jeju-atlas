@@ -45,8 +45,8 @@ def main():
             raise ValueError("Unresolved placeholder in " + chapter["slug"])
     mandatory = {"plan-bootstrap", "plan-data", "agent-build", "agent-publish", "agent-plan",
                  "agent-apply", "agent-status", "routing-fetch", "routing-build", "build-routing-push",
-                 "build-push", "plan-app", "plan-origin", "plan-origin-routing", "plan-edge",
-                 "plan-static", "plan-tls-probe", "verify-tls", "plan-operations", "verify"}
+                 "build-push", "plan-app", "plan-edge", "plan-static",
+                 "verify-assets", "verify-terrain", "plan-operations", "verify"}
     if mandatory - documented:
         raise ValueError("Missing deployment coverage: " + ", ".join(sorted(mandatory - documented)))
     if "init-ec2" not in (COURSE / "chapters/02-aws-environment.md").read_text():

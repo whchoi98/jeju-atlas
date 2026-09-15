@@ -108,9 +108,24 @@ See [local development](docs/onboarding.md) for the Python check environment, po
 
 ## 120-minute AgentCore CLI workshop
 
-Start on a prepared EC2 VSCode Server with a VPC, NAT gateways, subnets, Codex, Kiro CLI and Claude Code.
-Choose one coding assistant, implement a Jeju search tool and use AgentCore CLI to create, run, deploy and invoke the agent.
+Start on an EC2 VSCode Server with the supplied VPC, NAT gateways and subnets.
+Use one available coding assistant: Codex, Kiro CLI or Claude Code.
+Implement a Jeju search tool and use AgentCore CLI to create, run, deploy and invoke the agent.
 The facilitator checks AgentCore CLI 0.28.1, dependencies, CDK bootstrap, deployment permissions and model access beforehand.
+
+The participant EC2 needs the full Git source; the handbook ZIP has no executable
+scripts or source dataset. Chapter 01 uses `core.py prepare` to create a participant
+`activate.sh`, then `core.py doctor` to check Node 24, Python 3.14, the selected
+assistant and core dependencies. Missing tools go under `workshop/.local/toolchain/`,
+preserving system tools and Claude authentication. Source the activation file in
+each new Bash terminal before opening the assistant in the participant project.
+The workshop Runtime uses Sonnet 4.6, and Claude Code launches with
+`claude --model claude-sonnet-4-6`. A separate explicit model check records real
+results; the deployment region and organizer-verified Bedrock caller region are
+configured independently.
+The advanced workshop uses the participant App stack's default CloudFront HTTPS
+URL for the app and handbook. ACM issuance, DNS configuration and custom-domain
+registration are not workshop prerequisites.
 
 | Track | Scope |
 |---|---|
