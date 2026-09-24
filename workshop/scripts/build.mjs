@@ -166,8 +166,57 @@ const markdownProcessor = unified()
   .use(rehypeSanitize);
 const stringifier = unified().use(rehypeStringify);
 
+const commandAssistants = [['codex', '코덱스'], ['claude', '클로드 코드'], ['kiro', '키로']];
+
+function groupCommandBlocks(children, counter) {
+  const grouped = [];
+  for (let index = 0; index < children.length;) {
+    if (!children[index].properties?.dataCommandVariant) {
+      grouped.push(children[index++]);
+      continue;
+    }
+    const variants = new Map();
+    while (index < children.length) {
+      const node = children[index];
+      if (node.type === 'text' && !node.value.trim()) { index++; continue; }
+      const assistant = node.properties?.dataCommandVariant;
+      if (!assistant) break;
+      if (variants.has(assistant)) throw new Error('Duplicate assistant in command tab group');
+      delete node.properties.dataCommandVariant;
+      variants.set(assistant, node);
+      index++;
+    }
+    if (variants.size !== 3 || commandAssistants.some(([value]) => !variants.has(value))) {
+      throw new Error('Each command tab group must include assistant=codex, assistant=claude and assistant=kiro');
+    }
+    const id = `command-group-${counter.groups = (counter.groups || 0) + 1}`;
+    grouped.push(element('section', {
+      className: ['command-tabs'], dataCommandTabs: '', ariaLabel: '도구별 터미널 명령',
+    }, [
+      element('div', {
+        className: ['command-tool-tabs'], role: 'tablist', ariaLabel: '사용할 코딩 어시스턴트', hidden: true,
+      }, commandAssistants.map(([value, label]) => element('button', {
+        type: 'button', id: `${id}-tab-${value}`, role: 'tab',
+        dataCommandAssistant: value, ariaControls: `${id}-panel-${value}`,
+        ariaSelected: value === 'codex' ? 'true' : 'false', tabIndex: value === 'codex' ? 0 : -1,
+      }, [text(label)]))),
+      ...commandAssistants.map(([value, label]) => element('section', {
+        id: `${id}-panel-${value}`, className: ['command-panel'], dataCommandPanel: value,
+        role: 'tabpanel', ariaLabelledBy: `${id}-tab-${value}`, tabIndex: 0,
+      }, [
+        // Keep all labelled alternatives available for print/no-JavaScript readers.
+        element('p', { className: ['command-variant-title'] }, [element('strong', {}, [text(`${label} 명령`)])]),
+        variants.get(value),
+      ])),
+    ]));
+  }
+  return grouped;
+}
+
 function decorateBlocks(node, counter) {
-  if (node.children) node.children = node.children.map((child) => decorateBlocks(child, counter));
+  if (node.children) {
+    node.children = groupCommandBlocks(node.children.map((child) => decorateBlocks(child, counter)), counter);
+  }
   if (node.type !== 'element') return node;
   if (node.tagName === 'th') node.properties.scope = 'col';
   if (node.tagName === 'table') {
@@ -184,6 +233,14 @@ function decorateBlocks(node, counter) {
   node.properties.ariaLabel = `${language} 코드`;
   const prompt = language === 'ai-prompt';
   const terminal = ['bash', 'sh', 'shell', 'zsh', 'console'].includes(language.toLowerCase());
+  const metadata = code.data?.meta?.trim() || '';
+  let commandAssistant;
+  if (metadata.startsWith('assistant=')) {
+    commandAssistant = metadata.match(/^assistant=(codex|claude|kiro)$/)?.[1];
+    if (!commandAssistant || !['bash', 'sh'].includes(language)) {
+      throw new Error('Use assistant=codex, assistant=claude or assistant=kiro on a bash/sh command block');
+    }
+  }
   if (prompt) {
     node.properties.ariaLabel = 'Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트';
     return element('section', {
@@ -213,6 +270,7 @@ function decorateBlocks(node, counter) {
   return element('div', {
     className: ['code-block', terminal ? 'terminal-window' : 'file-window'],
     dataCodeKind: terminal ? 'terminal' : 'file',
+    ...(commandAssistant ? { dataCommandVariant: commandAssistant } : {}),
   }, [
     element('div', { className: ['code-toolbar'] }, [
       element('div', { className: ['code-window-title'] }, [
@@ -222,7 +280,9 @@ function decorateBlocks(node, counter) {
         element('span', { className: ['code-language'] }, [text(language)]),
       ]),
       element('button', {
-        type: 'button', className: ['copy-button', 'js-only'], dataCopyCode: id, ariaLabel: `${language} 코드 복사`,
+        type: 'button', className: ['copy-button', 'js-only'], dataCopyCode: id,
+        ariaLabel: commandAssistant
+          ? `${commandAssistants.find(([value]) => value === commandAssistant)[1]} 명령 복사` : `${language} 코드 복사`,
       }, [text('복사')]),
     ]),
     ...(terminal ? [element('div', { className: ['terminal-destination'] }, [text('VSCode Server 터미널에서 실행')])] : []),

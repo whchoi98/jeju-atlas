@@ -172,6 +172,103 @@ test('terminal, file and AI prompt windows identify their destination without ch
   assert.match(page, /<code[^>]*class="language-ai-prompt"[^>]*>제주 장소 검색 도구를 작성해 주세요\.\n<\/code>/);
 });
 
+function assistantCommands(script = 'check_env.sh') {
+  return ['codex', 'claude', 'kiro'].map(assistant =>
+    `\`\`\`bash assistant=${assistant}\ncd /tmp\nbash ${script} --assistant ${assistant}\n\`\`\``).join('\n\n');
+}
+
+test('assistant command variants become labelled tabs without changing shell text', async (t) => {
+  const f = await fixture(t, { documents: {
+    'reference/commands.md': `# 명령어 참고\n\n## 명령어\n\n${assistantCommands()}\n\n## 준비\n\n${assistantCommands('start.sh')}\n`,
+  } });
+  await buildSite(f);
+  const page = await readPage(f.outputDir, 'reference/commands.html');
+  assert.equal((page.match(/data-command-tabs/g) || []).length, 2);
+  for (const [assistant, label] of [['codex', '코덱스'], ['claude', '클로드 코드'], ['kiro', '키로']]) {
+    assert.equal((page.match(new RegExp(`data-command-assistant="${assistant}"`, 'g')) || []).length, 2);
+    assert.match(page, new RegExp(`role="tab"[^>]*>${label}</button>`));
+    assert.match(page, new RegExp(`<code[^>]*>cd /tmp\\nbash check_env\\.sh --assistant ${assistant}\\n</code>`));
+    assert.match(page, new RegExp(`data-command-panel="${assistant}"`));
+  }
+  // Without JavaScript every labelled command must remain readable.
+  assert.doesNotMatch(page, /<section[^>]*data-command-panel[^>]*\shidden/);
+  await assertClosedSite(f.outputDir);
+});
+
+test('incomplete or ambiguous assistant command groups fail before publishing output', async (t) => {
+  const invalid = [
+    '```bash assistant=codex\ncd /tmp\n```',
+    assistantCommands().replace('assistant=kiro', 'assistant=claude'),
+    assistantCommands().replace('assistant=kiro', 'assistant=unknown'),
+    assistantCommands().replace('bash assistant=kiro', 'json assistant=kiro'),
+  ];
+  for (const block of invalid) {
+    const f = await fixture(t, { documents: {
+      'reference/commands.md': `# 명령어 참고\n\n## 명령어\n\n${block}\n`,
+    } });
+    await assert.rejects(buildSite(f), /assistant|command.*group/i);
+  }
+});
+
+test('assistant command tabs synchronize selection, keyboard focus and copied commands', {
+  skip: process.env.WORKSHOP_BROWSER_TEST !== '1',
+  timeout: 60000,
+}, async (t) => {
+  const f = await fixture(t, { documents: {
+    'reference/commands.md': `# 명령어 참고\n\n## 명령어\n\n${assistantCommands()}\n\n## 준비\n\n${assistantCommands('start.sh')}\n`,
+  } });
+  await buildSite(f);
+  const { chromium } = await import(pathToFileURL(
+    process.env.PLAYWRIGHT_MODULE || '/tmp/jeju-browser-tools/node_modules/playwright/index.mjs',
+  ).href);
+  const browser = await chromium.launch({
+    executablePath: process.env.CHROME_EXECUTABLE || '/home/ec2-user/.cache/ms-playwright/chromium-1243/chrome-linux-arm64/chrome',
+    headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'],
+  });
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 390, height: 900 } });
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true, value: { writeText: async value => { window.copiedCommand = value; } },
+    });
+  });
+  const page = await context.newPage();
+  page.setDefaultTimeout(5000);
+  const url = pathToFileURL(join(f.outputDir, 'reference/commands.html')).href;
+  await page.goto(url);
+  const groups = page.locator('[data-command-tabs]');
+  assert.equal(await groups.count(), 2);
+  for (const [assistant, label] of [['claude', '클로드 코드'], ['kiro', '키로'], ['codex', '코덱스']]) {
+    await groups.first().getByRole('tab', { name: label, exact: true }).click();
+    for (let index = 0; index < 2; index++) {
+      const group = groups.nth(index);
+      assert.equal(await group.getByRole('tab', { name: label, exact: true }).getAttribute('aria-selected'), 'true');
+      assert.equal(await group.locator('[data-command-panel]:visible').count(), 1);
+      const panel = group.locator(`[data-command-panel="${assistant}"]`);
+      assert.equal(await panel.isVisible(), true);
+      await panel.locator('[data-copy-code]').click();
+      const expected = `cd /tmp\nbash ${index ? 'start.sh' : 'check_env.sh'} --assistant ${assistant}\n`;
+      assert.equal(await page.evaluate(() => window.copiedCommand), expected);
+    }
+  }
+  const first = groups.first();
+  await first.getByRole('tab', { name: '코덱스', exact: true }).focus();
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await first.getByRole('tab', { name: '클로드 코드', exact: true }).evaluate(node => node === document.activeElement), true);
+  await page.keyboard.press('End');
+  assert.equal(await first.getByRole('tab', { name: '키로', exact: true }).getAttribute('aria-selected'), 'true');
+  await page.reload();
+  assert.equal(await groups.first().getByRole('tab', { name: '키로', exact: true }).getAttribute('aria-selected'), 'true');
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+  await page.emulateMedia({ media: 'print' });
+  assert.equal(await page.locator('[data-command-panel]:visible').count(), 6);
+  const plain = await browser.newContext({ javaScriptEnabled: false });
+  const plainPage = await plain.newPage();
+  await plainPage.goto(url);
+  assert.equal(await plainPage.locator('[data-command-panel]:visible').count(), 6);
+  assert.equal(await plainPage.locator('[role="tablist"]:visible').count(), 0);
+});
+
 test('portable course refuses to silently omit a required Codex card', async (t) => {
   const course = { ...manifest(), includePromptCards: true };
   const input = await fixture(t, { course });

@@ -270,6 +270,45 @@
   $$('[data-prompt-tool]').forEach(button =>
     button.addEventListener('click', () => choosePromptApp(button.dataset.promptTool, true)));
 
+  const commandGroups = $$('[data-command-tabs]');
+  const commandApps = { codex: '코덱스', claude: '클로드 코드', kiro: '키로' };
+  const commandPreferenceKey = `jeju-atlas:workshop:${body.dataset.courseKey}:command-assistant:v1`;
+  function chooseCommandAssistant(value, persist = false) {
+    const selected = Object.hasOwn(commandApps, value) ? value : 'codex';
+    commandGroups.forEach(group => {
+      group.querySelectorAll('[data-command-assistant]').forEach(button => {
+        const active = button.dataset.commandAssistant === selected;
+        button.setAttribute('aria-selected', String(active));
+        button.tabIndex = active ? 0 : -1;
+      });
+      group.querySelectorAll('[data-command-panel]').forEach(panel => {
+        panel.hidden = panel.dataset.commandPanel !== selected;
+      });
+      group.dataset.commandReady = 'true';
+      group.querySelector('[role="tablist"]').hidden = false;
+    });
+    if (persist) {
+      try { localStorage.setItem(commandPreferenceKey, selected); } catch (_) { /* Selection still works on this page. */ }
+    }
+  }
+  let commandAssistant = 'codex';
+  try { commandAssistant = localStorage.getItem(commandPreferenceKey) || commandAssistant; } catch (_) { /* Use the default. */ }
+  chooseCommandAssistant(commandAssistant);
+  commandGroups.forEach(group => {
+    const tabs = [...group.querySelectorAll('[data-command-assistant]')];
+    tabs.forEach((button, index) => {
+      button.addEventListener('click', () => chooseCommandAssistant(button.dataset.commandAssistant, true));
+      button.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+          : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        chooseCommandAssistant(tabs[next].dataset.commandAssistant, true);
+        tabs[next].focus();
+      });
+    });
+  });
+
   $$('[data-copy-code]').forEach((button) => {
     button.addEventListener('click', async () => {
       const code = document.getElementById(button.dataset.copyCode);
