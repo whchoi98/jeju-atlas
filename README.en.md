@@ -21,9 +21,15 @@ MapLibre renders the map, Kakao Local supplies place searches, and Valhalla comp
 The frontend uses TypeScript and Vite. A Node.js API runs behind CloudFront, WAF and a public ALB on private ARM64 ECS Fargate tasks.
 The deployment reuses its existing VPC and NAT gateways. A dedicated AgentCore Guide runs Strands and connects to its own Tools, Gateway and Memory.
 
-The last verified deployment is `release-20260912T153512Z`, task definition `jeju-3d:26`.
+The full application verification covered `release-20260912T153512Z`, then task definition `jeju-3d:26`.
 Two healthy tasks and 99 operational checks were recorded on September 12, 2026.
 These are release observations, not a live status indicator. See the [deployment record](workshop/DEPLOYMENT.md).
+
+On September 16, 2026, tool preconfiguration, PyYAML recovery, the chapter 14 prompt
+for a new AWS account, Codex configuration and HUD guides were published in
+`jeju-3d:30` by updating the workshop files.
+Two tasks, ALB targets, public files and browser behavior
+were verified; the application release and routing image were preserved.
 
 ## Features
 
@@ -81,7 +87,7 @@ See [architecture and boundaries](docs/architecture.md).
 
 ## Quick start
 
-Use Node 24.18.1 or newer in the Node 24 line, npm and Python. Python 3.10+ is recommended for helpers; workshop Runtime code uses Python 3.14.
+Use Node 24.18.1 or newer in the Node 24 line, npm and Python. Python 3.10+ is recommended for helpers; workshop Runtime code uses Python 3.12.
 
 ```bash
 git clone https://github.com/whchoi98/jeju-atlas.git
@@ -106,45 +112,60 @@ For Vite development, copy `.env.example` to `.env`, run `node --env-file=.env s
 The example origin is `http://localhost:5173`.
 See [local development](docs/onboarding.md) for the Python check environment, port configuration and catalog verification.
 
-## 120-minute AgentCore CLI workshop
+## 100–120-minute AgentCore CLI workshop
 
-Start on an EC2 VSCode Server with the supplied VPC, NAT gateways and subnets.
-Use one available coding assistant: Codex, Kiro CLI or Claude Code.
-Implement a Jeju search tool and use AgentCore CLI to create, run, deploy and invoke the agent.
-The facilitator checks AgentCore CLI 0.28.1, dependencies, CDK bootstrap, deployment permissions and model access beforehand.
+After EC2 preparation, participants use **one implementation prompt and one deployment prompt**
+to build a Jeju search tool and their own AgentCore Runtime. AgentCore CLI handles creation,
+local execution, deployment and invocation; one of Codex, Claude Code or Kiro CLI implements
+and debugs the project.
 
-The participant EC2 needs the full Git source; the handbook ZIP has no executable
-scripts or source dataset. Chapter 01 uses `core.py prepare` to create a participant
-`activate.sh`, then `core.py doctor` to check Node 24, Python 3.14, the selected
-assistant and core dependencies. Missing tools go under `workshop/.local/toolchain/`,
-preserving system tools and Claude authentication. Source the activation file in
-each new Bash terminal before opening the assistant in the participant project.
-The workshop Runtime uses Sonnet 4.6, and Claude Code launches with
-`claude --model claude-sonnet-4-6`. A separate explicit model check records real
-results; the deployment region and organizer-verified Bedrock caller region are
-configured independently.
-The advanced workshop uses the participant App stack's default CloudFront HTTPS
-URL for the app and handbook. ACM issuance, DNS configuration and custom-domain
-registration are not workshop prerequisites.
+Complete the [preconfiguration](workshop/reference/preconfiguration.md) before class:
+Node 24, uv and Python 3.12, Docker, npm `@aws/agentcore` 0.28.1 in the user npm prefix,
+the EC2 AWS role, and one authenticated coding CLI. `check_env.sh` checks prerequisites;
+`start.sh` prepares the participant workspace and missing core tools. Participants need the
+full Git source: the reading-only handbook ZIP has no execution scripts.
+
+Participants enter a **short-term Bedrock API key privately** with `workshop_env.py configure`.
+The key, issuing region and actual expiration go in their `.env`; deployment configuration
+references an owned SSM parameter ARN. Kakao, Korea Tourism Organization TourAPI and VISIT JEJU
+keys are optional inputs **after the first deployment**. AWS deployment still uses the EC2 IAM role.
+See [keys and integrations](workshop/reference/keys-and-integrations.md) for publication and renewal.
+
+Recommend `claude --permission-mode auto` for Claude Code, and
+`--sandbox workspace-write -a on-request -c 'approvals_reviewer="auto_review"'` for Codex.
+Verify the coding CLI's login and supported model before class. Its model is separate from
+JejuGuide's pinned Sonnet 4.6 Runtime model. See [assistant environments](workshop/reference/ai-cli-environments.md).
 
 | Track | Scope |
 |---|---|
-| Core | Chapters 00-04, 110 minutes |
-| Buffer | 10 minutes |
-| Optional | Chapters 05-13, complete Atlas infrastructure and operations |
-| Deliverable | A participant-owned Runtime using a real model and a local place-search tool |
-| Reader | Markdown, HTML, downloadable ZIP and offline PWA |
+| Before class | EC2 tools, login, CDK bootstrap and permissions, outside course time |
+| Core | Chapters 00–04, 100 minutes |
+| Buffer | Up to 20 minutes, 120 minutes total |
+| Advanced | Chapters 05–14, full application and AWS infrastructure, extra time |
+| Deliverable | A participant Runtime using a real model and Jeju search tool |
+| Handbook | Markdown, HTML, downloadable ZIP and offline PWA |
 
-The duration is a course plan, not evidence of a completed 120-minute cloud rehearsal.
-The CLI Runtime and the optional Atlas Guide/Tools/Gateway/Memory stack have separate lifecycles.
+Participants receive independent labs and automatically use `team01` and `AtlasCliTeam01`
+as common internal identifiers; no team-name selection or replacement is required.
+Separate comprehensive verification and HUD installation are optional. Run targeted checks
+only when needed. Each terminal block starts with `cd` to the correct working directory.
 
-![Terminal command window](docs/images/workshop-terminal.png)
+This is a course plan, not evidence of a completed cloud rehearsal. The basic CLI Runtime
+and advanced Guide/Tools/Gateway/Memory deployments are separate. Advanced participants use
+their App stack's default CloudFront HTTPS URL without ACM, DNS or custom-domain setup.
 
-Mac-style terminal windows contain shell commands. Separate Codex, Kiro CLI and Claude Code panels contain prompts to paste into the selected assistant.
+The [installation skill](skills/jeju-atlas-install/SKILL.md) supports preparation and resuming
+unfinished work. [Chapter 14's integrated prompt](workshop/prompts/14-project-completion.md)
+is optional full-app work; its 45 minutes cover scoping and checking the first change.
+Codex Bedrock provider configuration and HUD installation are also optional preparation.
 
-![AI assistant input panel](docs/images/workshop-ai-input.png)
+![Terminal-style workshop command cards](docs/images/workshop-terminal.png)
 
-[Course](workshop/README.md) | [Facilitator](workshop/reference/facilitator.md) | [Downloads](workshop/reference/offline-start.md)
+Paste shell commands into Bash and the shared prompts into the selected coding CLI.
+
+![Prompt cards for each Agentic AI coding assistant](docs/images/workshop-ai-input.png)
+
+[Workshop](workshop/README.md) | [Facilitator guide](workshop/reference/facilitator.md) | [Downloads](workshop/reference/offline-start.md)
 
 ## Configuration
 

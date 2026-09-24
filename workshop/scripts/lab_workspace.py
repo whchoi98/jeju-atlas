@@ -31,8 +31,19 @@ def placeholder_hostname(config):
     return "atlas-" + config["participant"] + ".workshop.example.org"
 
 
+def require_yaml():
+    try:
+        import yaml
+    except ImportError:
+        raise ValueError(
+            "PyYAML is required before preparing the app copy. Install "
+            "workshop/requirements.txt with the same Python environment, then retry."
+        ) from None
+    return yaml
+
+
 def read_template(path):
-    import yaml
+    yaml = require_yaml()
     class Loader(yaml.SafeLoader):
         pass
 
@@ -292,9 +303,13 @@ def prepare_workspace(config, source_root, labs_root):
         raise ValueError("Lab storage cannot be a symlink")
     destination = labs_root / config["participant"] / "app"
     if destination.exists() or destination.is_symlink():
-        raise FileExistsError("Lab workspace exists; keep student edits and use another participant ID")
+        raise FileExistsError(
+            "Lab workspace exists; keep student edits and verify "
+            ".local/workshop-binding.json before retrying"
+        )
     if destination.parent.is_symlink():
         raise ValueError("Participant directory cannot be a symlink")
+    require_yaml()
     raw = subprocess.check_output(["git", "--no-optional-locks", "-C", str(source_root), "ls-files", "-z"])
     tracked = [name.decode() for name in raw.split(b"\0") if name]
     selected = [name for name in tracked if name.split("/")[0] in FOLDERS or name in FILES

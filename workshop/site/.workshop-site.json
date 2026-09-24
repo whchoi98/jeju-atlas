@@ -16,11 +16,16 @@
     "chapters/11-operations.html",
     "chapters/12-validation.html",
     "chapters/13-cleanup.html",
+    "chapters/14-project-completion.html",
+    "reference/preconfiguration.html",
+    "reference/keys-and-integrations.html",
     "reference/resources.html",
     "reference/facilitator.html",
     "reference/catalog-bootstrap.html",
     "reference/official-guide-review.html",
     "reference/offline-start.html",
-    "reference/ai-cli-environments.html"
+    "reference/ai-cli-environments.html",
+    "reference/hud-setup.html",
+    "reference/codex-bedrock.html"
   ]
 }

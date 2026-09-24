@@ -164,13 +164,19 @@ def set_provider_secret(config, args):
     emit({"parameter": name, "type": "SecureString", "valueWillBePrinted": False})
     if not require_execute(args, "set-provider-secret"):
         return
-    if not sys.stdin.isatty():
-        raise ValueError("Enter provider keys in your own terminal; never send them through a Codex prompt or pipeline")
-    session = aws_session(config)
-    value = getpass.getpass("API key (hidden input): ").strip()
+    env_file = getattr(args, "env_file", None)
+    if env_file is not None:
+        from workshop_env import INTEGRATIONS, read_env
+        value = read_env(env_file).get(INTEGRATIONS[args.provider], "")
+    else:
+        if not sys.stdin.isatty():
+            raise ValueError("Enter provider keys in your own terminal; never send them through a Codex prompt or pipeline")
+        value = getpass.getpass("API key (hidden input): ").strip()
     if not 8 <= len(value) <= 2048 or any(ord(char) < 32 for char in value):
-        raise ValueError("Invalid provider key")
-    result = session.client("ssm").put_parameter(
+        raise ValueError("Missing or invalid provider key; configure this optional integration in your own terminal")
+    session = aws_session(config)
+    from key_binding import call
+    result = call(session.client("ssm").put_parameter,
         Name=name, Value=value, Type="SecureString", Overwrite=True,
         Description="Jeju Atlas workshop " + config["participant"] + " " + args.provider,
     )
@@ -347,6 +353,7 @@ def main():
     catalog.add_argument("--execute", action="store_true")
     secret = commands.add_parser("set-secret", parents=[common])
     secret.add_argument("--provider", choices=["visitjeju", "tourapi", "kakao"], required=True)
+    secret.add_argument("--env-file", type=Path, help="Read only the selected provider key from private .env")
     secret.add_argument("--execute", action="store_true")
     args = parser.parse_args()
     if args.action == "init-ec2":

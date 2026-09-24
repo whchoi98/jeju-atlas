@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#232f3e">
   <meta name="referrer" content="no-referrer">
-  <meta name="description" content="준비된 VSCode Server에서 Codex, Kiro CLI, Claude Code로 제주 가이드 구현">
+  <meta name="description" content="EC2 사전 준비 후 Agentic AI 코딩 어시스턴트와 두 개의 프롬프트로 제주 가이드 구현과 배포">
   <title>PC 다운로드, EC2 실행, Jeju Atlas 워크숍</title>
   <link rel="icon" type="image/svg+xml" href="../assets/mark.svg">
   <link rel="apple-touch-icon" href="../assets/icons/atlas-192.png">
@@ -16,7 +16,7 @@
   <script src="../assets/reader.js" defer></script>
   <script src="../assets/reader-pwa.js" defer></script>
 </head>
-<body id="top" data-course-key="429847d93247aaab" data-page-kind="reference">
+<body id="top" data-course-key="8c5ff6f97c0fe0dd" data-page-kind="reference">
   <a class="skip-link" href="#main-content">본문으로 바로 가기</a>
   <aside class="sidebar" id="course-nav" aria-label="워크숍 목차">
     <div class="sidebar-brand">
@@ -33,90 +33,105 @@
     </div>
     <p class="search-result sr-only" data-search-result role="status" aria-live="polite"></p>
     <nav class="chapter-navigation" id="chapter-navigation" aria-label="전체 과정과 챕터">
-      <a class="overview-link" href="../index.html">전체 과정<span aria-hidden="true">00 ~ 13</span></a>
+      <a class="overview-link" href="../index.html">전체 과정<span aria-hidden="true">00 ~ 14</span></a>
       <section class="nav-group" data-nav-group aria-label="본 실습">
-        <h2><span>본 실습</span><span>1시간 50분</span></h2>
-        <ol><li data-nav-entry data-search="00 이번 실습에서 만들 것 결과물과 120분의 진행 순서를 확인합니다. 결과물 시간 배분 완료 확인 AI CLI 프롬프트 카드">
+        <h2><span>본 실습</span><span>1시간 40분</span></h2>
+        <ol><li data-nav-entry data-search="00 이번 실습에서 만들 것 핵심 작업 100분과 여유 20분의 완료 기준을 확인합니다. 수업 전에 준비할 것 100분 과정과 20분 여유 보여줄 결과 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/00-orientation.html" data-chapter-link="00-orientation" data-core-chapter="true">
       <span class="nav-number">00</span>
       <span class="nav-title">이번 실습에서 만들 것</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="01 준비된 환경 확인 VSCode Server에서 이미 설치된 AI CLI와 실습 도구를 확인합니다. 사용할 AI CLI 선택 1. 전체 소스와 참가자 위치 확인 2. 같은 Bash에서 환경 활성화와 사전검사 새 터미널을 열었을 때 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="01 환경 확인과 Bedrock 키 입력 EC2 점검 결과를 확인하고 Bedrock 단기키를 .env에 숨김 입력합니다. 시작 전에 전체 소스 받기 시작 블록 한 번 실행 통과 조건 새 Bash의 환경 복원 막혔거나 새 터미널을 열었다면 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/01-setup.html" data-chapter-link="01-setup" data-core-chapter="true">
       <span class="nav-number">01</span>
-      <span class="nav-title">준비된 환경 확인</span>
+      <span class="nav-title">환경 확인과 Bedrock 키 입력</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="02 계정과 작업 폴더 현재 EC2의 계정과 기존 네트워크, 참가자별 폴더를 확인합니다. 참가자 환경과 계정 EC2와 기존 네트워크 확인 계정 변수와 CLI 설정 배포 준비 확인 배포 리전과 Bedrock 호출 리전 작은 실제 모델 검사 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="02 계정과 작업 폴더 제공된 독립 랩의 계정과 입력 상태를 확인하고, 별도 모델 검증은 필요할 때만 선택합니다. 독립 랩과 공통 실습 ID 입력 상태만 확인하고 진행 선택: 키나 모델 접근 문제가 있을 때만 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/02-aws-environment.html" data-chapter-link="02-aws-environment" data-core-chapter="true">
       <span class="nav-number">02</span>
       <span class="nav-title">계정과 작업 폴더</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="03 AI CLI로 제주 가이드 구현 AgentCore CLI로 프로젝트를 만들고 선택한 AI CLI로 검색 도구를 구현합니다. 1. AgentCore 프로젝트 생성 2. 생성된 파일 확인 3. 사용할 데이터 복사 4. AI CLI 실행 5. 코드 검토 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="03 Agentic AI 코딩 어시스턴트로 제주 가이드 구현 구현 프롬프트로 AgentCore 프로젝트와 제주 검색 도구를 만듭니다. 선택한 Agentic AI 코딩 어시스턴트 실행 구현 프롬프트 한 번 전달 구현 결과 확인 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/03-codex.html" data-chapter-link="03-codex" data-core-chapter="true">
       <span class="nav-number">03</span>
-      <span class="nav-title">AI CLI로 제주 가이드 구현</span>
+      <span class="nav-title">Agentic AI 코딩 어시스턴트로 제주 가이드 구현</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="04 AgentCore CLI로 실행하고 배포하기 로컬 테스트와 모델 응답을 확인한 뒤 Runtime을 배포하고 호출합니다. 1. 의존성과 검색 도구 검사 2. 로컬에서 실제 모델 호출 3. 배포 계획 확인 4. AWS 배포 5. 배포한 Runtime 호출 6. 정리와 제출 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="04 AgentCore CLI로 배포하고 결과 보기 키 연결과 배포 후 예시 응답을 보고 마칩니다. 종합 검증은 선택입니다. 기본 실행 순서 결과 응답 한 번 보기 필요한 경우에만 추가 진단 결과와 자원 인계 배포 후 선택 사항 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/04-agentcore-cli.html" data-chapter-link="04-agentcore-cli" data-core-chapter="true">
       <span class="nav-number">04</span>
-      <span class="nav-title">AgentCore CLI로 실행하고 배포하기</span>
+      <span class="nav-title">AgentCore CLI로 배포하고 결과 보기</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
     </a></li></ol>
       </section><section class="nav-group" data-nav-group aria-label="심화 선택">
         <h2><span>심화 선택</span><span>시간 별도</span></h2>
-        <ol><li data-nav-entry data-search="05 컨테이너 저장소와 장소 데이터 ECR, 비공개 S3를 준비하고 샘플, OSM 카탈로그를 만듭니다. 심화 작업 폴더 준비 ECR 생성 CloudFront 없이 비공개 데이터 버킷 생성 카탈로그 생성, 게시 데이터 의미 AI CLI 프롬프트 카드">
+        <ol><li data-nav-entry data-search="05 컨테이너 저장소와 장소 데이터 ECR, 비공개 S3를 준비하고 샘플, OSM 카탈로그를 만듭니다. 심화 작업 폴더 준비 ECR 생성 CloudFront 없이 비공개 데이터 버킷 생성 카탈로그 생성, 게시 데이터 의미 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/05-foundation-and-data.html" data-chapter-link="05-foundation-and-data" data-core-chapter="false">
       <span class="nav-number">05</span>
       <span class="nav-title">컨테이너 저장소와 장소 데이터</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide, Tools, Gateway, Memory와 Strands를 배포합니다. 구성 새 의존성 ZIP 앱 코드 패키징, 배포 모델 설정 재개 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide, Tools, Gateway, Memory와 Strands를 배포합니다. 구성 새 의존성 ZIP 앱 코드 패키징, 배포 모델 설정 재개 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/06-atlas-agentcore.html" data-chapter-link="06-atlas-agentcore" data-core-chapter="false">
       <span class="nav-number">06</span>
       <span class="nav-title">제주 가이드 AgentCore 배포</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="07 실제 경로와 고도 데이터 Valhalla, OSM, HGT로 도보, 차량 경로 이미지를 빌드합니다. 입력 자료 라우터 이미지 웹 연결 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="07 실제 경로와 고도 데이터 Valhalla, OSM, HGT로 도보, 차량 경로 이미지를 빌드합니다. 입력 자료 라우터 이미지 웹 연결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/07-routing.html" data-chapter-link="07-routing" data-core-chapter="false">
       <span class="nav-number">07</span>
       <span class="nav-title">실제 경로와 고도 데이터</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="08 3D 지도 웹과 Fargate 배포 Public ALB와 Private Fargate에 지도, 가이드, 라우터를 연결합니다. 빌드 앱 계획 첫 접속 실제 Distribution으로 데이터 정책 연결 문제 해결 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="08 3D 지도 웹과 Fargate 배포 Public ALB와 Private Fargate에 지도, 가이드, 라우터를 연결합니다. 빌드 앱 계획 첫 접속 실제 Distribution으로 데이터 정책 연결 문제 해결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/08-web.html" data-chapter-link="08-web" data-core-chapter="false">
       <span class="nav-number">08</span>
       <span class="nav-title">3D 지도 웹과 Fargate 배포</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="09 CloudFront 기본 HTTPS와 엣지 실제 스택의 CloudFront 기본 URL로 접속하고 WAF, OAC와 고도 캐시를 검증합니다. 참가자 환경과 실제 URL WAF와 공유 자산 OAC 앱에 WAF와 정적 자산 연결 확인과 문제 해결 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="09 CloudFront 기본 HTTPS와 엣지 실제 스택의 CloudFront 기본 URL로 접속하고 WAF, OAC와 고도 캐시를 검증합니다. 참가자 환경과 실제 URL WAF와 공유 자산 OAC 앱에 WAF와 정적 자산 연결 확인과 문제 해결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/09-https-edge.html" data-chapter-link="09-https-edge" data-core-chapter="false">
       <span class="nav-number">09</span>
       <span class="nav-title">CloudFront 기본 HTTPS와 엣지</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="10 공식 장소 정보와 사진 TourAPI와 VISIT JEJU로 공식 상세와 사진을 보강합니다. 키 입력 수집 이미지와 Schedule 결과 해석 올레길과 웹 확인 선택 실습, 카카오 장소 정보 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="10 공식 장소 정보와 사진 TourAPI와 VISIT JEJU로 공식 상세와 사진을 보강합니다. 키 입력 수집 이미지와 Schedule 결과 해석 올레길과 웹 확인 선택 실습, 카카오 장소 정보 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/10-enrichment.html" data-chapter-link="10-enrichment" data-core-chapter="false">
       <span class="nav-number">10</span>
       <span class="nav-title">공식 장소 정보와 사진</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="11 관측, 보안, 운영 제어 CloudWatch, SNS, 할당량, 이미지 검사, 개인정보 보호를 확인합니다. 운영 스택 확인할 지표 호출 한도와 모델 권한 현재 및 누적 접속 수 로그와 개인정보 이미지와 네트워크 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="11 관측, 보안, 운영 제어 CloudWatch, SNS, 할당량, 이미지 검사, 개인정보 보호를 확인합니다. 운영 스택 확인할 지표 호출 한도와 모델 권한 현재 및 누적 접속 수 로그와 개인정보 이미지와 네트워크 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/11-operations.html" data-chapter-link="11-operations" data-core-chapter="false">
       <span class="nav-number">11</span>
       <span class="nav-title">관측, 보안, 운영 제어</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="12 서비스 검증과 문제 해결 한영 AI, 3D 지도, 실제 경로, 스트리밍, 복구 기준을 검증합니다. 자동 검사 실제 화면 탐색에서 길찾기까지 실제 AI 질문 문제 구분 복구 기준 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="12 선택: 필요한 기능만 문제 해결 오류나 변경이 있는 기능만 진단합니다. 정상 진행 중에는 건너뜁니다. 선택한 문제의 검사만 실행 선택: 문제가 있는 화면 항목만 선택: 탐색이나 경로를 변경한 경우 선택: AI 응답 문제를 확인할 때 문제 구분 복구 기준 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/12-validation.html" data-chapter-link="12-validation" data-core-chapter="false">
       <span class="nav-number">12</span>
-      <span class="nav-title">서비스 검증과 문제 해결</span>
+      <span class="nav-title">선택: 필요한 기능만 문제 해결</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="13 실습 자원 정리 공유 네트워크를 보존하고 실습 스택과 잔존 자원을 정리합니다. 기본 과정의 CLI 프로젝트 Atlas 스택 계획 보존 및 수동 자원 확인 마지막 점검 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="13 실습 자원 정리 공유 네트워크를 보존하고 실습 스택과 잔존 자원을 정리합니다. 기본 과정의 CLI 프로젝트 Atlas 스택 계획 보존 및 수동 자원 확인 마지막 점검 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/13-cleanup.html" data-chapter-link="13-cleanup" data-core-chapter="false">
       <span class="nav-number">13</span>
       <span class="nav-title">실습 자원 정리</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="14 Codex로 프로젝트 완성하기 새 계정의 소스와 참가자 설정을 준비하고, AWS 구현안을 포함한 통합 프롬프트로 완성 작업을 이어 갑니다. 시작 상태와 작업 위치 목표 구성을 코드와 연결하기 통합 프롬프트 전달 실행 결과 확인 막혔을 때의 재개 지점 완료와 다음 단계 Agentic AI 코딩 어시스턴트 프롬프트 카드">
+    <a class="chapter-link" href="../chapters/14-project-completion.html" data-chapter-link="14-project-completion" data-core-chapter="false">
+      <span class="nav-number">14</span>
+      <span class="nav-title">Codex로 프로젝트 완성하기</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
     </a></li></ol>
       </section>
-      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="AWS 자원, 기술 전체 매핑 본 실습 심화 과정의 전체 자원 기반, 저장소, 비밀값 심화 Atlas AgentCore 웹 컴퓨팅, 로드 밸런싱 HTTPS, 캐시, 엣지 운영 전용 참고 구성 공식 데이터 작업, 관측 지도, 라우팅, 데이터, 사용자 화면 조건과 제외 범위">
+      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="EC2 사전 점검과 설치 0. 전체 소스 받기 1. EC2 사전 점검 2. EC2 기본 도구 설치 uv와 Python 3.12 Docker AgentCore CLI의 사용자 npm 경로 3. Node 24와 참가자 도구 준비 4. 활성화와 전체 앱용 Python 패키지 설치 5. 수업 시작 조건 PyYAML 누락으로 이미 사본 생성이 중단됐다면 공식 자료와 확인 범위">
+    <a class="reference-link" href="preconfiguration.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">EC2 사전 점검과 설치</span>
+
+    </a></li><li data-nav-entry data-search=".env, Bedrock 단기키와 선택 연동 본인 터미널에서 입력 세 가지 인증 구분 로컬 호출과 배포 연결 만료되거나 리전을 바꿨을 때 배포 후 선택 키 입력 키 자원 정리 공식 근거">
+    <a class="reference-link" href="keys-and-integrations.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">.env, Bedrock 단기키와 선택 연동</span>
+
+    </a></li><li data-nav-entry data-search="AWS 자원, 기술 전체 매핑 본 실습 심화 과정의 전체 자원 기반, 저장소, 비밀값 심화 Atlas AgentCore 웹 컴퓨팅, 로드 밸런싱 HTTPS, 캐시, 엣지 운영 전용 참고 구성 공식 데이터 작업, 관측 지도, 라우팅, 데이터, 사용자 화면 조건과 제외 범위">
     <a class="reference-link" href="resources.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">AWS 자원, 기술 전체 매핑</span>
 
-    </a></li><li data-nav-entry data-search="진행자 준비 가이드 이미 제공된 환경 수업 전에 추가로 확인할 항목 확인된 실제 호출 실패 1. 참가자 EC2에 전체 소스 전달 2. 전용 도구 경로 준비와 설치 3. 활성화, 사전검사와 Claude 재개 리허설 수업 중 확인 시점 심화 과정 운영">
+    </a></li><li data-nav-entry data-search="진행자 준비 가이드 수업 전에 준비 랩 분리와 공통 식별자 검증과 HUD 운영 키와 계정 준비 리허설 수업 중 확인 시점 종료와 재개 이전 관찰 기록">
     <a class="reference-link" href="facilitator.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">진행자 준비 가이드</span>
@@ -131,15 +146,25 @@
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">공식 AgentCore CLI 가이드 대조</span>
 
-    </a></li><li data-nav-entry data-search="PC 다운로드, EC2 실행 내려받을 파일 시간표와 프롬프트 EC2의 실행 소스 준비 교재 다시 만들기 오프라인 사용">
+    </a></li><li data-nav-entry data-search="PC 다운로드, EC2 실행 내려받을 파일 시간표와 프롬프트 EC2의 실행 소스 준비 Python 스크립트가 없을 때 교재 다시 만들기 오프라인 사용">
     <a class="reference-link" href="offline-start.html" aria-current="page">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">PC 다운로드, EC2 실행</span>
 
-    </a></li><li data-nav-entry data-search="Codex, Kiro CLI, Claude Code 환경 Bash와 AI 대화창 구분 새 터미널에서 복원하고 Claude 열기 공통 과제 전달 인증과 권한 오류를 수정할 때 공식 문서">
+    </a></li><li data-nav-entry data-search="Agentic AI 코딩 어시스턴트 환경 같은 Bash에서 활성화하고 시작 Codex: auto-review와 on-request Claude Code: auto mode Kiro CLI 프롬프트 두 개로 이어 가기 재개와 도구 전환 공식 자료">
     <a class="reference-link" href="ai-cli-environments.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
-      <span class="nav-title">Codex, Kiro CLI, Claude Code 환경</span>
+      <span class="nav-title">Agentic AI 코딩 어시스턴트 환경</span>
+
+    </a></li><li data-nav-entry data-search="선택: Codex HUD 설치 HUD를 사용하려는 경우의 준비 1. 설치 플러그인 등록 (선택) 2. 프로젝트 전용 HUD 설치 (선택) 3. HUD를 설치한 경우의 확인 4. 참가자 프로젝트에서 HUD 실행 (선택) 문제 해결과 인계">
+    <a class="reference-link" href="hud-setup.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">선택: Codex HUD 설치</span>
+
+    </a></li><li data-nav-entry data-search="Codex 환경 설정과 Bedrock 연결 설정 파일 위치 사용할 TOML 설정 Codex와 Runtime의 리전 구분 AWS 인증 준비 설정 확인 새 세션과 HUD에서 확인 문제 해결과 인계">
+    <a class="reference-link" href="codex-bedrock.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">Codex 환경 설정과 Bedrock 연결</span>
 
     </a></li></ul></section>
       <p class="search-empty" data-search-empty hidden>검색 결과가 없습니다.<br>다른 제목이나 주제를 입력하세요.</p>
@@ -177,37 +202,103 @@
 
       </header>
       <div class="prose">
-<p>PC에서는 교재를 읽고 명령은 EC2의 VSCode Server 터미널에서 실행합니다.
-PC에 AWS 키나 CLI 로그인 파일을 복사할 필요가 없습니다.
-<strong>교재 ZIP은 실행 소스 묶음이 아닙니다.</strong> EC2에는 전체 Git 저장소와
-필요한 수정 패치를 별도로 전달해야 합니다.</p>
+<p>PC에서는 교재를 읽고 명령은 EC2의 VSCode Server 터미널에서 실행합니다.<br>
+PC에 AWS 키나 CLI 로그인 파일을 복사할 필요가 없습니다.</p>
+<p><strong>교재 ZIP은 실행 소스 묶음이 아닙니다.</strong><br>
+EC2에는 전체 Git 저장소와 필요한 수정 패치를 별도로 전달해야 합니다.</p>
 <h2 id="heading-내려받을-파일">내려받을 파일</h2>
 <p><code>workshop/site/</code> 전체 또는 다음 ZIP을 내려받습니다.</p>
 <div class="code-block file-window" data-code-kind="file"><div class="code-toolbar"><div class="code-window-title"><strong>참고 내용</strong><span class="code-language">text</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="text 코드 복사">복사</button></div><pre tabindex="0" aria-label="참고 내용: text"><code class="language-text" id="code-1">workshop/.local/downloads/jeju-atlas-workshop-handbook.zip
 </code></pre></div>
-<p>ZIP을 압축 해제한 뒤 <code>jeju-atlas-workshop/index.html</code>을 엽니다.
-<code>chapters</code>, <code>reference</code>, <code>assets</code>, <code>prompts</code> 폴더를 함께 유지합니다.
+<p>ZIP을 압축 해제한 뒤 <code>jeju-atlas-workshop/index.html</code>을 엽니다.<br>
+<code>chapters</code>, <code>reference</code>, <code>assets</code>, <code>prompts</code> 폴더를 함께 유지합니다.<br>
 HTML 하나만 복사하면 글꼴, 스타일과 탐색 기능이 빠집니다.</p>
-<p>VSCode Server 파일 탐색기에서 ZIP을 내려받거나 진행자가 안내한 파일 전송 방법을 사용합니다.
-운영 사이트의 다운로드 파일은 별도 배포가 끝난 버전일 수 있으므로
-이번에 생성한 로컬 교재의 제목과 120분 진행표를 확인합니다.</p>
+<p>VSCode Server 파일 탐색기에서 ZIP을 내려받거나 진행자가 안내한 파일 전송 방법을 사용합니다.<br>
+운영 사이트의 다운로드 파일은 별도 배포가 끝난 버전일 수 있으므로 이번에 생성한 로컬 교재의 제목과 120분 진행표를 확인합니다.</p>
 <h2 id="heading-시간표와-프롬프트">시간표와 프롬프트</h2>
-<p>본 실습은 00~04장의 110분과 여유 시간 10분입니다.
-05장 이후는 선택하는 심화 자료입니다.
-각 장의 프롬프트 복사 버튼으로 내용을 복사해 선택한 AI CLI에 전달합니다.
-Codex, Kiro CLI, Claude Code 중 준비된 도구 하나를 사용합니다.
+<p>본 실습은 00~04장의 100분과 여유 시간 20분입니다.<br>
+05장 이후는 선택하는 심화 자료입니다.<br>
+각 장의 프롬프트 복사 버튼으로 내용을 복사해 선택한 Agentic AI 코딩 어시스턴트에 전달합니다.</p>
+<p>Codex, Kiro CLI, Claude Code 중 준비된 도구 하나를 사용합니다.<br>
 셸 명령은 별도 Bash 터미널에, 프롬프트 카드는 해당 AI의 대화창에 전달합니다.</p>
 <h2 id="heading-ec2의-실행-소스-준비">EC2의 실행 소스 준비</h2>
-<p><code>/home/ec2-user/my-project/jeju-atlas</code>는 이 교재의 참가자 경로 예시입니다.
-이미 다른 경로에 전체 소스가 있으면 실제 경로를 사용합니다.
-저장소가 없는 경우 <a href="facilitator.html">진행자 준비</a>의 clone와 패치 적용,
-전용 도구 설치를 먼저 수행합니다. 기존 Claude 프로젝트 폴더는 보존합니다.</p>
-<p>01장의 core.py prepare가 출력한 <code>activationPath</code>를 기록하고 새 Bash마다
-<code>source /절대/경로/activate.sh</code>로 환경을 복원합니다.
+<p><code>/home/ec2-user/my-project/jeju-atlas</code>는 이 교재의 참가자 경로 예시입니다.<br>
+이미 다른 경로에 전체 소스가 있으면 실제 경로를 사용합니다.</p>
+<p>저장소가 없는 EC2에서는 실습 시작 전에 다음 명령으로 전체 소스를 받습니다.<br>
+이미 지정한 경로에 받았다면 clone을 반복하지 않습니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "$HOME" &#x26;&#x26; {
+mkdir -p /home/ec2-user/my-project
+git clone https://github.com/whchoi98/jeju-atlas.git \
+  /home/ec2-user/my-project/jeju-atlas
+}
+</code></pre></div>
+<p>필요한 수정 패치와 전용 도구 설치는 <a href="facilitator.html">진행자 준비</a>를 따릅니다.<br>
+기존 Claude 프로젝트 폴더는 보존합니다.</p>
+<p>01장의 core.py prepare가 출력한 <code>activationPath</code>를 기록하고 새 Bash마다 <code>source /절대/경로/activate.sh</code>로 환경을 복원합니다.<br>
 ATLAS_REPO가 비어 있거나 core.py가 없으면 교재 다운로드만으로 해결된 상태가 아닙니다.</p>
+<h2 id="heading-python-스크립트가-없을-때">Python 스크립트가 없을 때</h2>
+<p>준비기 파일명은 <code>workshop/scripts/core.py</code>입니다.<br>
+<code>core.py</code> 하나만 별도로 만들거나 복사하면 연결된 모듈과 장소 데이터가 빠질 수 있으므로 전체 실행 소스와 현재 경로부터 확인합니다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col">확인한 위치</th>
+<th scope="col">Python 파일과 실행 방법</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>원본 Git 저장소의 <code>workshop/scripts/</code></td>
+<td><code>core.py</code>, <code>lab.py</code>, <code>model_config.py</code>, <code>model_check.py</code> 등 실행 도구</td>
+</tr>
+<tr>
+<td><code>workshop/site/</code> 또는 <code>dist/workshop/</code></td>
+<td>생성한 HTML 교재. 준비 도구를 실행하는 폴더가 아님</td>
+</tr>
+<tr>
+<td>다운로드한 교재 ZIP</td>
+<td>읽기용 HTML과 프롬프트. <code>scripts/</code>와 Python 실행 소스 제외</td>
+</tr>
+<tr>
+<td><code>ATLAS_APP/workshop/</code></td>
+<td>참가자 앱의 공개 교재 빌드에 필요한 일부 파일만 복사됨. 준비 명령은 원본 <code>ATLAS_REPO</code> 사용</td>
+</tr>
+</tbody>
+</table></div>
+<p>원본 저장소가 이미 있다면 실제 경로를 지정해 다음을 실행합니다.<br>
+이 명령은 파일과 샘플 데이터만 확인하며 설치, AWS 조회와 모델 호출은 하지 않습니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26;
+(
+  set -e
+  repo="${ATLAS_REPO:?원본 Git 저장소의 실제 경로를 지정하세요}"
+  test -f "$repo/workshop/scripts/core.py"
+  python3 -B "$repo/workshop/scripts/core.py" source --repo "$repo"
+)
+</code></pre></div>
+<p>Git 작업 폴더에서 파일이 없으면 <code>git status --short -- workshop/scripts</code>로 작업 중 삭제나 변경을 확인합니다.<br>
+변경 파일을 덮어쓰는 reset이나 강제 갱신을 하지 않습니다.</p>
+<p>원본 소스가 없는 경우에는 기존 폴더를 유지하고 새 경로에 전체 저장소를 받습니다.<br>
+아래 경로가 이미 존재하면 다른 빈 경로를 지정합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "$HOME" &#x26;&#x26;
+(
+  set -e
+  dst=/home/ec2-user/my-project/jeju-atlas-source
+  test ! -e "$dst" &#x26;&#x26; test ! -L "$dst"
+  GIT_TERMINAL_PROMPT=0 git clone https://github.com/whchoi98/jeju-atlas.git "$dst"
+  python3 -B "$dst/workshop/scripts/core.py" source --repo "$dst"
+)
+</code></pre></div>
+<p>확인 뒤 <a href="../chapters/01-setup.html">01장</a>의 prepare와 활성화를 새 원본 경로에서 진행합니다.<br>
+Node 24, Python 3.12, 보조 패키지와 npm AgentCore CLI 설치는 <a href="preconfiguration.html">사전 구성</a>에서 먼저 완료합니다.<br>
+전체 앱은 PyYAML 확인 후 사본을 만듭니다.</p>
+<p>심화 참가자 사본 준비는 Git 추적 파일을 사용하므로 <code>.git</code>이 있는 clone을 사용합니다.<br>
+<a href="https://github.com/whchoi98/jeju-atlas" class="external-link" rel="noopener noreferrer" target="_blank">실행 소스 저장소<span class="sr-only"> (새 탭)</span></a>와 <a href="https://github.com/whchoi98/jeju-atlas/blob/main/workshop/scripts/core.py" class="external-link" rel="noopener noreferrer" target="_blank">공개 core.py 원본<span class="sr-only"> (새 탭)</span></a>을 참고하세요.</p>
+<p>2026-09-16 확인에서 공개 <code>main</code>의 준비기와 주요 helper 파일은 이 저장소의 파일과 일치했습니다.<br>
+이 기록은 참가자의 현재 EC2 폴더를 검사한 결과를 대신하지 않습니다.</p>
 <h2 id="heading-교재-다시-만들기">교재 다시 만들기</h2>
 <p>EC2의 원본 저장소 루트에서 실행합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">(
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26;
+(
   set -e
   cd -- "${ATLAS_REPO:?참가자 activate.sh를 먼저 source하세요}"
   npm ci
@@ -215,18 +306,18 @@ ATLAS_REPO가 비어 있거나 core.py가 없으면 교재 다운로드만으로
   npm run workshop:package
 )
 </code></pre></div>
-<p>ZIP과 <code>.zip.sha256</code> 파일이 같은 폴더에 생성됩니다.
-묶음에는 교재와 정적 자산, 프롬프트 카드만 포함됩니다.
-참가자 설정, 데이터베이스, 로그인 파일과 배포 상태는 포함하지 않습니다.
+<p>ZIP과 <code>.zip.sha256</code> 파일이 같은 폴더에 생성됩니다.<br>
+묶음에는 교재와 정적 자산, 프롬프트 카드만 포함됩니다.</p>
+<p>참가자 설정, 데이터베이스, 로그인 파일과 배포 상태는 포함하지 않습니다.<br>
 <code>workshop/scripts/core.py</code>, 설치 스크립트와 장소 JSON도 이 묶음에는 포함되지 않습니다.</p>
 <h2 id="heading-오프라인-사용">오프라인 사용</h2>
-<p>파일로 연 교재는 인터넷 없이 읽을 수 있습니다.
-HTTPS 사이트에서는 저장 완료 후 PWA로 설치해 읽을 수도 있습니다.
-참가자가 배포한 교재의 주소는 실제 App 스택에서 조회한 기본 CloudFront URL 뒤의
-<code>/workshop/</code>입니다. <code>lab.py url --config "$ATLAS_CONFIG"</code>의 <code>workshopUrl</code>을 사용합니다.
-ACM 발급이나 DNS/사용자 도메인 등록은 필요하지 않습니다.
-AWS 명령과 실제 모델 호출은 연결된 EC2 터미널에서 수행해야 합니다.
-교재가 오프라인으로 열린다고 모델이나 AWS 실습도 오프라인으로 실행되는 것은 아닙니다.
+<p>파일로 연 교재는 인터넷 없이 읽을 수 있습니다.<br>
+HTTPS 사이트에서는 저장 완료 후 PWA로 설치해 읽을 수도 있습니다.<br>
+참가자가 배포한 교재의 주소는 실제 App 스택에서 조회한 기본 CloudFront URL 뒤의 <code>/workshop/</code>입니다.</p>
+<p><code>lab.py url --config "$ATLAS_CONFIG"</code>의 <code>workshopUrl</code>을 사용합니다.<br>
+ACM 발급이나 DNS/사용자 도메인 등록은 필요하지 않습니다.<br>
+AWS 명령과 실제 모델 호출은 연결된 EC2 터미널에서 수행해야 합니다.</p>
+<p>교재가 오프라인으로 열린다고 모델이나 AWS 실습도 오프라인으로 실행되는 것은 아닙니다.<br>
 원본 운영 URL은 별도 배포된 교재이며, 로컬 패치만 적용해도 그 사이트가 갱신되는 것은 아닙니다.</p>
 <div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
 <thead>
@@ -246,11 +337,12 @@ AWS 명령과 실제 모델 호출은 연결된 EC2 터미널에서 수행해야
 </tr>
 <tr>
 <td>EC2의 참가자 폴더</td>
-<td>AI CLI가 수정하고 AgentCore CLI가 배포할 프로젝트</td>
+<td>Agentic AI 코딩 어시스턴트가 수정하고 AgentCore CLI가 배포할 프로젝트</td>
 </tr>
 </tbody>
 </table></div>
-<p>읽음 표시는 브라우저 기록입니다. 실습 완료는 터미널 결과와 AWS 상태로 확인합니다.</p></div>
+<p>읽음 표시는 브라우저 기록입니다.<br>
+실습 완료는 터미널 결과와 AWS 상태로 확인합니다.</p></div>
 
       <nav class="page-pagination" aria-label="과정으로 돌아가기">
         <a class="pagination-link prev" href="../index.html">
@@ -258,10 +350,10 @@ AWS 명령과 실제 모델 호출은 연결된 EC2 터미널에서 수행해야
   </a>
       </nav>
     </article>
-    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-내려받을-파일" data-toc-link>내려받을 파일</a></li><li class="toc-depth-2"><a href="#heading-시간표와-프롬프트" data-toc-link>시간표와 프롬프트</a></li><li class="toc-depth-2"><a href="#heading-ec2의-실행-소스-준비" data-toc-link>EC2의 실행 소스 준비</a></li><li class="toc-depth-2"><a href="#heading-교재-다시-만들기" data-toc-link>교재 다시 만들기</a></li><li class="toc-depth-2"><a href="#heading-오프라인-사용" data-toc-link>오프라인 사용</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-내려받을-파일" data-toc-link>내려받을 파일</a></li><li class="toc-depth-2"><a href="#heading-시간표와-프롬프트" data-toc-link>시간표와 프롬프트</a></li><li class="toc-depth-2"><a href="#heading-ec2의-실행-소스-준비" data-toc-link>EC2의 실행 소스 준비</a></li><li class="toc-depth-2"><a href="#heading-python-스크립트가-없을-때" data-toc-link>Python 스크립트가 없을 때</a></li><li class="toc-depth-2"><a href="#heading-교재-다시-만들기" data-toc-link>교재 다시 만들기</a></li><li class="toc-depth-2"><a href="#heading-오프라인-사용" data-toc-link>오프라인 사용</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
   </div>
     </main>
-    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.15 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
+    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.24 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
   </div>
   <p class="reader-status" role="status" aria-live="polite" data-reader-status></p>
 </body>

@@ -294,7 +294,7 @@ main:focus { outline: none; }
 .lesson-read-state.is-read { color: var(--success); }
 .prose { color: var(--text); font-size: 16px; line-height: 1.95; overflow-wrap: anywhere; }
 .prose > :first-child { margin-top: 0; }
-.prose p { margin: 0 0 21px; }
+.prose p { margin: 0 0 21px; word-break: keep-all; }
 .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { color: var(--strong); font-weight: 700; word-break: keep-all; overflow-wrap: anywhere; }
 .prose h2 { margin: 49px 0 19px; padding-top: 9px; font-size: 24px; line-height: 1.55; letter-spacing: -.03em; }
 .prose h3 { margin: 33px 0 15px; font-size: 19px; line-height: 1.65; letter-spacing: -.02em; }

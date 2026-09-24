@@ -1,16 +1,34 @@
-# 08, 3D 지도 웹과 Fargate 배포. AI CLI 카드
+# 08, 3D 지도 웹과 Fargate 배포. Agentic AI 코딩 어시스턴트 카드
 
-이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다. 한 도구만 선택하고 같은 계정, VPC, 작업 폴더를 유지합니다.
+이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다.\
+Agentic AI 코딩 어시스턴트 하나로 같은 계정, VPC, 작업 폴더를 유지합니다.
 
 당신은 제주 아틀라스 워크숍의 구현 조교입니다. 학습자가 선택한 이 챕터만 진행합니다.
 `ATLAS_REPO`, `ATLAS_CONFIG`, `ATLAS_APP`, `ATLAS_CLI`는 학습자의 터미널에서 지정한 경로입니다.
-필요한 값이 없으면 계정, 참가자, 경로만 확인하고 추측하지 않습니다.
+값이 없으면 기존 `activate.sh`와 비밀값 없는 소유 설정에서 복원하세요.
+참가자마다 독립 랩이며 새 설정에는 공통 내부 ID `team01`과 프로젝트
+`AtlasCliTeam01`을 사용합니다. 팀명 선택이나 치환을 요구하지 말고 기존 설정은 유지하세요.
+
+모든 터미널 실행은 올바른 `cd`로 시작하세요.
+새 셸에서는 확인한 저장소로 이동하고 기존 `activate.sh`를 source한 뒤
+helper 명령은 `ATLAS_REPO`, 앱 명령은 `ATLAS_APP`으로 다시 이동하세요.
+경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
 
 ## 작업
 
-전용 AgentCore 출력, 게시된 카탈로그와 라우터 이미지를 먼저 확인하세요. install/check/build-push를 통과한 뒤 내 App 스택의 계획과 실제 적용을 진행하세요. Public ALB, Private Fargate, Public IP 비활성화를 확인하세요. 실제 ApplicationUrl에서 health와 지도/카탈로그를 확인한 뒤 Data를 실제 Distribution ARN으로 갱신하세요.
+전용 AgentCore 출력, 게시된 카탈로그와 라우터 이미지를 먼저 확인하세요.
+install과 필요한 build-push를 수행한 뒤 내 App 스택의 계획과 실제 적용을 진행하세요.
+기본 경로에서 lab.py run check, npm run check와 npm run workshop:check는 생략합니다.
+build-push 내부에서 수행하는 기존 검사는 유지하고 별도 명령으로 중복 실행하지 마세요.
+Public ALB, Private Fargate, Public IP 비활성화와 배포 대상을 확인하세요.
+배포 상태와 실제 ApplicationUrl의 health를 한 번 확인하고 Data를 실제 Distribution ARN으로 갱신하세요.
 lab.py url로 참가자 App 스택의 기본 CloudFront HTTPS 주소를 읽고 ApplicationUrl과
 CloudFrontUrl이 같은지 확인하세요. 도메인 등록이나 인증서 발급을 요청하지 마세요.
+
+정상 배포 후 브라우저, 한영, 경로, 모델 질문 묶음을 자동 실행하지 마세요.
+실제 오류, 위험한 기능 변경 또는 명시적 요청이 있을 때만 해당 부분을 확인합니다.
+진행 중인 배포는 중복 실행하지 말고 필요할 때만 상태를 추가 조회하세요.
+화면 확인이나 모델 응답을 실행하지 않았다면 미실행으로 기록합니다.
 
 교재는 `$ATLAS_REPO/workshop/chapters/08-web.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.

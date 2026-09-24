@@ -77,6 +77,27 @@ class WorkshopPublishTests(unittest.TestCase):
                 {"ParameterKey": "ViewerDomainName", "ParameterValue": "other.example.org"},
             ]}, old, "new")
 
+    def test_property_contexts_must_change_only_the_web_image_and_service_revision(self):
+        import json
+        module = self.module()
+        changes = [
+            {"ResourceChange": {
+                "LogicalResourceId": "TaskDefinition",
+                "BeforeContext": json.dumps({"Properties": {"ContainerDefinitions": [{"Name": "web", "Image": "old"}]}}),
+                "AfterContext": json.dumps({"Properties": {"ContainerDefinitions": [{"Name": "web", "Image": "new"}]}}),
+            }},
+            {"ResourceChange": {
+                "LogicalResourceId": "Service",
+                "BeforeContext": json.dumps({"Properties": {"TaskDefinition": "old", "DesiredCount": 2}}),
+                "AfterContext": json.dumps({"Properties": {"TaskDefinition": "new", "DesiredCount": 2}}),
+            }},
+        ]
+        module.validate_property_changes(changes)
+        changes[1]["ResourceChange"]["AfterContext"] = json.dumps({
+            "Properties": {"TaskDefinition": "new", "DesiredCount": 3}})
+        with self.assertRaises(ValueError):
+            module.validate_property_changes(changes)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,47 +2,49 @@
 
 이 장은 120분 본 실습 이후에 선택하는 심화 자료입니다.
 
-공유 자원과 실습 소유 자원을 먼저 구분합니다.
-워크숍 폴더를 삭제해도 AWS 자원은 사라지지 않습니다.
+공유 자원과 실습 소유 자원을 먼저 구분합니다.\
+워크숍 폴더를 삭제해도 AWS 자원은 사라지지 않습니다.\
 스택 삭제만으로 보존된 S3, ECR, Memory, 로그가 전부 삭제되는 것도 아닙니다.
 
 ## 기본 과정의 CLI 프로젝트
 
-04장에서 사용한 `$ATLAS_CLI` 폴더로 돌아갑니다.
-`JejuGuide`의 로컬 정의를 제거한 뒤 같은 프로젝트의 deploy 계획과 AWS 삭제 결과를 확인합니다.
+04장에서 사용한 `$ATLAS_CLI` 폴더로 돌아갑니다.\
+`JejuGuide`의 로컬 정의를 제거한 뒤 같은 프로젝트의 deploy 계획과 AWS 삭제 결과를 확인합니다.\
 이미 정리했다면 다시 삭제하지 않고 남은 로그와 아티팩트만 확인합니다.
-기존 Warmup 번들의 activate.sh나 remove all 명령을 이 프로젝트에 그대로 적용하지 않습니다.
+
+기존 Warmup 번들의 activate.sh나 remove all 명령을 이 프로젝트에 그대로 적용하지 않습니다.\
 공유 CDK bootstrap 스택, 버킷과 역할은 삭제하지 않습니다.
 
 ## Atlas 스택 계획
 
 ```bash
-cd "$ATLAS_REPO"
+cd "$ATLAS_REPO" && {
 python3 workshop/scripts/lab.py cleanup --config "$ATLAS_CONFIG"
+}
 ```
-
-이 호출은 내 접두사의 스택과 Project 태그를 조회하고 계획을 기록합니다.
-다른 프로젝트, VPC, 서브넷, NAT, 기존 인증서와 DNS 자원이 목록에 포함되지 않아야 합니다.
+이 호출은 내 접두사의 스택과 Project 태그를 조회하고 계획을 기록합니다.\
+다른 프로젝트, VPC, 서브넷, NAT, 기존 인증서와 DNS 자원이 목록에 포함되지 않아야 합니다.\
 `workshop-cleanup-plan.json`의 자원 식별자를 보관합니다.
 
 목록과 참가자 이름을 확인한 후 실행합니다.
 
 ```bash
+cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
 python3 workshop/scripts/lab.py cleanup \
   --config "$ATLAS_CONFIG" \
   --confirm-participant "$ATLAS_TEAM" \
   --execute
+}
 ```
-
-먼저 내 Schedule을 비활성화하고 내 collector task family의 작업을 종료, 대기합니다.
-웹 service task나 다른 task family를 이 과정에서 중지하지 않습니다.
+먼저 내 Schedule을 비활성화하고 내 collector task family의 작업을 종료, 대기합니다.\
+웹 service task나 다른 task family를 이 과정에서 중지하지 않습니다.\
 그다음 앱/Distribution과 의존하는 운영, 데이터, 엣지, AgentCore, registry를 순서대로 정리합니다.
-CloudFront Distribution의 비활성화와 삭제 전파는 시간이 걸릴 수 있습니다.
-이 과정은 인증서, origin Host 함수와 TLS probe를 만들지 않으며 해당 과거 스택을
-자동 정리 목록에 넣지 않습니다.
+
+CloudFront Distribution의 비활성화와 삭제 전파는 시간이 걸릴 수 있습니다.\
+이 과정은 인증서, origin Host 함수와 TLS probe를 만들지 않으며 해당 과거 스택을 자동 정리 목록에 넣지 않습니다.\
 진행 중 작업이나 실패 이벤트가 있으면 원인을 확인하고 재개하며, 다른 스택을 지워 해결하지 않습니다.
 
-재조회할 때도 이전 inventory를 보존하므로 이미 삭제된 스택의 보존 자원 ID를 잃지 않습니다.
+재조회할 때도 이전 inventory를 보존하므로 이미 삭제된 스택의 보존 자원 ID를 잃지 않습니다.\
 실제 삭제는 새로 조회하고 소유 태그를 확인한 스택 목록만 사용합니다.
 
 ## 보존 및 수동 자원 확인
@@ -58,15 +60,17 @@ CloudFront Distribution의 비활성화와 삭제 전파는 시간이 걸릴 수
 | SNS | 이번 실습에서 만든 구독 |
 | CloudFront | 실제 App 스택의 Distribution 삭제 상태. 별도 DNS 레코드 정리는 없음 |
 
-보존 자료를 지우기로 결정했다면 저장한 inventory의 **정확한 실습 ID**를 사용합니다.
-버킷 삭제 전에는 버전과 delete marker까지 확인합니다.
+보존 자료를 지우기로 결정했다면 저장한 inventory의 **정확한 실습 ID**를 사용합니다.\
+버킷 삭제 전에는 버전과 delete marker까지 확인합니다.\
 Memory는 이름만 비슷한 기존 운영 Memory를 선택하지 않습니다.
-DynamoDB의 AI 요청, 접속 집계 테이블도 보존 자원입니다. 삭제를 선택했다면 inventory의 정확한
-실습 테이블에서 삭제 보호 상태를 확인하고 처리합니다. 접속 테이블을 지우면 누적 기록도 함께 사라집니다.
+
+DynamoDB의 AI 요청, 접속 집계 테이블도 보존 자원입니다.\
+삭제를 선택했다면 inventory의 정확한 실습 테이블에서 삭제 보호 상태를 확인하고 처리합니다.
+
+접속 테이블을 지우면 누적 기록도 함께 사라집니다.\
 API 키 값 자체를 조회하여 삭제 대상을 확인하지 않습니다.
 
-실습 EC2가 속한 공유 VPC, NAT, IGW, 서브넷, 라우트, endpoint, 기존 인증서와 DNS,
-CDK bootstrap, 중앙 추적 설정과 다른 프로젝트의 IAM 정책은 유지합니다.
+실습 EC2가 속한 공유 VPC, NAT, IGW, 서브넷, 라우트, endpoint, 기존 인증서와 DNS, CDK bootstrap, 중앙 추적 설정과 다른 프로젝트의 IAM 정책은 유지합니다.
 
 ## 마지막 점검
 
@@ -76,7 +80,10 @@ CDK bootstrap, 중앙 추적 설정과 다른 프로젝트의 IAM 정책은 유�
 - [ ] 공유 네트워크, 기존 인증서/DNS, 운영 도메인과 다른 프로젝트가 유지됩니다.
 - [ ] 이후 비용 화면에서 남은 과금 자원을 확인합니다.
 
-보존 자원이 남아 있다면 비용이 완전히 없어졌다고 기록하지 않습니다.
+보존 자원이 남아 있다면 비용이 완전히 없어졌다고 기록하지 않습니다.\
 로컬 작업을 보관할 때도 `.local/`, 인증, provider 키를 GitHub에 올리지 않습니다.
 
-AI CLI 프롬프트: [13, 정리](../prompts/13-cleanup.md)
+Agentic AI 코딩 어시스턴트 프롬프트: [13, 정리](../prompts/13-cleanup.md)
+
+코드와 구현안을 계속 다듬으려면 [14, Codex로 프로젝트 완성하기](14-project-completion.md)를 참고합니다.\
+이미 정리한 자원은 자동으로 다시 만들지 않고 원격 검증을 미실행으로 기록합니다.

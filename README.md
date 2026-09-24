@@ -10,7 +10,7 @@
 제주의 실제 고도와 위성 지도에서 장소를 찾고, 여행 코스를 만들고, AI 가이드에게 질문하는 웹/PWA 서비스입니다.
 지도 표현은 MapLibre, 장소 검색은 카카오 Local, 실제 도보와 차량 경로는 Valhalla가 담당합니다.
 
-[서비스 열기](https://jeju-atlas.whchoi.net/) | [120분 워크숍](https://jeju-atlas.whchoi.net/workshop/) | [문서](docs/README.md) | [변경 이력](CHANGELOG.md)
+[서비스 열기](https://jeju-atlas.whchoi.net/) | [100~120분 워크숍](https://jeju-atlas.whchoi.net/workshop/) | [문서](docs/README.md) | [변경 이력](CHANGELOG.md)
 
 ![제주 아틀라스에서 한라산을 확대한 실제 3D 지도 화면](docs/images/app-terrain-ko.webp)
 
@@ -22,10 +22,14 @@ TypeScript와 Vite로 만든 화면을 Node.js API 서버와 연결합니다.
 AWS에서는 CloudFront, WAF, Public ALB와 Private ECS Fargate를 사용하며 기존 VPC와 NAT Gateway를 재사용합니다.
 AI 가이드는 전용 Bedrock AgentCore Runtime에서 Strands로 실행합니다.
 
-마지막 검증 배포는 `release-20260912T153512Z`, ECS 태스크 정의 `jeju-3d:26`입니다.
+전체 앱 검증 배포는 `release-20260912T153512Z`, 당시 ECS 태스크 정의는 `jeju-3d:26`입니다.
 2026-09-12에 태스크 2개와 ALB 대상의 정상 상태, 운영 검사 99개를 확인했습니다.
 수치는 해당 배포의 기록이며 현재 상태 조회를 대신하지 않습니다.
 [배포 기록](workshop/DEPLOYMENT.md)에서 확인 범위를 볼 수 있습니다.
+
+2026-09-16에는 도구 사전 구성과 PyYAML 복구, 새 계정용 14장 프롬프트,
+Codex 설정과 HUD 안내를 교재 전용 이미지로 `jeju-3d:30`에 반영했습니다.
+태스크 2개와 ALB 대상, 공개 파일과 브라우저를 확인했으며 앱 릴리스와 라우팅 이미지는 유지했습니다.
 
 ## 주요 기능
 
@@ -93,7 +97,7 @@ AgentCore Runtime은 IAM 인증을 사용하는 관리형 PUBLIC 네트워크 �
 ## 시작하기
 
 Node 24 계열 24.18.1 이상, npm과 Python이 필요합니다.
-Python 3.10 이상을 권장하며, AgentCore 워크숍 Runtime은 Python 3.14를 사용합니다.
+Python 3.10 이상을 권장하며, AgentCore 워크숍 Runtime은 Python 3.12를 사용합니다.
 
 ```bash
 git clone https://github.com/whchoi98/jeju-atlas.git
@@ -130,40 +134,55 @@ npm run dev
 Python 검사 환경, 포트 설정과 카탈로그 확인은
 [로컬 개발 안내](docs/onboarding.md)에 정리했습니다.
 
-## 120분 AgentCore CLI 워크숍
+## 100~120분 AgentCore CLI 워크숍
 
-VPC, NAT Gateway, Subnet과 VSCode Server가 제공된 EC2에서 시작합니다.
-Codex/Kiro CLI/Claude Code 중 준비된 도구 하나를 사용합니다.
-제주 검색 도구를 구현하고 AgentCore CLI로 생성, 로컬 실행, 배포와 호출을 확인합니다.
-AgentCore CLI 0.28.1, 언어 의존성, CDK bootstrap과 모델 권한은 진행자가 사전에 확인합니다.
+EC2 사전 준비 후 **구현 프롬프트와 배포 프롬프트 두 개**로 제주 검색 도구와
+참가자 AgentCore Runtime을 만듭니다. AgentCore CLI가 생성, 로컬 실행, 배포와 호출을
+맡고 Codex, Claude Code, Kiro CLI 중 하나가 구현과 오류 수정을 수행합니다.
 
-참가자 EC2에는 전체 Git 소스가 필요합니다. 교재 ZIP에는 실행 스크립트와 데이터가 없습니다.
-01장의 `core.py prepare`가 참가자 `activate.sh`를 만들고, `core.py doctor`가
-Node 24, Python 3.14, 선택한 AI CLI와 본 실습 의존성을 확인합니다.
-누락 도구는 `workshop/.local/toolchain/`에 설치하며 시스템 도구와 Claude 인증을 유지합니다.
-새 Bash마다 활성화한 뒤 참가자 폴더에서 AI CLI를 엽니다.
-워크숍 Runtime은 Sonnet 4.6을 사용하고, Claude Code는 `claude --model claude-sonnet-4-6`으로 고정합니다.
-실제 모델 검사는 doctor와 분리하며 배포 리전과 주최자가 확인한 Bedrock 호출 리전을 구분합니다.
-심화 앱과 교재 접속에는 참가자 App 스택의 기본 CloudFront HTTPS URL을 사용합니다.
-ACM 발급과 DNS/사용자 도메인 등록은 워크숍 준비 사항이 아닙니다.
+[사전 구성](workshop/reference/preconfiguration.md)에서 Node 24, uv와 Python 3.12,
+Docker, 사용자 npm 경로의 `@aws/agentcore` 0.28.1, AWS 역할과 선택한 Agentic AI 코딩 어시스턴트를 준비합니다.
+`check_env.sh`로 점검하고 `start.sh`로 참가자 환경과 누락 core 도구를 준비합니다.
+전체 Git 소스가 필요하며 읽기용 교재 ZIP에는 실행 스크립트가 없습니다.
+
+Bedrock 단기키는 본인 터미널의 `workshop_env.py configure`에서 숨김 입력합니다.
+발급 리전과 실제 만료 시각을 참가자 `.env`에 보관하고, 배포 시에는 SSM ARN으로 연결합니다.
+카카오, 관광공사 TourAPI와 VISIT JEJU 키는 **첫 배포 후 선택 입력**합니다.
+AWS 배포에는 EC2 IAM 역할을 계속 사용합니다.
+[키와 연동 안내](workshop/reference/keys-and-integrations.md)에 실제 반영과 갱신 절차가 있습니다.
+
+Claude Code는 `claude --permission-mode auto`, Codex는
+`--sandbox workspace-write -a on-request -c 'approvals_reviewer="auto_review"'`를 권장합니다.
+각 CLI의 로그인과 지원 모델은 사전에 확인합니다. JejuGuide Runtime의 Sonnet 4.6과
+코딩 도구의 모델을 구분합니다. [Agentic AI 코딩 어시스턴트 환경](workshop/reference/ai-cli-environments.md)을 참고하세요.
 
 | 구분 | 구성 |
 |---|---|
-| 본 실습 | 00~04장, 110분 |
-| 여유 시간 | 10분 |
-| 심화 자료 | 05~13장, 전체 Atlas 인프라와 운영 |
+| 사전 준비 | EC2 도구 설치, 로그인, CDK bootstrap과 권한 확인, 수업 시간 밖 |
+| 본 실습 | 00~04장, 100분 |
+| 여유 시간 | 최대 20분, 전체 120분 |
+| 심화 자료 | 05~14장, 전체 앱과 AWS 인프라, 추가 시간 |
 | 결과물 | 실제 모델과 제주 검색 도구를 사용하는 참가자 전용 Runtime |
-| 교재 | Markdown, HTML, 다운로드 ZIP, 오프라인 PWA |
+| 교재 | Markdown, HTML, 다운로드 ZIP과 오프라인 PWA |
 
-120분은 수업 편성 기준입니다. 실제 계정에서의 배포 리허설 완료를 뜻하지 않습니다.
-기본 Runtime과 심화 과정의 Guide/Tools/Gateway/Memory는 별도 배포입니다.
+참가자별 독립 랩에서는 `team01`과 `AtlasCliTeam01`을 공통 내부 식별자로 자동 사용합니다.
+팀명 선택과 치환은 필요하지 않습니다. 별도 종합 검증과 HUD 설치는 기본 진행에서 생략하고,
+오류가 있거나 필요한 경우에만 해당 진단을 선택합니다. 터미널 블록은 첫 `cd`로 작업 위치를 맞춥니다.
+
+시간은 수업 편성 기준이며 실제 계정의 배포 리허설 완료를 뜻하지 않습니다.
+기본 CLI Runtime과 전체 앱의 Guide/Tools/Gateway/Memory는 별도 배포입니다.
+심화 앱은 참가자 App 스택의 기본 CloudFront HTTPS URL을 사용합니다.
+ACM, DNS와 사용자 도메인 준비는 실습에 포함하지 않습니다.
+
+[설치 스킬](skills/jeju-atlas-install/SKILL.md)은 준비와 중단 작업 재개를 지원합니다.
+[14장 통합 프롬프트](workshop/prompts/14-project-completion.md)의 전체 앱 완성은 선택 과정이며,
+45분은 범위 정리와 첫 수정 검사 시간입니다. Codex Bedrock provider와 HUD도 선택 준비입니다.
 
 ![맥북 형태의 명령 실행 박스](docs/images/workshop-terminal.png)
 
-셸 명령은 터미널 창, AI 프롬프트는 Codex, Kiro CLI, Claude Code 입력 박스로 구분합니다.
-본문은 1366px 화면에서 약 1020px까지 사용합니다.
+셸 명령은 터미널 창에, 공통 프롬프트는 선택한 Agentic AI 코딩 어시스턴트 대화창에 붙여 넣습니다.
 
-![AI CLI별 프롬프트 입력 구분](docs/images/workshop-ai-input.png)
+![Agentic AI 코딩 어시스턴트별 프롬프트 입력 구분](docs/images/workshop-ai-input.png)
 
 [실습 안내](workshop/README.md) | [진행자 준비](workshop/reference/facilitator.md) | [다운로드 안내](workshop/reference/offline-start.md)
 
@@ -207,7 +226,7 @@ jeju-atlas/
 ├── infra/               # CloudFormation
 ├── scripts/             # 빌드, 배포와 운영 검사
 ├── tests/               # 앱과 인프라 회귀 검사
-├── workshop/            # 120분 교재와 심화 자료
+├── workshop/            # 100~120분 교재와 심화 자료
 ├── docs/                # 아키텍처, API와 운영 절차
 ├── AGENTS.md            # 저장소 작업 지침
 ├── CHANGELOG.md

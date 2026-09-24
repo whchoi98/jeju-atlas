@@ -143,7 +143,7 @@ npm run workshop:package
 아래 개편 단계의 기록과 참가자용 에이전트 리허설 여부는 구분해서 읽습니다.
 
 2026-09-12 교재를 00~04장 본 실습 110분과 여유 시간 10분으로 개편했습니다.
-VPC, NAT Gateway, Subnet, VSCode Server와 세 AI CLI가 준비된 환경을 기준으로 합니다.
+VPC, NAT Gateway, Subnet, VSCode Server와 세 Agentic AI 코딩 어시스턴트가 준비된 환경을 기준으로 합니다.
 본문, 프롬프트와 HTML 메뉴에서 엠대시와 가운데점을 제거했습니다.
 
 ## 이번에 확인한 범위
@@ -177,7 +177,7 @@ Node의 자식 프로세스 출력 캡처에 EPERM이 발생해 기존 CLI 캡�
 
 ## 구성과 콘텐츠
 
-- Markdown 14개 챕터와 AI CLI 프롬프트 카드 14개.
+- Markdown 14개 챕터와 Agentic AI 코딩 어시스턴트 프롬프트 카드 14개.
 - 개요, 챕터, 참고 문서의 정적 HTML 21페이지와 다운로드 가능한 프롬프트 카드.
 - 기존 인프라 자원 선언 94개, 유형 41개에 대한 챕터와 검증 매핑.
 - NanumSquare와 라이선스 포함, 외부 Markdown 요청 없이 파일/HTTP로 읽는 HTML.
@@ -194,7 +194,7 @@ PATH=/tmp/jeju-node24/bin:$PATH npm run check
 워크숍 검사는 Python 경계, 카탈로그, 실행 제어, CLI 준비기,
 HTML 생성, 내비게이션, 브라우저 및 자원/명령 매핑을 확인합니다.
 초기 구성은 Python 36개, CLI 준비기 9개, 사이트 18개, 총 63개를 통과했습니다.
-EC2, 오프라인, 세 AI CLI 보강 후에는 Python 48개, CLI 준비기 9개, 사이트 20개,
+EC2, 오프라인, 세 Agentic AI 코딩 어시스턴트 보강 후에는 Python 48개, CLI 준비기 9개, 사이트 20개,
 총 77개를 통과했으며 건너뛴 검사는 없습니다.
 실제 HTML을 데스크톱, 모바일, file/HTTP에서 확인했고 브라우저 오류나 외부 리소스 요청이 없었습니다.
 
@@ -249,7 +249,7 @@ ZIP 크기, 경로, CRC, 소스 digest와 console launcher의 재배치 가능�
 원본 `agentcore-cli`와 기존 제주 운영 AWS 설정은 변경하지 않았습니다.
 게시 대상 소스, 생성 HTML에 Gitleaks 검사를 실행해 비밀값 탐지 0건을 확인했습니다.
 
-## EC2, 오프라인, AWS 색상, AI CLI 보강
+## EC2, 오프라인, AWS 색상, Agentic AI 코딩 어시스턴트 보강
 
 사용자가 지정한 공식 GitHub와 AWS Runtime CLI 시작 가이드를 직접 대조했습니다.
 실습 EC2의 IMDSv2 identity와 primary NIC VPC, STS 계정, 두 AZ subnet, NAT를

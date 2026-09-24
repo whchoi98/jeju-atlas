@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "workshop/scripts"))
@@ -127,6 +128,19 @@ class BoundaryTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 workspace.prepare_workspace(value, ROOT, Path(directory))
             self.assertEqual(marker.read_text(), "keep this work")
+
+    def test_missing_yaml_does_not_leave_a_partial_app_copy(self):
+        config, workspace = self.modules()
+        value = config.validate_config(configuration(), require_network=True)
+        with tempfile.TemporaryDirectory(prefix="atlas-missing-yaml-") as directory:
+            labs = Path(directory)
+            with patch.dict(sys.modules, {"yaml": None}):
+                with self.assertRaises((ImportError, ValueError)) as failure:
+                    workspace.prepare_workspace(value, ROOT, labs)
+            self.assertFalse((labs / "team01" / "app").exists(),
+                             "Missing dependencies must be detected before copying participant files")
+            self.assertIsInstance(failure.exception, ValueError,
+                                  "The CLI must be able to report an actionable preparation error")
 
 
 if __name__ == "__main__":

@@ -75,6 +75,79 @@ class ModelConfigTests(unittest.TestCase):
         self.assertEqual(result["callerRegion"], "eu-west-1")
         self.assertFalse(result["modelAccessVerified"])
 
+    def test_private_env_configures_python_and_api_auth_without_copying_the_key(self):
+        from workshop_env import write_env
+        env_file = self.project.parent / ".env"
+        token = "test-only-private-key"
+        write_env(env_file, {
+            "ATLAS_BEDROCK_REGION": "us-west-2",
+            "AWS_BEARER_TOKEN_BEDROCK": token,
+            "ATLAS_BEDROCK_KEY_EXPIRES_AT": "2099-09-24T12:00:00Z",
+        })
+        pyproject = self.project / "app/JejuGuide/pyproject.toml"
+        pyproject.write_text('[project]\nname = "test"\nrequires-python = ">=3.10"\n')
+        result = self.module.configure(self.project, env_file=env_file)
+        spec = json.loads((self.project / "agentcore/agentcore.json").read_text())
+        runtime = spec["runtimes"][0]
+        self.assertEqual(runtime["runtimeVersion"], "PYTHON_3_12")
+        env = {item["name"]: item["value"] for item in runtime["envVars"]}
+        self.assertEqual(env["ATLAS_BEDROCK_AUTH"], "api-key")
+        self.assertEqual(env["ATLAS_BEDROCK_REGION"], "us-west-2")
+        self.assertNotIn("AWS_BEARER_TOKEN_BEDROCK", env)
+        self.assertNotIn(token, json.dumps(result) + json.dumps(spec) + self.loader.read_text())
+        self.assertEqual((self.project / "app/JejuGuide/.python-version").read_text(), "3.12\n")
+        self.assertIn('requires-python = ">=3.12,<3.13"', pyproject.read_text())
+
+    def test_env_inside_runtime_source_is_rejected_before_configuration(self):
+        env_file = self.project / "app/JejuGuide/.env"
+        env_file.write_text('AWS_BEARER_TOKEN_BEDROCK="test-private"\n')
+        before = self.loader.read_bytes()
+        with self.assertRaises(ValueError):
+            self.module.configure(self.project, env_file=env_file)
+        self.assertEqual(self.loader.read_bytes(), before)
+
+    def test_api_loader_uses_ssm_key_and_never_silently_falls_back_to_iam(self):
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        calls = []
+        class Ssm:
+            def get_parameter(self, **kwargs):
+                calls.append(kwargs)
+                return {"Parameter": {"Value": "test-secret-from-ssm"}}
+        def client(service, **kwargs):
+            self.assertEqual(service, "ssm")
+            self.assertEqual(kwargs["region_name"], "ap-northeast-2")
+            return Ssm()
+        def model(**kwargs):
+            calls.append({"token": __import__("os").environ.get("AWS_BEARER_TOKEN_BEDROCK"), **kwargs})
+            return kwargs
+        self.module.configure(self.project, "us-west-2")
+        spec = importlib.util.spec_from_file_location("api_sonnet_fixture", self.loader)
+        loader = importlib.util.module_from_spec(spec)
+        with patch.dict("sys.modules", {
+            "strands": SimpleNamespace(), "strands.models": SimpleNamespace(),
+            "strands.models.bedrock": SimpleNamespace(BedrockModel=model),
+            "boto3": SimpleNamespace(client=client),
+        }):
+            spec.loader.exec_module(loader)
+            environment = {
+                "ATLAS_BEDROCK_REGION": "us-west-2", "ATLAS_BEDROCK_AUTH": "api-key",
+                "ATLAS_BEDROCK_API_KEY_SSM_ARN":
+                    "arn:aws:ssm:ap-northeast-2:123456789012:parameter/jeju-atlas-lab-team01/bedrock-api-key",
+                "AWS_BEARER_TOKEN_BEDROCK": "stale-process-key",
+            }
+            with patch.dict("os.environ", environment, clear=True):
+                loader.load_model()
+                loader.load_model()
+            self.assertEqual(calls[0]["WithDecryption"], True)
+            self.assertEqual(calls[1]["token"], "test-secret-from-ssm")
+            self.assertEqual(calls[1]["region_name"], "us-west-2")
+            self.assertEqual(len([item for item in calls if "WithDecryption" in item]), 2)
+            with patch.dict("os.environ", {
+                "ATLAS_BEDROCK_REGION": "us-west-2", "ATLAS_BEDROCK_AUTH": "api-key",
+            }, clear=True), self.assertRaises(ValueError):
+                loader.load_model()
+
     def test_loader_uses_only_the_explicit_model_region(self):
         from unittest.mock import patch
         from types import SimpleNamespace

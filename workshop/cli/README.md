@@ -58,5 +58,5 @@ python3 -B -m unittest discover -s workshop/cli -p 'test_prepare.py' -v
 ARM64 패키징, HTTP 응답, 로그 내용과 synth 경계 검사를 다시 수행한다.
 
 - [한국어 실습 장](../chapters/04-agentcore-cli.md)
-- [AI CLI 프롬프트 카드](../prompts/04-agentcore-cli.md)
+- [Agentic AI 코딩 어시스턴트 프롬프트 카드](../prompts/04-agentcore-cli.md)
 - [검증 명령, 결과, 한계, 정확한 변경 파일](VALIDATION.md)

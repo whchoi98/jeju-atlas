@@ -1,95 +1,110 @@
-# 01. 준비된 환경 확인
+# 01. 환경 확인과 Bedrock 키 입력
 
-이 장은 10분입니다. VSCode Server의 **별도 Bash 터미널**에서 실습 소스와
-도구를 확인합니다. VPC, NAT Gateway, Subnet과 VSCode Server를 새로 만들지 않습니다.
-AI CLI의 대화창에 `cd`, `export`, `source`를 입력하는 단계가 아닙니다.
-AI의 Bash 도구가 실행한 `export`는 사용자의 다른 터미널에 전달되지 않습니다.
+이 장은 10분입니다.\
+사전 구성이 끝난 EC2에서 참가자 폴더와 도구를 확인합니다.
 
-## 사용할 AI CLI 선택
+VSCode Server의 **Bash 터미널**을 사용합니다.\
+설치와 로그인은 [사전 구성](../reference/preconfiguration.md)에서 수업 전에 완료합니다.
 
-Codex, Kiro CLI, Claude Code 중 준비된 도구 하나를 선택합니다.
-같은 파일을 여러 CLI에서 동시에 수정하지 않습니다.
+## 시작 전에 전체 소스 받기
 
-| 도구 | 버전 확인 | 실행 |
-|---|---|---|
-| Codex | `codex --version` | `codex` |
-| Kiro CLI | `kiro-cli --version` | `kiro-cli chat` |
-| Claude Code | `claude --version` | `claude --model claude-sonnet-4-6` |
-
-아래 예시는 Claude Code입니다. Codex는 `--assistant codex`, Kiro CLI는
-`--assistant kiro`로 바꿉니다. 사전검사는 선택한 도구의 버전만 확인합니다.
-로그인과 실제 대화 가능 여부는 진행자가 별도로 확인합니다.
-설치된 도구를 다시 설치하거나 기존 인증 파일을 교체하지 않습니다.
-Claude Code가 이미 응답했다면 인증 설정을 다시 바꾸지 않습니다.
-워크숍 Claude Code는 Sonnet 4.6을 명시합니다. 떠 있는 `sonnet` 별칭을 사용하지 않습니다.
-이 선택은 배포 Runtime의 Bedrock 모델 설정과 별개이며 Codex 세션의 모델은 바꾸지 않습니다.
-
-## 1. 전체 소스와 참가자 위치 확인
-
-진행자가 전달한 **EC2의 실제 저장소 경로**를 사용합니다. 아래 경로는 예시입니다.
-`/home/ec2-user/claude-lab` 같은 기존 프로젝트 안에 설치하지 않습니다.
-`team01`, `AtlasCliTeam01`도 배정된 이름으로 바꿉니다.
-참가자 이름은 소문자와 숫자 3~10자, 프로젝트 이름은 `AtlasCli` 뒤에 영문과 숫자 1~15자입니다.
+처음 사용하는 EC2에서는 아래 명령을 **수업 전에 한 번** 실행합니다.\
+VSCode Server의 Bash 터미널에서 실행하며, 현재 폴더가 `claude-lab`이어도 지정한 경로에 저장됩니다.
 
 ```bash
-(
-  set -e
-  repo=/home/ec2-user/my-project/jeju-atlas
-  test -f "$repo/workshop/scripts/core.py" || {
-    printf '%s\n' '전체 실습 소스가 없습니다. 진행자에게 소스 전달을 요청하세요.' >&2
-    exit 1
-  }
-  python3 -B "$repo/workshop/scripts/core.py" prepare \
-    --participant team01 --project-name AtlasCliTeam01 --assistant claude
-)
+cd -- "$HOME" && {
+mkdir -p /home/ec2-user/my-project
+git clone https://github.com/whchoi98/jeju-atlas.git \
+  /home/ec2-user/my-project/jeju-atlas
+}
 ```
+이미 해당 경로에 전체 저장소를 받았다면 이 단계는 건너뜁니다.\
+`/home/ec2-user/my-project/jeju-atlas/workshop/scripts/core.py`가 준비된 뒤 아래 시작 블록을 실행합니다.
 
-준비기는 Python 3.9 이상의 표준 라이브러리로 실행됩니다.
-소스와 137개 장소 데이터를 확인하고 참가자용 `activate.sh`, CLI 설정을 만듭니다.
-AWS 자원과 AgentCore 프로젝트는 아직 만들지 않습니다.
-같은 준비를 반복해도 기존 프로젝트는 보존하며, 소유자가 다른 폴더나 설정이
-변경된 폴더는 덮어쓰지 않습니다.
+## 시작 블록 한 번 실행
 
-파일이 없으면 여기서 멈춥니다. 교재 ZIP에는 이 스크립트와 실행 소스가 없습니다.
-[진행자 준비](../reference/facilitator.md)의 Git clone 또는 수정 패치 전달 절차가 필요합니다.
+Codex 예시입니다.\
+Claude Code는 `--assistant claude`, Kiro CLI는 `--assistant kiro`로 바꿉니다.
 
-## 2. 같은 Bash에서 환경 활성화와 사전검사
-
-첫 명령의 경로는 준비기가 출력한 `activationPath`를 사용합니다.
+각 참가자는 별도로 제공된 랩을 사용하므로 팀명을 입력하거나 바꾸지 않습니다.\
+시작 도구가 공통 실습 ID `team01`과 프로젝트 이름 `AtlasCliTeam01`을 자동으로 사용합니다.\
+아래 `team01` 경로는 그대로 복사하고, 이미 준비한 설정이 있으면 같은 설정을 이어 씁니다.
 
 ```bash
+cd /home/ec2-user/my-project/jeju-atlas && {
+bash workshop/scripts/start.sh --assistant codex &&
 source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
-python3 -B "$ATLAS_REPO/workshop/scripts/core.py" doctor --assistant "$ATLAS_ASSISTANT"
+python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
+}
 ```
+`start.sh`는 참가자 환경을 준비하고 누락된 핵심 도구를 설치한 뒤 `core.py doctor`를 실행합니다.\
+준비가 끝난 환경에서는 기존 도구와 폴더를 재사용합니다.
 
-`passed: true`가 다음 장의 시작 조건입니다. 실패 시 `checks`의 누락 항목과
-`next`를 진행자에게 전달합니다. 검사기는 설치, AWS 조회와 모델 호출을 하지 않습니다.
+누락 도구의 다운로드와 설치가 필요하면 사전 구성을 마친 뒤 수업을 시작합니다.\
+이 명령은 Runtime을 만들거나 모델을 호출하지 않습니다.
 
-| 검사 | 필요한 상태 |
+마지막 입력에서 Bedrock 단기키의 발급 리전, 키와 실제 만료 시각을 지정합니다.\
+키는 화면에 표시되지 않으며 `$ATLAS_CLI_PARENT/.env`에 권한 `0600`으로 저장됩니다.\
+카카오와 관광공사 키는 지금 입력하지 않습니다.
+
+**`source`는 반드시 사용자의 Bash에서 실행합니다.**\
+`start.sh`가 출력하는 `activationPath`를 사용하면 됩니다.
+
+스크립트나 AI의 자식 셸은 부모 터미널의 환경을 활성화할 수 없습니다.\
+저장소 경로가 다른 환경에서는 진행자가 알려 준 실제 경로로 바꿉니다.
+
+## 통과 조건
+
+doctor의 `passed: true`와 다음 항목을 확인합니다.
+
+| 항목 | 수업 기준 |
 |---|---|
-| 소스와 세션 | 전체 저장소, 샘플 137건, 참가자 변수와 전용 CLI 설정 |
-| Node와 npm | Node 24.18.1 이상인 24 계열, 실행 가능한 npm. `.nvmrc`는 24.21.0 |
-| Runtime Python | uv가 Python 3.14를 찾고 해당 실행 파일이 동작함 |
-| helper Python | 현재 `python3`에서 boto3와 requests import 성공 |
-| AgentCore | **npm 패키지 `@aws/agentcore` 0.28.1**. Python starter toolkit과 다름 |
-| 개발 도구 | uv, AWS CLI와 선택한 AI CLI 하나 |
+| 실행 소스 | 전체 저장소와 137개 샘플 장소 |
+| Node와 npm | Node 24 계열 24.18.1 이상과 npm |
+| Python과 uv | Runtime Python 3.12, helper Python 3.12 이상, uv |
+| Python 보조 패키지 | helper Python에서 boto3와 requests 사용 가능 |
+| AgentCore CLI | npm `@aws/agentcore` 0.28.1 |
+| AWS와 AI 도구 | AWS CLI와 선택한 Agentic AI 코딩 어시스턴트 하나 |
 
-Node 20이나 Python 3.9만 있는 환경은 이 상태로 본 실습을 진행할 수 없습니다.
-진행자가 [전용 도구 설치](../reference/facilitator.md)를 마친 뒤 같은 활성화와 검사를 반복합니다.
-시스템 Node/Python, 전역 npm, Claude 로그인 파일과 셸 시작 파일은 교체하지 않습니다.
+Node 20 이상, Python 3.10 이상이라는 일반 점검만으로 이 수업의 준비가 끝나지는 않습니다.\
+Docker는 사전 설치 항목이며 핵심 CodeZip 경로의 통과 조건에는 포함하지 않습니다.
 
-Docker는 05장 이후의 컨테이너 실습에서 사용합니다.
-기존 `lab.py doctor`는 Docker와 cfn-lint도 요구하는 **심화 과정용**입니다.
-본 실습은 위의 `core.py doctor`를 사용합니다.
+`lab.py doctor`는 전체 앱을 위한 심화 점검입니다.\
+도구 검사 통과는 AWS 배포 권한이나 실제 모델 응답 성공을 뜻하지 않습니다.
 
-## 새 터미널을 열었을 때
+활성화하면 `ATLAS_REPO`는 원본 소스, `ATLAS_CLI_PARENT`는 참가자 폴더, `ATLAS_CLI`는 그 아래 만들 AgentCore 프로젝트를 가리킵니다.\
+참가자 `.env`와 `RESULTS.md`는 `ATLAS_CLI_PARENT`에 두어 배포 코드와 분리합니다.\
+프로젝트는 03장의 AI가 생성합니다.
 
-새 Bash마다 위의 `source .../activate.sh`와 사전검사를 다시 실행합니다.
-활성화는 원본 저장소로 이동하고 참가자 경로와 전용 도구 PATH를 복원합니다.
-`ATLAS_CLI`가 비어 있어도 `cd "$ATLAS_CLI"`가 성공할 수 있으므로
-변수를 수동으로 추측하거나 빈 경로에서 AI CLI를 시작하지 않습니다.
-[도구별 실행 방법](../reference/ai-cli-environments.md)을 따릅니다.
+## 새 Bash의 환경 복원
 
-프롬프트: [환경 확인](../prompts/01-setup.md)
+새 터미널은 앞 터미널의 변수를 이어받지 않습니다.\
+아래 명령을 먼저 실행한 뒤 다음 장의 터미널 블록을 복사합니다.\
+각 블록의 첫 `cd`는 해당 작업의 시작 위치를 맞춥니다.
+
+```bash
+cd /home/ec2-user/my-project/jeju-atlas && {
+source workshop/.local/labs/team01/activate.sh
+}
+```
+## 막혔거나 새 터미널을 열었다면
+
+새 Bash에서는 출력된 절대 경로의 `activate.sh`를 다시 `source`합니다.\
+스크립트가 없으면 [실행 소스 위치 확인](../reference/offline-start.md#python-스크립트가-없을-때)을 따릅니다.
+
+> **“전체 실습 소스가 없습니다”가 표시된다면**\
+> 명령의 `repo=`가 가리키는 폴더에 `workshop/scripts/core.py`가 있는지 확인합니다.\
+> 전체 Git 저장소를 아직 받지 않았다면 먼저 소스를 받고, 다른 위치에 받았다면 실제 경로를 지정합니다.
+
+`workshop/site/`, `dist/workshop/`와 교재 ZIP에는 실행 소스가 없습니다.\
+검사에 실패하면 누락 항목과 재개 위치를 진행자에게 전달합니다.
+
+선택한 Agentic AI 코딩 어시스턴트의 기존 로그인과 모델 설정을 사용합니다.\
+자동 검토 모드는 진행자가 사용할 모델과 provider 조합으로 수업 전에 확인합니다.
+
+Codex auto-review와 Claude Code auto mode 실행은 [03장](03-codex.md), 지원 조건과 문제 해결은 [도구별 안내](../reference/ai-cli-environments.md)를 참고합니다.\
+[HUD](../reference/hud-setup.md)는 수업 시간 밖의 선택 항목입니다.
+
+선택 프롬프트: [환경 진단](../prompts/01-setup.md)
 
 다음: [02. 계정과 작업 폴더](02-aws-environment.md)

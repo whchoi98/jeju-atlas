@@ -151,7 +151,7 @@ test('PC handbook includes downloadable Codex cards and their copyable text', as
   assert.match(page, /data-prompt-screen/);
   for (const tool of ['codex', 'kiro', 'claude']) assert.match(page, new RegExp(`data-prompt-tool="${tool}"`));
   assert.match(page, /프롬프트 입력/);
-  assert.match(page, /AI CLI의 대화 입력창/);
+  assert.match(page, /Agentic AI 코딩 어시스턴트의 대화 입력창/);
 });
 
 test('terminal, file and AI prompt windows identify their destination without changing copyable text', async (t) => {

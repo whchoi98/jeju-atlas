@@ -1,7 +1,8 @@
 # 본 실습과 심화 실습의 자원
 
-00~04장은 120분 본 실습입니다. 기존 VPC, NAT Gateway, Subnet과 VSCode Server를 사용하고
-AgentCore CLI로 새 Strands Runtime을 생성합니다. 05장 이후의 전체 Atlas 배포는 선택 과정입니다.
+00~04장은 120분 본 실습입니다.\
+기존 VPC, NAT Gateway, Subnet과 VSCode Server를 사용하고 AgentCore CLI로 새 Strands Runtime을 생성합니다.\
+05장 이후의 전체 Atlas 배포는 선택 과정입니다.
 
 ## 본 실습
 
@@ -11,28 +12,30 @@ AgentCore CLI로 새 Strands Runtime을 생성합니다. 05장 이후의 전체 
 | Codex, Kiro CLI, Claude Code | 하나를 선택해 코드와 테스트 작성 |
 | AgentCore CLI 0.28.1 | Strands 프로젝트 생성, dev, deploy, invoke, status, logs |
 | Python과 Strands | 제주 장소 JSON 검색 도구와 응답 규칙 구현 |
-| Bedrock | 진행자가 확인한 모델을 IAM 인증으로 호출 |
+| Bedrock | 발급 리전의 모델을 Bedrock 단기 API 키로 호출 |
 | AgentCore Runtime | 참가자 이름의 JejuGuide 배포와 응답 확인 |
 | CloudFormation과 CDK bootstrap | CLI 배포가 사용하는 스택과 준비된 아티팩트 기반 확인 |
 
-본 실습의 모델 호출과 Runtime은 실제로 확인해야 합니다.
+본 실습의 모델 호출과 Runtime은 실제로 확인해야 합니다.\
 코드만 생성했거나 READY 상태만 확인했다면 원격 응답까지 성공한 것으로 기록하지 않습니다.
-Gateway와 별도 Memory는 06장의 심화 과정에서 다룹니다.
+
+Gateway와 별도 Memory는 06장의 심화 과정에서 다룹니다.\
 모델 없는 Warmup 번들은 독립 검증을 위한 참고 모듈이며 본 실습의 결과물을 대신하지 않습니다.
 
 ## 심화 과정의 전체 자원
 
-아래 표는 저장소의 인프라와 앱을 연결한 목록입니다.
-참가자 계정에 모두 배포되었다는 의미는 아닙니다.
+아래 표는 저장소의 인프라와 앱을 연결한 목록입니다.\
+참가자 계정에 모두 배포되었다는 의미는 아닙니다.\
 참가자 접속은 실제 App 스택의 기본 `*.cloudfront.net` HTTPS 주소를 사용합니다.
-ACM, DNS/Route 53, 사용자 도메인과 origin Host/TLS probe는 워크숍에서 제외합니다.
+
+ACM, DNS/Route 53, 사용자 도메인과 origin Host/TLS probe는 워크숍에서 제외합니다.\
 운영 전용 구성은 아래 별도 참고 표에 남기며 기존 인프라는 변경하지 않습니다.
-현재 논리 자원과 유형의 수는 `workshop/scripts/check_content.py`에서 확인합니다.
+
+현재 논리 자원과 유형의 수는 `workshop/scripts/check_content.py`에서 확인합니다.\
 `Parameters.VpcId.Type: AWS::EC2::VPC::Id` 같은 입력 타입은 VPC 생성 자원으로 세지 않습니다.
 
-공유 VPC, NAT, Subnet과 CDK bootstrap은 유지합니다.
-실습 이름으로 만든 자원은 실제 ARN과 소유 태그를 기록하고,
-Retain 설정의 자원은 스택 삭제 후에도 남아 있는지 확인합니다.
+공유 VPC, NAT, Subnet과 CDK bootstrap은 유지합니다.\
+실습 이름으로 만든 자원은 실제 ARN과 소유 태그를 기록하고, Retain 설정의 자원은 스택 삭제 후에도 남아 있는지 확인합니다.
 
 ## 기반, 저장소, 비밀값
 
@@ -69,7 +72,8 @@ Retain 설정의 자원은 스택 삭제 후에도 남아 있는지 확인합니
 | Python, uv 잠금, 배포 ZIP, CRT/OTel 의존성 | `agent/guide/pyproject.toml`, `agent/guide/uv.lock`, `agent/tools/pyproject.toml`, `agent/tools/uv.lock`, `agent/dependency-artifacts.json`, `scripts/deploy-atlas-agent.py` | `01-setup.md`, `05-foundation-and-data.md`, `06-atlas-agentcore.md` | 잠금 파일에서 참가자용 의존성을 새로 준비하고 Runtime Python/플랫폼 호환성, ZIP 경로, hash 확인. 원본 `build`의 사설 S3 fetch는 오프라인 빌드가 아님 | 새 아티팩트는 실습. 운영 manifest는 참가자의 다운로드 권한 증거가 아님 |
 | CLI 입문 Runtime과 Atlas 스택 구분 | `workshop/IMPLEMENTATION_PLAN.md`, `infra/agentcore.yaml` | `04-agentcore-cli.md`, `06-atlas-agentcore.md`, `13-cleanup.md` | 입문 프로젝트와 Atlas의 별도 이름, 관리 도구, 출력, 정리 목록 대조. CLI 명령은 04장의 검증된 인터페이스 사용 | 둘 다 실습, 수명주기 별도. 이 YAML 목록이 입문 프로젝트를 선언하지 않음 |
 
-Memory의 `EventExpiryDuration: 30`은 단기 이벤트 설정이다. 추출된 모든 장기 기억이 30일 뒤 삭제된다는 뜻도, 브라우저 자료 삭제가 서버 Memory를 지운다는 뜻도 아니다.
+Memory의 `EventExpiryDuration: 30`은 단기 이벤트 설정이다.\
+추출된 모든 장기 기억이 30일 뒤 삭제된다는 뜻도, 브라우저 자료 삭제가 서버 Memory를 지운다는 뜻도 아니다.
 
 ## 웹 컴퓨팅, 로드 밸런싱
 
@@ -107,7 +111,8 @@ Memory의 `EventExpiryDuration: 30`은 단기 이벤트 설정이다. 추출된 
 
 ## 운영 전용 참고 구성
 
-다음은 기존 운영 소스의 매핑입니다. 워크숍의 준비, 배포와 정리 단계에 포함하지 않습니다.
+다음은 기존 운영 소스의 매핑입니다.\
+워크숍의 준비, 배포와 정리 단계에 포함하지 않습니다.
 
 | 기존 구성 | 소스 | 워크숍 처리 |
 |---|---|---|
@@ -132,7 +137,7 @@ Memory의 `EventExpiryDuration: 30`은 단기 이벤트 설정이다. 추출된 
 | `AWS::Logs::DeliveryDestination`. `CloudFrontDeliveryDestination` | `infra/edge.yaml` | `11-operations.md` | 정확한 로그 그룹 ARN과 JSON 출력 확인 | 실습 |
 | `AWS::Logs::Delivery`. `CloudFrontAccessDelivery` | `infra/edge.yaml` | `11-operations.md`, `12-validation.md` | 표준 로그 V2 전달, 실제 유입, 명시한 11개 `RecordFields` 확인. IP, URI, query, cookie, user-agent, 본문이 기본 필드로 되돌아오지 않아야 함 | 실습. Firehose나 S3 access-log 버킷 생성 선언 없음 |
 | `AWS::SNS::Topic`. `Notifications`, `EdgeNotifications` | `infra/operations.yaml`, `infra/edge.yaml` | `11-operations.md`, `13-cleanup.md` | 서울/버지니아 topic 분리, 알람 액션 연결. 담당자가 수신 경로를 준비하고 실제 수신 확인 | 실습. **구독 생성 리소스 없음** |
-| `AWS::SNS::TopicPolicy`. `NotificationPolicy`, `EdgeNotificationPolicy` | `infra/operations.yaml`, `infra/edge.yaml` | `11-operations.md` | SourceAccount, 자기 알람 ARN 범위, 데이터 알람 ARN의 팀 이름 확인. 데이터 스택이 topic 정책을 덮어쓰지 않음 | 실습. 데이터 스택은 서울 topic ARN을 입력으로 재사용 |
+| `AWS::SNS::TopicPolicy`. `NotificationPolicy`, `EdgeNotificationPolicy` | `infra/operations.yaml`, `infra/edge.yaml` | `11-operations.md` | SourceAccount, 자기 알람 ARN 범위, 데이터 알람 ARN의 실습 ID 확인. 데이터 스택이 topic 정책을 덮어쓰지 않음 | 실습. 데이터 스택은 서울 topic ARN을 입력으로 재사용 |
 | `AWS::Logs::MetricFilter`. `GuideFailureMetric`, `CatalogStateMetric`, `OfficialDetailsStateMetric` | `infra/operations.yaml`, `server/api.mjs` | `11-operations.md` | 실제 JSON 이벤트의 오류, 숫자 stale 추출 확인. 공식 상세 필터는 `MonitorOfficialDetails`; catalog와 상세 heartbeat 별도 평가 | 실습. 원본 로그 그룹은 앱 스택 소유 |
 | `AWS::CloudWatch::Alarm`. `HealthyTargetsAlarm`, `Alb5xxAlarm`, `Target5xxAlarm`, `TargetLatencyAlarm`, `CpuHighAlarm`, `MemoryHighAlarm`, `QuotaWriteThrottleAlarm` | `infra/operations.yaml` | `11-operations.md` | ALB/TG full name, ECS service, DynamoDB 차원, threshold, missing-data 확인. ALB p95는 **응답 헤더 지연**이며 SSE 완료 시간이 아님 | 실습 |
 | `AWS::CloudWatch::Alarm`. `GuideFailuresAlarm`, `CatalogStaleAlarm`, `OfficialDetailsStaleAlarm` | `infra/operations.yaml`, `server/api.mjs`, `server/official-details.mjs` | `11-operations.md` | 예상 4xx/취소와 운영 오류, catalog 나이와 provider별 `fetched_at` 나이 구분. 공식 상세 알람은 `MonitorOfficialDetails` 조건 | 실습 |
@@ -172,7 +177,11 @@ Memory의 `EventExpiryDuration: 30`은 단기 이벤트 설정이다. 추출된 
 
 ## 조건과 제외 범위
 
-`HasDetails`는 상세 버킷 이름, `HasSharedAssets`는 자산 버킷 도메인, `RoutingEnabled`는 라우팅 이미지 URI의 존재를 검사한다. 해당 값이 채워졌다는 사실만으로 객체, 그래프, OAC 권한이 검증되지는 않는다. `HasWebAcl`은 WebACL 연결 조건이다. 워크숍에서는 `HasViewerDomain`, `HasOriginCertificate`, `UseOriginTls`가 false이며 해당 운영 분기를 사용하지 않는다.
+`HasDetails`는 상세 버킷 이름, `HasSharedAssets`는 자산 버킷 도메인, `RoutingEnabled`는 라우팅 이미지 URI의 존재를 검사한다.\
+해당 값이 채워졌다는 사실만으로 객체, 그래프, OAC 권한이 검증되지는 않는다.
+
+`HasWebAcl`은 WebACL 연결 조건이다.\
+워크숍에서는 `HasViewerDomain`, `HasOriginCertificate`, `UseOriginTls`가 false이며 해당 운영 분기를 사용하지 않는다.
 
 소스 범위에 다음 배포를 추가하지 않는다.
 
@@ -182,4 +191,8 @@ Memory의 `EventExpiryDuration: 30`은 단기 이벤트 설정이다. 추출된 
 - **API Gateway, Route 53 hosted zone/record, NAT/VPC endpoint, RDS, OpenSearch, Kinesis/Firehose, 별도 KMS key, AWS Budgets**: 이 템플릿들의 생성 리소스가 아니다. 지원 기능이나 ARN 이름으로 추측하지 않는다.
 - **AgentCore API-key/OAuth credential provider**: Gateway target의 `GATEWAY_IAM_ROLE`과 구분한다. 관광정보 키는 수집 작업의 SSM 경계, 선택한 카카오 REST 키는 웹 ECS의 비밀 주입 경계에 있으며 AgentCore credential provider를 생성하지 않는다.
 
-`scripts/check.mjs`는 Node/Python 회귀, cfn-lint, npm audit, 앱 빌드를 실행한다. npm audit는 패키지 registry 통신이 필요하고 결과/빌드 파일을 작성하므로 “완전 오프라인, 읽기 전용”이라고 부르지 않는다. `scripts/verify.py`와 live 브라우저, 개인정보, 복구 도구는 별도의 클라우드/네트워크 검사다. 교재 작성 중의 소스 검토만으로 이 검사들이 통과했다고 표시하지 않는다.
+`scripts/check.mjs`는 Node/Python 회귀, cfn-lint, npm audit, 앱 빌드를 실행한다.\
+npm audit는 패키지 registry 통신이 필요하고 결과/빌드 파일을 작성하므로 “완전 오프라인, 읽기 전용”이라고 부르지 않는다.
+
+`scripts/verify.py`와 live 브라우저, 개인정보, 복구 도구는 별도의 클라우드/네트워크 검사다.\
+교재 작성 중의 소스 검토만으로 이 검사들이 통과했다고 표시하지 않는다.

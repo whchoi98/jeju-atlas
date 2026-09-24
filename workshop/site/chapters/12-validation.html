@@ -6,8 +6,8 @@
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#232f3e">
   <meta name="referrer" content="no-referrer">
-  <meta name="description" content="한영 AI, 3D 지도, 실제 경로, 스트리밍, 복구 기준을 검증합니다.">
-  <title>서비스 검증과 문제 해결, Jeju Atlas 워크숍</title>
+  <meta name="description" content="오류나 변경이 있는 기능만 진단합니다. 정상 진행 중에는 건너뜁니다.">
+  <title>선택: 필요한 기능만 문제 해결, Jeju Atlas 워크숍</title>
   <link rel="icon" type="image/svg+xml" href="../assets/mark.svg">
   <link rel="apple-touch-icon" href="../assets/icons/atlas-192.png">
   <link rel="manifest" data-workshop-manifest="../manifest.webmanifest">
@@ -16,7 +16,7 @@
   <script src="../assets/reader.js" defer></script>
   <script src="../assets/reader-pwa.js" defer></script>
 </head>
-<body id="top" data-course-key="429847d93247aaab" data-page-kind="chapters" data-current-chapter="12-validation">
+<body id="top" data-course-key="8c5ff6f97c0fe0dd" data-page-kind="chapters" data-current-chapter="12-validation">
   <a class="skip-link" href="#main-content">본문으로 바로 가기</a>
   <aside class="sidebar" id="course-nav" aria-label="워크숍 목차">
     <div class="sidebar-brand">
@@ -33,90 +33,105 @@
     </div>
     <p class="search-result sr-only" data-search-result role="status" aria-live="polite"></p>
     <nav class="chapter-navigation" id="chapter-navigation" aria-label="전체 과정과 챕터">
-      <a class="overview-link" href="../index.html">전체 과정<span aria-hidden="true">00 ~ 13</span></a>
+      <a class="overview-link" href="../index.html">전체 과정<span aria-hidden="true">00 ~ 14</span></a>
       <section class="nav-group" data-nav-group aria-label="본 실습">
-        <h2><span>본 실습</span><span>1시간 50분</span></h2>
-        <ol><li data-nav-entry data-search="00 이번 실습에서 만들 것 결과물과 120분의 진행 순서를 확인합니다. 결과물 시간 배분 완료 확인 AI CLI 프롬프트 카드">
+        <h2><span>본 실습</span><span>1시간 40분</span></h2>
+        <ol><li data-nav-entry data-search="00 이번 실습에서 만들 것 핵심 작업 100분과 여유 20분의 완료 기준을 확인합니다. 수업 전에 준비할 것 100분 과정과 20분 여유 보여줄 결과 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="00-orientation.html" data-chapter-link="00-orientation" data-core-chapter="true">
       <span class="nav-number">00</span>
       <span class="nav-title">이번 실습에서 만들 것</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="01 준비된 환경 확인 VSCode Server에서 이미 설치된 AI CLI와 실습 도구를 확인합니다. 사용할 AI CLI 선택 1. 전체 소스와 참가자 위치 확인 2. 같은 Bash에서 환경 활성화와 사전검사 새 터미널을 열었을 때 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="01 환경 확인과 Bedrock 키 입력 EC2 점검 결과를 확인하고 Bedrock 단기키를 .env에 숨김 입력합니다. 시작 전에 전체 소스 받기 시작 블록 한 번 실행 통과 조건 새 Bash의 환경 복원 막혔거나 새 터미널을 열었다면 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="01-setup.html" data-chapter-link="01-setup" data-core-chapter="true">
       <span class="nav-number">01</span>
-      <span class="nav-title">준비된 환경 확인</span>
+      <span class="nav-title">환경 확인과 Bedrock 키 입력</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="02 계정과 작업 폴더 현재 EC2의 계정과 기존 네트워크, 참가자별 폴더를 확인합니다. 참가자 환경과 계정 EC2와 기존 네트워크 확인 계정 변수와 CLI 설정 배포 준비 확인 배포 리전과 Bedrock 호출 리전 작은 실제 모델 검사 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="02 계정과 작업 폴더 제공된 독립 랩의 계정과 입력 상태를 확인하고, 별도 모델 검증은 필요할 때만 선택합니다. 독립 랩과 공통 실습 ID 입력 상태만 확인하고 진행 선택: 키나 모델 접근 문제가 있을 때만 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="02-aws-environment.html" data-chapter-link="02-aws-environment" data-core-chapter="true">
       <span class="nav-number">02</span>
       <span class="nav-title">계정과 작업 폴더</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="03 AI CLI로 제주 가이드 구현 AgentCore CLI로 프로젝트를 만들고 선택한 AI CLI로 검색 도구를 구현합니다. 1. AgentCore 프로젝트 생성 2. 생성된 파일 확인 3. 사용할 데이터 복사 4. AI CLI 실행 5. 코드 검토 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="03 Agentic AI 코딩 어시스턴트로 제주 가이드 구현 구현 프롬프트로 AgentCore 프로젝트와 제주 검색 도구를 만듭니다. 선택한 Agentic AI 코딩 어시스턴트 실행 구현 프롬프트 한 번 전달 구현 결과 확인 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="03-codex.html" data-chapter-link="03-codex" data-core-chapter="true">
       <span class="nav-number">03</span>
-      <span class="nav-title">AI CLI로 제주 가이드 구현</span>
+      <span class="nav-title">Agentic AI 코딩 어시스턴트로 제주 가이드 구현</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="04 AgentCore CLI로 실행하고 배포하기 로컬 테스트와 모델 응답을 확인한 뒤 Runtime을 배포하고 호출합니다. 1. 의존성과 검색 도구 검사 2. 로컬에서 실제 모델 호출 3. 배포 계획 확인 4. AWS 배포 5. 배포한 Runtime 호출 6. 정리와 제출 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="04 AgentCore CLI로 배포하고 결과 보기 키 연결과 배포 후 예시 응답을 보고 마칩니다. 종합 검증은 선택입니다. 기본 실행 순서 결과 응답 한 번 보기 필요한 경우에만 추가 진단 결과와 자원 인계 배포 후 선택 사항 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="04-agentcore-cli.html" data-chapter-link="04-agentcore-cli" data-core-chapter="true">
       <span class="nav-number">04</span>
-      <span class="nav-title">AgentCore CLI로 실행하고 배포하기</span>
+      <span class="nav-title">AgentCore CLI로 배포하고 결과 보기</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
     </a></li></ol>
       </section><section class="nav-group" data-nav-group aria-label="심화 선택">
         <h2><span>심화 선택</span><span>시간 별도</span></h2>
-        <ol><li data-nav-entry data-search="05 컨테이너 저장소와 장소 데이터 ECR, 비공개 S3를 준비하고 샘플, OSM 카탈로그를 만듭니다. 심화 작업 폴더 준비 ECR 생성 CloudFront 없이 비공개 데이터 버킷 생성 카탈로그 생성, 게시 데이터 의미 AI CLI 프롬프트 카드">
+        <ol><li data-nav-entry data-search="05 컨테이너 저장소와 장소 데이터 ECR, 비공개 S3를 준비하고 샘플, OSM 카탈로그를 만듭니다. 심화 작업 폴더 준비 ECR 생성 CloudFront 없이 비공개 데이터 버킷 생성 카탈로그 생성, 게시 데이터 의미 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="05-foundation-and-data.html" data-chapter-link="05-foundation-and-data" data-core-chapter="false">
       <span class="nav-number">05</span>
       <span class="nav-title">컨테이너 저장소와 장소 데이터</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide, Tools, Gateway, Memory와 Strands를 배포합니다. 구성 새 의존성 ZIP 앱 코드 패키징, 배포 모델 설정 재개 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide, Tools, Gateway, Memory와 Strands를 배포합니다. 구성 새 의존성 ZIP 앱 코드 패키징, 배포 모델 설정 재개 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="06-atlas-agentcore.html" data-chapter-link="06-atlas-agentcore" data-core-chapter="false">
       <span class="nav-number">06</span>
       <span class="nav-title">제주 가이드 AgentCore 배포</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="07 실제 경로와 고도 데이터 Valhalla, OSM, HGT로 도보, 차량 경로 이미지를 빌드합니다. 입력 자료 라우터 이미지 웹 연결 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="07 실제 경로와 고도 데이터 Valhalla, OSM, HGT로 도보, 차량 경로 이미지를 빌드합니다. 입력 자료 라우터 이미지 웹 연결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="07-routing.html" data-chapter-link="07-routing" data-core-chapter="false">
       <span class="nav-number">07</span>
       <span class="nav-title">실제 경로와 고도 데이터</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="08 3D 지도 웹과 Fargate 배포 Public ALB와 Private Fargate에 지도, 가이드, 라우터를 연결합니다. 빌드 앱 계획 첫 접속 실제 Distribution으로 데이터 정책 연결 문제 해결 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="08 3D 지도 웹과 Fargate 배포 Public ALB와 Private Fargate에 지도, 가이드, 라우터를 연결합니다. 빌드 앱 계획 첫 접속 실제 Distribution으로 데이터 정책 연결 문제 해결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="08-web.html" data-chapter-link="08-web" data-core-chapter="false">
       <span class="nav-number">08</span>
       <span class="nav-title">3D 지도 웹과 Fargate 배포</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="09 CloudFront 기본 HTTPS와 엣지 실제 스택의 CloudFront 기본 URL로 접속하고 WAF, OAC와 고도 캐시를 검증합니다. 참가자 환경과 실제 URL WAF와 공유 자산 OAC 앱에 WAF와 정적 자산 연결 확인과 문제 해결 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="09 CloudFront 기본 HTTPS와 엣지 실제 스택의 CloudFront 기본 URL로 접속하고 WAF, OAC와 고도 캐시를 검증합니다. 참가자 환경과 실제 URL WAF와 공유 자산 OAC 앱에 WAF와 정적 자산 연결 확인과 문제 해결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="09-https-edge.html" data-chapter-link="09-https-edge" data-core-chapter="false">
       <span class="nav-number">09</span>
       <span class="nav-title">CloudFront 기본 HTTPS와 엣지</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="10 공식 장소 정보와 사진 TourAPI와 VISIT JEJU로 공식 상세와 사진을 보강합니다. 키 입력 수집 이미지와 Schedule 결과 해석 올레길과 웹 확인 선택 실습, 카카오 장소 정보 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="10 공식 장소 정보와 사진 TourAPI와 VISIT JEJU로 공식 상세와 사진을 보강합니다. 키 입력 수집 이미지와 Schedule 결과 해석 올레길과 웹 확인 선택 실습, 카카오 장소 정보 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="10-enrichment.html" data-chapter-link="10-enrichment" data-core-chapter="false">
       <span class="nav-number">10</span>
       <span class="nav-title">공식 장소 정보와 사진</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="11 관측, 보안, 운영 제어 CloudWatch, SNS, 할당량, 이미지 검사, 개인정보 보호를 확인합니다. 운영 스택 확인할 지표 호출 한도와 모델 권한 현재 및 누적 접속 수 로그와 개인정보 이미지와 네트워크 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="11 관측, 보안, 운영 제어 CloudWatch, SNS, 할당량, 이미지 검사, 개인정보 보호를 확인합니다. 운영 스택 확인할 지표 호출 한도와 모델 권한 현재 및 누적 접속 수 로그와 개인정보 이미지와 네트워크 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="11-operations.html" data-chapter-link="11-operations" data-core-chapter="false">
       <span class="nav-number">11</span>
       <span class="nav-title">관측, 보안, 운영 제어</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="12 서비스 검증과 문제 해결 한영 AI, 3D 지도, 실제 경로, 스트리밍, 복구 기준을 검증합니다. 자동 검사 실제 화면 탐색에서 길찾기까지 실제 AI 질문 문제 구분 복구 기준 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="12 선택: 필요한 기능만 문제 해결 오류나 변경이 있는 기능만 진단합니다. 정상 진행 중에는 건너뜁니다. 선택한 문제의 검사만 실행 선택: 문제가 있는 화면 항목만 선택: 탐색이나 경로를 변경한 경우 선택: AI 응답 문제를 확인할 때 문제 구분 복구 기준 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="12-validation.html" aria-current="page" data-chapter-link="12-validation" data-core-chapter="false">
       <span class="nav-number">12</span>
-      <span class="nav-title">서비스 검증과 문제 해결</span>
+      <span class="nav-title">선택: 필요한 기능만 문제 해결</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="13 실습 자원 정리 공유 네트워크를 보존하고 실습 스택과 잔존 자원을 정리합니다. 기본 과정의 CLI 프로젝트 Atlas 스택 계획 보존 및 수동 자원 확인 마지막 점검 AI CLI 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="13 실습 자원 정리 공유 네트워크를 보존하고 실습 스택과 잔존 자원을 정리합니다. 기본 과정의 CLI 프로젝트 Atlas 스택 계획 보존 및 수동 자원 확인 마지막 점검 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="13-cleanup.html" data-chapter-link="13-cleanup" data-core-chapter="false">
       <span class="nav-number">13</span>
       <span class="nav-title">실습 자원 정리</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
+    </a></li><li data-nav-entry data-search="14 Codex로 프로젝트 완성하기 새 계정의 소스와 참가자 설정을 준비하고, AWS 구현안을 포함한 통합 프롬프트로 완성 작업을 이어 갑니다. 시작 상태와 작업 위치 목표 구성을 코드와 연결하기 통합 프롬프트 전달 실행 결과 확인 막혔을 때의 재개 지점 완료와 다음 단계 Agentic AI 코딩 어시스턴트 프롬프트 카드">
+    <a class="chapter-link" href="14-project-completion.html" data-chapter-link="14-project-completion" data-core-chapter="false">
+      <span class="nav-number">14</span>
+      <span class="nav-title">Codex로 프로젝트 완성하기</span>
+      <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
     </a></li></ol>
       </section>
-      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="AWS 자원, 기술 전체 매핑 본 실습 심화 과정의 전체 자원 기반, 저장소, 비밀값 심화 Atlas AgentCore 웹 컴퓨팅, 로드 밸런싱 HTTPS, 캐시, 엣지 운영 전용 참고 구성 공식 데이터 작업, 관측 지도, 라우팅, 데이터, 사용자 화면 조건과 제외 범위">
+      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="EC2 사전 점검과 설치 0. 전체 소스 받기 1. EC2 사전 점검 2. EC2 기본 도구 설치 uv와 Python 3.12 Docker AgentCore CLI의 사용자 npm 경로 3. Node 24와 참가자 도구 준비 4. 활성화와 전체 앱용 Python 패키지 설치 5. 수업 시작 조건 PyYAML 누락으로 이미 사본 생성이 중단됐다면 공식 자료와 확인 범위">
+    <a class="reference-link" href="../reference/preconfiguration.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">EC2 사전 점검과 설치</span>
+
+    </a></li><li data-nav-entry data-search=".env, Bedrock 단기키와 선택 연동 본인 터미널에서 입력 세 가지 인증 구분 로컬 호출과 배포 연결 만료되거나 리전을 바꿨을 때 배포 후 선택 키 입력 키 자원 정리 공식 근거">
+    <a class="reference-link" href="../reference/keys-and-integrations.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">.env, Bedrock 단기키와 선택 연동</span>
+
+    </a></li><li data-nav-entry data-search="AWS 자원, 기술 전체 매핑 본 실습 심화 과정의 전체 자원 기반, 저장소, 비밀값 심화 Atlas AgentCore 웹 컴퓨팅, 로드 밸런싱 HTTPS, 캐시, 엣지 운영 전용 참고 구성 공식 데이터 작업, 관측 지도, 라우팅, 데이터, 사용자 화면 조건과 제외 범위">
     <a class="reference-link" href="../reference/resources.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">AWS 자원, 기술 전체 매핑</span>
 
-    </a></li><li data-nav-entry data-search="진행자 준비 가이드 이미 제공된 환경 수업 전에 추가로 확인할 항목 확인된 실제 호출 실패 1. 참가자 EC2에 전체 소스 전달 2. 전용 도구 경로 준비와 설치 3. 활성화, 사전검사와 Claude 재개 리허설 수업 중 확인 시점 심화 과정 운영">
+    </a></li><li data-nav-entry data-search="진행자 준비 가이드 수업 전에 준비 랩 분리와 공통 식별자 검증과 HUD 운영 키와 계정 준비 리허설 수업 중 확인 시점 종료와 재개 이전 관찰 기록">
     <a class="reference-link" href="../reference/facilitator.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">진행자 준비 가이드</span>
@@ -131,15 +146,25 @@
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">공식 AgentCore CLI 가이드 대조</span>
 
-    </a></li><li data-nav-entry data-search="PC 다운로드, EC2 실행 내려받을 파일 시간표와 프롬프트 EC2의 실행 소스 준비 교재 다시 만들기 오프라인 사용">
+    </a></li><li data-nav-entry data-search="PC 다운로드, EC2 실행 내려받을 파일 시간표와 프롬프트 EC2의 실행 소스 준비 Python 스크립트가 없을 때 교재 다시 만들기 오프라인 사용">
     <a class="reference-link" href="../reference/offline-start.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">PC 다운로드, EC2 실행</span>
 
-    </a></li><li data-nav-entry data-search="Codex, Kiro CLI, Claude Code 환경 Bash와 AI 대화창 구분 새 터미널에서 복원하고 Claude 열기 공통 과제 전달 인증과 권한 오류를 수정할 때 공식 문서">
+    </a></li><li data-nav-entry data-search="Agentic AI 코딩 어시스턴트 환경 같은 Bash에서 활성화하고 시작 Codex: auto-review와 on-request Claude Code: auto mode Kiro CLI 프롬프트 두 개로 이어 가기 재개와 도구 전환 공식 자료">
     <a class="reference-link" href="../reference/ai-cli-environments.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
-      <span class="nav-title">Codex, Kiro CLI, Claude Code 환경</span>
+      <span class="nav-title">Agentic AI 코딩 어시스턴트 환경</span>
+
+    </a></li><li data-nav-entry data-search="선택: Codex HUD 설치 HUD를 사용하려는 경우의 준비 1. 설치 플러그인 등록 (선택) 2. 프로젝트 전용 HUD 설치 (선택) 3. HUD를 설치한 경우의 확인 4. 참가자 프로젝트에서 HUD 실행 (선택) 문제 해결과 인계">
+    <a class="reference-link" href="../reference/hud-setup.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">선택: Codex HUD 설치</span>
+
+    </a></li><li data-nav-entry data-search="Codex 환경 설정과 Bedrock 연결 설정 파일 위치 사용할 TOML 설정 Codex와 Runtime의 리전 구분 AWS 인증 준비 설정 확인 새 세션과 HUD에서 확인 문제 해결과 인계">
+    <a class="reference-link" href="../reference/codex-bedrock.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">Codex 환경 설정과 Bedrock 연결</span>
 
     </a></li></ul></section>
       <p class="search-empty" data-search-empty hidden>검색 결과가 없습니다.<br>다른 제목이나 주제를 입력하세요.</p>
@@ -169,31 +194,51 @@
     <main id="main-content" tabindex="-1">
       <noscript><p class="noscript-note">목차와 본문은 그대로 읽을 수 있습니다. 검색, 코드 복사, 읽기 기록은 JavaScript를 켜면 사용할 수 있습니다.</p></noscript>
       <div class="article-layout">
-    <article class="lesson" aria-labelledby="heading-12-서비스-검증과-문제-해결">
+    <article class="lesson" aria-labelledby="heading-12-선택-필요한-기능만-문제-해결">
       <header class="lesson-header">
         <p class="eyebrow"><span class="chapter-stamp">12</span>심화 선택<span class="meta-separator">/</span>35분, 별도 일정</p>
-        <h1 id="heading-12-서비스-검증과-문제-해결">서비스 검증과 문제 해결</h1>
-        <p class="lesson-summary">한영 AI, 3D 지도, 실제 경로, 스트리밍, 복구 기준을 검증합니다.</p>
+        <h1 id="heading-12-선택-필요한-기능만-문제-해결">선택: 필요한 기능만 문제 해결</h1>
+        <p class="lesson-summary">오류나 변경이 있는 기능만 진단합니다. 정상 진행 중에는 건너뜁니다.</p>
         <div class="lesson-location"><span>선택한 사람만 진행하는 심화 자료</span><span class="lesson-read-state" data-chapter-state>아직 읽지 않음</span></div>
       </header>
       <div class="prose">
-<p>이 장은 120분 본 실습 이후에 선택하는 심화 자료입니다.</p>
-<p>배포 계획, 이미지 빌드, 스택 완료, 실제 사용자 응답을 각각 확인합니다.
+<p>이 장과 대응 프롬프트는 <strong>선택 사항</strong>입니다.<br>
+기본 실습의 구현과 배포가 정상이라면 이 장을 건너뛰고 자원 인계 또는 정리로 이동합니다.<br>
+오류가 발생했거나 특정 기능을 변경했거나, 사용자가 검증을 요청한 경우에만 필요한 항목 하나를 선택합니다.</p>
+<p>배포 계획, 이미지 빌드, 스택 완료, 실제 사용자 응답을 각각 확인합니다.<br>
 교재 제작자가 수행한 로컬 검사 결과를 자신의 AWS 배포 결과로 복사하지 않습니다.</p>
-<h2 id="heading-자동-검사">자동 검사</h2>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd "$ATLAS_REPO"
+<h2 id="heading-선택한-문제의-검사만-실행">선택한 문제의 검사만 실행</h2>
+<p>아래 명령을 모두 실행하지 않습니다.<br>
+오류에 해당하는 명령만 선택하고 나머지는 생략합니다.<br>
+<code>check</code>와 <code>verify</code>의 종합 검사는 사용자가 전체 확인을 요청한 경우에만 사용합니다.</p>
+<p>소스 전체 확인을 명시적으로 요청한 경우:</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
 python3 workshop/scripts/lab.py run check --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run verify --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run verify-assets --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run verify-terrain --config "$ATLAS_CONFIG" --execute
+}
 </code></pre></div>
-<p><code>check</code>는 로컬 소스 검사입니다. <code>verify</code> 계열은 실제 AWS와 HTTP를 확인합니다.
-09장의 WAF/OAC 연결 이전에는 전체 검사를 통과했다고 기대하지 않습니다.
-현재 코드, 이미지, 검증 결과의 시점을 함께 기록합니다.
-검사 URL은 참가자 App 스택의 실제 CloudFrontUrl입니다.
-기본 CloudFront 인증서와 Alias 없음, ApplicationUrl 일치를 확인합니다.
+<p>운영 전체 확인을 명시적으로 요청한 경우:</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+python3 workshop/scripts/lab.py run verify --config "$ATLAS_CONFIG" --execute
+}
+</code></pre></div>
+<p>정적 자산 문제만 확인하는 경우:</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+python3 workshop/scripts/lab.py run verify-assets --config "$ATLAS_CONFIG" --execute
+}
+</code></pre></div>
+<p>고도 타일 문제만 확인하는 경우:</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+python3 workshop/scripts/lab.py run verify-terrain --config "$ATLAS_CONFIG" --execute
+}
+</code></pre></div>
+<p><code>check</code>는 로컬 소스 검사입니다.<br>
+<code>verify</code> 계열은 실제 AWS와 HTTP를 확인합니다.<br>
+09장의 WAF/OAC 연결 이전에는 전체 검사를 통과했다고 기대하지 않습니다.</p>
+<p>현재 코드, 이미지, 검증 결과의 시점을 함께 기록합니다.<br>
+검사 URL은 참가자 App 스택의 실제 CloudFrontUrl입니다.</p>
+<p>기본 CloudFront 인증서와 Alias 없음, ApplicationUrl 일치를 확인합니다.<br>
 ACM 발급이나 DNS 등록을 완료 기준에 넣지 않습니다.</p>
-<h2 id="heading-실제-화면">실제 화면</h2>
+<h2 id="heading-선택-문제가-있는-화면-항목만">선택: 문제가 있는 화면 항목만</h2>
 <div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
 <thead>
 <tr>
@@ -268,9 +313,9 @@ ACM 발급이나 DNS 등록을 완료 기준에 넣지 않습니다.</p>
 </tr>
 </tbody>
 </table></div>
-<p>지형, 도로, 위성 자료의 시점을 구분합니다.
+<p>지형, 도로, 위성 자료의 시점을 구분합니다.<br>
 정밀 측량, 실시간 교통, 실시간 위성 영상이라고 설명하지 않습니다.</p>
-<h2 id="heading-탐색에서-길찾기까지">탐색에서 길찾기까지</h2>
+<h2 id="heading-선택-탐색이나-경로를-변경한-경우">선택: 탐색이나 경로를 변경한 경우</h2>
 <ol>
 <li>장소 이름을 입력하고 Enter로 검색합니다. 방향키로 후보를 선택해 상세를 엽니다.</li>
 <li>주소와 장소 링크를 복사합니다. 장소 링크에는 현재 여행 코스나 선택 토큰이 들어가지 않아야 합니다.</li>
@@ -280,16 +325,17 @@ ACM 발급이나 DNS 등록을 완료 기준에 넣지 않습니다.</p>
 <li>지도를 이동한 뒤 <strong>이 지역에서 검색</strong>을 선택합니다. 이동 중에는 이전 결과가 임의로 바뀌지 않아야 합니다.</li>
 <li>지도에서 우클릭 또는 길게 누르기로 출발, 도착, 주변 탐색을 실행합니다. 드래그와 두 손가락 확대가 정상인지 확인합니다.</li>
 </ol>
-<p>현재 위치는 브라우저가 위치 권한을 받은 경우에만 확인합니다.
-제주 밖에서 실습한다면 위치 안내를 확인하고 지도에서 제주 안의 지점을 직접 선택합니다.
+<p>현재 위치는 브라우저가 위치 권한을 받은 경우에만 확인합니다.<br>
+제주 밖에서 실습한다면 위치 안내를 확인하고 지도에서 제주 안의 지점을 직접 선택합니다.<br>
 위치 실패를 가상의 제주 좌표로 대체하지 않습니다.</p>
-<p>다른 창에서 공유 링크를 열 때 카카오 장소는 같은 ID를 다시 확인한 뒤 표시합니다.
-링크에 들어 있는 이름, 좌표를 검증된 장소 정보로 바로 취급하지 않아야 합니다.
+<p>다른 창에서 공유 링크를 열 때 카카오 장소는 같은 ID를 다시 확인한 뒤 표시합니다.<br>
+링크에 들어 있는 이름, 좌표를 검증된 장소 정보로 바로 취급하지 않아야 합니다.<br>
 최근 기록을 지워도 즐겨찾기와 여행 코스가 함께 삭제되지 않아야 합니다.</p>
-<h2 id="heading-실제-ai-질문">실제 AI 질문</h2>
-<p>아래 질문을 한 번씩 수행하고 완료 여부를 기록합니다.
+<h2 id="heading-선택-ai-응답-문제를-확인할-때">선택: AI 응답 문제를 확인할 때</h2>
+<p>아래는 선택할 수 있는 질문 예시입니다.<br>
+AI 응답 문제를 확인해야 할 때 해당 질문 하나만 사용하며, 전체 질문을 순서대로 실행하지 않습니다.<br>
 실제 모델 호출이며 계정 비용과 앱 한도에 포함됩니다.</p>
-<div class="code-block file-window" data-code-kind="file"><div class="code-toolbar"><div class="code-window-title"><strong>참고 내용</strong><span class="code-language">text</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="text 코드 복사">복사</button></div><pre tabindex="0" aria-label="참고 내용: text"><code class="language-text" id="code-2">아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.
+<div class="code-block file-window" data-code-kind="file"><div class="code-toolbar"><div class="code-window-title"><strong>참고 내용</strong><span class="code-language">text</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="text 코드 복사">복사</button></div><pre tabindex="0" aria-label="참고 내용: text"><code class="language-text" id="code-5">아이와 함께 방문할 장소를 추천하고 편의 정보가 확인되는지 알려 주세요.
 한라산 근처 맛집을 추천하고 확인된 이용시간과 출처를 알려 주세요.
 성산일출봉 근처 맛집을 알려 주세요.
 아이와 함께 가기 좋은 제주 관광지 한 곳과 확인된 편의 정보를 간단히 알려 주세요.
@@ -305,7 +351,7 @@ Recommend family-friendly places in Jeju and distinguish verified facilities fro
 <li>한국어/English 선택이 답변에 반영됩니다.</li>
 <li>브라우저를 닫거나 요청을 취소했을 때 서버가 무한 작업을 지속하지 않습니다.</li>
 </ul>
-<p>Memory는 같은 사용자, 세션 범위의 기록과 보관 정책으로 확인합니다.
+<p>Memory는 같은 사용자, 세션 범위의 기록과 보관 정책으로 확인합니다.<br>
 다른 참가자의 actor/session 식별자를 사용하지 않습니다.</p>
 <h2 id="heading-문제-구분">문제 구분</h2>
 <div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
@@ -346,38 +392,73 @@ Recommend family-friendly places in Jeju and distinguish verified facilities fro
 </tr>
 </tbody>
 </table></div>
-<p>Codex에는 오류 코드, 상태, 소유 자원 식별자, 관련 코드만 제공하고
-secret 값, AWS 자격 증명, 원문 사용자 대화 전체를 붙이지 않습니다.</p>
+<p>Codex에는 오류 코드, 상태, 소유 자원 식별자, 관련 코드만 제공하고 secret 값, AWS 자격 증명, 원문 사용자 대화 전체를 붙이지 않습니다.</p>
 <h2 id="heading-복구-기준">복구 기준</h2>
-<p>ECS deployment circuit breaker와 자동 rollback 설정을 확인합니다.
-웹, 라우터는 같은 task definition의 digest 쌍으로 되돌아가야 합니다.
-수동 rollback 연습은 <strong>이 실습에서 생성하고 확인한 이전 이미지</strong>를 진행자와 승인한 뒤 진행합니다.
-원본 <code>docs/rollback.md</code>에 있는 운영 digest를 실습의 승인 이미지로 복사하지 않습니다.
+<p>ECS deployment circuit breaker와 자동 rollback 설정을 확인합니다.<br>
+웹, 라우터는 같은 task definition의 digest 쌍으로 되돌아가야 합니다.<br>
+수동 rollback 연습은 <strong>이 실습에서 생성하고 확인한 이전 이미지</strong>를 진행자와 승인한 뒤 진행합니다.</p>
+<p>원본 <code>docs/rollback.md</code>에 있는 운영 digest를 실습의 승인 이미지로 복사하지 않습니다.<br>
 새 릴리스 한 개만 만든 상태에서는 “이전 버전 복구 실증 완료”로 기록하지 않습니다.</p>
 <ul class="contains-task-list">
-<li class="task-list-item"><input type="checkbox" disabled> 자동 검사와 실제 화면 결과를 구분해 기록했습니다.</li>
-<li class="task-list-item"><input type="checkbox" disabled> 한영 AI가 완료되고 확인된 정보, 미확인 정보를 구분합니다.</li>
+<li class="task-list-item"><input type="checkbox" disabled> 선택한 문제의 실제 결과와 생략한 항목을 구분해 기록했습니다.</li>
+<li class="task-list-item"><input type="checkbox" disabled> AI 문제를 선택한 경우에만 필요한 응답을 확인했습니다.</li>
 <li class="task-list-item"><input type="checkbox" disabled> 실패 원인과 안전한 재개 지점을 설명합니다.</li>
 <li class="task-list-item"><input type="checkbox" disabled> 복구 구성 확인과 실제 복구 실험을 구분합니다.</li>
 </ul>
-<p>AI CLI 프롬프트: <a href="../prompts/12-validation.md" download="12-validation.md">12, 검증</a></p>
+<p>Agentic AI 코딩 어시스턴트 프롬프트: <a href="../prompts/12-validation.md" download="12-validation.md">12, 검증</a></p>
+<p>남은 구현과 수정 작업을 이어 갈 때는 <a href="14-project-completion.html">14, Codex로 프로젝트 완성하기</a>의 통합 프롬프트를 사용합니다.</p>
 <p>다음: <a href="13-cleanup.html">13, 정리</a></p>
-<h2 id="heading-ai-cli-프롬프트-카드">AI CLI 프롬프트 카드</h2>
+<h2 id="heading-agentic-ai-코딩-어시스턴트-프롬프트-카드">Agentic AI 코딩 어시스턴트 프롬프트 카드</h2>
 <p>아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. <a href="../prompts/12-validation.md" download="12-validation.md">Markdown 카드 다운로드</a></p>
-<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="AI CLI 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 AI CLI 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 AI CLI의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="AI CLI에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-3"># 12, 서비스 검증과 문제 해결. AI CLI 카드
+<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-6"># 12, 필요한 부분만 문제 해결. Agentic AI 코딩 어시스턴트 카드
 
-이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다. 한 도구만 선택하고 같은 계정, VPC, 작업 폴더를 유지합니다.
+실제 오류, 위험한 기능 변경 또는 명시적 검증 요청이 있을 때만 사용하는 선택 카드입니다.\
+정상 배포 뒤에는 이 카드를 생략하고 다음 단계로 진행합니다.\
+같은 실습 EC2의 Codex, Kiro CLI, Claude Code 중 선택한 Agentic AI 코딩 어시스턴트를 유지합니다.
 
 당신은 제주 아틀라스 워크숍의 구현 조교입니다. 학습자가 선택한 이 챕터만 진행합니다.
 `ATLAS_REPO`, `ATLAS_CONFIG`, `ATLAS_APP`, `ATLAS_CLI`는 학습자의 터미널에서 지정한 경로입니다.
-필요한 값이 없으면 계정, 참가자, 경로만 확인하고 추측하지 않습니다.
+값이 없으면 기존 `activate.sh`와 비밀값 없는 소유 설정에서 복원하세요.
+참가자마다 독립 랩이며 새 설정에는 공통 내부 ID `team01`과 프로젝트
+`AtlasCliTeam01`을 사용합니다. 팀명 선택이나 치환을 요구하지 말고 기존 설정은 유지하세요.
+
+모든 터미널 실행은 올바른 `cd`로 시작하세요.
+새 셸에서는 확인한 저장소로 이동하고 기존 `activate.sh`를 source한 뒤
+helper 명령은 `ATLAS_REPO`, 앱 명령은 `ATLAS_APP`, CLI 명령은 `ATLAS_CLI`로 이동하세요.
+경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
 
 ## 작업
 
-현재 배포의 실제 결과를 검증하세요. 로컬 check와 AWS/HTTP verify를 구분하고 한영 여행 질문, 생각 중, 도구, SSE 완료, Markdown, 추천 질문, 지도, 경로, 고도를 확인하세요. 실제 모델 호출은 학습자가 요청한 테스트 질문만 수행하세요. 오류는 계정/모델, Host/TLS/cookie, 도구/데이터, quota로 분류하세요. 미검증 항목을 통과로 적지 마세요.
-브라우저 URL은 실제 참가자 스택의 기본 CloudFront HTTPS 주소여야 합니다.
-기본 인증서와 Alias 없음, WAF/OAC, ALB 원본 HTTP와 검증 헤더를 확인합니다.
-ACM/DNS 설정이나 고정된 운영 CloudFront 주소를 검사 전제에 넣지 마세요.
+이번 오류 또는 요청한 기능 하나를 해결하세요.
+구체적인 증상, 위험한 변경이나 검사 요청이 없으면 추가 실행 없이 생략했다고 보고하세요.
+오류 코드와 해당 파일, 기존 상태, 로그를 먼저 읽고 가장 작은 확인 명령을 선택합니다.
+실패한 구성 요소의 원인을 수정한 뒤 같은 입력이나 해당 검사만 한 번 다시 확인하세요.
+관련 없는 구성 요소나 다른 언어, 모델의 질문으로 범위를 넓히지 마세요.
+
+아래 항목을 순서대로 모두 실행하는 체크리스트로 사용하지 마세요.
+
+- 계정, 키 오류: STS와 소유 대상, workshop_env.py status, 필요한 오류 로그를 확인합니다.
+  .env는 직접 읽거나 source하지 않습니다. model_check.py --execute는
+  실제 모델 접근 오류를 좁히는 데 필요하고 유료 호출이 승인된 경우에만 사용합니다.
+- Python, 검색 오류: 해당 모듈이나 실패 입력만 모델 없이 확인합니다.
+  기본 준비에서 core.py doctor --project나 새 테스트 묶음을 요구하지 않습니다.
+- Runtime, 스트리밍 오류: 해당 Runtime 로그와 응답 완료 여부를 확인합니다.
+  로그만으로 해결되지 않을 때만 짧은 agentcore dev 재현을 선택하고
+  자신이 시작한 프로세스만 종료합니다. 로컬 실행도 유료 호출일 수 있습니다.
+- 웹, 자산 오류: 실제 참가자 App 스택의 기본 CloudFront HTTPS URL과
+  관련 경로만 확인합니다. 접근 오류라면 WAF/OAC, ALB 원본 HTTP,
+  세션, CSRF, 검증 헤더 중 해당 원인을 확인합니다.
+- 경로, Gateway, Memory 오류: 실패한 입력이나 대상 하나만 확인합니다.
+  전체 경로 비교, 도구 행렬, actor/session 전체 검증으로 확대하지 않습니다.
+
+npm run check, npm run workshop:check, lab.py run check/verify,
+전체 브라우저, 한영, 경로, Gateway, Memory 검증은 자동 실행하지 마세요.
+사용자가 넓은 검증을 명시적으로 요청한 경우에만 그 범위와 실행 권한을 따릅니다.
+실제 모델 재현은 승인된 질문 한 번만 수행하고 원인이 바뀌기 전 반복하지 마세요.
+정상적인 최종 예제 응답을 추가 모델 검증의 이유로 삼지 마세요.
+배포, 키 게시, 삭제 권한은 이 카드로 새로 부여되지 않습니다.
+기존 계정, 소유 태그, 스키마, key_binding 검사를 생략하거나 IAM/SCP를 바꾸지 마세요.
+ACM/DNS 설정이나 운영 CloudFront 주소를 진단 전제에 추가하지 마세요.
 
 교재는 `$ATLAS_REPO/workshop/chapters/12-validation.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.
@@ -397,6 +478,7 @@ ACM/DNS 설정이나 고정된 운영 CloudFront 주소를 검사 전제에 넣�
 변경 파일, 실행한 명령과 종료 상태, 확인한 소유 자원, 실제로 검증한 항목,
 아직 실행하지 않은 클라우드 단계와 다음 재개 위치를 간결하게 보고하세요.
 코드나 계획을 작성한 사실만으로 배포 성공이라고 말하지 마세요.
+생략한 검사는 미실행으로 기록하고 현재 증상이 해결됐는지만 구분해 보고하세요.
 </code></pre></section></div>
       <section class="reading-check js-only" aria-label="이 장의 읽기 기록">
         <div><h2>읽기 기록</h2><p>읽음 표시는 이 브라우저에만 저장됩니다.<br>실제 실습 결과는 터미널에서 확인하세요.</p></div>
@@ -410,10 +492,10 @@ ACM/DNS 설정이나 고정된 운영 CloudFront 주소를 검사 전제에 넣�
   </a>
       </nav>
     </article>
-    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-자동-검사" data-toc-link>자동 검사</a></li><li class="toc-depth-2"><a href="#heading-실제-화면" data-toc-link>실제 화면</a></li><li class="toc-depth-2"><a href="#heading-탐색에서-길찾기까지" data-toc-link>탐색에서 길찾기까지</a></li><li class="toc-depth-2"><a href="#heading-실제-ai-질문" data-toc-link>실제 AI 질문</a></li><li class="toc-depth-2"><a href="#heading-문제-구분" data-toc-link>문제 구분</a></li><li class="toc-depth-2"><a href="#heading-복구-기준" data-toc-link>복구 기준</a></li><li class="toc-depth-2"><a href="#heading-ai-cli-프롬프트-카드" data-toc-link>AI CLI 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-선택한-문제의-검사만-실행" data-toc-link>선택한 문제의 검사만 실행</a></li><li class="toc-depth-2"><a href="#heading-선택-문제가-있는-화면-항목만" data-toc-link>선택: 문제가 있는 화면 항목만</a></li><li class="toc-depth-2"><a href="#heading-선택-탐색이나-경로를-변경한-경우" data-toc-link>선택: 탐색이나 경로를 변경한 경우</a></li><li class="toc-depth-2"><a href="#heading-선택-ai-응답-문제를-확인할-때" data-toc-link>선택: AI 응답 문제를 확인할 때</a></li><li class="toc-depth-2"><a href="#heading-문제-구분" data-toc-link>문제 구분</a></li><li class="toc-depth-2"><a href="#heading-복구-기준" data-toc-link>복구 기준</a></li><li class="toc-depth-2"><a href="#heading-agentic-ai-코딩-어시스턴트-프롬프트-카드" data-toc-link>Agentic AI 코딩 어시스턴트 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
   </div>
     </main>
-    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.15 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
+    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.24 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
   </div>
   <p class="reader-status" role="status" aria-live="polite" data-reader-status></p>
 </body>

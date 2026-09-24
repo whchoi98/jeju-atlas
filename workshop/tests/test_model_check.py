@@ -1,10 +1,12 @@
 """Real checks are opt-in, bounded, region-specific and never hide policy denial."""
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
 import sys
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "workshop/scripts"))
@@ -80,6 +82,38 @@ class ModelCheckTests(unittest.TestCase):
         self.assertNotIn("123456789012", stored)
         self.assertNotIn("PrivateRole", stored)
         self.assertNotIn("private-session", stored)
+
+    def test_api_key_is_scoped_to_the_call_and_removed_from_failure_reports(self):
+        token = "test-only-private-bearer-token"
+        seen = []
+        class Client:
+            def converse(self, **kwargs):
+                seen.append(os.environ.get("AWS_BEARER_TOKEN_BEDROCK"))
+                raise ValueError("rejected credential " + token)
+        with patch.dict(os.environ, {"AWS_BEARER_TOKEN_BEDROCK": "previous-value"}, clear=False):
+            result = self.module.check(
+                "us-west-2", self.report, execute=True, api_key=token,
+                client_factory=lambda region: Client(),
+            )
+            self.assertEqual(os.environ["AWS_BEARER_TOKEN_BEDROCK"], "previous-value")
+        self.assertEqual(seen, [token])
+        self.assertEqual(result["authMode"], "api-key")
+        self.assertFalse(result["passed"])
+        self.assertNotIn(token, self.report.read_text() + json.dumps(result))
+
+    def test_iam_check_cannot_accidentally_use_an_inherited_bearer_key(self):
+        seen = []
+        class Client:
+            def converse(self, **kwargs):
+                seen.append(os.environ.get("AWS_BEARER_TOKEN_BEDROCK"))
+                return {"output": {"message": {"content": [{"text": "OK"}]}}, "stopReason": "end_turn"}
+        with patch.dict(os.environ, {"AWS_BEARER_TOKEN_BEDROCK": "other-tool-key"}, clear=False):
+            result = self.module.check(
+                "us-west-2", self.report, execute=True, client_factory=lambda region: Client(),
+            )
+            self.assertEqual(os.environ["AWS_BEARER_TOKEN_BEDROCK"], "other-tool-key")
+        self.assertEqual(seen, [None])
+        self.assertEqual(result["authMode"], "iam")
 
     def test_incomplete_or_unexpected_model_output_does_not_pass(self):
         for response in ({}, {"output": {"message": {"content": [{"text": "not the expected answer"}]}}},

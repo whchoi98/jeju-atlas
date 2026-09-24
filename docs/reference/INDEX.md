@@ -27,8 +27,13 @@ commands apply to both language versions of the application.
 | Deployment and recovery | [deploy.py](../../scripts/deploy.py), [application.yaml](../../infra/application.yaml), [rollback-release.py](../../scripts/rollback-release.py) | [Deploy](../runbooks/deploy.md), [rollback](../runbooks/rollback.md) |
 | Workshop and PWA packaging | [course.json](../../workshop/course.json), [reader builder](../../workshop/scripts/build.mjs), [public packager](../../scripts/build-workshop-public.mjs), [app PWA builder](../../scripts/build-pwa.mjs) | [Workshop](../../workshop/README.md), [offline handbook](../../workshop/reference/offline-start.md) |
 | Core participant setup | [source/session checker](../../workshop/scripts/core.py), [private tool installer](../../workshop/scripts/install_core.sh) | [Chapter 01](../../workshop/chapters/01-setup.md), [source transfer and facilitator setup](../../workshop/reference/facilitator.md) |
+| Workshop preconfiguration | [core requirements](../../workshop/requirements-core.txt), [full helper requirements](../../workshop/requirements.txt) | [Node, Python and AgentCore CLI installation](../../workshop/reference/preconfiguration.md) |
+| Workshop API keys | [private input](../../workshop/scripts/workshop_env.py), [owned SSM binding](../../workshop/scripts/key_binding.py) | [Bedrock short-term keys and optional integrations](../../workshop/reference/keys-and-integrations.md), [installation skill](../../skills/jeju-atlas-install/SKILL.md) |
+| Codex HUD preparation | [preinstallation guide](../../workshop/reference/hud-setup.md) | [Chapter 01](../../workshop/chapters/01-setup.md), [assistant environments](../../workshop/reference/ai-cli-environments.md) |
+| Codex Bedrock configuration | [user configuration example](../../workshop/reference/codex-bedrock.md) | [Chapter 01](../../workshop/chapters/01-setup.md), [assistant environments](../../workshop/reference/ai-cli-environments.md) |
 | Workshop Sonnet verification | [model configuration](../../workshop/scripts/model_config.py), [explicit real-model check](../../workshop/scripts/model_check.py) | [Account and caller region](../../workshop/chapters/02-aws-environment.md), [official references](../../workshop/reference/official-guide-review.md) |
 | Workshop CloudFront access | [owned URL helper](../../workshop/scripts/lab_cloudfront.py), [participant copy adapter](../../workshop/scripts/lab_workspace.py) | [Default HTTPS and edge](../../workshop/chapters/09-https-edge.md) |
+| Project completion with Codex | [reusable prompt](../../workshop/prompts/14-project-completion.md) | [Chapter 14: implementation plan and verification](../../workshop/chapters/14-project-completion.md) |
 
 ### Key decisions
 
@@ -78,8 +83,13 @@ not a substitute for checking current deployments or provider data.
 | 배포와 복구 | [deploy.py](../../scripts/deploy.py), [application.yaml](../../infra/application.yaml), [rollback-release.py](../../scripts/rollback-release.py) | [배포](../runbooks/deploy.md), [복구](../runbooks/rollback.md) |
 | 워크숍과 PWA 패키징 | [course.json](../../workshop/course.json), [교재 빌더](../../workshop/scripts/build.mjs), [공개 패키저](../../scripts/build-workshop-public.mjs), [앱 PWA 빌더](../../scripts/build-pwa.mjs) | [워크숍](../../workshop/README.md), [오프라인 교재](../../workshop/reference/offline-start.md) |
 | 본 실습 참가자 준비 | [소스와 세션 검사](../../workshop/scripts/core.py), [전용 도구 설치기](../../workshop/scripts/install_core.sh) | [01장](../../workshop/chapters/01-setup.md), [소스 전달과 진행자 준비](../../workshop/reference/facilitator.md) |
+| 워크숍 사전 구성 | [기본 패키지](../../workshop/requirements-core.txt), [전체 helper 패키지](../../workshop/requirements.txt) | [Node, Python과 AgentCore CLI 설치](../../workshop/reference/preconfiguration.md) |
+| 워크숍 API 키 | [숨김 입력](../../workshop/scripts/workshop_env.py), [소유 SSM 연결](../../workshop/scripts/key_binding.py) | [Bedrock 단기키와 선택 연동](../../workshop/reference/keys-and-integrations.md), [설치 스킬](../../skills/jeju-atlas-install/SKILL.md) |
+| Codex HUD 준비 | [사전 설치 가이드](../../workshop/reference/hud-setup.md) | [01장](../../workshop/chapters/01-setup.md), [Agentic AI 코딩 어시스턴트 환경](../../workshop/reference/ai-cli-environments.md) |
+| Codex Bedrock 설정 | [사용자 설정 예시](../../workshop/reference/codex-bedrock.md) | [01장](../../workshop/chapters/01-setup.md), [Agentic AI 코딩 어시스턴트 환경](../../workshop/reference/ai-cli-environments.md) |
 | 워크숍 Sonnet 검증 | [모델 설정](../../workshop/scripts/model_config.py), [명시적 실제 호출](../../workshop/scripts/model_check.py) | [계정과 호출 리전](../../workshop/chapters/02-aws-environment.md), [공식 문서 대조](../../workshop/reference/official-guide-review.md) |
 | 워크숍 CloudFront 접속 | [소유 스택 URL 조회](../../workshop/scripts/lab_cloudfront.py), [참가자 사본 변환](../../workshop/scripts/lab_workspace.py) | [기본 HTTPS와 엣지](../../workshop/chapters/09-https-edge.md) |
+| Codex 프로젝트 완성 | [통합 프롬프트 원본](../../workshop/prompts/14-project-completion.md) | [14장 구현안과 검증 가이드](../../workshop/chapters/14-project-completion.md) |
 
 ### 주요 결정
 

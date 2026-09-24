@@ -1,28 +1,46 @@
-# 02. 계정과 작업 위치 확인
+# 02. 계정과 입력 상태 진단
 
-02장에서 정한 참가자 변수와 설정 파일을 함께 전달합니다.
+계정이나 키 입력 상태에 문제가 있을 때 사용하는 선택 카드입니다.\
+비밀값 없이 상태만 확인합니다.
 
-```text
-현재 EC2의 계정과 참가자별 작업 위치를 확인해 주세요.
-01장의 activate.sh로 복원한 ATLAS_REPO, ATLAS_CONFIG, ATLAS_TEAM,
-ATLAS_PROJECT, ATLAS_REGION, ATLAS_ACCOUNT, ATLAS_CLI_PARENT, ATLAS_CLI,
-ATLAS_ASSISTANT와 AGENTCORE_CONFIG_DIR를 사용합니다.
-변수가 비었거나 다른 폴더이면 먼저 중단하고 Bash 활성화 절차를 안내하세요.
+```ai-prompt
+현재 EC2의 계정과 제주 워크숍 참가자 설정을 확인해 주세요.
+현재 참가자의 로컬 설정 준비와 읽기 전용 AWS 조회를 승인합니다.
+activate.sh와 비밀값 없는 소유 설정에서 ATLAS_REPO, ATLAS_CLI_PARENT,
+ATLAS_CLI, ATLAS_TEAM, ATLAS_PROJECT와 ATLAS_CONFIG를 찾아 재사용하세요.
+각 참가자는 독립 랩을 사용합니다. 새 설정의 공통 내부 ID는 team01,
+프로젝트는 AtlasCliTeam01이며 팀명 선택이나 치환을 요구하지 마세요.
+이미 있는 이름과 설정은 유지하고 현재 Agentic AI 코딩 어시스턴트로 진행하세요.
+모든 터미널 실행은 올바른 cd로 시작하세요. 새 셸에서는 확인한 저장소로 이동하고
+기존 activate.sh를 source한 뒤 필요한 작업 폴더로 다시 이동하세요.
+경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
 
-workshop/scripts/lab.py init-ec2 --identity-only와 info의 결과에서 EC2 계정, 서울 리전,
-VPC, 참가자 이름을 대조합니다. 이미 있는 설정 파일은 덮어쓰지 마세요.
-본 실습에서는 네트워크 전체 검사를 요구하지 않습니다.
-기존 VPC나 네트워크 설정은 만들거나 바꾸지 마세요.
-AWS 자격 증명, 메타데이터 토큰과 로그인 파일은 출력하지 마세요.
+aws sts get-caller-identity로 현재 계정을 확인하세요.
+참가자 설정이 없을 때만 다음을 실행합니다.
+python3 "$ATLAS_REPO/workshop/scripts/lab.py" init-ec2 --identity-only --participant "$ATLAS_TEAM" --config "$ATLAS_CONFIG"
+python3 "$ATLAS_REPO/workshop/scripts/lab.py" info --config "$ATLAS_CONFIG"
+기존 설정은 덮어쓰지 말고 EC2 계정, 리전과 VPC를 대조하세요.
+init-ec2 뒤에는 활성화를 다시 적용해 ATLAS_ACCOUNT를 복원합니다.
+배포 대상은 현재 EC2 계정과 ap-northeast-2이며 공유 네트워크는 유지합니다.
+info의 심화 cli 경로 대신 활성화의 ATLAS_CLI를 사용하세요.
 
-배포 계정이 일치하는지와 다음 장에서 사용할 프로젝트 경로를 알려 주세요.
-AgentCore CLI 설정은 이 참가자의 cli-config 폴더를 사용합니다.
-core.py doctor가 해당 설정의 비활성화 항목을 확인하는지 검사하세요.
-init-ec2 후 activate.sh를 다시 source하면 저장한 계정도 복원됩니다.
-아직 AgentCore 배포나 모델 호출은 하지 마세요.
-읽기 전용 확인과 model_check.py --execute의 실제 호출은 별개입니다.
-실제 호출을 별도로 요청받은 경우에만 주최자가 확인한 ATLAS_BEDROCK_REGION과
-고정 모델 global.anthropic.claude-sonnet-4-6으로 작은 검사를 한 번 수행합니다.
-서울에서 확인된 AccessDeniedException과 SCP 명시적 거부를 통과로 바꾸지 마세요.
-IAM/SCP 수정, 다른 리전 자동 재시도와 미검증 성공 주장은 하지 마세요.
+python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" status로 입력 여부를 확인하세요.
+.env는 ATLAS_CLI_PARENT에 있으며 배포 코드 밖에 둡니다.
+파일 내용을 읽거나 source하지 마세요. 키를 프롬프트, 로그와 명령 인자에 넣지 마세요.
+Bedrock 단기 키와 호출 리전, 만료 시각은 사용자가 Bash의 configure에서 비공개로 입력합니다.
+키는 모델 호출용이며 AWS 배포에는 현재 EC2 역할과 기존 CDK bootstrap이 필요합니다.
+
+model_check.py의 유료 사전 호출은 기본으로 생략하며 보고서는 진행 조건이 아닙니다.
+실제 모델 오류를 진단 중이고 기존 evidence/model-check-*.json이 있다면
+이번 참가자와 키 갱신 시점에 맞는 기록만 참고하세요.
+보고서가 없으면 미실행으로 기록합니다. 입력 상태 확인은 모델 접근 성공을 뜻하지 않습니다.
+과거 EC2의 SCP 거부를 현재 참가자의 실패로 가정하지 마세요.
+카카오, 관광공사와 VISIT JEJU 키가 없어도 핵심 샘플 실습은 진행할 수 있습니다.
+이 카드는 실제 모델 호출과 AWS 변경을 승인하지 않습니다.
+IAM/SCP나 배포 계정을 바꾸어 오류를 우회하지 마세요.
+전체 테스트, 로컬 agentcore dev와 HUD 설치, 실행은 추가하지 마세요.
+추가 진단은 실제 오류, 위험한 기능 변경 또는 명시적 요청이 있을 때
+해당 부분에 한정하며 생략한 검사를 통과로 기록하지 마세요.
+키 갱신이 필요하면 사용자가 자신의 Bash에서 configure를 실행하도록 안내하세요.
+실제 계정의 일치 여부, 입력 상태와 다음 조치만 비밀값 없이 보고하세요.
 ```

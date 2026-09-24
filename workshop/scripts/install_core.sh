@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Explicit facilitator action. Installs only inside an owned workshop toolchain.
+# Explicit setup action. Reuses compatible tools; installs into the owned toolchain.
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -10,11 +10,12 @@ elif [[ $# != 0 ]]; then
   printf '%s\n' 'Usage: bash workshop/scripts/install_core.sh [--repo /absolute/source/path]' >&2
   exit 2
 fi
-settings="$(python3 -B "$script_dir/core.py" tools --repo "$repo")"
-tools="$(python3 -B -c 'import json,sys; print(json.load(sys.stdin)["toolchainPath"])' <<< "$settings")"
-node_version="$(python3 -B -c 'import json,sys; print(json.load(sys.stdin)["nodeVersion"])' <<< "$settings")"
-python_version="$(python3 -B -c 'import json,sys; print(json.load(sys.stdin)["pythonVersion"])' <<< "$settings")"
-cli_version="$(python3 -B -c 'import json,sys; print(json.load(sys.stdin)["agentcoreVersion"])' <<< "$settings")"
+bootstrap_python="$(command -v python3)"
+settings="$("$bootstrap_python" -B "$script_dir/core.py" tools --repo "$repo")"
+tools="$("$bootstrap_python" -B -c 'import json,sys; print(json.load(sys.stdin)["toolchainPath"])' <<< "$settings")"
+node_version="$("$bootstrap_python" -B -c 'import json,sys; print(json.load(sys.stdin)["nodeVersion"])' <<< "$settings")"
+python_version="$("$bootstrap_python" -B -c 'import json,sys; print(json.load(sys.stdin)["pythonVersion"])' <<< "$settings")"
+cli_version="$("$bootstrap_python" -B -c 'import json,sys; print(json.load(sys.stdin)["agentcoreVersion"])' <<< "$settings")"
 
 [[ "$(uname -s)" == Linux ]] || { printf '%s\n' 'This installer supports Linux EC2.' >&2; exit 2; }
 case "$(uname -m)" in
@@ -22,9 +23,20 @@ case "$(uname -m)" in
   x86_64) arch=x64 ;;
   *) printf '%s\n' 'Use an ARM64 or x86_64 Linux EC2.' >&2; exit 2 ;;
 esac
-for tool in uv curl tar sha256sum awk; do
-  command -v "$tool" >/dev/null || { printf 'Facilitator prerequisite missing: %s\n' "$tool" >&2; exit 2; }
-done
+command -v uv >/dev/null || { printf '%s\n' 'Prerequisite missing: uv' >&2; exit 2; }
+
+matches_agentcore() {
+  # Inspect npm metadata without launching the CLI or initializing login/config.
+  "$bootstrap_python" -B - "$script_dir" "$1" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+from core import npm_agentcore
+try:
+    npm_agentcore(sys.argv[2])
+except (OSError, ValueError, KeyError, TypeError, AttributeError):
+    raise SystemExit(1) from None
+PY
+}
 
 # Refuse links or incompatible partial installations. Never replace system bins.
 node_dir="$tools/node-v$node_version"
@@ -34,7 +46,17 @@ done
 if [[ -e "$node_dir" ]]; then
   [[ -x "$node_dir/bin/node" && "$("$node_dir/bin/node" --version)" == "v$node_version" ]] ||
     { printf 'Preserve and inspect the existing Node directory: %s\n' "$node_dir" >&2; exit 2; }
+  printf 'Reusing Node %s: %s\n' "$node_version" "$node_dir/bin/node"
+elif node_binary="$(command -v node)" \
+    && detected_node="$("$node_binary" --version 2>/dev/null)" \
+    && [[ "$detected_node" =~ ^v24\.([0-9]+)\.([0-9]+)$ ]] \
+    && (( 10#${BASH_REMATCH[1]} > 18 || (10#${BASH_REMATCH[1]} == 18 && 10#${BASH_REMATCH[2]} >= 1) )) \
+    && command -v npm >/dev/null && npm --version >/dev/null 2>&1; then
+  printf 'Reusing Node %s and npm from PATH: %s\n' "$detected_node" "$node_binary"
 else
+  for tool in curl tar sha256sum awk; do
+    command -v "$tool" >/dev/null || { printf 'Prerequisite missing: %s\n' "$tool" >&2; exit 2; }
+  done
   stage="$(mktemp -d "$tools/.node-install-XXXXXXXX")"
   trap 'rm -rf -- "$stage"' EXIT
   archive="node-v$node_version-linux-$arch.tar.gz"
@@ -55,7 +77,7 @@ else
   trap - EXIT
 fi
 
-export PATH="$node_dir/bin:$PATH"
+export PATH="$node_dir/bin:$tools/agentcore/node_modules/.bin:$PATH"
 export UV_PYTHON_INSTALL_DIR="$tools/python" UV_CACHE_DIR="$tools/cache/uv"
 export npm_config_cache="$tools/cache/npm"
 # --no-bin is essential: do not add/replace python or python3 in ~/.local/bin.
@@ -64,36 +86,43 @@ runtime_python="$(uv --no-config python find --managed-python --no-python-downlo
 if [[ -e "$tools/helpers" ]]; then
   [[ -x "$tools/helpers/bin/python3" ]] ||
     { printf '%s\n' 'Existing helpers directory is incomplete; preserve it for inspection.' >&2; exit 2; }
-  "$tools/helpers/bin/python3" -B -c 'import sys; assert sys.version_info[:2] == (3, 14)'
+  "$tools/helpers/bin/python3" -B -c \
+    'import sys; sys.exit(0 if sys.version_info >= (3, 12) else "Existing helpers need Python 3.12+; preserve the directory for inspection.")'
 else
   uv --no-config venv --python "$runtime_python" "$tools/helpers"
 fi
 uv --no-config pip install --python "$tools/helpers/bin/python3" \
   -r "$repo/workshop/requirements-core.txt"
 
-stage="$(mktemp -d "$tools/.agentcore-install-XXXXXXXX")"
-trap 'rm -rf -- "$stage"' EXIT
 if [[ -e "$tools/agentcore" ]]; then
-  # Keep the current CLI usable if a reinstall fails. Use its saved lock in
-  # staging, then publish only the completed installation.
-  node -e 'const p=require(process.argv[1]); if(p.dependencies?.["@aws/agentcore"]!==process.argv[2]) process.exit(2)' \
-    "$tools/agentcore/package.json" "$cli_version"
+  "$bootstrap_python" -B - "$script_dir" "$tools/agentcore/package.json" "$cli_version" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+from core import read_json
+try:
+    if read_json(sys.argv[2]).get("dependencies", {}).get("@aws/agentcore") != sys.argv[3]:
+        raise ValueError("AgentCore dependency version differs")
+except (OSError, ValueError, KeyError, TypeError, AttributeError):
+    raise SystemExit("Preserve and inspect the existing AgentCore directory.") from None
+PY
   [[ -f "$tools/agentcore/package-lock.json" ]] ||
     { printf '%s\n' 'AgentCore lock is missing; preserve the directory for inspection.' >&2; exit 2; }
-  cp -- "$tools/agentcore/package.json" "$tools/agentcore/package-lock.json" "$stage/"
-  npm --prefix "$stage" ci --ignore-scripts --no-audit --no-fund
+  matches_agentcore "$tools/agentcore/node_modules/.bin/agentcore" ||
+    { printf '%s\n' 'Existing AgentCore installation is incomplete; preserve it for inspection.' >&2; exit 2; }
+fi
+agentcore_binary="$(command -v agentcore || true)"
+if matches_agentcore "$agentcore_binary"; then
+  printf 'Reusing npm @aws/agentcore %s: %s\n' "$cli_version" "$agentcore_binary"
 else
+  stage="$(mktemp -d "$tools/.agentcore-install-XXXXXXXX")"
+  trap 'rm -rf -- "$stage"' EXIT
   npm --prefix "$stage" install --save-exact --ignore-scripts --no-audit --no-fund \
     "@aws/agentcore@$cli_version"
-fi
-if [[ -e "$tools/agentcore" ]]; then
-  # A completed matching installation already exists; leave its files in place.
-  # The staged npm ci above verifies that the saved lock can still be installed.
-  rm -rf -- "$stage"
-else
+  [[ -f "$stage/package-lock.json" ]] && matches_agentcore "$stage/node_modules/.bin/agentcore" ||
+    { printf '%s\n' 'AgentCore installation is incomplete; no CLI installation was published.' >&2; exit 2; }
   mv -- "$stage" "$tools/agentcore"
+  trap - EXIT
 fi
-trap - EXIT
 
-printf '\nPrivate core tools prepared: %s\n' "$tools"
-printf '%s\n' 'Source your participant activate.sh again, then run core.py doctor --assistant claude (or your selected CLI).'
+printf '\nCore tools prepared: %s\n' "$tools"
+printf '%s\n' 'Source your participant activate.sh again, then run core.py doctor with your selected --assistant.'

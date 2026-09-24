@@ -1,28 +1,57 @@
-# 12. 서비스 검증과 문제 해결
+# 12. 선택: 필요한 기능만 문제 해결
 
-이 장은 120분 본 실습 이후에 선택하는 심화 자료입니다.
+이 장과 대응 프롬프트는 **선택 사항**입니다.\
+기본 실습의 구현과 배포가 정상이라면 이 장을 건너뛰고 자원 인계 또는 정리로 이동합니다.\
+오류가 발생했거나 특정 기능을 변경했거나, 사용자가 검증을 요청한 경우에만 필요한 항목 하나를 선택합니다.
 
-배포 계획, 이미지 빌드, 스택 완료, 실제 사용자 응답을 각각 확인합니다.
+배포 계획, 이미지 빌드, 스택 완료, 실제 사용자 응답을 각각 확인합니다.\
 교재 제작자가 수행한 로컬 검사 결과를 자신의 AWS 배포 결과로 복사하지 않습니다.
 
-## 자동 검사
+## 선택한 문제의 검사만 실행
+
+아래 명령을 모두 실행하지 않습니다.\
+오류에 해당하는 명령만 선택하고 나머지는 생략합니다.\
+`check`와 `verify`의 종합 검사는 사용자가 전체 확인을 요청한 경우에만 사용합니다.
+
+소스 전체 확인을 명시적으로 요청한 경우:
 
 ```bash
-cd "$ATLAS_REPO"
+cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
 python3 workshop/scripts/lab.py run check --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run verify --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run verify-assets --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run verify-terrain --config "$ATLAS_CONFIG" --execute
+}
 ```
+운영 전체 확인을 명시적으로 요청한 경우:
 
-`check`는 로컬 소스 검사입니다. `verify` 계열은 실제 AWS와 HTTP를 확인합니다.
+```bash
+cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
+python3 workshop/scripts/lab.py run verify --config "$ATLAS_CONFIG" --execute
+}
+```
+정적 자산 문제만 확인하는 경우:
+
+```bash
+cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
+python3 workshop/scripts/lab.py run verify-assets --config "$ATLAS_CONFIG" --execute
+}
+```
+고도 타일 문제만 확인하는 경우:
+
+```bash
+cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
+python3 workshop/scripts/lab.py run verify-terrain --config "$ATLAS_CONFIG" --execute
+}
+```
+`check`는 로컬 소스 검사입니다.\
+`verify` 계열은 실제 AWS와 HTTP를 확인합니다.\
 09장의 WAF/OAC 연결 이전에는 전체 검사를 통과했다고 기대하지 않습니다.
-현재 코드, 이미지, 검증 결과의 시점을 함께 기록합니다.
+
+현재 코드, 이미지, 검증 결과의 시점을 함께 기록합니다.\
 검사 URL은 참가자 App 스택의 실제 CloudFrontUrl입니다.
-기본 CloudFront 인증서와 Alias 없음, ApplicationUrl 일치를 확인합니다.
+
+기본 CloudFront 인증서와 Alias 없음, ApplicationUrl 일치를 확인합니다.\
 ACM 발급이나 DNS 등록을 완료 기준에 넣지 않습니다.
 
-## 실제 화면
+## 선택: 문제가 있는 화면 항목만
 
 | 항목 | 확인 |
 |---|---|
@@ -43,10 +72,10 @@ ACM 발급이나 DNS 등록을 완료 기준에 넣지 않습니다.
 | 언어 | 한국어/English 토글과 UI, 질문, 답변 언어 |
 | PWA | 앱 셸과 저장 코스 오프라인 확인, 온라인 API 구분 |
 
-지형, 도로, 위성 자료의 시점을 구분합니다.
+지형, 도로, 위성 자료의 시점을 구분합니다.\
 정밀 측량, 실시간 교통, 실시간 위성 영상이라고 설명하지 않습니다.
 
-## 탐색에서 길찾기까지
+## 선택: 탐색이나 경로를 변경한 경우
 
 1. 장소 이름을 입력하고 Enter로 검색합니다. 방향키로 후보를 선택해 상세를 엽니다.
 2. 주소와 장소 링크를 복사합니다. 장소 링크에는 현재 여행 코스나 선택 토큰이 들어가지 않아야 합니다.
@@ -56,17 +85,18 @@ ACM 발급이나 DNS 등록을 완료 기준에 넣지 않습니다.
 6. 지도를 이동한 뒤 **이 지역에서 검색**을 선택합니다. 이동 중에는 이전 결과가 임의로 바뀌지 않아야 합니다.
 7. 지도에서 우클릭 또는 길게 누르기로 출발, 도착, 주변 탐색을 실행합니다. 드래그와 두 손가락 확대가 정상인지 확인합니다.
 
-현재 위치는 브라우저가 위치 권한을 받은 경우에만 확인합니다.
-제주 밖에서 실습한다면 위치 안내를 확인하고 지도에서 제주 안의 지점을 직접 선택합니다.
+현재 위치는 브라우저가 위치 권한을 받은 경우에만 확인합니다.\
+제주 밖에서 실습한다면 위치 안내를 확인하고 지도에서 제주 안의 지점을 직접 선택합니다.\
 위치 실패를 가상의 제주 좌표로 대체하지 않습니다.
 
-다른 창에서 공유 링크를 열 때 카카오 장소는 같은 ID를 다시 확인한 뒤 표시합니다.
-링크에 들어 있는 이름, 좌표를 검증된 장소 정보로 바로 취급하지 않아야 합니다.
+다른 창에서 공유 링크를 열 때 카카오 장소는 같은 ID를 다시 확인한 뒤 표시합니다.\
+링크에 들어 있는 이름, 좌표를 검증된 장소 정보로 바로 취급하지 않아야 합니다.\
 최근 기록을 지워도 즐겨찾기와 여행 코스가 함께 삭제되지 않아야 합니다.
 
-## 실제 AI 질문
+## 선택: AI 응답 문제를 확인할 때
 
-아래 질문을 한 번씩 수행하고 완료 여부를 기록합니다.
+아래는 선택할 수 있는 질문 예시입니다.\
+AI 응답 문제를 확인해야 할 때 해당 질문 하나만 사용하며, 전체 질문을 순서대로 실행하지 않습니다.\
 실제 모델 호출이며 계정 비용과 앱 한도에 포함됩니다.
 
 ```text
@@ -87,7 +117,7 @@ Recommend family-friendly places in Jeju and distinguish verified facilities fro
 - 한국어/English 선택이 답변에 반영됩니다.
 - 브라우저를 닫거나 요청을 취소했을 때 서버가 무한 작업을 지속하지 않습니다.
 
-Memory는 같은 사용자, 세션 범위의 기록과 보관 정책으로 확인합니다.
+Memory는 같은 사용자, 세션 범위의 기록과 보관 정책으로 확인합니다.\
 다른 참가자의 actor/session 식별자를 사용하지 않습니다.
 
 ## 문제 구분
@@ -102,22 +132,24 @@ Memory는 같은 사용자, 세션 범위의 기록과 보관 정책으로 확�
 | 429 | 일일/시간/동시 한도와 이전 요청 종료 여부 |
 | 새 배포 후 자산 404 | 불변 이미지의 자산 manifest, S3 게시, CloudFront 캐시 |
 
-Codex에는 오류 코드, 상태, 소유 자원 식별자, 관련 코드만 제공하고
-secret 값, AWS 자격 증명, 원문 사용자 대화 전체를 붙이지 않습니다.
+Codex에는 오류 코드, 상태, 소유 자원 식별자, 관련 코드만 제공하고 secret 값, AWS 자격 증명, 원문 사용자 대화 전체를 붙이지 않습니다.
 
 ## 복구 기준
 
-ECS deployment circuit breaker와 자동 rollback 설정을 확인합니다.
-웹, 라우터는 같은 task definition의 digest 쌍으로 되돌아가야 합니다.
+ECS deployment circuit breaker와 자동 rollback 설정을 확인합니다.\
+웹, 라우터는 같은 task definition의 digest 쌍으로 되돌아가야 합니다.\
 수동 rollback 연습은 **이 실습에서 생성하고 확인한 이전 이미지**를 진행자와 승인한 뒤 진행합니다.
-원본 `docs/rollback.md`에 있는 운영 digest를 실습의 승인 이미지로 복사하지 않습니다.
+
+원본 `docs/rollback.md`에 있는 운영 digest를 실습의 승인 이미지로 복사하지 않습니다.\
 새 릴리스 한 개만 만든 상태에서는 “이전 버전 복구 실증 완료”로 기록하지 않습니다.
 
-- [ ] 자동 검사와 실제 화면 결과를 구분해 기록했습니다.
-- [ ] 한영 AI가 완료되고 확인된 정보, 미확인 정보를 구분합니다.
+- [ ] 선택한 문제의 실제 결과와 생략한 항목을 구분해 기록했습니다.
+- [ ] AI 문제를 선택한 경우에만 필요한 응답을 확인했습니다.
 - [ ] 실패 원인과 안전한 재개 지점을 설명합니다.
 - [ ] 복구 구성 확인과 실제 복구 실험을 구분합니다.
 
-AI CLI 프롬프트: [12, 검증](../prompts/12-validation.md)
+Agentic AI 코딩 어시스턴트 프롬프트: [12, 검증](../prompts/12-validation.md)
+
+남은 구현과 수정 작업을 이어 갈 때는 [14, Codex로 프로젝트 완성하기](14-project-completion.md)의 통합 프롬프트를 사용합니다.
 
 다음: [13, 정리](13-cleanup.md)
