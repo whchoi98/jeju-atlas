@@ -31,6 +31,11 @@ for a new AWS account, Codex configuration and HUD guides were published in
 Two tasks, ALB targets, public files and browser behavior
 were verified; the application release and routing image were preserved.
 
+On 2026-09-24, the independent EC2 lab setup, explicit working directories, optional
+verification and HUD guidance were published in the handbook-only image `jeju-3d:31`.
+The matching setup helpers are on GitHub main. Public files, downloads and desktop/mobile
+reader behavior were verified.
+
 ## Features
 
 - Real elevation and satellite imagery, 2D/3D views, terrain controls and distance measurement.
