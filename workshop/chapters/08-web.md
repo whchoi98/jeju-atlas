@@ -2,54 +2,60 @@
 
 이 장은 120분 본 실습 이후에 선택하는 심화 자료입니다.
 
-기존 지도, 한영 UI, 카탈로그, AI 스트리밍, PWA를 사용합니다.
+기존 지도, 한영 UI, 카탈로그, AI 스트리밍, PWA를 사용합니다.\
 Private Fargate의 웹, 라우터를 Public ALB와 새 CloudFront에 연결합니다.
-CloudFront 기본 도메인의 HTTPS로 접속하며, WAF/OAC 구성은 다음 장에서 완성합니다.
+
+CloudFront 기본 도메인의 HTTPS로 접속하며, WAF/OAC 구성은 다음 장에서 완성합니다.\
 도메인 등록과 인증서 발급은 실습에 포함하지 않습니다.
 
 ## 빌드
 
 ```bash
-cd "$ATLAS_REPO"
+cd "$ATLAS_REPO" && {
 python3 workshop/scripts/lab.py run install --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run check --config "$ATLAS_CONFIG" --execute
 python3 workshop/scripts/lab.py run build-push --config "$ATLAS_CONFIG" --execute
+}
 ```
-
-Node, Python 테스트, CloudFormation 검사, npm audit와 빌드를 수행합니다.
-검사 후 웹 이미지를 게시하고 라우터와의 digest 쌍을 기록합니다.
+Node, Python 테스트, CloudFormation 검사, npm audit와 빌드를 수행합니다.\
+검사 후 웹 이미지를 게시하고 라우터와의 digest 쌍을 기록합니다.\
 오류가 나면 검사를 건너뛰어 push하지 않습니다.
+
+전체 소스 검사 프롬프트는 기본 경로에서 생략합니다.\
+빌드 오류나 변경한 기능의 문제가 있을 때만 [12장](12-validation.md)에서 해당 검사를 선택합니다.
 
 ## 앱 계획
 
 ```bash
+cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
 python3 workshop/scripts/lab.py run plan-app --config "$ATLAS_CONFIG" --execute
+}
 ```
-
-새 ALB, SG, ECS, TaskDefinition, CloudFront, DynamoDB와 session/origin secret을 확인합니다.
-VPC, NAT, DNS 수정이나 운영 서비스 교체는 없어야 합니다.
+새 ALB, SG, ECS, TaskDefinition, CloudFront, DynamoDB와 session/origin secret을 확인합니다.\
+VPC, NAT, DNS 수정이나 운영 서비스 교체는 없어야 합니다.\
 Guide, 카탈로그는 06장의 전용 출력에서 읽습니다.
 
 ```bash
+cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
 python3 workshop/scripts/lab.py run apply-app --config "$ATLAS_CONFIG" --execute
 python3 workshop/scripts/lab.py run status-app --config "$ATLAS_CONFIG" --execute
+}
 ```
-
-서비스 안정화와 CloudFront 전파를 기다립니다.
-완료 후 `$ATLAS_APP/.local/app-outputs.json`에서 `ApplicationUrl`, `CloudFrontUrl`,
-`DistributionId`, `ClusterName`, `ServiceName`을 확인합니다.
+서비스 안정화와 CloudFront 전파를 기다립니다.\
+완료 후 `$ATLAS_APP/.local/app-outputs.json`에서 `ApplicationUrl`, `CloudFrontUrl`, `DistributionId`, `ClusterName`, `ServiceName`을 확인합니다.
 
 ## 첫 접속
 
 ```bash
+cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
 ATLAS_URL="$(python3 "${ATLAS_REPO:?}/workshop/scripts/lab.py" url \
   --config "${ATLAS_CONFIG:?}" --plain)" &&
 export ATLAS_URL &&
 curl --fail --silent "$ATLAS_URL/healthz"
+}
 ```
-
-이 명령은 참가자 App 스택의 실제 출력을 조회합니다. 브라우저에서 같은 CloudFront
-기본 HTTPS URL을 엽니다. 출력이 없으면 중단하며 예시 주소나 운영 도메인을 사용하지 않습니다.
+이 명령은 참가자 App 스택의 실제 출력을 조회합니다.\
+브라우저에서 같은 CloudFront 기본 HTTPS URL을 엽니다.\
+출력이 없으면 중단하며 예시 주소나 운영 도메인을 사용하지 않습니다.
 
 - 대표 명소가 먼저 보이고 모든 장소 식별자가 한꺼번에 나타나지 않습니다.
 - 카테고리, 검색, 주변 찾기가 동작합니다.
@@ -67,13 +73,14 @@ curl --fail --silent "$ATLAS_URL/healthz"
 ## 실제 Distribution으로 데이터 정책 연결
 
 ```bash
+cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
 python3 workshop/scripts/lab.py run plan-data --config "$ATLAS_CONFIG" --execute
 python3 workshop/scripts/lab.py run apply-data --config "$ATLAS_CONFIG" --execute
 python3 workshop/scripts/lab.py run status-data --config "$ATLAS_CONFIG" --execute
+}
 ```
-
-이번 계획에는 실제 CloudFront ARN과 공개 URL이 들어갑니다.
-미디어는 OAC를 통해 전달하며 S3 버킷을 공개하지 않습니다.
+이번 계획에는 실제 CloudFront ARN과 공개 URL이 들어갑니다.\
+미디어는 OAC를 통해 전달하며 S3 버킷을 공개하지 않습니다.\
 운영 Distribution ARN이나 과거 수집 URL을 사용하지 않는지 확인합니다.
 
 ## 문제 해결
@@ -90,6 +97,6 @@ python3 workshop/scripts/lab.py run status-data --config "$ATLAS_CONFIG" --execu
 - [ ] 웹, 카탈로그, 라우터가 내 배포 자원에 연결됩니다.
 - [ ] 실제 Distribution ARN으로 미디어 정책을 갱신했습니다.
 
-AI CLI 프롬프트: [08, 웹 배포](../prompts/08-web.md)
+Agentic AI 코딩 어시스턴트 프롬프트: [08, 웹 배포](../prompts/08-web.md)
 
 다음: [09, CloudFront 기본 HTTPS와 엣지](09-https-edge.md)

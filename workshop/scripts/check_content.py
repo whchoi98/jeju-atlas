@@ -14,9 +14,9 @@ COURSE = ROOT / "workshop"
 
 def main():
     course = json.loads((COURSE / "course.json").read_text())
-    expected = {f"{number:02}" for number in range(14)}
+    expected = {f"{number:02}" for number in range(15)}
     if {item["id"] for item in course["chapters"]} != expected:
-        raise ValueError("The course must cover chapters 00 through 13")
+        raise ValueError("The course must cover chapters 00 through 14")
     if len({item["slug"] for item in course["chapters"]}) != len(course["chapters"]):
         raise ValueError("Duplicate chapter slug")
     core_count = course.get("coreChapterCount")
@@ -54,7 +54,7 @@ def main():
     if course.get("includePromptCards") is not True:
         raise ValueError("PC handbook must include the prompt cards")
     if not (COURSE / "reference/ai-cli-environments.md").is_file():
-        raise ValueError("The three AI CLI environments must be documented")
+        raise ValueError("The three Agentic AI coding assistant environments must be documented")
     basic = "\n".join(
         (COURSE / "chapters" / (item["slug"] + ".md")).read_text()
         for item in course["chapters"][:core_count]
@@ -77,9 +77,9 @@ def main():
     missing = [kind for kind in resource_types if kind not in coverage]
     if missing:
         raise ValueError("Infrastructure types missing from resource matrix: " + ", ".join(sorted(missing)))
-    print(json.dumps({"chapters": 14, "coreChapters": core_count, "coreMinutes": core_minutes,
+    print(json.dumps({"chapters": len(course["chapters"]), "coreChapters": core_count, "coreMinutes": core_minutes,
                       "bufferMinutes": course["bufferMinutes"], "targetMinutes": 120,
-                      "promptCards": 14, "documentedSteps": len(documented),
+                      "promptCards": len(course["chapters"]), "documentedSteps": len(documented),
                       "infrastructureDeclarations": resource_count, "infrastructureTypes": len(resource_types),
                       "passed": True}, ensure_ascii=False))
 

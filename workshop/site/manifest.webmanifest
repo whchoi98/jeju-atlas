@@ -1,7 +1,7 @@
 {
-  "name": "Jeju Atlas 워크숍 · 120분 AgentCore CLI 실습",
+  "name": "Jeju Atlas 워크숍 · 100~120분 AgentCore CLI 실습",
   "short_name": "Atlas 워크숍",
-  "description": "준비된 VSCode Server에서 Codex, Kiro CLI, Claude Code로 제주 가이드 구현",
+  "description": "EC2 사전 준비 후 Agentic AI 코딩 어시스턴트와 두 개의 프롬프트로 제주 가이드 구현과 배포",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",

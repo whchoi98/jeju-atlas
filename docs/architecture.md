@@ -94,8 +94,17 @@ Guide의 `route`/`plan_day` 도구는 별도의 구현이며 제공처 설정에
 
 ## 워크숍
 
-본 실습은 준비된 EC2에서 AgentCore CLI로 참가자 전용 Runtime 하나를 만드는 120분 과정입니다.
+EC2 설치는 수업 전에 끝내고 본 실습은 구현과 배포 프롬프트 두 개로 진행합니다.
+기본 JejuGuide는 Python 3.12와 Bedrock 단기키를 사용합니다. 키는 참가자 `.env`에서
+로컬 실행에 전달하며, 원격 Runtime은 소유 SSM ARN과 단일 파라미터 읽기 정책을 사용합니다.
+AWS 배포와 Runtime inbound 호출에는 IAM을 유지합니다.
+[키와 선택 연동](../workshop/reference/keys-and-integrations.md)을 참고하세요.
+
+
+본 실습은 준비된 EC2에서 AgentCore CLI로 참가자 전용 Runtime 하나를 만드는 100~120분 과정입니다.
 전체 웹, Gateway, Memory, 데이터 수집과 운영 구성을 만드는 05~13장은 심화 자료입니다.
+[14장](../workshop/chapters/14-project-completion.md)은 통합 프롬프트로 기존 구현의
+남은 작업을 정하고 코드, IaC와 실제 서비스의 검증 범위를 연결하는 선택 가이드입니다.
 워크숍 화면과 원본 지도 앱은 PWA의 설치 범위와 캐시를 분리합니다.
 
 ## 구현 위치

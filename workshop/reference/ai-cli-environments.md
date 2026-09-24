@@ -1,106 +1,114 @@
-# Codex, Kiro CLI, Claude Code 사용 안내
+# Agentic AI 코딩 어시스턴트 사용 안내
 
-Codex, Kiro CLI, Claude Code 중 EC2에 준비된 도구 하나로 같은 구현 과제를 수행합니다.
-선택한 도구의 설치와 로그인 상태를 확인하고 기존 인증을 사용합니다.
-세 도구를 차례로 실행해야 하는 과제가 아닙니다.
+Codex, Claude Code, Kiro CLI 중 **사전에 준비한 하나**를 Agentic AI 코딩 어시스턴트로 사용합니다.\
+선택한 어시스턴트에서 같은 구현과 배포 프롬프트를 수행합니다.
 
-## Bash와 AI 대화창 구분
+CLI 전환이나 로그인 설정 자체를 본 실습 과제로 만들지 않습니다.\
+AgentCore CLI는 프로젝트 생성, 실행, 배포와 호출을 맡습니다.
 
-교재의 터미널 박스는 VSCode Server의 별도 **Bash 터미널**에서 실행합니다.
-프롬프트 카드는 Claude 등의 대화 입력창에 붙여넣습니다.
-AI가 Bash 도구에서 실행한 `cd`나 `export`는 사용자의 다른 터미널을 바꾸지 않습니다.
-브라우저의 교재에서 Claude 버튼을 선택해도 EC2의 CLI나 모델 설정이 바뀌지는 않습니다.
+## 같은 Bash에서 활성화하고 시작
 
-기존 `/home/ec2-user/claude-lab`에서 작업 중인 Claude는 그대로 두고
-새 VSCode Bash 터미널을 엽니다. 이 Bash에서 환경을 불러오고 새 CLI를 실행합니다.
-같은 파일을 두 세션에서 동시에 수정하지 않습니다.
-
-## 새 터미널에서 복원하고 Claude 열기
-
-먼저 01장에서 출력한 **본인의 절대 경로** `activationPath`를 사용합니다.
-경로와 `team01`은 실제 준비 결과에 맞게 바꿉니다.
+01장에서 출력한 본인의 절대 `activationPath`를 불러옵니다.\
+명령은 EC2 VSCode Server의 Bash에, 프롬프트는 AI 대화창에 붙여 넣습니다.\
+AI가 실행한 `export`나 `cd`는 사용자의 다른 터미널을 바꾸지 않습니다.
 
 ```bash
-source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh
 python3 -B "$ATLAS_REPO/workshop/scripts/core.py" doctor --assistant "$ATLAS_ASSISTANT"
+}
 ```
+첫 시작은 `$ATLAS_CLI_PARENT`입니다.\
+아직 없는 `$ATLAS_CLI`로 이동하지 않습니다.\
+구현 프롬프트가 그 아래에 실제 AgentCore 프로젝트를 만들고 이어서 작업합니다.
 
-사전검사가 통과하고 03장에서 프로젝트를 생성한 뒤 다음을 실행합니다.
+### Codex: auto-review와 on-request
 
 ```bash
-test -f "${ATLAS_CLI:?activate.sh를 먼저 source하세요}/agentcore/agentcore.json" &&
-cd -- "$ATLAS_CLI" &&
-claude --model claude-sonnet-4-6
+cd -- "${ATLAS_CLI_PARENT:?먼저 01장의 activate.sh를 source하세요}" && {
+codex -C "${ATLAS_CLI_PARENT:?}" --sandbox workspace-write -a on-request -c 'approvals_reviewer="auto_review"'
+}
 ```
+`on-request`는 승인 요청 시점을, `auto_review`는 해당 요청의 검토자를 정합니다.\
+샌드박스와 조직 정책은 계속 적용됩니다.
 
-이 순서로 열어야 Claude가 같은 PATH, Python, 참가자 변수와 CLI 설정을 상속합니다.
-Claude 안에서 현재 폴더의 `agentcore/agentcore.json`을 읽는지 확인합니다.
-`ATLAS_CLI`가 빈 상태의 `cd "$ATLAS_CLI"`는 성공하면서 원래 폴더에 남을 수 있습니다.
-기존 프로젝트에 머문 채 실습을 시작하지 않습니다.
+시작 후 `/status`와 설정에서 실제 적용을 확인합니다.\
+관리 설정이 금지하거나 설치 버전이 지원하지 않으면 진행자가 수업 전에 호환 상태를 맞추며, 자동 검토 거부를 성공으로 기록하지 않습니다.
 
-| 선택한 도구 | 실행 명령 | 프로젝트 지침 |
-|---|---|---|
-| Codex | `codex -C "$ATLAS_CLI" --sandbox workspace-write -a on-request` | `AGENTS.md` |
-| Kiro CLI | `$ATLAS_CLI`에서 `kiro-cli chat` | `.kiro/steering/workshop.md` |
-| Claude Code | `$ATLAS_CLI`에서 `claude --model claude-sonnet-4-6` | `CLAUDE.md` |
+이 명령은 사용자 설정 파일 전체를 덮어쓰지 않고 이번 실행의 값을 지정합니다.\
+제공된 환경이 Bedrock provider를 쓸 때만 [Codex Bedrock 설정](codex-bedrock.md)을 사전에 적용합니다.\
+이 가이드의 별도 provider와 모델을 모든 참가자에게 강제하지 않습니다.
 
-도구를 바꾸려면 현재 도구를 종료한 뒤 같은 프로젝트에서 다음 도구를 실행합니다.
-별도 프로젝트를 새로 생성하거나 동시에 같은 파일을 수정하지 않습니다.
-처음 선택은 `core.py prepare --assistant claude|codex|kiro`에 저장됩니다.
-다른 도구를 잠시 사용하려면 활성화 후 Bash에서 `export ATLAS_ASSISTANT=codex`
-같이 선택을 바꾸고 사전검사를 반복합니다. 새 Bash에서는 저장한 선택이 복원됩니다.
-
-05장 이후 심화 앱을 편집할 때는 활성화 후 Bash에서 다음 경로도 복원합니다.
-AWS 작업은 계속 원본 저장소의 lab.py와 본인 설정을 사용합니다.
+### Claude Code: auto mode
 
 ```bash
-export ATLAS_APP="${ATLAS_REPO:?}/workshop/.local/labs/${ATLAS_TEAM:?}/app"
+cd -- "${ATLAS_CLI_PARENT:?}" && {
+claude --permission-mode auto
+}
 ```
+진행자가 확인한 코딩 모델과 로그인을 그대로 사용하고, 화면의 권한 모드가 **Auto**인지 확인합니다.\
+세션 모델은 JejuGuide Runtime의 Sonnet 4.6과 별개입니다.
 
-접속 주소는 `lab.py url --config "$ATLAS_CONFIG"`가 실제 App 스택에서 조회합니다.
-AI가 사용자 도메인이나 인증서 발급을 새 실습 단계로 추가하지 않도록 합니다.
+2026-09-24 공식 문서 기준으로 auto 지원 모델은 provider마다 다릅니다.\
+Anthropic API의 Sonnet 4.6을 지원하더라도 Bedrock 연결에서 같은 조합을 지원한다는 뜻은 아닙니다.\
+진행자가 사용하는 provider, 모델과 조직 설정에서 실제로 확인합니다.
 
-## 공통 과제 전달
+지원되지 않으면 Manual로 시작할 수 있으므로 auto 적용으로 표시하지 않습니다.\
+모델 변경이 필요한 환경은 수업 전에 준비하고, 수업 중에는 배정된 도구의 일반 승인 흐름으로 진행한 사실을 기록합니다.\
+권한 검사를 모두 끄는 옵션을 대체 명령으로 쓰지 않습니다.
 
-[03장 프롬프트](../prompts/03-codex.md)를 그대로 전달합니다.
-기대 결과는 Strands 기반 제주 검색 도구, 응답 규칙과 테스트입니다.
-명령 실행 전에는 현재 폴더와 AWS 대상이 맞는지 확인합니다.
-코딩 도구의 답변에서 실제 변경 파일과 검사 결과를 확인하고 다음 단계로 갑니다.
+### Kiro CLI
 
-`AGENTS.md`에는 작업 폴더, 참가자 이름, 계정과 리전, 수정할 파일과 검사 방법을 적습니다.
-Claude Code의 `CLAUDE.md`에는 `@AGENTS.md`를 넣어 공통 지침을 참조합니다.
-Kiro의 steering 파일에도 같은 작업 경계를 적습니다.
-프로젝트가 생성한 기본 지침을 지우기 전에 실제 내용을 읽습니다.
-Claude Code는 특정 모델 ID `claude-sonnet-4-6`을 사용합니다.
-`sonnet` 별칭은 이후 다른 모델을 가리킬 수 있으므로 이 워크숍 명령에 사용하지 않습니다.
-이 설정을 Codex나 Kiro CLI의 모델 설정에 복사하지 않습니다.
+```bash
+cd -- "${ATLAS_CLI_PARENT:?}" && {
+kiro-cli chat
+}
+```
+준비된 로그인과 모델, 기존 도구 권한을 사용합니다.\
+교재의 Kiro 탭은 같은 프롬프트를 복사하는 선택이며 CLI 설정을 변경하지 않습니다.
 
-## 인증과 권한
+## 프롬프트 두 개로 이어 가기
 
-AI CLI의 로그인은 진행자가 수업 전에 확인합니다.
-로그인되지 않았다면 해당 도구의 공식 절차로 본인에게 배정된 계정을 사용합니다.
-인증 파일을 다른 사용자에게 복사하거나 키를 프롬프트에 넣지 않습니다.
+1. [03장 구현 프롬프트](../prompts/03-codex.md): 기존 소스와 참가자 환경을 확인하고 프로젝트, 검색 도구와 테스트를 준비합니다.
+2. [04장 배포 프롬프트](../prompts/04-agentcore-cli.md): 명시한 참가자 범위에서 키 게시, 모델 호출, 배포와 실제 응답을 확인합니다.
 
-Claude Code의 대화와 읽기 전용 Bash 도구가 동작해도 실습 도구가 준비됐다는 뜻은 아닙니다.
-`core.py doctor`는 선택한 CLI의 버전만 검사하며 로그인과 실제 모델 호출을 검사하지 않습니다.
-코딩 도구가 사용하는 모델과 배포된 제주 가이드의 Bedrock 모델은 다릅니다.
-이 과제는 코딩 도구의 provider나 모델을 바꾸라는 요청이 아닙니다.
-Bedrock 호출은 현재 EC2의 실습 역할과 배포 Runtime의 실행 역할로 확인합니다.
-Bedrock 모델 ID는 `global.anthropic.claude-sonnet-4-6`이며 Claude Code의 모델 ID와
-구분합니다. `model_check.py --execute`는 실제 호출이고 `core.py doctor`는 로컬 검사입니다.
+AI는 저장소의 `skills/jeju-atlas-install/SKILL.md`를 읽고 기존 작업을 재사용합니다.\
+설치 경로를 다시 묻거나 같은 프로젝트를 `create`하지 않습니다.
 
-## 오류를 수정할 때
+키는 사용자의 별도 Bash에서 `workshop_env.py configure`로 입력하고, AI는 상태만 조회하거나 helper로 사용합니다.\
+`.env`를 읽어 대화에 출력하도록 요청하지 않습니다.
 
-전체 작업을 다시 요청하기보다 실패한 명령, 오류 메시지, 관련 파일을 전달합니다.
-예를 들어 “검색 결과가 없을 때 테스트가 실패합니다. 이 함수와 테스트만 확인해 주세요”라고 요청합니다.
-프로젝트 밖의 파일 변경, 다른 계정 사용, 실패를 성공으로 표시하는 우회는 하지 않습니다.
+프로젝트 지침은 Codex의 `AGENTS.md`, Claude Code의 `CLAUDE.md`에서 참조하는 `AGENTS.md`, Kiro의 `.kiro/steering/workshop.md`에 같은 작업 범위를 적습니다.\
+기존 지침과 사용자 변경을 먼저 읽고 보존합니다.\
+자동 권한 모드에서도 어떤 계정과 프로젝트의 배포를 요청하는지 프롬프트에 명시합니다.
 
-## 공식 문서
+## 재개와 도구 전환
 
+새 Bash마다 활성화를 반복합니다.\
+프로젝트를 이미 생성했다면 다음 위치에서 선택한 CLI를 다시 시작할 수 있습니다.
+
+```bash
+cd -- "${ATLAS_CLI:?먼저 01장의 activate.sh를 source하세요}" && {
+test -f "${ATLAS_CLI:?}/agentcore/agentcore.json" && cd -- "$ATLAS_CLI"
+}
+```
+Codex에서는 같은 옵션으로 `-C "$ATLAS_CLI"`를 사용합니다.\
+다른 도구로 바꾸면 현재 세션을 종료하고 같은 프로젝트와 `RESULTS.md`를 이어서 읽습니다.
+
+동시에 여러 CLI가 같은 파일을 수정하지 않습니다.\
+다른 CLI를 점검할 때는 `core.py doctor --assistant codex|claude|kiro` 중 실제 값 하나를 사용합니다.
+
+05장 이후 앱은 `ATLAS_APP="$ATLAS_REPO/workshop/.local/labs/$ATLAS_TEAM/app"`입니다.\
+기본 CLI 프로젝트와 앱 사본을 구분하고, 앱 URL은 `lab.py url`로 실제 스택에서 조회합니다.\
+HUD는 [선택 설치 가이드](hud-setup.md)를 따르며 누락 때문에 본 실습을 지연하지 않습니다.
+
+## 공식 자료
+
+- [Codex 설정: approval_policy와 approvals_reviewer](https://developers.openai.com/codex/config-reference/)
 - [Codex CLI](https://developers.openai.com/codex/cli/)
-- [Codex 프로젝트 지침](https://developers.openai.com/codex/guides/agents-md/)
+- [Claude Code permission modes](https://code.claude.com/docs/en/permission-modes)
+- [Claude Code CLI flags](https://code.claude.com/docs/en/cli-reference)
 - [Kiro CLI](https://kiro.dev/docs/cli/)
-- [Claude Code](https://code.claude.com/docs/en/overview)
 
-명령이 교재와 다르면 설치 버전의 도움말을 확인합니다.
-업데이트와 재인증이 필요한 경우에는 진행자가 수업 전에 조정합니다.
+2026-09-24 공식 문서로 명령과 권한 모드 조건을 대조했습니다.\
+도구 버전 출력만으로 로그인, auto 모드 적용과 실제 모델 호출까지 검증되지는 않습니다.

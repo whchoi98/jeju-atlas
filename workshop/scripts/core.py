@@ -12,7 +12,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 CLI_VERSION = "0.28.1"
-PYTHON_VERSION = "3.14.3"
+PYTHON_VERSION = "3.12"
 REGION = "ap-northeast-2"
 CLI_CONFIG = {
     "disableDependencyManagement": True,
@@ -22,6 +22,9 @@ CLI_CONFIG = {
 SOURCE_FILES = (
     "AGENTS.md", "package.json", ".nvmrc", "workshop/course.json",
     "workshop/scripts/core.py", "workshop/scripts/install_core.sh",
+    "workshop/scripts/start.sh", "workshop/scripts/check_env.sh",
+    "workshop/scripts/workshop_env.py", "workshop/scripts/key_binding.py",
+    "workshop/.env.example",
     "workshop/requirements-core.txt", "workshop/scripts/lab.py",
     "workshop/scripts/lab_config.py", "workshop/scripts/lab_workspace.py",
     "workshop/scripts/lab_cloudfront.py", "workshop/scripts/ec2_context.py",
@@ -261,13 +264,13 @@ def check_project(repo, participant, project):
     if (spec.get("name") != project or len(runtimes) != 1
             or any(runtime.get(key) != value for key, value in {
                 "build": "CodeZip",
-                "runtimeVersion": "PYTHON_3_14", "networkMode": "PUBLIC",
+                "runtimeVersion": "PYTHON_3_12", "networkMode": "PUBLIC",
             }.items())
             or not isinstance(runtime.get("codeLocation"), str)
             or Path(runtime["codeLocation"]) != Path("app/JejuGuide")
             or runtime.get("protocol", "HTTP") != "HTTP"
             or runtime.get("authorizerType", "AWS_IAM") != "AWS_IAM"):
-        raise ValueError("Expected this project's single JejuGuide Python 3.14/PUBLIC/IAM CodeZip Runtime")
+        raise ValueError("Expected this project's single JejuGuide Python 3.12/PUBLIC/IAM CodeZip Runtime")
     for name in ("main.py", "model/load.py", "pyproject.toml", "data/jeju_pois.json"):
         if not safe_path(destination / "app/JejuGuide" / name).is_file():
             raise ValueError("Missing JejuGuide file: " + name)
@@ -331,22 +334,24 @@ def doctor(repo, assistant, env=None, project=False):
     def python_runtime():
         binary = shutil.which("uv", path=env.get("PATH", ""))
         if not binary:
-            raise ValueError("uv is required to locate Python 3.14")
-        path = probe([binary, "python", "find", "--no-python-downloads", "3.14"])
+            raise ValueError("uv is required to locate Python 3.12")
+        path = probe([binary, "python", "find", "--no-python-downloads", PYTHON_VERSION])
         output = probe([path, "--version"])
-        if not re.search(r"\bPython 3\.14\.\d+\b", output):
-            raise ValueError("Expected Python 3.14; found " + output)
+        if not re.search(r"\bPython 3\.12\.\d+\b", output):
+            raise ValueError("Expected Python 3.12; found " + output)
         return path + ": " + output
 
-    install_hint = "Ask the facilitator to run bash workshop/scripts/install_core.sh, then source activate.sh again"
+    install_hint = "Run bash workshop/scripts/install_core.sh, then source your participant activate.sh again"
     check("source", lambda: check_source(repo), "Obtain the full Git source, not just the handbook ZIP")
     check("session", session, "Run core.py prepare and source its absolute activationPath in this Bash terminal")
     for name in ("node", "npm", "uv", "aws", {"codex": "codex", "kiro": "kiro-cli", "claude": "claude"}[assistant]):
         check(name, lambda name=name: version(name),
               install_hint if name in {"node", "npm"} else "Use the facilitator-provided " + name + " path")
-    check("python3.14", python_runtime, install_hint)
+    check("python3.12", python_runtime, install_hint)
     check("helper-packages", lambda: probe([
         sys.executable, "-B", "-c",
+        "import sys\n"
+        "if sys.version_info < (3, 12): sys.exit('Use the Python 3.12+ helpers from activate.sh')\n"
         "import json,boto3,requests; print(json.dumps({'boto3':boto3.__version__,'requests':requests.__version__}))",
     ]), install_hint)
     # Read the npm package's metadata instead of starting an AgentCore command,

@@ -1,4 +1,5 @@
 """Core participants must not inherit the advanced lab's prerequisites or state."""
+import hashlib
 import importlib.util
 import json
 import os
@@ -6,12 +7,178 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "workshop/scripts/core.py"
+
+
+def copy_core_source(repo):
+    for name in ("AGENTS.md", ".nvmrc", "package.json", "workshop/course.json",
+                 "workshop/scripts/core.py",
+                 "workshop/scripts/lab.py", "workshop/scripts/lab_config.py",
+                 "workshop/scripts/lab_workspace.py", "workshop/scripts/ec2_context.py",
+                 "workshop/scripts/lab_cloudfront.py",
+                 "workshop/scripts/model_config.py", "workshop/scripts/model_check.py",
+                 "workshop/scripts/install_core.sh", "workshop/requirements-core.txt",
+                 "workshop/scripts/start.sh", "workshop/scripts/check_env.sh",
+                 "workshop/scripts/workshop_env.py", "workshop/scripts/key_binding.py",
+                 "workshop/.env.example",
+                 "agent/tools/data/jeju_pois.json"):
+        destination = repo / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / name, destination)
+
+
+class InstallFixture:
+    """Run the real preparation/installer with offline executable boundaries."""
+
+    def __init__(self, directory, repo, node_version="24.18.1", cli_version="0.28.1"):
+        self.directory = directory / "installed-tools"
+        self.bin = self.directory / "bin"
+        self.global_prefix = self.directory / "user/.npm-global"
+        self.tools = repo / "workshop/.local/toolchain"
+        self.commands = self.directory / "commands.jsonl"
+        self.bin.mkdir(parents=True)
+        packages = self.directory / "packages"
+        packages.mkdir()
+        for name, version in (("boto3", "1.42.86"), ("requests", "2.32.5")):
+            (packages / (name + ".py")).write_text("__version__ = " + repr(version) + "\n")
+        # The fixture executes real core Python code, with the interpreter
+        # version supplied at the process boundary instead of requiring a
+        # particular host Python installation or downloading one in tests.
+        self.python_template = self.directory / "python-template"
+        self.python_template.write_text(f"""#!{sys.executable}
+import collections, pathlib, runpy, sys
+sys.version_info = collections.namedtuple("version_info", "major minor micro releaselevel serial")(*__VERSION__)
+sys.executable = str(pathlib.Path(__file__))
+args = sys.argv[1:]
+if args and args[0] == "-B":
+    args = args[1:]
+if args == ["--version"]:
+    print("Python %d.%d.%d" % sys.version_info[:3])
+elif args and args[0] == "-c":
+    sys.argv = args
+    exec(args[1], {{"__name__": "__main__"}})
+elif args and args[0] == "-":
+    sys.argv = args
+    exec(sys.stdin.read(), {{"__name__": "__main__"}})
+else:
+    sys.argv = args
+    sys.path.insert(0, str(pathlib.Path(args[0]).parent))
+    runpy.run_path(args[0], run_name="__main__")
+""")
+        self.env = {
+            "PATH": str(self.bin) + ":" + str(self.global_prefix / "bin") + ":" + os.defpath,
+            "BASH_ENV": "/dev/null", "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONPATH": str(packages),
+            "ATLAS_TEST_COMMANDS": str(self.commands),
+            "ATLAS_TEST_PYTHON_TEMPLATE": str(self.python_template),
+        }
+        (self.bin / "python3").symlink_to(sys.executable)
+        self.program(self.bin / "node", f"""
+if sys.argv[1:] != ["--version"]: sys.exit(91)
+print("v{node_version}")
+""")
+        self.program(self.bin / "npm", """
+args = sys.argv[1:]
+if args == ["--version"]:
+    print("11.11.0")
+    sys.exit()
+if not (args[0] == "--prefix" and args[2] == "install"
+        and args[-1] == "@aws/agentcore@0.28.1"):
+    sys.exit(91)
+destination = Path(args[1])
+destination.mkdir(exist_ok=True)
+if os.environ.get("ATLAS_TEST_NPM_FAIL"):
+    (destination / "incomplete").write_text("partial install")
+    sys.exit(53)
+package = destination / "node_modules/@aws/agentcore"
+entry = package / "dist/cli/index.mjs"
+entry.parent.mkdir(parents=True)
+entry.write_text("#!/bin/sh\\nexit 91\\n")
+entry.chmod(0o755)
+(package / "package.json").write_text(json.dumps({
+    "name": "@aws/agentcore", "version": "0.28.1",
+    "bin": {"agentcore": "dist/cli/index.mjs"},
+}))
+binary = destination / "node_modules/.bin/agentcore"
+binary.parent.mkdir(parents=True)
+binary.symlink_to("../@aws/agentcore/dist/cli/index.mjs")
+(destination / "package.json").write_text(json.dumps({"dependencies": {"@aws/agentcore": "0.28.1"}}))
+(destination / "package-lock.json").write_text('{"lockfileVersion":3}\\n')
+""")
+        self.program(self.bin / "uv", """
+args = [arg for arg in sys.argv[1:] if arg != "--no-config"]
+if args == ["--version"]:
+    print("uv 0.12.15")
+    sys.exit()
+runtime = Path(os.environ["UV_PYTHON_INSTALL_DIR"]) / "cpython-fixture/bin/python3.12"
+if args[:2] == ["python", "install"]:
+    if args[2:] != ["--no-bin", "3.12"]: sys.exit(92)
+    runtime.parent.mkdir(parents=True, exist_ok=True)
+    runtime.write_text(Path(os.environ["ATLAS_TEST_PYTHON_TEMPLATE"]).read_text().replace(
+        "__VERSION__", repr((3, 12, 13, "final", 0))))
+    runtime.chmod(0o755)
+elif args[:2] == ["python", "find"]:
+    if args[-1] != "3.12" or "--no-python-downloads" not in args or not runtime.is_file():
+        sys.exit(93)
+    print(runtime)
+elif args[:1] == ["venv"]:
+    if args[1:3] != ["--python", str(runtime)]: sys.exit(94)
+    helper = Path(args[-1]) / "bin/python3"
+    helper.parent.mkdir(parents=True)
+    helper.write_bytes(runtime.read_bytes())
+    helper.chmod(0o755)
+elif args[:2] != ["pip", "install"]:
+    sys.exit(95)
+""")
+        for name in ("aws", "codex", "claude", "kiro-cli"):
+            self.program(self.bin / name, f"""
+if sys.argv[1:] != ["--version"]: sys.exit(91)
+print("{name} fixture")
+""")
+        # Never reach the real network, cloud, or Docker daemon from a test.
+        self.program(self.bin / "curl", "sys.exit(96)\n")
+        self.program(self.bin / "docker", "sys.exit(97)\n")
+        if cli_version:
+            self.agentcore(self.global_prefix, cli_version)
+
+    def program(self, path, body):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"""#!{sys.executable}
+import json, os, sys
+from pathlib import Path
+with open(os.environ["ATLAS_TEST_COMMANDS"], "a") as stream:
+    stream.write(json.dumps([Path(__file__).name, *sys.argv[1:]]) + "\\n")
+""" + body)
+        path.chmod(0o755)
+
+    def agentcore(self, prefix, version):
+        package = prefix / "lib/node_modules/@aws/agentcore"
+        entry = package / "dist/cli/index.mjs"
+        self.program(entry, "sys.exit(91)\n")
+        (package / "package.json").write_text(json.dumps({
+            "name": "@aws/agentcore", "version": version,
+            "bin": {"agentcore": "dist/cli/index.mjs"},
+        }))
+        binary = prefix / "bin/agentcore"
+        binary.parent.mkdir(parents=True, exist_ok=True)
+        binary.symlink_to(entry)
+        return binary
+
+    def helper(self, version):
+        helper = self.tools / "helpers/bin/python3"
+        helper.parent.mkdir(parents=True)
+        helper.write_text(self.python_template.read_text().replace("__VERSION__", repr((*version, "final", 0))))
+        helper.chmod(0o755)
+        return helper
+
+    def calls(self):
+        return [json.loads(line) for line in self.commands.read_text().splitlines()] if self.commands.exists() else []
 
 
 class CoreTests(unittest.TestCase):
@@ -24,17 +191,7 @@ class CoreTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.directory = Path(self.temporary.name)
         self.repo = self.directory / "jeju-atlas"
-        for name in ("AGENTS.md", ".nvmrc", "package.json", "workshop/course.json",
-                     "workshop/scripts/lab.py", "workshop/scripts/lab_config.py",
-                     "workshop/scripts/lab_workspace.py", "workshop/scripts/ec2_context.py",
-                     "workshop/scripts/lab_cloudfront.py",
-                     "workshop/scripts/model_config.py", "workshop/scripts/model_check.py",
-                     "workshop/scripts/install_core.sh", "workshop/requirements-core.txt",
-                     "agent/tools/data/jeju_pois.json"):
-            destination = self.repo / name
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(ROOT / name, destination)
-        shutil.copyfile(SCRIPT, self.repo / "workshop/scripts/core.py")
+        copy_core_source(self.repo)
         self.other = self.directory / "claude-lab"
         self.other.mkdir()
         (self.other / "keep.txt").write_text("existing project\n")
@@ -56,6 +213,19 @@ class CoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lab_config.py"):
             self.prepare()
         self.assertFalse((self.repo / "workshop/.local").exists())
+
+    def test_source_missing_a_start_or_environment_helper_cannot_pass_preparation(self):
+        for name in ("workshop/scripts/start.sh", "workshop/scripts/check_env.sh",
+                     "workshop/scripts/workshop_env.py", "workshop/scripts/key_binding.py",
+                     "workshop/.env.example"):
+            with self.subTest(file=name):
+                path = self.repo / name
+                before = path.read_bytes()
+                path.unlink()
+                with self.assertRaises(ValueError):
+                    self.prepare()
+                self.assertFalse((self.repo / "workshop/.local").exists())
+                path.write_bytes(before)
 
     def test_prepare_is_repeatable_and_preserves_participant_work(self):
         report = self.prepare()
@@ -139,14 +309,16 @@ class CoreTests(unittest.TestCase):
         """Only explicit version/discovery/import probes succeed; no cloud calls."""
         binary = Path(command[0]).name
         if binary == "uv" and command[1:3] == ["python", "find"]:
-            return subprocess.CompletedProcess(command, 0, "/test/python3.14\n", "")
+            self.assertEqual(command[-1], "3.12")
+            self.assertIn("--no-python-downloads", command)
+            return subprocess.CompletedProcess(command, 0, "/test/python3.12\n", "")
         if "-c" in command:
             return subprocess.CompletedProcess(command, 0, '{"boto3":"1.42.86","requests":"2.32.5"}', "")
         if command[1:] != ["--version"]:
             raise AssertionError("Unexpected external operation: " + repr(command))
         versions = {"node": "v24.21.0", "npm": "11.11.0", "uv": "uv 0.12.15",
                     "aws": "aws-cli/2.33.15", "claude": "2.1.272 (Claude Code)",
-                    "python3.14": "Python 3.14.3"}
+                    "python3.12": "Python 3.12.13"}
         if binary not in versions:
             raise AssertionError("Unexpected tool: " + binary)
         return subprocess.CompletedProcess(command, 0, versions[binary] + "\n", "")
@@ -192,6 +364,39 @@ class CoreTests(unittest.TestCase):
         self.assertFalse(result["awsChecked"])
         self.assertFalse(result["modelInvoked"])
 
+    def test_doctor_rejects_a_different_python_minor_even_if_newer(self):
+        env, paths = self.ready_environment()
+        def observed(command, **kwargs):
+            if Path(command[0]).name == "python3.12":
+                return subprocess.CompletedProcess(command, 0, "Python 3.14.3", "")
+            return self.probes(command, **kwargs)
+        with patch.object(self.core.shutil, "which", side_effect=lambda name, **kw: paths.get(name)), \
+                patch.object(self.core, "run_capture", side_effect=observed):
+            result = self.core.doctor(self.repo, "claude", env)
+        failure = next(check for check in result["checks"] if check["name"] == "python3.12")
+        self.assertFalse(failure["ok"], result)
+        self.assertFalse(result["passed"])
+
+    def test_doctor_rejects_old_helpers_even_when_packages_import_and_python_is_optimized(self):
+        env, paths = self.ready_environment()
+        fixture = InstallFixture(self.directory, self.repo)
+        helper = fixture.helper((3, 11, 9))
+        env.update({"PYTHONPATH": fixture.env["PYTHONPATH"], "PYTHONOPTIMIZE": "1",
+                    "PYTHONDONTWRITEBYTECODE": "1"})
+        capture = self.core.run_capture
+        def observed(command, **kwargs):
+            if "-c" in command:
+                return capture(command, **kwargs)
+            return self.probes(command, **kwargs)
+        with patch.object(self.core.shutil, "which", side_effect=lambda name, **kw: paths.get(name)), \
+                patch.object(self.core, "run_capture", side_effect=observed), \
+                patch.object(self.core.sys, "executable", str(helper)):
+            result = self.core.doctor(self.repo, "claude", env)
+        check = next(check for check in result["checks"] if check["name"] == "helper-packages")
+        self.assertFalse(check["ok"], result)
+        self.assertIn("3.12", check["reason"])
+        self.assertFalse(result["passed"])
+
     def test_measured_ec2_failures_are_reported_together(self):
         env, paths = self.ready_environment()
         paths.pop("agentcore")
@@ -199,7 +404,7 @@ class CoreTests(unittest.TestCase):
             if Path(command[0]).name == "node":
                 return subprocess.CompletedProcess(command, 0, "v20.20.1", "")
             if command[1:3] == ["python", "find"]:
-                return subprocess.CompletedProcess(command, 1, "", "No interpreter found for Python 3.14")
+                return subprocess.CompletedProcess(command, 1, "", "No interpreter found for Python 3.12")
             if "-c" in command:
                 return subprocess.CompletedProcess(command, 1, "", "ModuleNotFoundError: boto3")
             return self.probes(command, **kwargs)
@@ -207,7 +412,7 @@ class CoreTests(unittest.TestCase):
                 patch.object(self.core, "run_capture", side_effect=observed):
             result = self.core.doctor(self.repo, "claude", env)
         failures = {check["name"] for check in result["checks"] if not check["ok"]}
-        self.assertTrue({"node", "python3.14", "agentcore", "helper-packages"}.issubset(failures), result)
+        self.assertTrue({"node", "python3.12", "agentcore", "helper-packages"}.issubset(failures), result)
         self.assertFalse(result["passed"])
         self.assertTrue(next(check for check in result["checks"] if check["name"] == "claude")["ok"])
 
@@ -248,6 +453,137 @@ class CoreTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(list(tools.iterdir()), [tools / "keep.txt"])
 
+    def install(self, fixture):
+        return subprocess.run(
+            ["bash", str(ROOT / "workshop/scripts/install_core.sh"), "--repo", str(self.repo)],
+            env=fixture.env, capture_output=True, text=True, timeout=30,
+        )
+
+    def test_installer_reuses_user_global_node_and_cli_and_creates_python312_helpers(self):
+        report = self.prepare()
+        fixture = InstallFixture(self.directory, self.repo)
+        global_entry = fixture.global_prefix / "lib/node_modules/@aws/agentcore/dist/cli/index.mjs"
+        before = global_entry.read_bytes()
+        result = self.install(fixture)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        tools = Path(report["toolchainPath"])
+        self.assertFalse((tools / "node-v24.21.0").exists(), "Compatible Node must not be installed again")
+        self.assertFalse((tools / "agentcore").exists(), "The pinned global npm CLI must be reused")
+        self.assertEqual(global_entry.read_bytes(), before)
+        helper = tools / "helpers/bin/python3"
+        version = subprocess.run([str(helper), "--version"], capture_output=True, text=True, env=fixture.env)
+        self.assertEqual(version.stdout.strip(), "Python 3.12.13")
+        self.assertTrue((tools / "python/cpython-fixture/bin/python3.12").is_file())
+        calls = fixture.calls()
+        self.assertIn(["uv", "--no-config", "python", "install", "--no-bin", "3.12"], calls)
+        self.assertFalse(any(call[0] == "curl" or (call[0] == "npm" and "--prefix" in call) for call in calls))
+        self.assertFalse(any(call[0] == "index.mjs" for call in calls), "Metadata discovery must not launch the CLI")
+
+    def test_installer_preserves_existing_helpers_from_python312_or_newer(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo)
+        helper = fixture.helper((3, 12, 13))
+        for version in ((3, 12, 13), (3, 14, 3)):
+            with self.subTest(version=version):
+                helper.write_text(fixture.python_template.read_text().replace(
+                    "__VERSION__", repr((*version, "final", 0))))
+                before = helper.read_bytes()
+                result = self.install(fixture)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(helper.read_bytes(), before)
+        self.assertFalse(any("venv" in call for call in fixture.calls()))
+
+    def test_installer_preserves_and_rejects_helpers_older_than_python312(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo)
+        helper = fixture.helper((3, 11, 9))
+        before = helper.read_bytes()
+        result = self.install(fixture)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("3.12", result.stdout + result.stderr)
+        self.assertEqual(helper.read_bytes(), before)
+        self.assertFalse((fixture.tools / "agentcore").exists())
+
+    def test_installer_uses_pinned_local_cli_when_global_cli_version_is_wrong(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo, cli_version="0.29.0")
+        manifest = fixture.global_prefix / "lib/node_modules/@aws/agentcore/package.json"
+        before = manifest.read_bytes()
+        result = self.install(fixture)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(manifest.read_bytes(), before)
+        self.assertEqual(self.core.npm_agentcore(fixture.tools / "agentcore/node_modules/.bin/agentcore"), "0.28.1")
+        self.assertFalse((fixture.tools / "node-v24.21.0").exists())
+        self.assertFalse(list(fixture.tools.glob(".agentcore-install-*")))
+
+    def test_installer_reuses_a_complete_private_cli_and_keeps_its_lock(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo, cli_version="0.29.0")
+        result = self.install(fixture)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        private = fixture.tools / "agentcore"
+        lock = private / "package-lock.json"
+        before = lock.read_bytes()
+        again = self.install(fixture)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertEqual(lock.read_bytes(), before)
+        self.assertEqual(sum(call[0] == "npm" and "--prefix" in call for call in fixture.calls()), 1)
+        lock.unlink()
+        before = (private / "package.json").read_bytes()
+        incomplete = self.install(fixture)
+        self.assertNotEqual(incomplete.returncode, 0)
+        self.assertIn("lock", incomplete.stderr.lower())
+        self.assertEqual((private / "package.json").read_bytes(), before)
+        self.assertFalse(lock.exists(), "An incomplete existing installation must be preserved")
+
+    def test_installer_uses_checksum_verified_private_node_for_unsupported_versions(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo)
+        arch = "arm64" if os.uname().machine in {"aarch64", "arm64"} else "x64"
+        name = "node-v24.21.0-linux-" + arch
+        unpacked = self.directory / name
+        fixture.program(unpacked / "bin/node", 'print("v24.21.0")\n')
+        (unpacked / "bin/npm").write_bytes((fixture.bin / "npm").read_bytes())
+        (unpacked / "bin/npm").chmod(0o755)
+        archive = self.directory / (name + ".tar.gz")
+        with tarfile.open(archive, "w:gz") as stream:
+            stream.add(unpacked, arcname=name)
+        digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+        fixture.program(fixture.bin / "curl", f"""
+args = sys.argv[1:]
+output = Path(args[args.index("--output") + 1])
+if args[-1].endswith("/SHASUMS256.txt"):
+    output.write_text("{digest}  {name}.tar.gz\\n")
+else:
+    output.write_bytes(Path({str(archive)!r}).read_bytes())
+""")
+        for version in ("24.18.0", "25.0.0"):
+            with self.subTest(version=version):
+                fixture.program(fixture.bin / "node", f'print("v{version}")\n')
+                result = self.install(fixture)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn(".tar.gz: OK", result.stdout)
+                private_node = fixture.tools / "node-v24.21.0"
+                self.assertTrue((private_node / "bin/node").is_file())
+                self.assertFalse(list(fixture.tools.glob(".node-install-*")))
+                self.assertFalse((fixture.tools / "agentcore").exists())
+                shutil.rmtree(private_node)
+
+    def test_installer_refuses_linked_tool_directories_even_when_global_tools_match(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo)
+        for name in ("node-v24.21.0", "helpers", "agentcore", "python", "cache"):
+            with self.subTest(directory=name):
+                directory = fixture.tools / name
+                directory.symlink_to(self.other, target_is_directory=True)
+                result = self.install(fixture)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("symlink", result.stderr.lower())
+                self.assertEqual((self.other / "keep.txt").read_text(), "existing project\n")
+                self.assertTrue(directory.is_symlink())
+                self.assertEqual(fixture.calls(), [])
+                directory.unlink()
+
     def test_installer_rejects_bad_node_checksum_without_replacing_tools(self):
         installer = ROOT / "workshop/scripts/install_core.sh"
         self.assertTrue(installer.is_file(), "The private core toolchain installer is missing")
@@ -255,6 +591,9 @@ class CoreTests(unittest.TestCase):
         tools = Path(report["toolchainPath"])
         fakebin = self.directory / "bin"
         fakebin.mkdir()
+        node = fakebin / "node"
+        node.write_text("#!/bin/sh\nprintf 'v20.20.1\\n'\n")
+        node.chmod(0o755)
         # Exercise the real shell installer; only the network boundary is fake.
         curl = fakebin / "curl"
         curl.write_text('''#!/bin/bash
@@ -297,7 +636,7 @@ fi
         fakebin = self.directory / "bin"
         fakebin.mkdir()
         uv = fakebin / "uv"
-        uv.write_text("#!/bin/sh\ncase \"$*\" in *'python find'*) printf '/test/python3.14\\n';; esac\n")
+        uv.write_text("#!/bin/sh\ncase \"$*\" in *'python find'*) printf '/test/python3.12\\n';; esac\n")
         uv.chmod(0o755)
         npm = fakebin / "npm"
         npm.write_text('''#!/bin/sh
@@ -312,8 +651,9 @@ exit 53
             env={**os.environ, "PATH": str(fakebin) + ":" + os.defpath},
             capture_output=True, text=True,
         )
-        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.returncode, 53, result.stdout + result.stderr)
         self.assertFalse((tools / "agentcore").exists(), "An incomplete npm install must remain unpublished")
+        self.assertFalse(list(tools.glob(".agentcore-install-*")))
         self.assertTrue(node.exists())
         self.assertTrue(helper.exists())
 
@@ -329,7 +669,7 @@ exit 53
         (project / "agentcore/agentcore.json").write_text(json.dumps({
             "name": "AtlasCliTeam01", "runtimes": [{
                 "name": "JejuGuide", "build": "CodeZip", "codeLocation": "app/JejuGuide/",
-                "runtimeVersion": "PYTHON_3_14", "networkMode": "PUBLIC",
+                "runtimeVersion": "PYTHON_3_12", "networkMode": "PUBLIC",
                 "envVars": [{"name": "ATLAS_BEDROCK_REGION", "value": "ap-northeast-2"}],
             }],
         }))
@@ -344,6 +684,15 @@ exit 53
         data.parent.mkdir()
         shutil.copyfile(self.repo / "agent/tools/data/jeju_pois.json", data)
         self.assertEqual(self.core.check_project(self.repo, "team01", "AtlasCliTeam01"), str(project))
+        spec_path = project / "agentcore/agentcore.json"
+        spec = json.loads(spec_path.read_text())
+        for runtime in ("PYTHON_3_11", "PYTHON_3_14"):
+            spec["runtimes"][0]["runtimeVersion"] = runtime
+            spec_path.write_text(json.dumps(spec))
+            with self.subTest(runtime=runtime), self.assertRaisesRegex(ValueError, "3.12"):
+                self.core.check_project(self.repo, "team01", "AtlasCliTeam01")
+        spec["runtimes"][0]["runtimeVersion"] = "PYTHON_3_12"
+        spec_path.write_text(json.dumps(spec))
         data.write_text("[]")
         with self.assertRaises(ValueError):
             self.core.check_project(self.repo, "team01", "AtlasCliTeam01")

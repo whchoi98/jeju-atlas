@@ -185,12 +185,12 @@ function decorateBlocks(node, counter) {
   const prompt = language === 'ai-prompt';
   const terminal = ['bash', 'sh', 'shell', 'zsh', 'console'].includes(language.toLowerCase());
   if (prompt) {
-    node.properties.ariaLabel = 'AI CLI에 붙여넣을 프롬프트';
+    node.properties.ariaLabel = 'Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트';
     return element('section', {
       className: ['code-block', 'prompt-screen'], dataPromptScreen: '', dataAssistant: 'codex',
-      ariaLabel: 'AI CLI 프롬프트 입력',
+      ariaLabel: 'Agentic AI 코딩 어시스턴트 프롬프트 입력',
     }, [
-      element('div', { className: ['prompt-tools', 'js-only'], role: 'group', ariaLabel: '프롬프트를 전달할 AI CLI 선택' },
+      element('div', { className: ['prompt-tools', 'js-only'], role: 'group', ariaLabel: '프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택' },
         [['codex', 'Codex'], ['kiro', 'Kiro CLI'], ['claude', 'Claude Code']].map(([value, label]) =>
           element('button', { type: 'button', dataPromptTool: value, ariaPressed: value === 'codex' ? 'true' : 'false' }, [text(label)]))),
       element('div', { className: ['code-toolbar', 'prompt-toolbar'] }, [
@@ -204,7 +204,7 @@ function decorateBlocks(node, counter) {
         }, [text('복사')]),
       ]),
       element('p', { className: ['prompt-destination'], dataPromptDestination: '' },
-        [text('선택한 AI CLI의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.')]),
+        [text('선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.')]),
       node,
     ]);
   }
@@ -453,14 +453,20 @@ function courseOverview(course, docs, architecture) {
   const references = docs.filter((doc) => doc.kind === 'reference');
   const days = [...new Set(chapters.map((doc) => doc.day))];
   const core = chapters.filter(doc => doc.core !== false);
+  const sourceGuide = references.find(doc => doc.slug === 'offline-start');
+  const preparationGuide = references.find(doc => doc.slug === 'preconfiguration');
+  const keysGuide = references.find(doc => doc.slug === 'keys-and-integrations');
   return `<div class="overview">
     <header class="overview-header">
       <p class="eyebrow"><span class="eyebrow-dot"></span>JEJU ATLAS WORKSHOP</p>
       <h1 id="overview-title">${escapeHtml(course.title)}</h1>
       <p class="overview-subtitle">${escapeHtml(course.subtitle)}</p>
       <p class="overview-intro">${course.coreChapterCount
-        ? '준비된 EC2의 VSCode Server에서 시작합니다.<br>AI CLI로 코드를 작성하고 AgentCore CLI로 실행과 배포를 확인합니다.'
+        ? '사전 준비를 마친 EC2의 VSCode Server에서 시작합니다.<br>구현 프롬프트와 배포 프롬프트 두 개로 AgentCore CLI 실습을 진행합니다.'
         : '번호 순서대로 읽고 터미널에서 실습 결과를 확인합니다.'}</p>
+      ${sourceGuide ? `<p class="overview-intro">읽기용 교재 ZIP에는 <code>core.py</code> 등 실행 스크립트가 없습니다.<br><a href="${sourceGuide.outputFile}">EC2 실행 소스 준비 방법</a>을 먼저 확인하세요.</p>` : ''}
+      ${preparationGuide ? `<p class="overview-intro"><a href="${preparationGuide.outputFile}">사전 구성: Node, Python과 AgentCore CLI 설치</a><br>EC2 점검, Python 3.12와 CLI 설치를 수업 전에 완료합니다.</p>` : ''}
+      ${keysGuide ? `<p class="overview-intro"><a href="${keysGuide.outputFile}">Bedrock 단기키를 .env에 입력하기</a><br>카카오와 관광공사 키는 첫 배포 후 선택해서 연결합니다.</p>` : ''}
       <div class="course-meta">${course.coreChapterCount
         ? `<span>${course.targetMinutes}분 과정</span><span>본 실습 ${core.length}개 장</span><span>실습 ${totalMinutes(core)}분 + 여유 ${course.bufferMinutes}분</span>`
         : `<span>${days.length}일 과정</span><span>${chapters.length}개 챕터</span><span>약 ${duration(totalMinutes(chapters))}</span>`}</div>
@@ -738,7 +744,7 @@ export async function buildSite({
         .filter(node => node.type === 'code' && ['text', 'ai-prompt'].includes(node.lang));
       const promptInput = promptBlocks.length === 1 ? promptBlocks[0].value : prompt;
       const fence = '`'.repeat(Math.max(3, ...[...promptInput.matchAll(/`+/g)].map((match) => match[0].length + 1)));
-      source += `\n\n## AI CLI 프롬프트 카드\n\n아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. `
+      source += `\n\n## Agentic AI 코딩 어시스턴트 프롬프트 카드\n\n아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. `
         + `[Markdown 카드 다운로드](../${name})\n\n${fence}ai-prompt\n${promptInput}${promptInput.endsWith('\n') ? '' : '\n'}${fence}\n`;
     }
     return { entry, source, sourcePath, promptAsset };

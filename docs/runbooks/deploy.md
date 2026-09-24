@@ -80,6 +80,8 @@ Git에 커밋하거나 푸시하는 행위도 AWS 배포와 별개입니다.
    Docker 인증은 전용 `.local` 설정 경로와 stdin을 사용합니다.
 6. 아래 계획의 변경이 기존 TaskDefinition/Service의 Modify와
    `ImageUri` 매개변수 하나뿐인지 확인한 뒤 적용합니다.
+   `IncludePropertyValues`의 전후 속성 문맥도 비교하며 web 이미지와 Service의
+   TaskDefinition 참조 외 속성 변화가 있으면 중단합니다.
 
 ```bash
 python3 scripts/publish-workshop.py inspect-live --output "$PUBLICATION/live.json"

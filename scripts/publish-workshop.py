@@ -65,6 +65,35 @@ def validate_changes(changes):
         raise ValueError("Expected a task definition revision and its existing service update")
 
 
+def changed_properties(before, after, path=""):
+    if before == after:
+        return set()
+    if isinstance(before, dict) and isinstance(after, dict):
+        return set().union(*(changed_properties(before.get(key), after.get(key), path + "/" + key)
+                             for key in before.keys() | after.keys()))
+    if isinstance(before, list) and isinstance(after, list) and len(before) == len(after):
+        return set().union(*(changed_properties(left, right, path + "/" + str(index))
+                             for index, (left, right) in enumerate(zip(before, after))))
+    return {path}
+
+
+def validate_property_changes(changes):
+    expected = {"Service": {"/Properties/TaskDefinition"},
+                "TaskDefinition": {"/Properties/ContainerDefinitions/0/Image"}}
+    for row in changes:
+        change = row["ResourceChange"]
+        name = change.get("LogicalResourceId")
+        if name not in expected or not change.get("BeforeContext") or not change.get("AfterContext"):
+            raise ValueError("Require detailed before/after property values for static publication")
+        before, after = json.loads(change["BeforeContext"]), json.loads(change["AfterContext"])
+        if changed_properties(before, after) != expected[name]:
+            raise ValueError("Properties other than the existing web image/service revision would change")
+        if name == "TaskDefinition":
+            for value in (before, after):
+                if value["Properties"]["ContainerDefinitions"][0].get("Name") != "web":
+                    raise ValueError("Only the existing web container image may change")
+
+
 def docker(*args):
     result = subprocess.run(["docker", *args], text=True, capture_output=True, timeout=60)
     if result.returncode:
@@ -191,7 +220,9 @@ def live_state(aws):
 
 
 def changeset(cf, identifier):
-    value = cf.describe_change_set(StackName=APP, ChangeSetName=identifier)
+    # Property-level evaluation resolves conservative resource-reference
+    # estimates; validate the actual before/after values as well as resource IDs.
+    value = cf.describe_change_set(StackName=APP, ChangeSetName=identifier, IncludePropertyValues=True)
     if value.get("NextToken"):
         raise ValueError("Unexpectedly large change set")
     return value
@@ -241,6 +272,7 @@ def plan(image, proof_file, output):
     if detail["Status"] != "CREATE_COMPLETE" or detail.get("ExecutionStatus") != "AVAILABLE":
         raise ValueError("The static-content change set is not available")
     validate_changes(detail.get("Changes", []))
+    validate_property_changes(detail.get("Changes", []))
     validate_plan_parameters(detail, stack["Parameters"], image)
     record = {
         "kind": "workshop-static-plan-v1", "stackId": stack["StackId"], "changeSetId": created["Id"],
@@ -268,6 +300,7 @@ def apply(plan_file):
         raise ValueError("The existing deployment changed; do not execute the stale plan")
     detail = changeset(cf, record["changeSetId"])
     validate_changes(detail.get("Changes", []))
+    validate_property_changes(detail.get("Changes", []))
     validate_plan_parameters(detail, record["oldParameters"], record["imageUri"])
     if detail.get("ExecutionStatus") != "AVAILABLE":
         raise ValueError("The change set is not available")

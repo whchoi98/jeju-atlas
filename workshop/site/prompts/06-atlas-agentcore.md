@@ -1,14 +1,32 @@
-# 06, 제주 가이드 AgentCore 배포. AI CLI 카드
+# 06, 제주 가이드 AgentCore 배포. Agentic AI 코딩 어시스턴트 카드
 
-이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다. 한 도구만 선택하고 같은 계정, VPC, 작업 폴더를 유지합니다.
+이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다.\
+Agentic AI 코딩 어시스턴트 하나로 같은 계정, VPC, 작업 폴더를 유지합니다.
 
 당신은 제주 아틀라스 워크숍의 구현 조교입니다. 학습자가 선택한 이 챕터만 진행합니다.
 `ATLAS_REPO`, `ATLAS_CONFIG`, `ATLAS_APP`, `ATLAS_CLI`는 학습자의 터미널에서 지정한 경로입니다.
-필요한 값이 없으면 계정, 참가자, 경로만 확인하고 추측하지 않습니다.
+값이 없으면 기존 `activate.sh`와 비밀값 없는 소유 설정에서 복원하세요.
+참가자마다 독립 랩이며 새 설정에는 공통 내부 ID `team01`과 프로젝트
+`AtlasCliTeam01`을 사용합니다. 팀명 선택이나 치환을 요구하지 말고 기존 설정은 유지하세요.
+
+모든 터미널 실행은 올바른 `cd`로 시작하세요.
+새 셸에서는 확인한 저장소로 이동하고 기존 `activate.sh`를 source한 뒤
+helper 명령은 `ATLAS_REPO`, 앱 명령은 `ATLAS_APP`으로 다시 이동하세요.
+경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
 
 ## 작업
 
-실습 app의 커밋된 uv.lock으로 ARM64/Python 3.14 의존성을 새로 만들고 소유 버킷에 게시하세요. agent-build/publish/plan의 소스, 버전, 대상을 검토한 뒤 요청된 apply/status/configure-logs를 수행하세요. 운영 ZIP/Runtime/Memory를 재사용하지 마세요. Sol/Astra와 SigV4 호출 코드를 유지하세요. Runtime READY와 실제 답변 검증을 구분하세요.
+실습 app의 커밋된 uv.lock으로 ARM64/Python 3.14 의존성을 만들고 소유 버킷에 게시하세요.
+같은 소스와 잠금 버전으로 만든 소유 아티팩트가 이미 있으면 재사용하세요.
+agent-build/publish/plan의 소스, 버전, 대상을 검토한 뒤 요청된 apply/status/configure-logs를 수행하세요.
+운영 ZIP/Runtime/Memory를 재사용하지 마세요. Sol/Astra와 SigV4 호출 코드를 유지하세요.
+이 심화 배포는 기본 Python 3.12 JejuGuide와 별도이며 .env 단기키를 자동 적용하지 마세요.
+
+기본 실행은 빌드, 배포에 필요한 스키마, 계정, 대상 확인과 배포 상태 조회에 한정합니다.
+별도 모델 사전 호출, 로컬 agentcore dev, 한영 질문 묶음과 Gateway/Memory 전체 검증은 생략합니다.
+실제 오류, 위험한 기능 변경 또는 명시적 요청이 있을 때만 해당 부분을 확인하세요.
+상태는 배포 후 한 번 조회하고 진행 중이거나 실패한 경우에만 추가 조회합니다.
+Runtime READY와 실제 답변 성공을 구분하고 생략한 검사를 통과로 기록하지 마세요.
 
 교재는 `$ATLAS_REPO/workshop/chapters/06-atlas-agentcore.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.

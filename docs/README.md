@@ -13,6 +13,7 @@
 ## 구현
 
 - [구현 참조와 설계 기록 색인](reference/INDEX.md)
+- [Codex 프로젝트 완성 통합 프롬프트](../workshop/prompts/14-project-completion.md)
 - [아키텍처와 데이터 흐름](architecture.md)
 - [API 경로와 인증](api-reference.md)
 - [AgentCore 구성](agentcore-components.md)
@@ -31,13 +32,19 @@
 
 ## 워크숍
 
-- [120분 실습 안내](../workshop/README.md)
+- [100~120분 실습 안내](../workshop/README.md)
+- [사전 구성: Node, Python과 AgentCore CLI 설치](../workshop/reference/preconfiguration.md)
+- [Bedrock 단기키와 .env, 배포 후 선택 연동](../workshop/reference/keys-and-integrations.md)
+- [EC2 설치와 재개 스킬](../skills/jeju-atlas-install/SKILL.md)
 - [워크숍 소스와 생성물 작업 지침](../workshop/AGENTS.md)
 - [진행자 준비](../workshop/reference/facilitator.md)
 - [본 실습 소스와 전용 도구 사전검사](../workshop/chapters/01-setup.md)
 - [Sonnet 4.6 실제 호출과 리전 확인](../workshop/chapters/02-aws-environment.md)
-- [AI CLI 환경](../workshop/reference/ai-cli-environments.md)
+- [Agentic AI 코딩 어시스턴트 환경](../workshop/reference/ai-cli-environments.md)
+- [my-codex-hud 사전 설치](../workshop/reference/hud-setup.md)
+- [Codex 환경 설정과 Bedrock 연결](../workshop/reference/codex-bedrock.md)
 - [CloudFront 기본 HTTPS와 엣지](../workshop/chapters/09-https-edge.md)
+- [14장 Codex로 프로젝트 완성하기](../workshop/chapters/14-project-completion.md)
 - [전체 자원 매핑](../workshop/reference/resources.md)
 - [PC 교재 다운로드](../workshop/reference/offline-start.md)
 - [최근 공개 교재 배포](../workshop/DEPLOYMENT.md)
