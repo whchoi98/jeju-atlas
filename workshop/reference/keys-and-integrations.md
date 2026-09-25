@@ -1,6 +1,7 @@
-# .env, Bedrock 단기키와 선택 연동
+# .env, Bedrock API 키와 선택 연동
 
-본 실습의 필수 키는 **Bedrock 단기 API 키 한 개**입니다.\
+본 실습의 필수 키는 **Bedrock API 키 한 개**입니다.\
+**단기키와 장기키를 모두 허용**하며 같은 `.env` 입력과 Bearer 인증을 사용합니다.\
 카카오, 한국관광공사 TourAPI와 VISIT JEJU 키는 배포 후 필요한 기능만 연결합니다.\
 키가 없어도 제공된 137개 시드로 제주 검색 도구와 Runtime을 구현할 수 있습니다.
 
@@ -20,21 +21,26 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" status
 
 | 입력 | 저장 이름 | 의미 |
 |---|---|---|
-| 발급 리전 | `ATLAS_BEDROCK_REGION` | Bedrock 콘솔에서 단기키를 만든 리전 |
-| 단기키 | `AWS_BEARER_TOKEN_BEDROCK` | 모델 요청의 Bearer 인증 |
+| 모델 호출 리전 | `ATLAS_BEDROCK_REGION` | 단기키는 발급 리전, 장기키는 키 권한으로 모델을 사용할 수 있는 리전 |
+| API 키 | `AWS_BEARER_TOKEN_BEDROCK` | 단기 또는 장기 Bedrock API 키, 모델 요청의 Bearer 인증 |
 
 저장 파일은 **`$ATLAS_CLI_PARENT/.env`**, 권한은 `0600`입니다.\
-`status`는 키 존재 여부와 발급 리전을 표시하며 키 값을 출력하지 않습니다.\
+`status`는 키 존재 여부와 호출 리전을 표시하며 키 값을 출력하지 않습니다.\
 기존 키를 그대로 사용할 때는 입력에서 Enter를 누릅니다.
 
 도구는 `.env`를 데이터로 읽으며 `source .env`를 실행하지 않습니다.\
 파일은 Git 제외 경로이며 Runtime의 `app/JejuGuide/` 밖에 둡니다.
 
-단기키는 발급한 리전에서 사용하며 콘솔 세션 종료 시 또는 최대 12시간 안에 만료됩니다.\
-수업 직전에 발급해 사용합니다.
+| 선택한 키 | 사용할 때 확인할 내용 |
+|---|---|
+| 단기 API 키 | 발급한 리전에서 사용합니다. 콘솔 세션 종료 시 또는 최대 12시간 안에 만료되므로 수업 직전에 준비합니다. |
+| 장기 API 키 | 키에 연결된 IAM 권한으로 모델을 호출합니다. 사용할 리전과 모델이 허용되어 있는지 진행자가 확인합니다. |
+
+Bedrock 콘솔의 API keys에서 준비한 키를 본인 터미널에 입력합니다.\
+워크샵 입력 도구는 키 유형이나 만료 시각을 묻지 않습니다.
 
 실제 키 유효성은 Bedrock 호출 결과로 확인합니다. 기본 흐름에 별도 모델 사전 호출을 추가하지 않습니다.\
-키를 바꾸면서 발급 리전을 그대로 추측하지 않습니다.
+키를 바꾸면 해당 키로 사용할 호출 리전도 확인합니다.
 
 ## 세 가지 인증 구분
 
@@ -42,7 +48,7 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" status
 |---|---|
 | Codex, Claude Code, Kiro CLI | 사전에 준비한 각 도구의 로그인과 provider |
 | AWS 배포, SSM/IAM 작업, AgentCore Runtime 호출 | 현재 EC2의 실습 IAM 역할 |
-| JejuGuide의 Bedrock 모델 호출 | `.env`에서 입력한 단기 API 키 |
+| JejuGuide의 Bedrock 모델 호출 | `.env`에서 입력한 단기 또는 장기 API 키 |
 
 Bedrock 키만으로 STS, CloudFormation 배포나 AgentCore의 IAM 호출 인증을 대신할 수 없습니다.\
 코딩 CLI가 이미 대화 중이라면 해당 인증을 재설정하지 않습니다.
@@ -165,7 +171,7 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" cleanup --project "$ATLAS
 
 ## 공식 근거
 
-- [Bedrock 단기키 발급과 만료](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-generate.html)
+- [Bedrock API 키 발급과 만료](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-generate.html)
 - [Bedrock 키의 환경변수와 SDK 사용](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html)
 - [AgentCore CLI](https://github.com/aws/agentcore-cli)
 

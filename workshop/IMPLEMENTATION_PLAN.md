@@ -24,12 +24,14 @@ AgentCore CLI, 언어 의존성, CDK bootstrap, 배포 권한과 모델 접근�
 
 2026-09-24 개편은 uv Python 3.12와 Node 24, npm AgentCore CLI 0.28.1을 사용한다.
 check_env.sh로 실제 실행 가능 여부를 확인하고 start.sh로 참가자와 누락 도구를 준비한다.
+cdk_bootstrap.py가 실제 계정의 서울 CDKToolkit과 버전 파라미터를 읽기 전용으로 확인한다.
+bootstrap 버전 30 이상을 수업 전에 준비하고, 04장의 키 게시와 패키징 전에 확인한다.
 Docker는 사전 설치하되 CodeZip 기본 과정의 필수 조건에서는 제외한다.
 구현과 배포 프롬프트를 하나씩 전달해 최소한의 수동 명령으로 진행한다.
 
 00장은 목표와 준비 상태에 따른 이동을 안내한다.
 사전 구성에서 설치와 점검을 마치고 01장에서는 환경 활성화와 키 입력만 수행한다.
-workshop_env.py가 터미널에서 단기키와 발급 리전 두 항목만 받는다.
+workshop_env.py가 터미널에서 단기 또는 장기 API 키와 모델 호출 리전 두 항목만 받는다.
 .env는 Runtime 소스 밖에 두고 로컬 자식 프로세스에만 전달한다.
 배포는 소유 SSM SecureString과 좁은 IAM 정책, ARN 바인딩으로 연결한다.
 AWS 제어 API에는 EC2 IAM을 사용한다. 카카오와 공공 연동은 첫 배포 후 선택한다.

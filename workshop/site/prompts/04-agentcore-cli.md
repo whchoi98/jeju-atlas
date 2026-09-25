@@ -32,6 +32,11 @@ npm run check와 npm run workshop:check는 기본으로 생략합니다.
    Python 의존성 명령은 ATLAS_CLI/app/JejuGuide로 이동한 뒤 실행합니다.
    경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
    python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" status로 입력 여부만 확인합니다.
+   현재 입력 항목은 모델 호출 리전과 Bedrock API 키 두 개입니다.
+   단기키와 장기키 모두 허용하며 만료 시각이나 키 유형을 별도로 입력받지 않습니다.
+   .env가 없으면 소스 갱신 후 01장의 configure 명령을 참가자 Bash에서 실행하도록 안내합니다.
+   과거 만료 시각 오류나 이전 대화의 세 항목 안내를 재사용하지 마세요.
+   키 입력이 준비되지 않았으면 키 게시와 긴 패키징/dry-run부터 실행하지 마세요.
    .env는 ATLAS_CLI_PARENT에 두며 직접 읽거나 source하지 않습니다.
    키를 프롬프트, 명령 인자, 로그, 코드, 배포 ZIP과 RESULTS.md에 넣지 마세요.
    model-check 보고서가 없어도 진행합니다. 사전 유료 호출을 새로 만들지 마세요.
@@ -49,6 +54,15 @@ npm run check와 npm run workshop:check는 기본으로 생략합니다.
 
 3. 배포 전에 키를 게시하세요.
    aws sts get-caller-identity의 계정, ATLAS_ACCOUNT와 default 배포 대상을 대조합니다.
+   "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/cdk_bootstrap.py" --expected-account "$ATLAS_ACCOUNT"
+   위 읽기 전용 확인의 ready가 true인 경우에만 키 게시와 패키징을 계속합니다.
+   누락 또는 버전 부족이면 사전 구성의 '5. CDK bootstrap 준비'를 진행자에게 안내합니다.
+   프로젝트가 이미 있으면 ATLAS_CLI/agentcore/cdk의 ./node_modules/.bin/cdk 경로를 우선 안내합니다.
+   사용자가 bootstrap 완료를 알렸다면 다시 생성하지 말고 준비 상태 확인 후 이어갑니다.
+   기존 코드, 잠금 파일과 제약 파일은 보존하고 준비 완료 후 같은 프로젝트로 재개하세요.
+   공유 bootstrap 생성/갱신은 이 카드의 승인 범위에 넣지 않습니다.
+   bootstrap 오류를 넘기려고 deploy --dry-run에 --yes를 덧붙이지 마세요.
+   CLI 0.28.1은 이 조합에서도 bootstrap을 실제로 생성하거나 갱신할 수 있습니다.
    CLI 설정의 disableDependencyManagement와 disableTransactionSearch가 true이고
    telemetry가 비활성화되어 있는지 확인하세요.
    다음 계획에서 현재 계정, 참가자 소유 태그, SSM과 최소 읽기 권한 policy를 확인합니다.

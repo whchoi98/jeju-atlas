@@ -2,7 +2,7 @@
 
 **EC2 사전 준비를 마친 뒤 100~120분** 동안 제주 여행 에이전트를 구현하고 배포합니다.\
 핵심은 AgentCore CLI와 Codex, Claude Code, Kiro CLI 중 선택한 도구 하나입니다.\
-참가자는 환경을 활성화하고 Bedrock 단기키를 입력한 후, **구현 프롬프트와 배포 프롬프트 두 개**로 작업을 이어 갑니다.
+참가자는 환경을 활성화하고 Bedrock API 키를 입력한 후, **구현 프롬프트와 배포 프롬프트 두 개**로 작업을 이어 갑니다.
 
 먼저 **[00장](chapters/00-orientation.md)**에서 목표와 진행 순서를 확인합니다.\
 준비가 필요한 환경은 [사전 구성](reference/preconfiguration.md)을 마친 뒤 [01장](chapters/01-setup.md)으로 바로 이동하고, 준비된 환경은 01장부터 이어갑니다.
@@ -57,7 +57,7 @@ source workshop/.local/labs/team01/activate.sh &&
 |---|---|---|
 | 0~5분 | [00. 목표](chapters/00-orientation.md) | 결과물과 종료 기준 |
 | 5~15분 | [01. 환경과 키](chapters/01-setup.md) | 환경 활성화와 숨김 `.env` 입력 |
-| 15~25분 | [02. 계정과 모델](chapters/02-aws-environment.md) | EC2 대상과 발급 리전, 입력 상태 |
+| 15~25분 | [02. 계정과 모델](chapters/02-aws-environment.md) | EC2 대상과 호출 리전, 입력 상태 |
 | 25~55분 | [03. 구현](chapters/03-codex.md) | AgentCore 프로젝트와 검색 도구 |
 | 55~100분 | [04. 배포와 결과 보기](chapters/04-agentcore-cli.md) | 키 연결, Runtime 배포, 예시 응답과 인계 |
 | 100~120분 | 여유 시간 | 지연 대응, 실제 상태와 남은 자원 정리 |
@@ -67,7 +67,7 @@ source workshop/.local/labs/team01/activate.sh &&
 이는 수업 편성 기준이며 새 EC2에서 120분 안에 끝나는 클라우드 리허설을 완료했다는 기록은 아닙니다.
 
 Runtime 모델은 `global.anthropic.claude-sonnet-4-6`입니다.\
-서울 배포 리전과 **단기키 발급 리전인 Bedrock 호출 리전**을 구분합니다.\
+서울 배포 리전과 **Bedrock 모델 호출 리전**을 구분합니다.\
 모델 호출에는 키를 사용하고 AWS 배포와 Runtime 호출 인증에는 EC2 IAM 역할을 사용합니다.
 
 배포 상태와 실제 응답 완료를 확인하고, 추가로 실행한 검사는 별도로 기록합니다.\

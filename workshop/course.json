@@ -19,7 +19,7 @@
       "title": "환경 활성화와 Bedrock 키 입력",
       "day": 1,
       "minutes": 10,
-      "summary": "준비한 환경을 불러오고 Bedrock 단기키와 발급 리전을 입력합니다."
+      "summary": "준비한 환경을 불러오고 Bedrock API 키와 모델 호출 리전을 입력합니다."
     },
     {
       "id": "02",
@@ -133,7 +133,7 @@
     },
     {
       "slug": "keys-and-integrations",
-      "title": ".env, Bedrock 단기키와 선택 연동"
+      "title": ".env, Bedrock API 키와 선택 연동"
     },
     {
       "slug": "resources",

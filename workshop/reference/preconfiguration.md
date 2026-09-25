@@ -251,9 +251,81 @@ bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant kiro
 Runtime도 Python 3.12를 사용합니다.\
 기존 환경의 helper가 더 새 Python이어도 Runtime용 Python 3.12를 별도로 찾을 수 있어야 합니다.
 
-## 5. 준비 완료 후 01장으로 이동
+## 5. CDK bootstrap 준비
 
-`start.sh`의 `passed: true`와 위 점검의 AWS 자격증명 성공을 확인했다면 EC2 준비가 끝났습니다.\
+새 AWS 계정에서는 **서울 리전의 CDK 배포 기반을 한 번 준비**해야 합니다.\
+Node와 AWS 자격증명 점검이 통과해도 이 준비가 없으면 04장에서 배포가 중단됩니다.
+
+다음 명령은 현재 계정의 `CDKToolkit` 스택과 `/cdk-bootstrap/hnb659fds/version`을 조회합니다.\
+자원을 만들거나 바꾸지 않으며, AgentCore CLI 0.28.1이 요구하는 bootstrap 버전 **30 이상**인지 확인합니다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source workshop/.local/labs/team01/activate.sh &&
+"$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/cdk_bootstrap.py"
+}
+```
+
+`ready: true`이면 다음 절로 이동합니다.\
+스택과 버전 파라미터가 모두 없을 때만 아래의 처음 생성 절차를 사용합니다.\
+기존 스택의 버전이 낮거나 조회 권한이 부족한 경우에는 진행자가 기존 설정과 권한부터 확인합니다.
+
+### 진행자: 새 독립 실습 계정에서 처음 생성
+
+이 명령은 **해당 실습 계정의 관리자 권한으로 수업 전에** 실행합니다.\
+자산용 S3 버킷과 ECR 저장소, CDK 배포용 IAM 역할, 버전 SSM 파라미터를 생성합니다.\
+아래의 CloudFormation 실행 역할에는 `AdministratorAccess`를 지정합니다.\
+기관에서 승인한 별도 실행 정책이 있으면 해당 정책 ARN으로 바꿉니다.
+
+프로젝트 생성 전에는 아래의 고정 버전 `npx`를 사용합니다.\
+04장까지 진행해 프로젝트가 이미 있다면 다음 절의 프로젝트 CDK 경로만 사용합니다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source workshop/.local/labs/team01/activate.sh &&
+atlas_bootstrap_account="${ATLAS_ACCOUNT:-$(aws sts get-caller-identity --query Account --output text)}" &&
+"$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/cdk_bootstrap.py" \
+  --expected-account "$atlas_bootstrap_account" --require-missing &&
+npx --yes --package aws-cdk@2.1126.0 cdk bootstrap \
+  "aws://$atlas_bootstrap_account/ap-northeast-2" \
+  --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess \
+  --termination-protection &&
+"$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/cdk_bootstrap.py" \
+  --expected-account "$atlas_bootstrap_account"
+}
+```
+
+계정이 맞지 않거나 기존 bootstrap 자원이 있으면 생성 전에 멈춥니다.\
+기존 스택을 자동으로 갱신하거나 삭제하는 복구 명령이 아닙니다.\
+고정한 CDK CLI의 표준 템플릿은 bootstrap 버전 32를 제공합니다.
+
+### 04장에서 이미 프로젝트를 만든 경우
+
+bootstrap이 없고 `$ATLAS_CLI/agentcore/cdk/node_modules/`가 준비되어 있다면 설치된 CDK를 그대로 사용합니다.\
+이 경로도 처음 생성하는 계정의 관리자용이며, 기본 CloudFormation 실행 역할에는 `AdministratorAccess`가 적용됩니다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source workshop/.local/labs/team01/activate.sh &&
+"$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/cdk_bootstrap.py" \
+  --expected-account "${ATLAS_ACCOUNT:?03장에서 확인한 계정이 필요합니다}" --require-missing &&
+cd -- "$ATLAS_CLI/agentcore/cdk" &&
+./node_modules/.bin/cdk bootstrap "aws://$ATLAS_ACCOUNT/ap-northeast-2" \
+  --termination-protection &&
+"$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/cdk_bootstrap.py" \
+  --expected-account "$ATLAS_ACCOUNT"
+}
+```
+
+이미 bootstrap을 실행했다면 5절의 첫 번째 읽기 전용 확인 명령만 수행합니다.\
+`ready: true`이면 키를 입력한 뒤 기존 코드와 제약 파일을 그대로 사용해 04장을 재개합니다.
+
+bootstrap은 계정과 리전의 공용 배포 기반이므로 실습 Runtime 정리 후에도 유지합니다.\
+04장 프롬프트의 Runtime 배포 승인과 별도로, 이 사전 준비를 먼저 완료합니다.
+
+## 6. 준비 완료 후 01장으로 이동
+
+`start.sh`의 `passed: true`, AWS 자격증명 성공과 bootstrap의 `ready: true`를 확인했다면 EC2 준비가 끝났습니다.\
 [01. 환경 활성화와 Bedrock 키 입력](../chapters/01-setup.md)에서 같은 참가자 환경을 불러오고 키를 입력합니다.\
 사전 구성으로 돌아가 설치와 성공한 점검을 다시 실행할 필요는 없습니다.
 
@@ -329,6 +401,9 @@ Node 전용 설치만으로는 저장된 도구가 바뀌지 않습니다.\
 - [uv Python 설치](https://docs.astral.sh/uv/guides/install-python/)
 - [AgentCore CLI 시작](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-get-started-cli.html)
 - [AgentCore CLI 소스](https://github.com/aws/agentcore-cli)
+- [AWS CDK 환경 bootstrap](https://docs.aws.amazon.com/cdk/v2/guide/bootstrapping-env.html)
+- [CDK bootstrap 명령과 실행 정책](https://docs.aws.amazon.com/cdk/v2/guide/ref-cli-cmd-bootstrap.html)
 
 2026-09-24에 공식 설치 안내와 로컬 npm 0.28.1의 Python 3.12 스키마를 대조했습니다.\
+2026-09-25에 CLI 0.28.1의 bootstrap 최소 버전 30과 CDK CLI 2.1126.0의 템플릿 버전 32를 대조했습니다.\
 로컬 도구 점검은 새 EC2의 설치 성공, AWS 배포 또는 실제 모델 호출 성공을 대신하지 않습니다.

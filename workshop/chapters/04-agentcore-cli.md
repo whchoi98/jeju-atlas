@@ -12,7 +12,7 @@
 
 | 순서 | 실행과 필요한 확인 |
 |---|---|
-| 1 | 작업 경로, 실제 계정과 `agentcore validate` 설정 확인 |
+| 1 | 작업 경로, 실제 계정, 키 입력과 CDK bootstrap 준비, `agentcore validate` 설정 확인 |
 | 2 | `workshop_env.py publish` 계획을 확인하고 `--execute`로 키 연결 |
 | 3 | `uv export --locked`로 제약 파일 생성 |
 | 4 | 같은 `UV_CONSTRAINT`를 적용해 `agentcore deploy --target default --dry-run` 계획 확인 |
@@ -22,6 +22,15 @@
 세부 명령은 프롬프트에 있으므로 한 줄씩 옮겨 실행하지 않아도 됩니다.\
 계정과 경로 확인, 배포 계획 검토는 실제 자원을 올바른 대상으로 만들기 위해 수행합니다.\
 별도 전체 테스트나 브라우저 검증으로 확대하지 않습니다.
+
+`.env`가 없으면 [01장의 입력](01-setup.md)부터 완료합니다.\
+현재 입력은 **모델 호출 리전과 Bedrock API 키 두 항목**이며 단기 또는 장기키를 사용합니다.\
+과거 만료 시각 오류가 기록되어 있어도 만료 시각을 다시 입력하지 않습니다.
+
+`AWS environment needs bootstrapping`이면 [사전 구성의 CDK bootstrap 준비](../reference/preconfiguration.md#5-cdk-bootstrap-준비)로 이동합니다.\
+프로젝트가 이미 만들어졌다면 그 안내의 `"$ATLAS_CLI/agentcore/cdk"`에 설치된 CDK를 우선 사용합니다.\
+현재 계정의 준비 여부를 먼저 확인하므로 키 게시나 긴 패키징 전에 누락을 찾을 수 있습니다.\
+준비한 코드와 제약 파일은 그대로 유지하고 완료 후 같은 프로젝트에서 재개합니다.
 
 CLI 0.28.1의 CodeZip 빌더는 `uv.lock`을 직접 읽지 않습니다.\
 AI는 내보낸 제약 파일을 `UV_CONSTRAINT`로 계획과 배포 명령에 동일하게 전달합니다.
@@ -46,6 +55,8 @@ READY 상태만 확인했다면 모델 응답은 미실행으로 남깁니다.
 
 | 문제가 생긴 경우 | 선택할 진단 |
 |---|---|
+| `.env` 미저장 또는 과거 만료 시각 안내 | 소스를 갱신한 뒤 01장의 두 항목 입력 |
+| CDK bootstrap 누락 또는 버전 부족 | 사전 구성의 읽기 전용 bootstrap 확인과 진행자 준비 |
 | 키 만료, 인증 또는 호출 리전 오류 | 02장의 작은 모델 진단 한 번 |
 | Runtime 소스나 진입점 오류 | `agentcore dev` 로컬 실행 또는 해당 파일의 import 확인 |
 | 검색 결과 오류, 검색 로직 변경 | 해당 입력만 다루는 검색 테스트 |

@@ -12,7 +12,7 @@
 |---|---|
 | Agentic AI 코딩 어시스턴트 | Codex·Claude Code·Kiro CLI 각각의 사전 검증된 모델, provider와 기존 로그인 |
 | AWS 제어·Runtime 호출 | 실습 EC2의 IAM. STS, CDK bootstrap, SSM/IAM 변경, 배포와 `agentcore invoke` |
-| JejuGuide 모델 | 기본 실습은 Bedrock 단기 API 키. 모델은 `global.anthropic.claude-sonnet-4-6` |
+| JejuGuide 모델 | 기본 실습은 Bedrock API 키. 모델은 `global.anthropic.claude-sonnet-4-6` |
 
 한 Bedrock 키로 모든 Agentic AI 코딩 어시스턴트가 인증된다고 가정하지 않는다.
 키 helper는 Runtime·모델 검사에 사용한다. `workshop_env.py run --`으로
@@ -32,13 +32,16 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" status
 
 기본 저장 위치는 `$ATLAS_CLI_PARENT/.env`다. helper는 다음 값을 관리한다.
 
+단기 또는 장기 Bedrock API 키를 같은 입력과 Bearer 인증으로 사용한다.\
+추가 키 유형 선택이나 만료 시각을 입력받지 않는다.
+
 | 이름 | 입력 내용 |
 |---|---|
-| `AWS_BEARER_TOKEN_BEDROCK` | 숨김 입력한 Bedrock 단기 API 키 |
-| `ATLAS_BEDROCK_REGION` | 키를 발급하고 모델 사용을 확인한 Bedrock 호출 리전 |
+| `AWS_BEARER_TOKEN_BEDROCK` | 숨김 입력한 Bedrock API 키 |
+| `ATLAS_BEDROCK_REGION` | 단기키의 발급 리전 또는 장기키 권한으로 모델을 호출할 수 있는 리전 |
 
-배포 리전 `ap-northeast-2`와 키 발급·모델 호출 리전은 별도로 다룬다.
-`status`는 키 존재 여부와 발급 리전만 확인하며 키 값을 보여주지 않는다.
+배포 리전 `ap-northeast-2`와 모델 호출 리전은 별도로 다룬다.
+`status`는 키 존재 여부와 모델 호출 리전만 확인하며 키 값을 보여주지 않는다.
 입력 누락을 해결한 뒤 Runtime 설정과 배포를 진행한다. 실제 키 유효성은 Bedrock 호출 결과로 확인하며 별도 사전 호출을 추가하지 않는다.
 
 에이전트는 `.env`를 직접 열거나 source하지 않는다.

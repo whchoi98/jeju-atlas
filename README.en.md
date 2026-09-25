@@ -130,8 +130,8 @@ the EC2 AWS role, and one authenticated coding CLI. `check_env.sh` checks prereq
 `start.sh` prepares the participant workspace and missing core tools. Participants need the
 full Git source: the reading-only handbook ZIP has no execution scripts.
 
-Participants enter a **short-term Bedrock API key privately** with `workshop_env.py configure`.
-The key and issuing region go in their `.env`; deployment configuration
+Participants enter a **short-term or long-term Bedrock API key privately** with `workshop_env.py configure`.
+The key and model region go in their `.env`; deployment configuration
 references an owned SSM parameter ARN. Kakao, Korea Tourism Organization TourAPI and VISIT JEJU
 keys are optional inputs **after the first deployment**. AWS deployment still uses the EC2 IAM role.
 See [keys and integrations](workshop/reference/keys-and-integrations.md) for publication and renewal.

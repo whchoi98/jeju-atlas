@@ -81,6 +81,17 @@ install tools or read keys. `start.sh` explicitly prepares a participant and
 installs missing core tools before the timed course. Reuse a compatible Node
 and npm AgentCore CLI from the user PATH; keep the private installer fallback.
 
+`cdk_bootstrap.py` is a separate read-only AWS prerequisite check. It compares
+STS to the saved/explicit account, then checks CDKToolkit and the default
+`/cdk-bootstrap/hnb659fds/version`; matching versions must be at least 30.
+Run it at the end of preconfiguration and before chapter 04 publishes keys or
+packages code. `--require-missing` succeeds only when both resources are proven
+absent, as a guard for the separately documented facilitator creation command.
+Never treat access denial, incomplete creation or inconsistent metadata as
+absence. Do not create/upgrade bootstrap from doctor, start, checks or chapter
+04's Runtime approval. AgentCore 0.28.1 can bootstrap even with
+`deploy --dry-run --yes`; this is not a read-only workaround.
+
 `start.sh --node-only` prepares only the owned toolchain and Node/npm. It does
 not check or create participant folders or save an assistant selection.
 Keep all three assistant tabs for this command, sourcing
@@ -105,13 +116,16 @@ Runtime's model onto the coding assistant. Keep the deployment region separate f
 the organizer-verified Bedrock caller region. `model_check.py --execute` is an
 explicit real request and must never run inside doctor, build or ordinary tests.
 `workshop_env.py configure` takes hidden key input only in a participant terminal.
-It asks only for the issuing region and short-term key. Do not ask for a manual
+It accepts short-term and long-term Bedrock API keys through the same opaque
+Bearer input. Ask only for the model region and key, never a key-type selector.
+Short-term keys use their issuing region; long-term keys use a region and model
+allowed by the key's IAM permissions. Do not ask for a manual
 expiration timestamp or use legacy expiry metadata to block setup. Actual key
 validity is checked by Bedrock when the already-planned model request is made;
 do not add a paid model precheck.
 The private `.env` lives outside Runtime codeLocation. Never source it or expose
 its contents in prompts, logs, generated HTML or deployment archives. Basic
-model calls use the short-term Bedrock key; AWS deployment and Runtime inbound
+model calls use the supplied Bedrock API key; AWS deployment and Runtime inbound
 authentication use IAM. Publish only the owned SSM parameter ARN and its scoped
 policy into CLI configuration. Key renewal and optional provider publication
 are explicit actions; local doctor/build/check never invoke them. The advanced
