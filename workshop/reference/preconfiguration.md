@@ -142,23 +142,71 @@ uv가 설치한 Python과 시스템 `python3`는 경로가 다를 수 있습니�
 
 ### Docker
 
-```bash
-cd -- "$HOME" && {
-sudo dnf install -y docker
-sudo systemctl enable --now docker
-sudo usermod -aG docker "$USER"
-}
-```
-그룹 변경 후 로그인 세션을 새로 시작합니다.\
-실행 중이던 VSCode Server도 기존 그룹을 이어받을 수 있으므로 해당 세션을 갱신합니다.\
-현재 터미널에서 바로 확인하려면 `newgrp docker`로 새 Bash를 열고 실행합니다.
+**설치 → 그룹 등록과 새 셸 시작 → 새 셸에서 사용 확인** 순서로 진행합니다.\
+Docker 설치가 끝나도 현재 터미널의 그룹 권한은 자동으로 바뀌지 않습니다.
+
+#### 1. 패키지 설치와 데몬 시작
 
 ```bash
 cd -- "$HOME" && {
-docker info >/dev/null && printf '%s\n' 'Docker 사용 가능'
+sudo dnf install -y docker &&
+sudo systemctl enable --now docker
 }
 ```
+이미 설치가 끝났다면 이 블록을 반복하지 않고 2번으로 진행합니다.
+
+#### 2. 그룹 등록 후 새 셸로 전환
+
+아래 블록만 실행합니다.\
+`usermod -aG`는 현재 사용자를 Docker 그룹에 추가하면서 기존 그룹은 유지합니다.\
+`newgrp docker`는 변경된 그룹 권한을 적용한 새 셸을 엽니다.
+
+```bash
+cd -- "$HOME" &&
+sudo usermod -aG docker "$(id -un)" &&
+newgrp docker
+```
+
+**새 프롬프트가 나타난 뒤 3번을 별도로 복사해 실행합니다.**\
+`newgrp docker`와 다음 확인 명령을 하나의 `{ ... }` 블록으로 묶지 않습니다.\
+새 셸에서 `exit`하면 이전 그룹 권한을 가진 셸로 돌아갑니다.
+
+#### 3. 새 셸에서 Docker 사용 확인
+
+```bash
+cd -- "$HOME" &&
+docker info >/dev/null &&
+printf '%s\n' 'Docker 사용 가능'
+```
+`Docker 사용 가능`이 나오면 준비 완료입니다.\
+이 확인에 성공한 **같은 터미널**에서 후속 명령과 Agentic AI 코딩 어시스턴트를 실행합니다.
+
+이미 실행 중이던 VSCode Server나 코딩 어시스턴트는 기존 그룹을 유지할 수 있습니다.\
+브라우저 새로고침이나 VSCode의 새 터미널만으로 해결되지 않으면 그 터미널에서 2번과 3번을 수행합니다.\
+이미 실행 중인 코딩 어시스턴트도 Docker 사용이 가능한 셸에서 다시 실행합니다.
+
 전용 Node를 설치했다면 새 셸에서 소스 루트의 `workshop/.local/toolchain/activate-node.sh`를 다시 불러옵니다.\
+그룹 변경 뒤 SSH 연결과 로그인 세션을 완전히 새로 시작하는 방법도 사용할 수 있습니다.\
+[Docker 공식 설치 후 안내](https://docs.docker.com/engine/install/linux-postinstall/)에서도 재로그인 또는 `newgrp docker` 적용을 설명합니다.
+
+#### Docker 소켓 권한 오류가 계속되는 경우
+
+`permission denied ... /var/run/docker.sock`이 나오면 설치를 반복하기 전에 2번과 3번을 확인합니다.\
+그래도 실패하면 아래 결과로 현재 셸의 그룹, 등록된 그룹, 소켓 소유권과 데몬 상태를 확인합니다.
+
+```bash
+cd -- "$HOME" && {
+id -nG &&
+getent group docker &&
+stat -c '%U:%G %a %n' /var/run/docker.sock &&
+systemctl is-active docker
+}
+```
+
+`id -nG`는 현재 셸의 그룹을, `getent group docker`는 등록된 Docker 그룹 정보를 보여 줍니다.\
+그룹에 등록됐더라도 현재 셸에 반영됐는지 구분해서 확인합니다.\
+위 조회 결과를 진행자에게 전달하고 소켓과 서비스 설정을 확인합니다.
+
 Docker는 컨테이너를 다루는 05~14장에 필요합니다.\
 기본 CodeZip 실습만 할 때는 Docker 문제를 본 실습의 필수 통과 조건으로 넣지 않습니다.
 

@@ -55,6 +55,35 @@ bash workshop/scripts/check_env.sh --assistant codex
 `--containers`는 Docker 설치·현재 셸의 `docker info` 접근 실패를 필수 실패로 처리한다.
 docker 그룹 이름이나 systemd 상태만으로 사용 가능하다고 판정하지 않는다.
 
+### Docker 설치 후 소켓 권한 오류
+
+설치가 끝난 뒤 `permission denied ... /var/run/docker.sock`이 나오면 현재 셸의 그룹 적용을 확인한다.\
+패키지를 다시 설치하기 전에 아래 블록으로 현재 사용자를 그룹에 등록하고 새 셸을 연다.
+
+```bash
+cd -- "$HOME" &&
+sudo usermod -aG docker "$(id -un)" &&
+newgrp docker
+```
+
+`newgrp`는 새 셸을 여는 마지막 명령이다.\
+그 뒤의 확인 명령을 같은 `{ ... }` 블록에 이어 붙이지 않는다.\
+새 프롬프트가 나타난 뒤 다음 블록을 따로 실행한다.
+
+```bash
+cd -- "$HOME" &&
+docker info >/dev/null &&
+printf '%s\n' 'Docker 사용 가능'
+```
+
+성공한 같은 터미널에서 후속 설치와 Agentic AI 코딩 어시스턴트를 실행한다.\
+VSCode Server에서 새 터미널만 여는 경우에도 이전 그룹을 이어받을 수 있다.\
+그때는 해당 터미널에서 위 두 블록을 수행하고, 이미 실행 중인 코딩 어시스턴트는 그 셸에서 다시 실행한다.\
+전용 Node가 필요하면 소스 루트의 `workshop/.local/toolchain/activate-node.sh`를 다시 불러온다.
+
+계속 실패하면 현재 그룹, 등록된 Docker 그룹, 소켓 소유권과 데몬 상태를 읽기 전용으로 확인한다.\
+Docker가 준비되지 않아도 기본 CodeZip 과정은 진행할 수 있으며 컨테이너 과정 전에 해결한다.
+
 ## 한 번의 준비 명령
 
 새 독립 랩은 위 기본값을 사용한다.\
