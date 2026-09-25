@@ -8,6 +8,7 @@
 
 ### Changed
 
+- Docker 사전 구성을 설치, 그룹 등록과 새 셸 시작, 새 셸의 `docker info` 확인으로 분리했습니다. 설치 직후 소켓 권한 오류와 VSCode Server의 기존 그룹 상속을 구분해 안내합니다.
 - 심화 Guide의 최초 API 키 연결 소스를 GitHub main에 반영하고 교재를 `jeju-3d:40`에 게시했습니다. SDK 요청 준비와 공개 교재를 확인했으며 참가자 Runtime 갱신 절차를 안내합니다. [배포 기록](workshop/DEPLOYMENT.md)
 - 06장 Guide가 01장에서 입력한 같은 Bedrock API 키를 사용하도록 연결 경로를 추가했습니다. 소유 SSM 파라미터와 읽기 정책을 재사용하고, 기존 Guide 코드와 Runtime 설정을 보존 가능한 절차로 갱신합니다.
 - 06장의 서울 호출 리전과 계획 재개 명령을 `jeju-3d:39`에 게시했습니다. 공개 파일과 다운로드, PC와 모바일의 명령 복사 및 오프라인 이동을 확인했습니다. [배포 기록](workshop/DEPLOYMENT.md)

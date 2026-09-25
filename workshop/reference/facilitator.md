@@ -29,7 +29,9 @@ bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant "$ATLAS_ASSISTANT" 
 [5-2의 서울 리전 생성 명령](preconfiguration.md#5-2-서울-리전에서-cdk-bootstrap-생성)을 실행하고 마지막 `ready: true`까지 확인합니다.
 
 Docker 설치는 사전 구성의 dnf/systemctl/usermod 절차를 사용합니다.\
-새 로그인 셸의 `docker info`까지 확인하며 CodeZip 기본 과정에서는 선택 항목입니다.
+그룹 등록 후 `newgrp docker`를 마지막 명령으로 별도 실행하고, 새 프롬프트에서 `docker info`를 확인합니다.\
+VSCode Server와 이미 실행한 코딩 어시스턴트는 기존 그룹을 유지할 수 있으므로 Docker 확인에 성공한 셸에서 후속 도구를 실행합니다.\
+CodeZip 기본 과정에서 Docker는 선택 항목입니다.
 
 | 항목 | 확인 기준 |
 |---|---|
