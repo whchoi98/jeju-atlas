@@ -6,8 +6,8 @@ PC에 AWS 키나 CLI 로그인 파일을 복사할 필요가 없습니다.
 **교재 ZIP은 실행 소스 묶음이 아닙니다.**\
 EC2에는 전체 Git 저장소와 필요한 수정 패치를 별도로 전달해야 합니다.
 
-실습은 **[사전 구성](preconfiguration.md) → [00장 목표 확인](../chapters/00-orientation.md) → [01장 시작 블록](../chapters/01-setup.md)** 순서로 진행합니다.\
-00장을 읽는 것만으로 EC2에 참가자 폴더나 활성화 파일이 생성되지는 않습니다.
+처음에는 **[00장](../chapters/00-orientation.md)**에서 목표와 다음 단계를 확인합니다.\
+준비가 필요한 환경은 [사전 구성](preconfiguration.md)을 마친 뒤 [01장의 활성화와 키 입력](../chapters/01-setup.md)으로 바로 이어갑니다.
 
 ## 내려받을 파일
 
@@ -59,7 +59,7 @@ git pull --ff-only origin main
 필요한 수정 패치와 전용 도구 설치는 [진행자 준비](facilitator.md)를 따릅니다.\
 기존 Claude 프로젝트 폴더는 보존합니다.
 
-사전 구성 또는 01장의 전체 `start.sh`가 출력한 `activationPath`를 기록하고 새 Bash마다 같은 참가자 `activate.sh`를 현재 셸에 불러옵니다.\
+사전 구성의 `start.sh`가 출력한 `activationPath`를 기록하고 새 Bash마다 같은 참가자 `activate.sh`를 현재 셸에 불러옵니다.\
 Node 전용 단계의 `workshop/.local/toolchain/activate-node.sh`와 참가자 활성화를 구분합니다.\
 ATLAS_REPO가 비어 있거나 core.py가 없으면 교재 다운로드만으로 해결된 상태가 아닙니다.
 
@@ -88,7 +88,7 @@ python3 -B workshop/scripts/core.py source --repo "$PWD"
 기존 작업 폴더는 그대로 유지한 채 진행자와 소스 위치를 확인합니다.
 
 Node 24, Python 3.12, 보조 패키지와 npm AgentCore CLI 설치는 [사전 구성](preconfiguration.md)에서 먼저 완료합니다.\
-이후 [01장](../chapters/01-setup.md)의 전체 시작 명령과 참가자 활성화로 이어갑니다.\
+이후 [01장](../chapters/01-setup.md)의 참가자 활성화와 키 입력으로 이어갑니다.\
 전체 앱은 PyYAML 확인 후 사본을 만듭니다.
 
 심화 참가자 사본 준비는 Git 추적 파일을 사용하므로 `.git`이 있는 clone을 사용합니다.\

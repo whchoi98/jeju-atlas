@@ -36,12 +36,10 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" status
 |---|---|
 | `AWS_BEARER_TOKEN_BEDROCK` | 숨김 입력한 Bedrock 단기 API 키 |
 | `ATLAS_BEDROCK_REGION` | 키를 발급하고 모델 사용을 확인한 Bedrock 호출 리전 |
-| `ATLAS_BEDROCK_KEY_EXPIRES_AT` | 발급 화면의 실제 만료 시각. 시간대가 있는 ISO 8601 |
 
-만료 시각을 현재 시각에 임의 시간을 더해 만들지 않는다.
 배포 리전 `ap-northeast-2`와 키 발급·모델 호출 리전은 별도로 다룬다.
-`status`는 키 존재 여부·리전·만료 같은 메타데이터만 출력하며 키 값을 보여주지 않는다.
-입력 누락·만료를 해결한 뒤 Runtime 설정과 배포를 진행한다.
+`status`는 키 존재 여부와 발급 리전만 확인하며 키 값을 보여주지 않는다.
+입력 누락을 해결한 뒤 Runtime 설정과 배포를 진행한다. 실제 키 유효성은 Bedrock 호출 결과로 확인하며 별도 사전 호출을 추가하지 않는다.
 
 에이전트는 `.env`를 직접 열거나 source하지 않는다.
 키는 프롬프트, 명령 인자, shell history, 코드, 로그, 배포 ZIP과 `RESULTS.md`에 넣지 않는다.
@@ -135,7 +133,7 @@ helper가 키를 SecureString에 게시하고 Runtime의 `additionalPolicies`에
 
 ## 키 갱신과 정리
 
-만료되거나 곧 만료되는 키는 `configure`로 실제 발급 키·리전·만료 시각을 갱신한다.
+실제 호출에서 키 만료가 확인되면 `configure`로 새로 발급한 키와 리전을 갱신한다.
 승인된 동일 참가자 범위에서 `publish` 계획과 `publish --execute`를 이어서 수행한다.
 로더는 모델을 만드는 새 Agent/Runtime 세션에서 SSM 값을 다시 읽으므로
 **새 세션으로 검증**한다. 이미 열린 세션이 갱신된 키를 자동으로 받는다고 가정하지 않는다.

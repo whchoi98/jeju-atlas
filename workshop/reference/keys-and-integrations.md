@@ -15,26 +15,25 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
 python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" status
 }
 ```
-다음 세 항목을 입력합니다.\
+다음 두 항목을 입력합니다.\
 키 입력은 화면에 보이지 않습니다.
 
 | 입력 | 저장 이름 | 의미 |
 |---|---|---|
 | 발급 리전 | `ATLAS_BEDROCK_REGION` | Bedrock 콘솔에서 단기키를 만든 리전 |
 | 단기키 | `AWS_BEARER_TOKEN_BEDROCK` | 모델 요청의 Bearer 인증 |
-| 실제 만료 시각 | `ATLAS_BEDROCK_KEY_EXPIRES_AT` | 콘솔에서 확인한 시각, `YYYY-MM-DDTHH:MM:SSZ` 형식 |
 
 저장 파일은 **`$ATLAS_CLI_PARENT/.env`**, 권한은 `0600`입니다.\
-`status`는 키 존재 여부, 리전, 기록한 만료 시각만 표시하고 키 값을 출력하지 않습니다.\
+`status`는 키 존재 여부와 발급 리전을 표시하며 키 값을 출력하지 않습니다.\
 기존 키를 그대로 사용할 때는 입력에서 Enter를 누릅니다.
 
 도구는 `.env`를 데이터로 읽으며 `source .env`를 실행하지 않습니다.\
 파일은 Git 제외 경로이며 Runtime의 `app/JejuGuide/` 밖에 둡니다.
 
 단기키는 발급한 리전에서 사용하며 콘솔 세션 종료 시 또는 최대 12시간 안에 만료됩니다.\
-수업 직전에 발급하고 실제 만료 시각이 실습 종료보다 뒤인지 확인합니다.
+수업 직전에 발급해 사용합니다.
 
-기록한 시각은 사용자가 입력한 값이므로 실제 키 유효성은 작은 모델 호출로 확인합니다.\
+실제 키 유효성은 Bedrock 호출 결과로 확인합니다. 기본 흐름에 별도 모델 사전 호출을 추가하지 않습니다.\
 키를 바꾸면서 발급 리전을 그대로 추측하지 않습니다.
 
 ## 세 가지 인증 구분
@@ -161,7 +160,7 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" cleanup --project "$ATLAS
 현재 계정과 소유 태그를 확인하며 정책이 역할에 붙어 있으면 중단합니다.\
 기본 실습의 Bedrock 파라미터와 정책만 지우고 로컬 `.env`는 보존합니다.
 
-연장 실습에 남길 경우 자원 이름, 키 만료 시각과 정리 담당자를 `RESULTS.md`에 기록합니다.\
+연장 실습에 남길 경우 자원 이름과 정리 담당자를 `RESULTS.md`에 기록합니다.\
 선택 제공처 키와 전체 앱 자원은 [13장](../chapters/13-cleanup.md) 범위에서 별도로 정리합니다.
 
 ## 공식 근거

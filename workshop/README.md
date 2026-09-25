@@ -4,8 +4,8 @@
 핵심은 AgentCore CLI와 Codex, Claude Code, Kiro CLI 중 선택한 도구 하나입니다.\
 참가자는 환경을 활성화하고 Bedrock 단기키를 입력한 후, **구현 프롬프트와 배포 프롬프트 두 개**로 작업을 이어 갑니다.
 
-진행 순서는 **[사전 구성](reference/preconfiguration.md) → [00장 목표 확인](chapters/00-orientation.md) → [01장 시작 블록](chapters/01-setup.md)**입니다.\
-00장은 안내만 제공하며 참가자 폴더나 활성화 파일을 만들지 않습니다.
+먼저 **[00장](chapters/00-orientation.md)**에서 목표와 진행 순서를 확인합니다.\
+준비가 필요한 환경은 [사전 구성](reference/preconfiguration.md)을 마친 뒤 [01장](chapters/01-setup.md)으로 바로 이동하고, 준비된 환경은 01장부터 이어갑니다.
 
 첫 결과물은 137개 시드를 검색하는 `JejuGuide`와 참가자 전용 AgentCore Runtime입니다.\
 카카오, 관광공사와 VISIT JEJU 키는 첫 배포에 필요하지 않습니다.\
@@ -25,42 +25,17 @@ Docker도 사전 준비하되 기본 CodeZip 과정에서는 필수로 요구하
 설치 이슈와 재개 절차는 [설치 스킬](../skills/jeju-atlas-install/SKILL.md)에 모았습니다.\
 진행자는 [준비 가이드](reference/facilitator.md)에 같은 계정의 실제 리허설 결과를 기록합니다.
 
-## 시작 전에 전체 소스 받기
-
-저장소가 없는 EC2의 Bash 터미널에서 **수업 전에 한 번** 실행합니다.\
-이미 이 경로에 전체 저장소를 받았다면 아래 갱신 명령을 사용합니다.
-
-```bash
-cd -- "$HOME" && {
-mkdir -p /home/ec2-user/my-project &&
-git clone https://github.com/whchoi98/jeju-atlas.git \
-  /home/ec2-user/my-project/jeju-atlas
-}
-```
-기존 clone에서는 새 시작 명령을 실행하기 전에 소스를 갱신합니다.
-
-```bash
-cd -- "/home/ec2-user/my-project/jeju-atlas" && {
-git pull --ff-only origin main
-}
-```
-갱신이 중단되면 기존 작업을 보존하고 오류를 진행자에게 전달합니다.
+전체 소스 받기, 기존 clone 갱신과 도구 설치 명령은 [사전 구성](reference/preconfiguration.md)에 모았습니다.
 
 ## 참가자 시작 명령
 
-사전 구성을 마친 뒤 아래 명령으로 저장된 세션을 재개합니다.\
-참가자마다 독립된 랩을 사용하므로 팀명을 선택하거나 바꾸지 않습니다.\
-새 환경의 기본값은 `team01`, `AtlasCliTeam01`, Codex입니다.\
-기존 세션에서는 생략한 `--assistant`와 `--project-name`의 저장값을 사용합니다.
-
-Claude Code나 Kiro CLI를 선택하거나 기존 도구를 바꾸려면 [01장의 도구별 시작 탭](chapters/01-setup.md#시작-블록-한-번-실행)을 사용합니다.\
-전체 `start.sh --assistant ...`는 같은 소유 세션의 도구 선택만 전환하며 `.env`, 프로젝트, AWS 계정과 CLI 설정을 보존합니다.
+사전 구성을 마쳤다면 [01장의 공통 활성화 명령](chapters/01-setup.md#환경을-불러오고-키-입력)으로 이어갑니다.\
+Codex, Claude Code, Kiro CLI 모두 저장된 도구 선택과 같은 참가자 폴더를 사용합니다.
 
 ```bash
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
-bash workshop/scripts/start.sh &&
-source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
-python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
+source workshop/.local/labs/team01/activate.sh &&
+"$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
 }
 ```
 키 입력은 본인 터미널에서 숨김 처리되고 `$ATLAS_CLI_PARENT/.env`에 저장됩니다.\
@@ -81,7 +56,7 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
 | 경과 시간 | 단계 | 확인 결과 |
 |---|---|---|
 | 0~5분 | [00. 목표](chapters/00-orientation.md) | 결과물과 종료 기준 |
-| 5~15분 | [01. 환경과 키](chapters/01-setup.md) | 활성화, 사전검사, 숨김 `.env` 입력 |
+| 5~15분 | [01. 환경과 키](chapters/01-setup.md) | 환경 활성화와 숨김 `.env` 입력 |
 | 15~25분 | [02. 계정과 모델](chapters/02-aws-environment.md) | EC2 대상과 발급 리전, 입력 상태 |
 | 25~55분 | [03. 구현](chapters/03-codex.md) | AgentCore 프로젝트와 검색 도구 |
 | 55~100분 | [04. 배포와 결과 보기](chapters/04-agentcore-cli.md) | 키 연결, Runtime 배포, 예시 응답과 인계 |

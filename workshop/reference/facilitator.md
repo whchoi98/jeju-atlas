@@ -35,7 +35,7 @@ Docker 설치는 사전 구성의 dnf/systemctl/usermod 절차를 사용합니�
 | AWS | EC2 identity와 STS 계정 일치, 서울 CDK bootstrap |
 | 배포 권한 | Runtime, CloudFormation, 실행 역할과 PassRole, bootstrap 자산 |
 | 키 게시 권한 | 소유 SSM 파라미터와 태그 조회/쓰기, 전용 IAM 정책 생성/조회/연결 |
-| 모델 키 | 발급 리전, 실제 만료 시각과 허용된 Sonnet 4.6 호출 |
+| 모델 키 | 단기키, 발급 리전과 허용된 Sonnet 4.6 호출 |
 | 의존성 | 생성 프로젝트의 npm/uv 설치와 Python 3.12용 CodeZip 패키징 |
 | 전체 앱 선택 | Docker와 같은 helper Python의 PyYAML/cfn-lint |
 
@@ -67,7 +67,7 @@ HUD는 희망자만 설치하며 기본 이미지나 본 실습의 필수 완료
 
 ## 키와 계정 준비
 
-참가자에게 Bedrock 콘솔의 **단기키 발급 리전과 실제 만료 시각**을 안내합니다.\
+참가자에게 Bedrock 콘솔의 **단기키와 발급 리전**을 안내합니다.\
 키는 수업 직전에 본인 터미널의 `workshop_env.py configure`로 입력합니다.
 
 발급자의 권한과 만료 조건이 적용되므로 수업 종료까지 유효해야 합니다.\
@@ -117,7 +117,7 @@ SSM 경로와 정책은 참가자별 이름과 소유 태그로 분리합니다.
 
 ## 종료와 재개
 
-`RESULTS.md`에는 소스/도구 버전, 수정 파일, 테스트, Runtime 상태, 실제 응답, 키 만료 시각, 남은 자원과 담당자를 기록합니다.\
+`RESULTS.md`에는 소스/도구 버전, 수정 파일, 테스트, Runtime 상태, 실제 응답, 남은 자원과 담당자를 기록합니다.\
 실패한 단계와 미실행 단계를 통과로 표시하지 않습니다.\
 기본 Runtime의 SSM 키/정책도 정리 목록에 넣습니다.
 

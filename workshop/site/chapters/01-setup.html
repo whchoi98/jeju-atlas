@@ -6,8 +6,8 @@
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#232f3e">
   <meta name="referrer" content="no-referrer">
-  <meta name="description" content="EC2 점검 결과를 확인하고 Bedrock 단기키를 .env에 숨김 입력합니다.">
-  <title>환경 확인과 Bedrock 키 입력, Jeju Atlas 워크숍</title>
+  <meta name="description" content="준비한 환경을 불러오고 Bedrock 단기키와 발급 리전을 입력합니다.">
+  <title>환경 활성화와 Bedrock 키 입력, Jeju Atlas 워크숍</title>
   <link rel="icon" type="image/svg+xml" href="../assets/mark.svg">
   <link rel="apple-touch-icon" href="../assets/icons/atlas-192.png">
   <link rel="manifest" data-workshop-manifest="../manifest.webmanifest">
@@ -36,15 +36,15 @@
       <a class="overview-link" href="../index.html">전체 과정<span aria-hidden="true">00 ~ 14</span></a>
       <section class="nav-group" data-nav-group aria-label="본 실습">
         <h2><span>본 실습</span><span>1시간 40분</span></h2>
-        <ol><li data-nav-entry data-search="00 이번 실습에서 만들 것 핵심 작업 100분과 여유 20분의 완료 기준을 확인합니다. 수업 전에 준비할 것 100분 과정과 20분 여유 보여줄 결과 Agentic AI 코딩 어시스턴트 프롬프트 카드">
+        <ol><li data-nav-entry data-search="00 이번 실습에서 만들 것 목표와 시간표를 확인하고 준비 상태에 따라 사전 구성 또는 01장으로 이동합니다. 준비 상태에 맞는 다음 단계 100분 과정과 20분 여유 완료할 때 보여줄 결과 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="00-orientation.html" data-chapter-link="00-orientation" data-core-chapter="true">
       <span class="nav-number">00</span>
       <span class="nav-title">이번 실습에서 만들 것</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="01 환경 확인과 Bedrock 키 입력 EC2 점검 결과를 확인하고 Bedrock 단기키를 .env에 숨김 입력합니다. 시작 전에 전체 소스 받기 시작 블록 한 번 실행 통과 조건 새 Bash의 환경 복원 막혔거나 새 터미널을 열었다면 Agentic AI 코딩 어시스턴트 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="01 환경 활성화와 Bedrock 키 입력 준비한 환경을 불러오고 Bedrock 단기키와 발급 리전을 입력합니다. 환경을 불러오고 키 입력 입력할 두 가지 값 저장되는 위치 새 터미널을 열었거나 문제가 생겼다면 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="01-setup.html" aria-current="page" data-chapter-link="01-setup" data-core-chapter="true">
       <span class="nav-number">01</span>
-      <span class="nav-title">환경 확인과 Bedrock 키 입력</span>
+      <span class="nav-title">환경 활성화와 Bedrock 키 입력</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
     </a></li><li data-nav-entry data-search="02 계정과 작업 폴더 제공된 독립 랩의 계정과 입력 상태를 확인하고, 별도 모델 검증은 필요할 때만 선택합니다. 독립 랩과 공통 실습 ID 입력 상태만 확인하고 진행 선택: 키나 모델 접근 문제가 있을 때만 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="02-aws-environment.html" data-chapter-link="02-aws-environment" data-core-chapter="true">
@@ -116,7 +116,7 @@
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
     </a></li></ol>
       </section>
-      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="EC2 사전 점검과 설치 0. 전체 소스 받기 1. EC2 사전 점검 2. EC2 기본 도구 설치 Node.js 24 uv와 Python 3.12 Docker AgentCore CLI의 사용자 npm 경로 3. Node 24와 참가자 도구 준비 4. 활성화와 전체 앱용 Python 패키지 설치 5. 수업 시작 조건 이전 소스와 도구 선택 오류 PyYAML 누락으로 이미 사본 생성이 중단됐다면 공식 자료와 확인 범위">
+      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="EC2 사전 점검과 설치 0. 전체 소스 받기 1. EC2 사전 점검 2. 누락된 EC2 도구 설치 Node.js 24 uv와 Python 3.12 Docker AgentCore CLI의 사용자 npm 경로 3. Node 24와 참가자 도구 준비 4. 활성화와 AWS 자격증명 확인 5. 준비 완료 후 01장으로 이동 선택: 05~14장과 교재 유지관리용 Python 패키지 이전 소스와 도구 선택 오류 PyYAML 누락으로 이미 사본 생성이 중단됐다면 공식 자료와 확인 범위">
     <a class="reference-link" href="../reference/preconfiguration.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">EC2 사전 점검과 설치</span>
@@ -194,144 +194,88 @@
     <main id="main-content" tabindex="-1">
       <noscript><p class="noscript-note">목차와 본문은 그대로 읽을 수 있습니다. 검색, 코드 복사, 읽기 기록은 JavaScript를 켜면 사용할 수 있습니다.</p></noscript>
       <div class="article-layout">
-    <article class="lesson" aria-labelledby="heading-01-환경-확인과-bedrock-키-입력">
+    <article class="lesson" aria-labelledby="heading-01-환경-활성화와-bedrock-키-입력">
       <header class="lesson-header">
         <p class="eyebrow"><span class="chapter-stamp">01</span>본 실습<span class="meta-separator">/</span>10분 실습</p>
-        <h1 id="heading-01-환경-확인과-bedrock-키-입력">환경 확인과 Bedrock 키 입력</h1>
-        <p class="lesson-summary">EC2 점검 결과를 확인하고 Bedrock 단기키를 .env에 숨김 입력합니다.</p>
+        <h1 id="heading-01-환경-활성화와-bedrock-키-입력">환경 활성화와 Bedrock 키 입력</h1>
+        <p class="lesson-summary">준비한 환경을 불러오고 Bedrock 단기키와 발급 리전을 입력합니다.</p>
         <div class="lesson-location"><span>2 / 5 본 실습</span><span class="lesson-read-state" data-chapter-state>아직 읽지 않음</span></div>
       </header>
       <div class="prose">
 <p>이 장은 10분입니다.<br>
-사전 구성이 끝난 EC2에서 참가자 폴더와 도구를 확인합니다.</p>
-<p>VSCode Server의 <strong>Bash 터미널</strong>을 사용합니다.<br>
-<strong>설치와 로그인은 <a href="../reference/preconfiguration.html">사전 구성</a>에서 수업 전에 완료합니다.</strong><br>
-00장은 안내만 제공하므로 읽는 것만으로 참가자 폴더나 활성화 파일이 생기지 않습니다.</p>
-<h2 id="heading-시작-전에-전체-소스-받기">시작 전에 전체 소스 받기</h2>
-<p>저장소가 없는 EC2에서만 아래 명령을 <strong>수업 전에 한 번</strong> 실행합니다.<br>
-VSCode Server의 Bash 터미널에서 실행하며, 현재 폴더가 <code>claude-lab</code>이어도 지정한 경로에 저장됩니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd -- "$HOME" &#x26;&#x26; {
-mkdir -p /home/ec2-user/my-project &#x26;&#x26;
-git clone https://github.com/whchoi98/jeju-atlas.git \
-  /home/ec2-user/my-project/jeju-atlas
+<a href="../reference/preconfiguration.html">사전 구성</a>을 마친 EC2에서 기존 실습 환경을 불러오고 Bedrock 단기키를 입력합니다.</p>
+<p>사전 구성의 <code>start.sh</code>와 AWS 자격증명 점검까지 완료했다면 아래 명령으로 이어갑니다.<br>
+소스나 설치 준비가 남아 있으면 사전 구성의 해당 단계부터 마칩니다.</p>
+<h2 id="heading-환경을-불러오고-키-입력">환경을 불러오고 키 입력</h2>
+<p>EC2의 VSCode Server에서 <strong>Bash 터미널</strong>을 사용합니다.<br>
+Codex, Claude Code, Kiro CLI 모두 같은 명령을 사용하며, 사전 구성에서 저장한 도구 선택을 이어 씁니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+"$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
 }
 </code></pre></div>
-<p>이미 해당 경로에 전체 저장소가 있으면 새 시작 명령을 실행하기 전에 갱신합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
-git pull --ff-only origin main
-}
-</code></pre></div>
-<p>갱신이 중단되면 기존 작업을 보존하고 오류를 진행자에게 전달합니다.<br>
-새로 받은 환경은 <a href="../reference/preconfiguration.html">사전 구성</a>을 마친 뒤 돌아옵니다.<br>
-<code>/home/ec2-user/my-project/jeju-atlas/workshop/scripts/core.py</code>가 준비된 뒤 아래 시작 블록을 실행합니다.</p>
-<h2 id="heading-시작-블록-한-번-실행">시작 블록 한 번 실행</h2>
-<p>사용할 Agentic AI 코딩 어시스턴트의 탭 하나를 선택하고 명령 전체를 복사합니다.<br>
-선택한 탭은 다른 페이지에서도 유지됩니다.</p>
-<p>각 참가자는 별도로 제공된 랩을 사용하므로 팀명을 입력하거나 바꾸지 않습니다.<br>
-새 환경은 공통 실습 ID <code>team01</code>과 프로젝트 이름 <code>AtlasCliTeam01</code>을 자동으로 사용합니다.<br>
-아래 <code>team01</code> 경로는 그대로 복사하고, 이미 준비한 설정이 있으면 같은 설정을 이어 씁니다.</p>
-<section class="command-tabs" data-command-tabs="" aria-label="도구별 터미널 명령"><div class="command-tool-tabs" role="tablist" aria-label="사용할 코딩 어시스턴트" hidden><button type="button" id="command-group-1-tab-codex" role="tab" data-command-assistant="codex" aria-controls="command-group-1-panel-codex" aria-selected="true" tabindex="0">코덱스</button><button type="button" id="command-group-1-tab-claude" role="tab" data-command-assistant="claude" aria-controls="command-group-1-panel-claude" aria-selected="false" tabindex="-1">클로드 코드</button><button type="button" id="command-group-1-tab-kiro" role="tab" data-command-assistant="kiro" aria-controls="command-group-1-panel-kiro" aria-selected="false" tabindex="-1">키로</button></div><section id="command-group-1-panel-codex" class="command-panel" data-command-panel="codex" role="tabpanel" aria-labelledby="command-group-1-tab-codex" tabindex="0"><p class="command-variant-title"><strong>코덱스 명령</strong></p><div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="코덱스 명령 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
-bash workshop/scripts/start.sh --assistant codex &#x26;&#x26;
-source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &#x26;&#x26;
-python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
-}
-</code></pre></div></section><section id="command-group-1-panel-claude" class="command-panel" data-command-panel="claude" role="tabpanel" aria-labelledby="command-group-1-tab-claude" tabindex="0"><p class="command-variant-title"><strong>클로드 코드 명령</strong></p><div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="클로드 코드 명령 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
-bash workshop/scripts/start.sh --assistant claude &#x26;&#x26;
-source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &#x26;&#x26;
-python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
-}
-</code></pre></div></section><section id="command-group-1-panel-kiro" class="command-panel" data-command-panel="kiro" role="tabpanel" aria-labelledby="command-group-1-tab-kiro" tabindex="0"><p class="command-variant-title"><strong>키로 명령</strong></p><div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="키로 명령 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
-bash workshop/scripts/start.sh --assistant kiro &#x26;&#x26;
-source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &#x26;&#x26;
-python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
-}
-</code></pre></div></section></section><p><code>start.sh</code>는 참가자 환경을 준비하고 누락된 핵심 도구를 설치한 뒤 <code>core.py doctor</code>를 실행합니다.<br>
-준비가 끝난 환경에서는 기존 도구와 폴더를 재사용합니다.</p>
-<p>전체 시작 명령에 <code>--assistant</code>를 지정하면 같은 소유 세션에서 해당 도구로 전환합니다.<br>
-기존 <code>.env</code>, 프로젝트, AWS 계정과 CLI 설정은 유지됩니다.<br>
-<code>--assistant</code>와 <code>--project-name</code>을 생략하면 저장된 값을 재사용하며, 새 환경에서 생략한 도구는 Codex입니다.</p>
-<p>누락 도구의 다운로드와 설치가 필요하면 사전 구성을 마친 뒤 수업을 시작합니다.<br>
-이 명령은 Runtime을 만들거나 모델을 호출하지 않습니다.</p>
-<p>마지막 입력에서 Bedrock 단기키의 발급 리전, 키와 실제 만료 시각을 지정합니다.<br>
-키는 화면에 표시되지 않으며 <code>$ATLAS_CLI_PARENT/.env</code>에 권한 <code>0600</code>으로 저장됩니다.<br>
-카카오와 관광공사 키는 지금 입력하지 않습니다.</p>
-<p><strong><code>source</code>는 반드시 사용자의 Bash에서 실행합니다.</strong><br>
-<code>start.sh</code>가 출력하는 <code>activationPath</code>를 사용하면 됩니다.</p>
-<p>스크립트나 AI의 자식 셸은 부모 터미널의 환경을 활성화할 수 없습니다.<br>
-저장소 경로가 다른 환경에서는 진행자가 알려 준 실제 경로로 바꿉니다.</p>
-<h2 id="heading-통과-조건">통과 조건</h2>
-<p>doctor의 <code>passed: true</code>와 다음 항목을 확인합니다.</p>
+<p><code>team01</code>은 독립 랩에서 자동으로 사용하는 공통 실습 ID입니다.<br>
+기존에 다른 ID로 준비한 환경은 준비기가 출력한 <code>activationPath</code>를 사용합니다.</p>
+<p><code>source</code>는 현재 Bash의 경로와 도구 설정을 복원합니다.<br>
+도구 설치와 이미 성공한 점검은 반복하지 않습니다.</p>
+<h2 id="heading-입력할-두-가지-값">입력할 두 가지 값</h2>
 <div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
 <thead>
 <tr>
-<th scope="col">항목</th>
-<th scope="col">수업 기준</th>
+<th scope="col">터미널 입력란</th>
+<th scope="col">입력할 내용</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>실행 소스</td>
-<td>전체 저장소와 137개 샘플 장소</td>
+<td><code>Bedrock key issuing region</code></td>
+<td>단기키를 발급한 AWS 리전</td>
 </tr>
 <tr>
-<td>Node와 npm</td>
-<td>Node 24 계열 24.18.1 이상과 npm</td>
-</tr>
-<tr>
-<td>Python과 uv</td>
-<td>Runtime Python 3.12, helper Python 3.12 이상, uv</td>
-</tr>
-<tr>
-<td>Python 보조 패키지</td>
-<td>helper Python에서 boto3와 requests 사용 가능</td>
-</tr>
-<tr>
-<td>AgentCore CLI</td>
-<td>npm <code>@aws/agentcore</code> 0.28.1</td>
-</tr>
-<tr>
-<td>AWS와 AI 도구</td>
-<td>AWS CLI와 선택한 Agentic AI 코딩 어시스턴트 하나</td>
+<td><code>Bedrock short-term API key</code></td>
+<td>발급받은 단기키. 입력 중 화면에 표시되지 않음</td>
 </tr>
 </tbody>
 </table></div>
-<p>Node 20 이상, Python 3.10 이상이라는 일반 점검만으로 이 수업의 준비가 끝나지는 않습니다.<br>
-Docker는 사전 설치 항목이며 핵심 CodeZip 경로의 통과 조건에는 포함하지 않습니다.</p>
-<p><code>lab.py doctor</code>는 전체 앱을 위한 심화 점검입니다.<br>
-도구 검사 통과는 AWS 배포 권한이나 실제 모델 응답 성공을 뜻하지 않습니다.</p>
-<p>활성화하면 <code>ATLAS_REPO</code>는 원본 소스, <code>ATLAS_CLI_PARENT</code>는 참가자 폴더, <code>ATLAS_CLI</code>는 그 아래 만들 AgentCore 프로젝트를 가리킵니다.<br>
-참가자 <code>.env</code>와 <code>RESULTS.md</code>는 <code>ATLAS_CLI_PARENT</code>에 두어 배포 코드와 분리합니다.<br>
-프로젝트는 03장의 AI가 생성합니다.</p>
-<h2 id="heading-새-bash의-환경-복원">새 Bash의 환경 복원</h2>
-<p>새 터미널은 앞 터미널의 변수를 이어받지 않습니다.<br>
-아래 명령을 먼저 실행한 뒤 다음 장의 터미널 블록을 복사합니다.<br>
-각 블록의 첫 <code>cd</code>는 해당 작업의 시작 위치를 맞춥니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-6">cd /home/ec2-user/my-project/jeju-atlas &#x26;&#x26; {
+<h3 id="heading-저장되는-위치">저장되는 위치</h3>
+<p>값은 <code>$ATLAS_CLI_PARENT/.env</code>에 권한 <code>0600</code>으로 저장됩니다.<br>
+<code>ATLAS_CLI_PARENT</code>는 참가자 폴더이며, 이후 생성할 AgentCore 프로젝트의 배포 코드와 분리된 위치입니다.</p>
+<p>카카오, 관광공사 TourAPI와 VISIT JEJU 키는 첫 배포 후 필요한 경우에만 추가합니다.<br>
+키 갱신과 선택 연동 방법은 <a href="../reference/keys-and-integrations.html">.env와 외부 연동</a>을 참고합니다.</p>
+<h2 id="heading-새-터미널을-열었거나-문제가-생겼다면">새 터미널을 열었거나 문제가 생겼다면</h2>
+<p>새 Bash에서는 기존 환경만 다시 불러옵니다.<br>
+키를 이미 저장했다면 입력 명령을 반복할 필요가 없습니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
 source workshop/.local/labs/team01/activate.sh
 }
 </code></pre></div>
-<h2 id="heading-막혔거나-새-터미널을-열었다면">막혔거나 새 터미널을 열었다면</h2>
-<p><code>Usage</code>에 <code>--node-only</code>가 없으면 소스를 갱신한 뒤 선택한 Node 탭 명령을 다시 실행합니다.<br>
-Codex로 저장된 세션을 Claude Code로 전환할 때는 <a href="../reference/preconfiguration.html#heading-이전-소스와-도구-선택-오류">소스 갱신 → 전체 시작 → 참가자 활성화</a>를 따릅니다.<br>
-소유 JSON이나 참가자 이름은 직접 바꾸지 않습니다.</p>
-<p>새 Bash에서는 출력된 절대 경로의 <code>activate.sh</code>를 다시 <code>source</code>합니다.<br>
-스크립트가 없으면 <a href="../reference/offline-start.html#heading-python-스크립트가-없을-때">실행 소스 위치 확인</a>을 따릅니다.</p>
-<blockquote>
-<p><strong>“전체 실습 소스가 없습니다”가 표시된다면</strong><br>
-명령의 <code>repo=</code>가 가리키는 폴더에 <code>workshop/scripts/core.py</code>가 있는지 확인합니다.<br>
-전체 Git 저장소를 아직 받지 않았다면 먼저 소스를 받고, 다른 위치에 받았다면 실제 경로를 지정합니다.</p>
-</blockquote>
-<p><code>workshop/site/</code>, <code>dist/workshop/</code>와 교재 ZIP에는 실행 소스가 없습니다.<br>
-검사에 실패하면 누락 항목과 재개 위치를 진행자에게 전달합니다.</p>
-<p>선택한 Agentic AI 코딩 어시스턴트의 기존 로그인과 모델 설정을 사용합니다.<br>
-자동 검토 모드는 진행자가 사용할 모델과 provider 조합으로 수업 전에 확인합니다.</p>
-<p>Codex auto-review와 Claude Code auto mode 실행은 <a href="03-codex.html">03장</a>, 지원 조건과 문제 해결은 <a href="../reference/ai-cli-environments.html">도구별 안내</a>를 참고합니다.<br>
-<a href="../reference/hud-setup.html">HUD</a>는 수업 시간 밖의 선택 항목입니다.</p>
-<p>선택 프롬프트: <a href="../prompts/01-setup.md" download="01-setup.md">환경 진단</a></p>
-<p>다음: <a href="02-aws-environment.html">02. 계정과 작업 폴더</a></p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col">상황</th>
+<th scope="col">이어갈 곳</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>소스나 <code>activate.sh</code>가 없습니다.</td>
+<td><a href="../reference/preconfiguration.html">사전 구성의 소스와 참가자 환경 준비</a></td>
+</tr>
+<tr>
+<td>도구를 바꾸거나 이전 소스에서 오류가 났습니다.</td>
+<td><a href="../reference/preconfiguration.html#heading-이전-소스와-도구-선택-오류">기존 실습 재개와 도구 선택</a></td>
+</tr>
+<tr>
+<td>키나 발급 리전을 다시 입력해야 합니다.</td>
+<td>이 장의 키 입력 명령</td>
+</tr>
+</tbody>
+</table></div>
+<p>필요할 때만 사용하는 선택 프롬프트: <a href="../prompts/01-setup.md" download="01-setup.md">환경 진단</a></p>
+<p>다음: <strong><a href="02-aws-environment.html">02. 계정과 작업 폴더</a></strong></p>
 <h2 id="heading-agentic-ai-코딩-어시스턴트-프롬프트-카드">Agentic AI 코딩 어시스턴트 프롬프트 카드</h2>
 <p>아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. <a href="../prompts/01-setup.md" download="01-setup.md">Markdown 카드 다운로드</a></p>
-<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-7" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-7">제주 가이드 워크숍의 시작 환경을 진단해 주세요. 읽기 전용 점검을 승인합니다.
+<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-3">제주 가이드 워크숍의 환경 활성화와 키 입력 문제를 진단해 주세요. 읽기 전용 점검을 승인합니다.
 적용되는 AGENTS.md와 workshop/AGENTS.md, skills/jeju-atlas-install/SKILL.md를 읽으세요.
 ATLAS_REPO 또는 /home/ec2-user/my-project/jeju-atlas에서 전체 소스를 찾으세요.
 전체 준비를 마친 세션은 activate.sh와 비밀값 없는 소유 설정에서 작업 경로를 확인하세요.
@@ -341,7 +285,9 @@ ATLAS_REPO 또는 /home/ec2-user/my-project/jeju-atlas에서 전체 소스를 �
 이동하고 준비 단계에 맞는 활성화 파일을 source한 뒤 필요한 작업 폴더로 다시 이동하세요.
 경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
 
-전체 start.sh는 참가자 준비, 누락 도구 설치와 doctor를 수행합니다.
+설치는 사전 구성에서 완료하며 01장은 기존 환경 활성화와 비공개 키 입력만 수행합니다.
+01장의 공통 명령은 세 도구 모두 저장된 선택을 이어 쓰므로 도구를 다시 선택하도록 요구하지 마세요.
+사전 구성의 전체 start.sh는 참가자 준비, 누락 도구 설치와 doctor를 수행합니다.
 새 설정의 기본값은 team01, AtlasCliTeam01, codex이며 팀명 선택을 요청하지 마세요.
 기존 세션에서는 --assistant와 --project-name을 생략하면 저장된 값을 재사용합니다.
 참가자가 다른 도구를 선택했다면 전체 start.sh --assistant claude처럼 명시합니다.
@@ -360,7 +306,7 @@ Usage에 --node-only가 없으면 원본 저장소에서 git pull --ff-only orig
 AI가 활성화한 자식 셸은 사용자의 Bash를 바꾸지 못합니다.
 사용자에게 실제 activationPath를 source하는 한 줄을 알려 주세요.
 
-setup의 core.py doctor는 한 번이면 됩니다. 이미 성공했다면 반복하지 마세요.
+사전 구성의 core.py doctor는 한 번이면 됩니다. 이미 성공했다면 반복하지 마세요.
 실패하거나 결과가 없을 때 활성화한 셸에서 다음을 사용합니다.
 python3 "$ATLAS_REPO/workshop/scripts/core.py" doctor --assistant "$ATLAS_ASSISTANT"
 전체 소스와 샘플 137개, Node 24 계열 24.18.1 이상, npm, uv, Python 3.12,
@@ -377,6 +323,7 @@ auto-review와 auto mode는 진행자가 수업 전에 모델과 provider 조합
 지원되지 않으면 해당 도구의 일반 승인 모드를 안내하고 실제 모드를 기록하세요.
 자동 검토를 위해 수업 중 모델이나 provider를 바꾸지 마세요.
 .env와 로그인 파일을 읽거나 출력하지 말고, 키 입력을 대화창으로 받지 마세요.
+키 입력은 발급 리전과 Bedrock 단기키 두 항목만 받으며 만료 시각을 묻지 않습니다.
 이 진단에서는 도구 설치, AWS 변경과 모델 호출을 실행하지 마세요.
 별도 모델 사전 호출, agentcore dev와 전체 테스트는 기본으로 생략합니다.
 추가 검사는 실제 오류, 위험한 기능 변경 또는 명시적 요청이 있을 때 해당 부분만 수행합니다.
@@ -395,10 +342,10 @@ auto-review와 auto mode는 진행자가 수업 전에 모델과 provider 조합
   </a>
       </nav>
     </article>
-    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-시작-전에-전체-소스-받기" data-toc-link>시작 전에 전체 소스 받기</a></li><li class="toc-depth-2"><a href="#heading-시작-블록-한-번-실행" data-toc-link>시작 블록 한 번 실행</a></li><li class="toc-depth-2"><a href="#heading-통과-조건" data-toc-link>통과 조건</a></li><li class="toc-depth-2"><a href="#heading-새-bash의-환경-복원" data-toc-link>새 Bash의 환경 복원</a></li><li class="toc-depth-2"><a href="#heading-막혔거나-새-터미널을-열었다면" data-toc-link>막혔거나 새 터미널을 열었다면</a></li><li class="toc-depth-2"><a href="#heading-agentic-ai-코딩-어시스턴트-프롬프트-카드" data-toc-link>Agentic AI 코딩 어시스턴트 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-환경을-불러오고-키-입력" data-toc-link>환경을 불러오고 키 입력</a></li><li class="toc-depth-2"><a href="#heading-입력할-두-가지-값" data-toc-link>입력할 두 가지 값</a></li><li class="toc-depth-3"><a href="#heading-저장되는-위치" data-toc-link>저장되는 위치</a></li><li class="toc-depth-2"><a href="#heading-새-터미널을-열었거나-문제가-생겼다면" data-toc-link>새 터미널을 열었거나 문제가 생겼다면</a></li><li class="toc-depth-2"><a href="#heading-agentic-ai-코딩-어시스턴트-프롬프트-카드" data-toc-link>Agentic AI 코딩 어시스턴트 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
   </div>
     </main>
-    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.24 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
+    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.25 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
   </div>
   <p class="reader-status" role="status" aria-live="polite" data-reader-status></p>
 </body>

@@ -1,7 +1,7 @@
 {
   "title": "100~120분 AgentCore CLI 실습",
   "subtitle": "EC2 사전 준비 후 Agentic AI 코딩 어시스턴트와 두 개의 프롬프트로 제주 가이드 구현과 배포",
-  "updatedAt": "2026-09-24",
+  "updatedAt": "2026-09-25",
   "language": "ko",
   "includePromptCards": true,
   "chapters": [
@@ -11,15 +11,15 @@
       "title": "이번 실습에서 만들 것",
       "day": 1,
       "minutes": 5,
-      "summary": "핵심 작업 100분과 여유 20분의 완료 기준을 확인합니다."
+      "summary": "목표와 시간표를 확인하고 준비 상태에 따라 사전 구성 또는 01장으로 이동합니다."
     },
     {
       "id": "01",
       "slug": "01-setup",
-      "title": "환경 확인과 Bedrock 키 입력",
+      "title": "환경 활성화와 Bedrock 키 입력",
       "day": 1,
       "minutes": 10,
-      "summary": "EC2 점검 결과를 확인하고 Bedrock 단기키를 .env에 숨김 입력합니다."
+      "summary": "준비한 환경을 불러오고 Bedrock 단기키와 발급 리전을 입력합니다."
     },
     {
       "id": "02",

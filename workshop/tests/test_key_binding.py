@@ -114,7 +114,6 @@ class KeyBindingTests(unittest.TestCase):
         self.token = "test-only-not-a-real-api-key"
         write_env(self.env_file, {
             "ATLAS_BEDROCK_REGION": "us-west-2", "AWS_BEARER_TOKEN_BEDROCK": self.token,
-            "ATLAS_BEDROCK_KEY_EXPIRES_AT": "2099-09-24T12:00:00Z",
         })
         self.cloud = Cloud()
 
@@ -143,7 +142,48 @@ class KeyBindingTests(unittest.TestCase):
         metadata = (self.project / "agentcore/agentcore.json").read_text()
         self.assertNotIn(self.token, metadata + json.dumps(result))
         self.assertIn("ATLAS_BEDROCK_API_KEY_SSM_ARN", metadata)
+        self.assertNotIn("expiresAt", result)
+        self.assertNotIn("minutesRemaining", result)
         self.assertEqual(self.cloud.writes, ["create-policy", "put-parameter"])
+
+    def test_publish_ignores_legacy_expiry_without_copying_or_reporting_it(self):
+        from workshop_env import write_env
+        for expiry in ("2000-01-01T00:00:00Z", "legacy-not-a-timestamp", "2099-09-24T12:00:00Z"):
+            with self.subTest(expiry=expiry):
+                write_env(self.env_file, {"ATLAS_BEDROCK_KEY_EXPIRES_AT": expiry})
+                before = self.env_file.read_bytes()
+                before_mode = self.env_file.stat().st_mode
+                result = self.module.publish(
+                    self.project, self.env_file, execute=True, client_factory=self.cloud.client,
+                )
+                self.assertTrue(result["executed"])
+                self.assertEqual(self.cloud.parameter["Value"], self.token)
+                self.assertNotIn("expiresAt", result)
+                self.assertNotIn("minutesRemaining", result)
+                published = json.dumps(result) + json.dumps(self.cloud.parameter) + json.dumps(self.cloud.policy)
+                metadata = (self.project / "agentcore/agentcore.json").read_text()
+                loader = (self.project / "app/JejuGuide/model/load.py").read_text()
+                self.assertNotIn(expiry, published + metadata + loader)
+                self.assertNotIn("ATLAS_BEDROCK_KEY_EXPIRES_AT", published + metadata + loader)
+                self.assertEqual(self.env_file.read_bytes(), before)
+                self.assertEqual(self.env_file.stat().st_mode, before_mode)
+
+    def test_missing_key_or_region_stops_before_cloud_and_local_changes(self):
+        from workshop_env import write_env
+        for missing in ("ATLAS_BEDROCK_REGION", "AWS_BEARER_TOKEN_BEDROCK"):
+            with self.subTest(missing=missing):
+                values = {"ATLAS_BEDROCK_REGION": "us-west-2", "AWS_BEARER_TOKEN_BEDROCK": self.token}
+                values[missing] = ""
+                write_env(self.env_file, values)
+                before = (self.project / "agentcore/agentcore.json").read_bytes()
+                loader_before = (self.project / "app/JejuGuide/model/load.py").read_bytes()
+                with self.assertRaises(ValueError):
+                    self.module.publish(
+                        self.project, self.env_file, execute=True,
+                        client_factory=lambda service: self.fail("Missing input must not contact AWS"),
+                    )
+                self.assertEqual((self.project / "agentcore/agentcore.json").read_bytes(), before)
+                self.assertEqual((self.project / "app/JejuGuide/model/load.py").read_bytes(), loader_before)
 
     def test_account_mismatch_stops_before_any_mutation(self):
         self.cloud.account = "999999999999"

@@ -221,7 +221,7 @@ E. 준비 후 작업 경계
 - Bedrock 단기 키는 사용자가 자신의 터미널에서 workshop_env.py configure로
   비공개 입력합니다. .env는 ATLAS_CLI_PARENT에 두고 직접 읽거나 source하지 않습니다.
   키 원문을 코드, 프롬프트, 명령 인자, 로그나 배포 ZIP에 넣지 않습니다.
-  호출 리전과 만료 시각은 입력된 값을 사용하며 배포 리전으로 대체하지 않습니다.
+  호출 리전은 입력한 키 발급 리전을 사용하며 배포 리전으로 대체하지 않습니다.
   입력을 마친 뒤 다음 helper로 생성 로더와 Python 3.12 설정을 적용합니다.
   기존 로더 변경은 보존합니다.
   python3 "$ATLAS_REPO/workshop/scripts/model_config.py" --project "$ATLAS_CLI" --env-file "$ATLAS_CLI_PARENT/.env"

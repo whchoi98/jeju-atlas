@@ -24,7 +24,7 @@ description: "Use when preparing, installing, deploying, or resuming Jeju Atlas 
 도구 설치는 수업 전에 끝낸다. 본 실습은 00–04장 **100분 + 여유 20분**이며,
 05–14장 전체 앱 구축은 별도 심화 과정으로 같은 시간 안의 완료를 약속하지 않는다.\
 00장은 목표 안내만 제공하며 참가자 파일을 만들지 않는다.\
-실행 준비는 사전 구성부터 완료하고 00장과 01장 시작 블록으로 이어간다.\
+00장에서 준비 상태에 따라 사전 구성 또는 01장으로 안내한다. 사전 구성 완료 후에는 01장의 환경 활성화와 키 입력으로 바로 이어간다.\
 HUD는 선택 사항이며 설치·실행·진단 없이 본 실습을 완료할 수 있다.
 
 기본 흐름은 준비 → 구현·필요한 빌드 → 배포 → 상태와 최종 응답 1회 확인이다.
@@ -86,6 +86,7 @@ AWS 변경과 유료 호출의 승인이 불명확하면 로컬 준비와 변경
   에이전트가 AgentCore CLI로 `$ATLAS_CLI`를 만든다. 존재하는 프로젝트에는 `create`를 반복하지 않는다.
   심화 앱은 `lab.py`와 별도 참가자 `app/`을 사용한다.
 - 키는 사용자가 `workshop_env.py configure`의 숨김 입력으로 넣는다.
+  발급 리전과 단기키 두 항목만 받으며 수동 만료 시각을 요구하지 않는다.
   기본 파일은 `$ATLAS_CLI_PARENT/.env`이며 Runtime 코드·ZIP 밖에 둔다.
   에이전트는 `status`, `run`, `publish` 등 지정 helper를 사용하고 `.env`를 직접 읽거나 source하지 않는다.
 - JejuGuide 모델은 `global.anthropic.claude-sonnet-4-6`이다.
