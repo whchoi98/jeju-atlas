@@ -25,6 +25,9 @@ bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant "$ATLAS_ASSISTANT" 
 기존 스택과 버전 파라미터가 모두 없을 때만 계정 관리자가 처음 생성합니다.\
 기존 정책을 바꾸는 업그레이드와 Runtime 배포를 혼동하지 않습니다.
 
+`status: missing`, `ready: false`를 준비 완료로 안내하지 않습니다.\
+[5-2의 서울 리전 생성 명령](preconfiguration.md#5-2-서울-리전에서-cdk-bootstrap-생성)을 실행하고 마지막 `ready: true`까지 확인합니다.
+
 Docker 설치는 사전 구성의 dnf/systemctl/usermod 절차를 사용합니다.\
 새 로그인 셸의 `docker info`까지 확인하며 CodeZip 기본 과정에서는 선택 항목입니다.
 
