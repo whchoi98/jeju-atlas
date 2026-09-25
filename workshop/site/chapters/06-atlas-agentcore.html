@@ -69,7 +69,7 @@
       <span class="nav-number">05</span>
       <span class="nav-title">컨테이너 저장소와 장소 데이터</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide, Tools, Gateway, Memory와 Strands를 배포합니다. 구성 시작 전 준비 새 의존성 ZIP 앱 코드 패키징, 배포 1. 코드 빌드와 게시, 배포 계획 생성 2. 실제 배포 시작 3. 스택 완료까지 상태 조회 4. 완료 후 로그 보관 설정 모델 설정 중단된 위치에서 재개 Agentic AI 코딩 어시스턴트 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide, Tools, Gateway, Memory와 Strands를 배포합니다. 구성 시작 전 준비 새 의존성 ZIP 앱 코드 패키징, 배포 1. 코드 빌드와 게시, 배포 계획 생성 2. 실제 배포 시작 3. 스택 완료까지 상태 조회 4. 완료 후 로그 보관 설정 모델 설정 중단된 위치에서 재개 서울 리전 설정 후 계획 재개 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="06-atlas-agentcore.html" aria-current="page" data-chapter-link="06-atlas-agentcore" data-core-chapter="false">
       <span class="nav-number">06</span>
       <span class="nav-title">제주 가이드 AgentCore 배포</span>
@@ -237,7 +237,7 @@
 </tr>
 <tr>
 <td>모델</td>
-<td>Global Sonnet 4.6, 주최자가 확인한 Bedrock 호출 리전</td>
+<td>Global Sonnet 4.6, 서울(<code>ap-northeast-2</code>) 호출 리전</td>
 </tr>
 <tr>
 <td>관측</td>
@@ -252,21 +252,15 @@ ECS를 Private Subnet에 배치하는 설정과 구분합니다.<br>
 <p><a href="05-foundation-and-data.html#heading-심화-작업-폴더-준비">05장의 심화 작업 폴더 준비</a>와 Data 스택 생성, 카탈로그 게시를 완료한 Bash에서 이어 갑니다.<br>
 <code>Prepare the participant workspace first</code>가 나오면 05장의 작업 사본 준비부터 마칩니다.</p>
 <p>이 심화 Runtime은 IAM으로 모델을 호출하며, 01장의 <code>.env</code> API 키 설정이 자동 적용되지 않습니다.<br>
-주최자가 Sonnet과 선택한 호출 리전에 맞는 Runtime 역할 권한을 검토해야 합니다.<br>
-검토한 호출 리전을 아직 심화 설정에 기록하지 않았다면 아래 명령을 한 번 실행합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
-read -r -p "주최자가 확인한 심화 Runtime의 Bedrock 호출 리전: " atlas_bedrock_region &#x26;&#x26;
-"$ATLAS_PYTHON" -B workshop/scripts/lab.py model-region \
-  --config "$ATLAS_CONFIG" --caller-region "$atlas_bedrock_region"
-}
-</code></pre></div>
-<p>이 명령은 참가자 설정의 <code>bedrockCallerRegion</code>만 저장합니다.<br>
-모델을 호출하거나 IAM을 변경하지 않으며, 이미 기록한 리전은 다시 입력할 필요가 없습니다.<br>
-<code>modelAccessVerified: false</code>는 이 명령이 모델 호출을 검증하지 않았다는 뜻입니다.</p>
+이 장은 배포와 모델 호출에 **서울 리전(<code>ap-northeast-2</code>)**을 사용합니다.<br>
+주최자가 Sonnet과 서울 리전에 맞는 Runtime 역할 권한을 검토해야 합니다.</p>
+<p>아래 1번 명령이 참가자 설정의 <code>bedrockCallerRegion</code>을 서울로 저장합니다.<br>
+별도 리전 입력은 받지 않으며, 01장의 <code>.env</code> 리전과 구분해 기록합니다.<br>
+이미 빌드와 게시가 성공한 뒤 호출 리전 오류로 중단됐다면 <a href="#heading-서울-리전-설정-후-계획-재개">서울 리전 설정 후 계획 재개</a>로 바로 이동합니다.</p>
 <h2 id="heading-새-의존성-zip">새 의존성 ZIP</h2>
 <p>커밋된 <code>uv.lock</code>에서 ARM64/Python 3.14 wheel을 설치해 새 ZIP을 만듭니다.<br>
 운영 버킷의 기존 ZIP은 필요하지 않습니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py deps-build --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py deps-publish --config "$ATLAS_CONFIG" --execute
 }
@@ -282,13 +276,16 @@ read -r -p "주최자가 확인한 심화 Runtime의 Bedrock 호출 리전: " at
 <p><strong>계획 생성 → 실제 배포 시작 → 스택 완료 확인 → 로그 설정</strong> 순서로 진행합니다.<br>
 아래 네 단계를 각각 실행하고, 출력에 적힌 다음 진행 조건을 확인합니다.</p>
 <h3 id="heading-1-코드-빌드와-게시-배포-계획-생성">1. 코드 빌드와 게시, 배포 계획 생성</h3>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py model-region \
+  --config "$ATLAS_CONFIG" --caller-region ap-northeast-2 &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-build --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-publish --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-plan --config "$ATLAS_CONFIG" --execute
 }
 </code></pre></div>
-<p>이 블록은 코드 ZIP을 만들고 S3에 게시한 뒤 CloudFormation 변경 세트를 생성합니다.<br>
+<p>이 블록은 호출 리전을 서울로 저장하고 코드 ZIP을 만든 뒤 S3 게시와 CloudFormation 변경 세트 생성을 수행합니다.<br>
+<code>model-region</code>의 <code>modelAccessVerified: false</code>는 설정 저장 시 모델을 호출하지 않았다는 뜻입니다.<br>
 <strong>실제 Runtime 배포는 아직 시작하지 않습니다. 기다려도 다음 단계가 자동 실행되지 않습니다.</strong></p>
 <p>마지막 <code>agent-plan</code> 출력의 <code>status</code>가 <code>CREATE_COMPLETE</code>이면 <strong>배포 계획 준비 완료</strong>입니다.<br>
 계획의 <code>resources</code>에서 새 Runtime 두 개, Memory, Gateway/target와 각 역할을 확인한 뒤 2번으로 진행합니다.<br>
@@ -296,7 +293,7 @@ read -r -p "주최자가 확인한 심화 Runtime의 Bedrock 호출 리전: " at
 <code>PENDING</code>이나 오류가 나오면 아래 <a href="#heading-중단된-위치에서-재개">중단된 위치에서 재개</a>를 먼저 확인합니다.</p>
 <h3 id="heading-2-실제-배포-시작">2. 실제 배포 시작</h3>
 <p>1번의 계획 생성이 성공하고 변경 대상이 본인 자원임을 확인한 뒤 실행합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-apply --config "$ATLAS_CONFIG" --execute
 }
 </code></pre></div>
@@ -306,7 +303,7 @@ read -r -p "주최자가 확인한 심화 Runtime의 Bedrock 호출 리전: " at
 <h3 id="heading-3-스택-완료까지-상태-조회">3. 스택 완료까지 상태 조회</h3>
 <p>아래 블록은 상태 조회만 수행합니다.<br>
 처음 한 번 실행하고, 배포 진행 중이면 잠시 기다린 뒤 <strong>이 블록만 다시 실행</strong>합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-status --config "$ATLAS_CONFIG" --execute
 }
 </code></pre></div>
@@ -346,7 +343,7 @@ read -r -p "주최자가 확인한 심화 Runtime의 Bedrock 호출 리전: " at
 두 Runtime ARN, Gateway, Memory, 카탈로그가 내 자원인지 확인하고 다음 단계로 진행합니다.</p>
 <h3 id="heading-4-완료-후-로그-보관-설정">4. 완료 후 로그 보관 설정</h3>
 <p>3번의 스택 상태가 <strong><code>CREATE_COMPLETE</code> 또는 <code>UPDATE_COMPLETE</code>일 때만</strong> 실행합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-6">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-configure-logs --config "$ATLAS_CONFIG" --execute
 }
 </code></pre></div>
@@ -355,15 +352,15 @@ read -r -p "주최자가 확인한 심화 Runtime의 Bedrock 호출 리전: " at
 <p><code>Complete the independent stack before configuring runtime logs</code>가 나오면 3번의 상태 조회로 돌아갑니다.<br>
 빌드와 게시 전체를 다시 수행하거나 로그 설정만 반복하지 않습니다.</p>
 <h2 id="heading-모델-설정">모델 설정</h2>
-<div class="code-block file-window" data-code-kind="file"><div class="code-toolbar"><div class="code-window-title"><strong>참고 내용</strong><span class="code-language">text</span></div><button type="button" class="copy-button js-only" data-copy-code="code-7" aria-label="text 코드 복사">복사</button></div><pre tabindex="0" aria-label="참고 내용: text"><code class="language-text" id="code-7">ATLAS_MODEL_FAST=global.anthropic.claude-sonnet-4-6
+<div class="code-block file-window" data-code-kind="file"><div class="code-toolbar"><div class="code-window-title"><strong>참고 내용</strong><span class="code-language">text</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" aria-label="text 코드 복사">복사</button></div><pre tabindex="0" aria-label="참고 내용: text"><code class="language-text" id="code-6">ATLAS_MODEL_FAST=global.anthropic.claude-sonnet-4-6
 ATLAS_MODEL_DEEP=global.anthropic.claude-sonnet-4-6
 ATLAS_MODEL_ROUTING=auto
 ATLAS_THINKING=disabled
 ATLAS_THINKING_DEEP=disabled
 </code></pre></div>
 <p>배포된 Bedrock 호출용 ID이며 Codex의 모델 설정을 바꾸는 값이 아닙니다.<br>
-배포 대상은 서울에 유지하고 <code>BedrockCallerRegion</code> 매개변수로 별도 <code>ATLAS_BEDROCK_REGION</code>을 Runtime에 전달합니다.<br>
-이 장의 <a href="#heading-시작-전-준비">시작 전 준비</a>에서 <code>lab.py model-region</code>으로 주최자가 확인한 값을 기록합니다.</p>
+배포 리전과 모델 호출 리전은 모두 서울(<code>ap-northeast-2</code>)입니다.<br>
+<code>lab.py model-region --caller-region ap-northeast-2</code>로 저장한 값을 <code>BedrockCallerRegion</code> 매개변수와 <code>ATLAS_BEDROCK_REGION</code> 환경 변수로 Runtime에 전달합니다.</p>
 <p>계정의 모델 접근, 서비스 가용성, Global CRIS IAM 정책을 확인해야 합니다.<br>
 목록 조회만으로 호출 성공을 보장하지 않습니다.<br>
 <code>agent/guide/model/load.py</code>의 BedrockModel과 모델별 reasoning 설정을 확인합니다.</p>
@@ -372,7 +369,7 @@ ATLAS_THINKING_DEEP=disabled
 운영 원본의 모델과 IAM/SCP는 변경하지 않습니다.</p>
 <p>기존 GuideRole의 모델 권한도 자동 확장하지 않습니다.<br>
 EC2에서의 Converse 성공이 Runtime 역할의 권한을 대신하지 않습니다.<br>
-현재 기록된 서울 실측은 SCP 명시적 거부이며 성공한 호출 리전은 아직 배정되지 않았습니다.</p>
+과거 서울 호출의 SCP 거부는 검증 기록에 보존하며, 현재 실습 계정의 호출 결과와 구분합니다.</p>
 <p>실제 여행 질문과 도구, Memory 동작은 웹을 연결한 뒤 12장에서 확인합니다.<br>
 Runtime READY만으로 여행 답변까지 검증됐다고 기록하지 않습니다.</p>
 <h2 id="heading-중단된-위치에서-재개">중단된 위치에서 재개</h2>
@@ -414,7 +411,19 @@ Runtime READY만으로 여행 답변까지 검증됐다고 기록하지 않습�
 변경 세트 상태가 <code>CREATE_COMPLETE</code>, 실행 상태가 <code>AVAILABLE</code>이고 변경 대상이 본인 자원일 때 2번으로 진행합니다.<br>
 계속 생성 중이면 해당 변경 세트 상태만 다시 확인하고, <code>FAILED</code>이면 표시된 실패 이유를 해결합니다.<br>
 이때 스택의 <code>REVIEW_IN_PROGRESS</code>만으로 계획 준비 완료를 판단하지 않습니다.</p>
-<p><code>Provide an explicit organizer-verified Bedrock caller region</code> 오류는 <a href="#heading-시작-전-준비">시작 전 준비</a>의 호출 리전 기록부터 확인합니다.<br>
+<h3 id="heading-서울-리전-설정-후-계획-재개">서울 리전 설정 후 계획 재개</h3>
+<p><code>agent-build</code>와 <code>agent-publish</code>가 성공한 뒤 <code>Provide an explicit organizer-verified Bedrock caller region</code> 오류가 나왔다면 아래 명령만 실행합니다.<br>
+호출 리전을 서울로 저장한 뒤 <strong><code>agent-plan</code>만 다시 실행</strong>합니다.<br>
+성공한 빌드와 게시는 반복하지 않습니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-7" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-7">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py model-region \
+  --config "$ATLAS_CONFIG" --caller-region ap-northeast-2 &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-plan \
+  --config "$ATLAS_CONFIG" --execute
+}
+</code></pre></div>
+<p>마지막 <code>agent-plan</code> 출력이 <code>CREATE_COMPLETE</code>이고 변경 대상이 본인 자원이면 <a href="#heading-2-실제-배포-시작">2. 실제 배포 시작</a>으로 진행합니다.<br>
+<code>PENDING</code>이면 기존 변경 세트 상태를 확인합니다.<br>
 명령을 실행했다는 사실만으로 성공했다고 판단하지 않고 마지막 출력과 종료 상태를 확인합니다.</p>
 <p>게시 후 소스가 바뀌면 해당 코드의 build → publish → plan을 다시 수행합니다.<br>
 의존성 staging이 존재하면 덮어쓰지 않고, 로그 확인 후 해당 참가자의 로컬 staging만 정리합니다.<br>
@@ -450,8 +459,12 @@ helper 명령은 `ATLAS_REPO`, 앱 명령은 `ATLAS_APP`으로 다시 이동하�
 실습 app의 커밋된 uv.lock으로 ARM64/Python 3.14 의존성을 만들고 소유 버킷에 게시하세요.
 같은 소스와 잠금 버전으로 만든 소유 아티팩트가 이미 있으면 재사용하세요.
 05장의 app 준비와 Data 스택, 카탈로그 게시가 완료되었는지 기존 결과로 확인하세요.
-주최자가 검토한 Runtime 역할 권한과 심화 설정의 bedrockCallerRegion이 필요합니다.
-호출 리전이 누락되었으면 이 장의 model-region 절차로 기록하고 이미 설정된 값은 유지하세요.
+이 장은 배포와 모델 호출에 서울 리전 ap-northeast-2를 사용합니다.
+주최자가 검토한 Runtime 역할 권한을 확인하고, model-region --caller-region ap-northeast-2로
+심화 설정의 bedrockCallerRegion을 저장하세요. 호출 리전을 다시 입력하도록 묻지 마세요.
+이미 agent-build와 agent-publish가 성공하고 호출 리전 누락으로 중단되었다면
+교재의 서울 리전 설정 후 계획 재개 명령으로 model-region → agent-plan만 수행하세요.
+성공한 빌드와 게시는 반복하지 마세요.
 
 agent-build → agent-publish → agent-plan은 빌드, 게시와 변경 세트 생성입니다.
 여러 명령은 &#x26;&#x26;로 연결하거나 각 종료 상태를 확인해 첫 실패 뒤에 후속 명령을 실행하지 마세요.
@@ -508,7 +521,7 @@ Runtime READY와 실제 답변 성공을 구분하고 생략한 검사를 통과
   </a>
       </nav>
     </article>
-    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-구성" data-toc-link>구성</a></li><li class="toc-depth-2"><a href="#heading-시작-전-준비" data-toc-link>시작 전 준비</a></li><li class="toc-depth-2"><a href="#heading-새-의존성-zip" data-toc-link>새 의존성 ZIP</a></li><li class="toc-depth-2"><a href="#heading-앱-코드-패키징-배포" data-toc-link>앱 코드 패키징, 배포</a></li><li class="toc-depth-3"><a href="#heading-1-코드-빌드와-게시-배포-계획-생성" data-toc-link>1. 코드 빌드와 게시, 배포 계획 생성</a></li><li class="toc-depth-3"><a href="#heading-2-실제-배포-시작" data-toc-link>2. 실제 배포 시작</a></li><li class="toc-depth-3"><a href="#heading-3-스택-완료까지-상태-조회" data-toc-link>3. 스택 완료까지 상태 조회</a></li><li class="toc-depth-3"><a href="#heading-4-완료-후-로그-보관-설정" data-toc-link>4. 완료 후 로그 보관 설정</a></li><li class="toc-depth-2"><a href="#heading-모델-설정" data-toc-link>모델 설정</a></li><li class="toc-depth-2"><a href="#heading-중단된-위치에서-재개" data-toc-link>중단된 위치에서 재개</a></li><li class="toc-depth-2"><a href="#heading-agentic-ai-코딩-어시스턴트-프롬프트-카드" data-toc-link>Agentic AI 코딩 어시스턴트 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-구성" data-toc-link>구성</a></li><li class="toc-depth-2"><a href="#heading-시작-전-준비" data-toc-link>시작 전 준비</a></li><li class="toc-depth-2"><a href="#heading-새-의존성-zip" data-toc-link>새 의존성 ZIP</a></li><li class="toc-depth-2"><a href="#heading-앱-코드-패키징-배포" data-toc-link>앱 코드 패키징, 배포</a></li><li class="toc-depth-3"><a href="#heading-1-코드-빌드와-게시-배포-계획-생성" data-toc-link>1. 코드 빌드와 게시, 배포 계획 생성</a></li><li class="toc-depth-3"><a href="#heading-2-실제-배포-시작" data-toc-link>2. 실제 배포 시작</a></li><li class="toc-depth-3"><a href="#heading-3-스택-완료까지-상태-조회" data-toc-link>3. 스택 완료까지 상태 조회</a></li><li class="toc-depth-3"><a href="#heading-4-완료-후-로그-보관-설정" data-toc-link>4. 완료 후 로그 보관 설정</a></li><li class="toc-depth-2"><a href="#heading-모델-설정" data-toc-link>모델 설정</a></li><li class="toc-depth-2"><a href="#heading-중단된-위치에서-재개" data-toc-link>중단된 위치에서 재개</a></li><li class="toc-depth-3"><a href="#heading-서울-리전-설정-후-계획-재개" data-toc-link>서울 리전 설정 후 계획 재개</a></li><li class="toc-depth-2"><a href="#heading-agentic-ai-코딩-어시스턴트-프롬프트-카드" data-toc-link>Agentic AI 코딩 어시스턴트 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
   </div>
     </main>
     <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.25 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
