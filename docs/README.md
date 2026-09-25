@@ -35,7 +35,7 @@
 - [100~120분 실습 안내](../workshop/README.md)
 - [사전 구성: Node, Python과 AgentCore CLI 설치](../workshop/reference/preconfiguration.md)
 - [Bedrock API 키와 .env, 배포 후 선택 연동](../workshop/reference/keys-and-integrations.md)
-- [EC2 설치와 재개 스킬](../skills/jeju-atlas-install/SKILL.md)
+- [EC2 설치와 재개 스킬](../skills/jeju-atlas-install/SKILL.md) · [오류별 재개와 상태 조회](../skills/jeju-atlas-install/references/recovery.md)
 - [워크숍 소스와 생성물 작업 지침](../workshop/AGENTS.md)
 - [진행자 준비](../workshop/reference/facilitator.md)
 - [환경 활성화와 API 키 입력](../workshop/chapters/01-setup.md)

@@ -53,6 +53,14 @@ substitution tokens and narrower workspace instructions are intentional.
   `core.py doctor --project` requires test files and belongs only to that
   optional path. Never report skipped checks as passed. HUD is optional.
   Maintainer checks and production publication proofs below remain separate.
+- Claude Code's optional preconfiguration includes `claude-hud`, the two
+  `aws-core`/`aws-agents` plugins, and the selected additional plugins documented
+  in `reference/preconfiguration.md`. Keep these specific to Claude Code and
+  outside the timed course. Shell installation starts from `$HOME`; slash
+  commands for reload/configure/setup belong in the Claude Code session.
+  Stop an install batch on failure without closing the participant's parent
+  shell. Reuse existing installations and keep the lab's scope and optional
+  verification policy when plugins are present.
 
 ## Commands
 

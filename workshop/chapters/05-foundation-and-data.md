@@ -110,8 +110,8 @@ source workshop/.local/labs/team01/activate.sh &&
 
 ```bash
 cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
-python3 workshop/scripts/lab.py catalog --osm --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py publish-catalog --config "$ATLAS_CONFIG" --execute
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py catalog --osm --config "$ATLAS_CONFIG" --execute &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py publish-catalog --config "$ATLAS_CONFIG" --execute
 }
 ```
 네트워크 없는 준비 실습은 `--osm`을 생략하면 샘플 137건만 사용합니다.\
@@ -143,6 +143,9 @@ OSM 개수는 조회 시점과 조건에 따라 달라지며 과거 운영의 6,
 - [ ] Registry와 Data 스택이 완료되었습니다.
 - [ ] S3가 비공개이고 아직 운영 CloudFront와 연결되지 않았습니다.
 - [ ] 출처를 구분한 카탈로그를 내 버킷에 게시했습니다.
+
+하단 프롬프트로 진행하면 본문 명령을 중복 실행하지 않아도 됩니다.\
+[프롬프트 진행 안내](00-orientation.md#하단-프롬프트로-진행하는-방법)를 참고하고 이미 완료한 작업은 유지합니다.
 
 Agentic AI 코딩 어시스턴트 프롬프트: [05, ECR, 카탈로그](../prompts/05-foundation-and-data.md)
 

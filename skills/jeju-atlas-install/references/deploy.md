@@ -14,6 +14,9 @@ helper는 사전 구성의 `helperPython`과 같은 `"$ATLAS_PYTHON" -B`를 사�
 
 HUD, 전체 테스트, 브라우저와 한영 응답 등 추가 검증은 필요할 때만 선택한다.\
 별도 모델 사전 호출이나 IAM 정책 시뮬레이터를 정상 진행에 추가하지 않는다.
+오류 로그를 받았으면 [오류별 재개](recovery.md)에서 현재 상태에 맞는 다음 명령을 선택한다.
+사전 구성·01장 키 입력·02장 확인 뒤에는 03–08장 프롬프트를 한 장씩 실행할 수 있다.
+본문 명령으로 완료한 단계는 프롬프트에서 다시 수행하지 않는다.
 
 ## 기본 CLI 실습
 
@@ -58,7 +61,7 @@ HUD, 전체 테스트, 브라우저와 한영 응답 등 추가 검증은 필요
 7. 같은 `$ATLAS_CLI`에서 필요한 빌드를 포함한 배포 계획과 적용을 수행하고 상태와 최종 응답을 확인한다.
 
 ```bash
-cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" || exit 1
+cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" &&
 (
   set -e
   mkdir -p "$ATLAS_CLI_PARENT/evidence"
@@ -77,7 +80,7 @@ lock이 현재 pyproject와 맞지 않으면 차이를 검토해 필요한 갱�
 계정과 참가자 범위를 대조하고 같은 제약으로 승인된 변경만 적용한다.
 
 ```bash
-cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" || exit 1
+cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" &&
 UV_CONSTRAINT="$ATLAS_CLI_PARENT/evidence/runtime-constraints.txt" agentcore deploy --target default &&
 agentcore status --target default --runtime JejuGuide --json
 ```
@@ -125,6 +128,10 @@ app이 없을 때만 `lab.py prepare`를 사용하고 기존 app은 재생성하
 원본 운영 배포 스크립트를 새 계정에 직접 실행하지 않는다.
 
 먼저 기존 네트워크, ECR과 Data, 카탈로그와 의존성을 준비한다.\
+새 Bash는 [기존 활성화 복원](recovery.md#새-bash에서-환경-복원),
+app이 없는 경우는 [05장 준비](recovery.md#05장-참가자-app이-없을-때)를 먼저 적용한다.
+ECR과 Data는 각각 `status-bootstrap`, `status-data`에서 스택 완료를 확인한 뒤 이어 간다.
+여기서 bootstrap은 참가자 ECR Registry이며 공유 CDKToolkit과 다르다.\
 이어서 Guide/Tools/Gateway/Memory → Valhalla → 웹 앱을 배포한다.\
 실제 Distribution을 사용하는 WAF와 정적 S3 연결을 완료한 뒤 모니터링을 설정한다.
 
@@ -143,7 +150,7 @@ Guide는 **01장에서 처음 입력한 같은 Bedrock API 키**를 사용한다
 05장의 app과 Data 스택, 카탈로그 및 소유 의존성 ZIP 준비가 완료된 상태에서 실행한다.
 
 ```bash
-cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || exit 1
+cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" &&
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py model-region \
   --config "$ATLAS_CONFIG" --caller-region ap-northeast-2 &&
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py agent-key --config "$ATLAS_CONFIG" --execute &&
@@ -176,7 +183,7 @@ Gateway, Memory, 제어 작업과 Runtime 인바운드 IAM/SigV4는 유지한다
 대상이 본인 자원이고 기존 Runtime이나 Memory 교체가 없을 때 다음 단계를 실행한다.
 
 ```bash
-cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || exit 1
+cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" &&
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-apply --config "$ATLAS_CONFIG" --execute
 ```
 
@@ -184,7 +191,7 @@ cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || e
 이어서 별도 상태 조회를 수행한다.
 
 ```bash
-cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || exit 1
+cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" &&
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-status --config "$ATLAS_CONFIG" --execute
 ```
 
@@ -196,7 +203,7 @@ cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || e
 조회 명령의 종료 코드 0이나 계획의 `CREATE_COMPLETE`를 스택 완료로 계산하지 않는다.
 
 ```bash
-cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || exit 1
+cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" &&
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-configure-logs --config "$ATLAS_CONFIG" --execute
 ```
 
@@ -209,7 +216,7 @@ cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || e
 이미 배포한 IAM Guide는 소스 루트에서 helper를 갱신한다.
 
 ```bash
-cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || exit 1
+cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" &&
 git pull --ff-only origin main
 ```
 
@@ -261,10 +268,33 @@ Docker 확인에 성공한 같은 셸에서 후속 작업과 Agentic AI 코딩 �
 
 ### 웹 연결과 완료 확인
 
+App 계획의 소유 대상을 확인한 뒤 `apply-app`을 한 번 실행한다.\
+완료 상태는 다음 조회로 확인하며, 진행 중이면 이 블록만 다시 실행한다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source workshop/.local/labs/team01/activate.sh &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run status-app \
+  --config "$ATLAS_CONFIG" --execute
+}
+```
+
+`stack`과 `status`가 있는 JSON에서 `CREATE_COMPLETE` 또는 `UPDATE_COMPLETE`를 확인한다.\
+완료 시 `outputs`와 참가자 app의 `.local/app-outputs.json`이 제공된다.\
+실패 또는 `ROLLBACK` 상태는 최근 이벤트로 원인을 확인하고, 상태 조회를 위해 plan/apply를 반복하지 않는다.
+
 배포 뒤에는 내 App 스택의 기본 CloudFront HTTPS URL을 조회한다.\
+`ATLAS_URL`에 저장한 뒤 `echo "$ATLAS_URL"`로 주소를 표시하고 `/healthz`를 확인한다.\
+응답 뒤에는 줄바꿈을 출력해 터미널 프롬프트와 구분한다.\
+복사 가능한 명령은 [URL과 실제 접속](recovery.md#08장-url과-실제-접속)에 있다.
 ACM 발급, 사용자 도메인이나 DNS를 추가하지 않는다.
 
-기본 확인은 필요한 경로, 계정과 설정, 빌드와 배포 상태, 실제 HTTPS 접속과 웹 최종 응답 1회다.\
+첫 접속 뒤 08장 하단의 실제 Distribution 데이터 정책 갱신을 수행한다.
+그 갱신은 `status-data` 완료까지 확인한 뒤 다음 장으로 넘어간다.
+스택 완료나 health 응답만으로 AI와 길찾기까지 모두 확인됐다고 기록하지 않는다.
+
+08장은 필요한 경로, 계정과 설정, 빌드·스택 완료, 실제 URL과 HTTPS health를 확인한다.\
+웹의 최종 AI 응답 1회는 12장이나 전체 앱 완료 요청의 마지막 단계에서 확인한다.\
 한영 답변, 브라우저 자동화, PWA, 교재, 전체 경로와 통합 검증은 기본으로 생략한다.
 
 오류가 있으면 해당 카탈로그, 경로, Gateway나 Memory 등 관련 기능만 진단한다.\
@@ -280,7 +310,7 @@ ACM 발급, 사용자 도메인이나 DNS를 추가하지 않는다.
 사용자가 자신의 Bash에서 입력한다.
 
 ```bash
-cd -- "${ATLAS_CLI_PARENT:?참가자 활성화 파일을 먼저 불러오세요}" || exit 1
+cd -- "${ATLAS_CLI_PARENT:?참가자 활성화 파일을 먼저 불러오세요}" &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure --integrations
 ```
 
@@ -298,7 +328,7 @@ cd -- "${ATLAS_CLI_PARENT:?참가자 활성화 파일을 먼저 불러오세요}
 심화 앱에서는 해당 제공처의 게시 계획을 먼저 확인한다. 카카오 예시:
 
 ```bash
-cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || exit 1
+cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/lab.py" set-secret \
   --config "$ATLAS_CONFIG" --provider kakao --env-file "$ATLAS_CLI_PARENT/.env"
 ```
@@ -306,7 +336,7 @@ cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || e
 선택 기능과 이 참가자 SSM 게시 승인이 있으면 적용한다.
 
 ```bash
-cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || exit 1
+cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/lab.py" set-secret \
   --config "$ATLAS_CONFIG" --provider kakao --env-file "$ATLAS_CLI_PARENT/.env" --execute
 ```

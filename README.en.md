@@ -124,6 +124,12 @@ to build a Jeju search tool and their own AgentCore Runtime. AgentCore CLI handl
 local execution, deployment and invocation; one of Codex, Claude Code or Kiro CLI implements
 and debugs the project.
 
+After preconfiguration and chapter 01's private key entry, chapters 03–08 are
+designed to proceed one chapter prompt at a time. Do not repeat the same work
+with both the prompt and the terminal examples. Preserve completed work;
+chapters 05–08 are optional advanced material requiring additional time.
+See [the prompt workflow](workshop/chapters/00-orientation.md#하단-프롬프트로-진행하는-방법).
+
 Complete the [preconfiguration](workshop/reference/preconfiguration.md) before class:
 Node 24, uv and Python 3.12, Docker, npm `@aws/agentcore` 0.28.1 in the user npm prefix,
 the EC2 AWS role, and one authenticated coding CLI. `check_env.sh` checks prerequisites;
@@ -166,6 +172,8 @@ The [installation skill](skills/jeju-atlas-install/SKILL.md) supports preparatio
 unfinished work. [Chapter 14's integrated prompt](workshop/prompts/14-project-completion.md)
 is optional full-app work; its 45 minutes cover scoping and checking the first change.
 Codex Bedrock provider configuration and HUD installation are also optional preparation.
+Claude Code users can prepare an optional HUD, AWS plugins and other selected plugins
+in the [preconfiguration guide](workshop/reference/preconfiguration.md#선택-claude-code-hud와-플러그인).
 
 ![Terminal-style workshop command cards](docs/images/workshop-terminal.png)
 

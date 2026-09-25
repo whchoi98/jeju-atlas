@@ -144,6 +144,11 @@ EC2 사전 준비 후 **구현 프롬프트와 배포 프롬프트 두 개**로 
 참가자 AgentCore Runtime을 만듭니다. AgentCore CLI가 생성, 로컬 실행, 배포와 호출을
 맡고 Codex, Claude Code, Kiro CLI 중 하나가 구현과 오류 수정을 수행합니다.
 
+사전 구성과 01장 키 입력 뒤에는 03~08장의 하단 프롬프트를 한 장씩 사용하는 방식으로 진행할 수 있습니다.
+본문 명령과 프롬프트를 중복 실행할 필요는 없으며, 이미 완료한 작업은 유지합니다.
+05~08장은 추가 시간의 선택 심화 과정입니다.
+[프롬프트 진행 안내](workshop/chapters/00-orientation.md#하단-프롬프트로-진행하는-방법)를 참고하세요.
+
 [사전 구성](workshop/reference/preconfiguration.md)에서 Node 24, uv와 Python 3.12,
 Docker, 사용자 npm 경로의 `@aws/agentcore` 0.28.1, AWS 역할과 선택한 Agentic AI 코딩 어시스턴트를 준비합니다.
 `check_env.sh`로 점검하고 `start.sh`로 참가자 환경과 누락 core 도구를 준비합니다.
@@ -183,6 +188,8 @@ ACM, DNS와 사용자 도메인 준비는 실습에 포함하지 않습니다.
 [설치 스킬](skills/jeju-atlas-install/SKILL.md)은 준비와 중단 작업 재개를 지원합니다.
 [14장 통합 프롬프트](workshop/prompts/14-project-completion.md)의 전체 앱 완성은 선택 과정이며,
 45분은 범위 정리와 첫 수정 검사 시간입니다. Codex Bedrock provider와 HUD도 선택 준비입니다.
+Claude Code 사용자는 [사전 설치](workshop/reference/preconfiguration.md#선택-claude-code-hud와-플러그인)에서
+선택 HUD와 AWS 및 기타 플러그인을 준비할 수 있습니다.
 
 ![맥북 형태의 명령 실행 박스](docs/images/workshop-terminal.png)
 

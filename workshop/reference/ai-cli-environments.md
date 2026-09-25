@@ -101,6 +101,8 @@ Codex에서는 같은 옵션으로 `-C "$ATLAS_CLI"`를 사용합니다.\
 05장 이후 앱은 `ATLAS_APP="$ATLAS_REPO/workshop/.local/labs/$ATLAS_TEAM/app"`입니다.\
 기본 CLI 프로젝트와 앱 사본을 구분하고, 앱 URL은 `lab.py url`로 실제 스택에서 조회합니다.\
 HUD는 [선택 설치 가이드](hud-setup.md)를 따르며 누락 때문에 본 실습을 지연하지 않습니다.
+Claude Code의 HUD, `aws-core`, `aws-agents`와 기타 플러그인은
+[사전 구성의 선택 설치](preconfiguration.md#선택-claude-code-hud와-플러그인)에서 준비합니다.
 
 ## 공식 자료
 

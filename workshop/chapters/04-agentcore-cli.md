@@ -92,6 +92,9 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure --integrations
 ```
 [키와 선택 연동](../reference/keys-and-integrations.md)의 해당 기능만 진행합니다.
 
+하단 프롬프트로 진행하면 본문 명령을 중복 실행하지 않아도 됩니다.\
+[프롬프트 진행 안내](00-orientation.md#하단-프롬프트로-진행하는-방법)를 참고하고 이미 완료한 작업은 유지합니다.
+
 필수 프롬프트 2: [배포와 결과 보기](../prompts/04-agentcore-cli.md)
 
 본 실습 종료: [전체 과정](../README.md)
