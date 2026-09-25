@@ -74,7 +74,7 @@
       <span class="nav-number">06</span>
       <span class="nav-title">제주 가이드 AgentCore 배포</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="07 실제 경로와 고도 데이터 Valhalla, OSM, HGT로 도보, 차량 경로 이미지를 빌드합니다. 입력 자료 라우터 이미지 웹 연결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="07 실제 경로와 고도 데이터 Valhalla, OSM, HGT로 도보, 차량 경로 이미지를 빌드합니다. 입력 자료 복구: 다운로드 후 Docker 권한으로 빌드가 중단됐다면 선택: 기존 그래프 파일을 다시 확인할 때 라우터 이미지 웹 연결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="07-routing.html" aria-current="page" data-chapter-link="07-routing" data-core-chapter="false">
       <span class="nav-number">07</span>
       <span class="nav-title">실제 경로와 고도 데이터</span>
@@ -212,19 +212,89 @@
 도보, 차량 거리를 직선 거리로 대신하지 않습니다.<br>
 HGT 고도 자료의 기준일은 현재 위성 영상 촬영일이나 정밀 현장 측량일이 아닙니다.</p>
 <h2 id="heading-입력-자료">입력 자료</h2>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd "$ATLAS_REPO" &#x26;&#x26; {
-python3 workshop/scripts/lab.py run routing-fetch --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run routing-build --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run routing-verify --config "$ATLAS_CONFIG" --execute
+<p>07장은 Docker를 사용하는 과정입니다.<br>
+아래 블록은 기존 참가자 환경을 활성화하고 <strong>현재 터미널의 Docker 접근부터 확인</strong>합니다.<br>
+확인이 실패하면 다운로드와 빌드를 시작하지 않습니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+docker info >/dev/null &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-fetch --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-build --config "$ATLAS_CONFIG" --execute
 }
 </code></pre></div>
 <p>허용된 공개 OSM, 고도 자료를 다운로드합니다.<br>
+명령 사이의 <code>&#x26;&#x26;</code>는 첫 실패 뒤 후속 명령을 실행하지 않게 합니다.<br>
 네트워크, Docker, 플랫폼 오류를 해결한 뒤 재개하고, 임의의 공용 라우팅 서버로 바꾸지 않습니다.</p>
-<p><code>source.json</code>에서 출처 시각, 엔진, 기반 이미지, 파일 크기, SHA-256을 확인합니다.<br>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col">출력</th>
+<th scope="col">의미와 다음 단계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sources_verified</code></td>
+<td>OSM과 고도 입력 자료가 준비됐습니다. 그래프 빌드는 아직 별도 단계입니다.</td>
+</tr>
+<tr>
+<td><code>graph_verified</code></td>
+<td>그래프 빌드와 빌더 내부의 필수 검증이 완료됐습니다. 라우터 이미지 게시로 진행합니다.</td>
+</tr>
+<tr>
+<td>Docker 소켓 <code>permission denied</code></td>
+<td>현재 터미널의 Docker 권한을 적용한 뒤 아래 복구 절차로 재개합니다.</td>
+</tr>
+<tr>
+<td><code>source.json</code> 없음</td>
+<td>그래프 빌드 완료 기록이 없습니다. 앞선 <code>routing-build</code> 결과부터 확인합니다.</td>
+</tr>
+</tbody>
+</table></div>
+<p>빌더는 완성된 그래프의 파일과 해시를 확인한 뒤 참가자 app의 <code>.local/routing-data/source.json</code>을 작성합니다.<br>
+<code>source.json</code>에서 출처 시각, 엔진, 기반 이미지, 파일 크기, SHA-256을 확인합니다.<br>
 자료를 갱신하면 이전 실습과 거리, 예상 시간이 달라질 수 있습니다.</p>
+<p>Docker의 <code>FINISHED</code>는 빌더 이미지 준비가 끝났다는 뜻이며, 이후 행정구역 DB와 도로 타일 처리가 이어집니다.<br>
+중간 로그의 경고나 <code>Finished</code> 한 줄만으로 전체 완료를 판단하지 않습니다.<br>
+<strong>명령이 성공적으로 끝나고 마지막에 <code>graph_verified</code>가 나왔는지</strong> 확인합니다.<br>
+이 결과는 그래프 파일과 해시 확인이며, 실제 웹의 경로 응답까지 확인한 결과는 아닙니다.</p>
+<h2 id="heading-복구-다운로드-후-docker-권한으로-빌드가-중단됐다면">복구: 다운로드 후 Docker 권한으로 빌드가 중단됐다면</h2>
+<p>사전 구성에서 Docker를 확인했더라도 새 터미널이나 기존 VSCode Server에서 실행한 프로세스는 다른 그룹 권한을 가질 수 있습니다.<br>
+<strong>실제로 라우팅 빌드를 실행할 터미널</strong>에서 아래 블록만 실행합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "$HOME" &#x26;&#x26;
+sudo usermod -aG docker "$(id -un)" &#x26;&#x26;
+newgrp docker
+</code></pre></div>
+<p>새 프롬프트가 나타난 뒤 다음 블록을 별도로 실행합니다.<br>
+<code>sources_verified</code>까지 성공했다면 기존 <code>downloads.json</code>, OSM과 HGT 파일을 보존하고 <strong>빌드부터 재개</strong>합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+docker info >/dev/null &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-build \
+  --config "$ATLAS_CONFIG" --execute
+}
+</code></pre></div>
+<p>다운로드를 반복하거나 <code>.local/routing-data</code>를 삭제할 필요는 없습니다.<br>
+<code>source.json</code>은 빌드 성공 시 생성되므로 직접 만들거나 다른 실습에서 복사하지 않습니다.<br>
+Docker 접근이 계속 실패하면 <a href="../reference/preconfiguration.html#heading-docker-소켓-권한-오류가-계속되는-경우">사전 구성의 Docker 소켓 권한 확인</a>을 따릅니다.</p>
+<p>Docker 확인에 성공한 같은 터미널에서 후속 작업과 Agentic AI 코딩 어시스턴트를 실행합니다.<br>
+이미 실행 중인 코딩 어시스턴트가 권한 오류를 내면 작업을 보존하고 이 셸에서 다시 실행합니다.</p>
+<h2 id="heading-선택-기존-그래프-파일을-다시-확인할-때">선택: 기존 그래프 파일을 다시 확인할 때</h2>
+<p><code>routing-build</code>가 <code>graph_verified</code>로 끝났으면 별도 <code>routing-verify</code>는 기본으로 생략합니다.<br>
+파일을 옮겼거나 기존 그래프의 무결성을 다시 확인해야 할 때만 실행합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-verify \
+  --config "$ATLAS_CONFIG" --execute
+}
+</code></pre></div>
+<p>빌드가 실패했거나 <code>source.json</code>이 없으면 이 검증을 반복하지 않고 실패한 빌드 단계부터 해결합니다.</p>
 <h2 id="heading-라우터-이미지">라우터 이미지</h2>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
-python3 workshop/scripts/lab.py run build-routing-push --config "$ATLAS_CONFIG" --execute
+<p><code>graph_verified</code>가 확인된 뒤 같은 터미널에서 실행합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+docker info >/dev/null &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run build-routing-push --config "$ATLAS_CONFIG" --execute
 }
 </code></pre></div>
 <p>입력 검증, OS 패치를 거쳐 불변 ECR 이미지로 게시하고 <code>.local/routing-image.json</code>에 digest, 자료 기준 시각을 기록합니다.<br>
@@ -276,7 +346,7 @@ python3 workshop/scripts/lab.py run build-routing-push --config "$ATLAS_CONFIG" 
 <p>다음: <a href="08-web.html">08, 웹과 Fargate</a></p>
 <h2 id="heading-agentic-ai-코딩-어시스턴트-프롬프트-카드">Agentic AI 코딩 어시스턴트 프롬프트 카드</h2>
 <p>아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. <a href="../prompts/07-routing.md" download="07-routing.md">Markdown 카드 다운로드</a></p>
-<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-3"># 07, 실제 경로와 고도 데이터. Agentic AI 코딩 어시스턴트 카드
+<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-6"># 07, 실제 경로와 고도 데이터. Agentic AI 코딩 어시스턴트 카드
 
 이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다.\
 Agentic AI 코딩 어시스턴트 하나로 같은 계정, VPC, 작업 폴더를 유지합니다.
@@ -291,11 +361,22 @@ Agentic AI 코딩 어시스턴트 하나로 같은 계정, VPC, 작업 폴더를
 새 셸에서는 확인한 저장소로 이동하고 기존 `activate.sh`를 source한 뒤
 helper 명령은 `ATLAS_REPO`, 앱, 라우팅 명령은 `ATLAS_APP`으로 다시 이동하세요.
 경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
+ATLAS_REPO가 비어 있으면 확인한 저장소 절대 경로에서 기존 activate.sh를 불러오세요.
 
 ## 작업
 
+다운로드 전에 실제 빌드를 실행할 같은 셸에서 docker info 성공을 확인하세요.
+권한 오류이면 사용자에게 교재의 그룹 등록/newgrp 블록을 따로 실행하도록 안내하세요.
+새 프롬프트에서 기존 activate.sh와 docker info를 실행한 뒤 재개합니다.
+이미 실행 중인 코딩 어시스턴트도 이전 그룹을 유지할 수 있으므로 Docker가 가능한 셸에서 실행하세요.
+
 routing-fetch/build로 현재 실습의 OSM 그래프와 HGT를 준비하세요.
 같은 입력과 버전으로 생성한 소유 자료가 있으면 재사용합니다.
+명령은 &#x26;&#x26;로 연결하거나 종료 상태를 확인해 실패 뒤 후속 작업을 실행하지 마세요.
+sources_verified는 다운로드 완료이며 graph_verified가 빌드와 필수 검증 완료입니다.
+다운로드 뒤 Docker 권한으로 build가 중단됐다면 기존 자료를 보존하고 routing-build부터 재개하세요.
+routing-fetch를 반복하거나 routing-data 폴더를 삭제하지 마세요.
+source.json은 빌더가 검증 후 생성합니다. 파일이 없으면 앞선 build 오류부터 해결하고 직접 만들지 마세요.
 엔진 3.8.3, 자료 시각, 입력 크기와 해시를 확인한 뒤 build-routing-push를 수행하세요.
 라우터는 task loopback 8002로만 연결하고 공개 포트나 임의 외부 라우터를 추가하지 마세요.
 웹과 라우터 digest 쌍을 보존하세요.
@@ -337,7 +418,7 @@ routing-fetch/build로 현재 실습의 OSM 그래프와 HGT를 준비하세요.
   </a>
       </nav>
     </article>
-    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-입력-자료" data-toc-link>입력 자료</a></li><li class="toc-depth-2"><a href="#heading-라우터-이미지" data-toc-link>라우터 이미지</a></li><li class="toc-depth-2"><a href="#heading-웹-연결" data-toc-link>웹 연결</a></li><li class="toc-depth-2"><a href="#heading-agentic-ai-코딩-어시스턴트-프롬프트-카드" data-toc-link>Agentic AI 코딩 어시스턴트 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-입력-자료" data-toc-link>입력 자료</a></li><li class="toc-depth-2"><a href="#heading-복구-다운로드-후-docker-권한으로-빌드가-중단됐다면" data-toc-link>복구: 다운로드 후 Docker 권한으로 빌드가 중단됐다면</a></li><li class="toc-depth-2"><a href="#heading-선택-기존-그래프-파일을-다시-확인할-때" data-toc-link>선택: 기존 그래프 파일을 다시 확인할 때</a></li><li class="toc-depth-2"><a href="#heading-라우터-이미지" data-toc-link>라우터 이미지</a></li><li class="toc-depth-2"><a href="#heading-웹-연결" data-toc-link>웹 연결</a></li><li class="toc-depth-2"><a href="#heading-agentic-ai-코딩-어시스턴트-프롬프트-카드" data-toc-link>Agentic AI 코딩 어시스턴트 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
   </div>
     </main>
     <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.25 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>

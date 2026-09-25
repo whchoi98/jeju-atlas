@@ -13,11 +13,22 @@ Agentic AI 코딩 어시스턴트 하나로 같은 계정, VPC, 작업 폴더를
 새 셸에서는 확인한 저장소로 이동하고 기존 `activate.sh`를 source한 뒤
 helper 명령은 `ATLAS_REPO`, 앱, 라우팅 명령은 `ATLAS_APP`으로 다시 이동하세요.
 경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
+ATLAS_REPO가 비어 있으면 확인한 저장소 절대 경로에서 기존 activate.sh를 불러오세요.
 
 ## 작업
 
+다운로드 전에 실제 빌드를 실행할 같은 셸에서 docker info 성공을 확인하세요.
+권한 오류이면 사용자에게 교재의 그룹 등록/newgrp 블록을 따로 실행하도록 안내하세요.
+새 프롬프트에서 기존 activate.sh와 docker info를 실행한 뒤 재개합니다.
+이미 실행 중인 코딩 어시스턴트도 이전 그룹을 유지할 수 있으므로 Docker가 가능한 셸에서 실행하세요.
+
 routing-fetch/build로 현재 실습의 OSM 그래프와 HGT를 준비하세요.
 같은 입력과 버전으로 생성한 소유 자료가 있으면 재사용합니다.
+명령은 &&로 연결하거나 종료 상태를 확인해 실패 뒤 후속 작업을 실행하지 마세요.
+sources_verified는 다운로드 완료이며 graph_verified가 빌드와 필수 검증 완료입니다.
+다운로드 뒤 Docker 권한으로 build가 중단됐다면 기존 자료를 보존하고 routing-build부터 재개하세요.
+routing-fetch를 반복하거나 routing-data 폴더를 삭제하지 마세요.
+source.json은 빌더가 검증 후 생성합니다. 파일이 없으면 앞선 build 오류부터 해결하고 직접 만들지 마세요.
 엔진 3.8.3, 자료 시각, 입력 크기와 해시를 확인한 뒤 build-routing-push를 수행하세요.
 라우터는 task loopback 8002로만 연결하고 공개 포트나 임의 외부 라우터를 추가하지 마세요.
 웹과 라우터 digest 쌍을 보존하세요.

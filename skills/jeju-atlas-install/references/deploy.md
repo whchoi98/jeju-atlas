@@ -232,6 +232,33 @@ git pull --ff-only origin main
 기존 IAM 연결 검사가 조기 삭제를 차단하므로 이를 우회하지 않는다.\
 세부 절차는 [키 갱신과 정리](model-auth.md#키-갱신과-정리)를 따른다.
 
+### 07장 라우팅과 Docker 권한 복구
+
+라우팅 다운로드 전에 실제 빌드를 실행할 같은 셸에서 `docker info` 성공을 확인한다.\
+권한 오류이면 사전 구성의 그룹 등록과 `newgrp docker`를 별도 블록으로 실행한다.\
+새 프롬프트에서 기존 참가자 환경을 활성화하고 Docker 접근을 확인한다.
+
+`sources_verified`까지 성공한 뒤 Docker 권한으로 빌드가 중단되었다면 다음으로 이어 간다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source workshop/.local/labs/team01/activate.sh &&
+docker info >/dev/null &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-build \
+  --config "$ATLAS_CONFIG" --execute
+}
+```
+
+기존 `downloads.json`, OSM과 HGT를 재사용하고 `routing-fetch`를 반복하지 않는다.\
+`.local/routing-data`를 삭제하거나 다른 실습의 `source.json`을 복사하지 않는다.
+
+빌더가 그래프를 검증하고 `source.json`을 작성한 뒤 `graph_verified`를 출력한다.\
+이후 라우터 이미지 게시로 이어 가며 별도 `routing-verify`는 기본으로 생략한다.\
+기존 그래프 파일을 옮겼거나 무결성 오류를 확인하는 경우에만 선택한다.
+
+모든 순차 명령은 `&&`로 연결하거나 종료 상태를 확인해 첫 실패 뒤 후속 작업을 중단한다.\
+Docker 확인에 성공한 같은 셸에서 후속 작업과 Agentic AI 코딩 어시스턴트를 실행한다.
+
 ### 웹 연결과 완료 확인
 
 배포 뒤에는 내 App 스택의 기본 CloudFront HTTPS URL을 조회한다.\
