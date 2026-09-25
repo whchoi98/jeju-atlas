@@ -274,6 +274,9 @@ git pull --ff-only origin main &&
 - [ ] 웹에 전달할 출력이 내 자원만 가리킵니다.
 - [ ] 로그 보관과 내용 capture 설정을 확인했습니다.
 
+하단 프롬프트로 진행하면 본문 명령을 중복 실행하지 않아도 됩니다.\
+[프롬프트 진행 안내](00-orientation.md#하단-프롬프트로-진행하는-방법)를 참고하고 이미 완료한 작업은 유지합니다.
+
 Agentic AI 코딩 어시스턴트 프롬프트: [06, 실제 AgentCore](../prompts/06-atlas-agentcore.md)
 
 다음: [07, 실제 경로와 고도](07-routing.md)

@@ -13,6 +13,7 @@
 진행자가 제공한 Amazon Linux 2023 EC2와 VSCode Server, 기존 VPC와 NAT, 참가자용 AWS 역할을 사용합니다.\
 명령은 EC2의 **Bash 터미널**에서 실행합니다.\
 Codex, Claude Code, Kiro CLI 중 사용할 도구 하나의 설치와 로그인도 이 단계에서 완료합니다.
+Claude Code 사용자는 환경 활성화 후 [HUD와 플러그인 선택 설치](#선택-claude-code-hud와-플러그인)를 진행할 수 있습니다.
 
 ## 0. 전체 소스 받기
 
@@ -302,6 +303,147 @@ bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant kiro
 
 Runtime도 Python 3.12를 사용합니다.\
 기존 환경의 helper가 더 새 Python이어도 Runtime용 Python 3.12를 별도로 찾을 수 있어야 합니다.
+
+## 선택: Claude Code HUD와 플러그인
+
+Claude Code를 사용하는 참가자를 위한 사전 설치입니다.\
+설치 시간은 100분 본 실습과 여유 20분 밖에 둡니다.
+Codex와 Kiro CLI를 선택했다면 [5절 CDK 준비](#5-cdk-bootstrap-준비)로 이동합니다.
+
+[Claude Code Capstone 사전 설치 가이드](https://whchoi98.github.io/ccw-hands-on-lab/ClaudeCode_Capstone_Setup.html)의
+HUD와 플러그인 구성을 이 랩에 맞춰 사용합니다.\
+HUD는 선택 사항이며, AWS 작업에는 `aws-core`와 `aws-agents`를 권장합니다.
+기타 플러그인은 필요한 항목을 선택합니다.
+
+### 기존 설치와 마켓 확인
+
+앞 단계에서 준비한 Node와 Claude Code를 사용할 수 있는 **Bash 터미널**에서 실행합니다.
+
+```bash
+cd -- "$HOME" && {
+claude --version &&
+claude plugin marketplace list &&
+claude plugin list
+}
+```
+
+이미 정상 설치한 플러그인은 재사용합니다.\
+공식 마켓 `claude-plugins-official`이 목록에 없을 때만 다음을 실행합니다.
+
+```bash
+cd -- "$HOME" &&
+claude plugin marketplace add anthropics/claude-plugins-official
+```
+
+아래 `claude plugin install`은 기본 사용자 범위에 설치합니다.\
+같은 EC2 사용자의 Claude Code 프로젝트에서 사용할 수 있으며 참가자 app에 설치하는 패키지가 아닙니다.
+
+### Claude HUD 설치 (선택)
+
+Claude Code에는 `jarrodwatts/claude-hud`를 사용합니다.\
+Codex용 `my-codex-hud`와는 별도 도구입니다.
+마켓과 플러그인이 없을 때 Bash에서 설치합니다.
+
+```bash
+cd -- "$HOME" && {
+claude plugin marketplace add jarrodwatts/claude-hud &&
+claude plugin install claude-hud@claude-hud
+}
+```
+
+설치 후 **Claude Code 대화창**에 아래 명령을 한 줄씩 입력합니다.\
+Bash 터미널에 붙여 넣지 않습니다.
+
+먼저 설치한 명령을 현재 세션에 불러옵니다.
+
+```text
+/reload-plugins
+```
+
+표시할 항목을 선택합니다.
+컨텍스트, 도구, 에이전트와 Git 상태를 함께 보려면 `Full` 구성을 선택할 수 있습니다.
+
+```text
+/claude-hud:configure
+```
+
+마지막으로 상태줄을 활성화합니다.
+
+```text
+/claude-hud:setup
+```
+
+다음 실습 요청에서 하단 상태줄이 나타나는지 확인합니다.\
+명령을 찾지 못하면 플러그인 목록과 리로드를 확인하고, 필요하면 Claude Code 세션을 다시 엽니다.
+설치가 실패하거나 시간이 부족하면 HUD를 건너뛰고 실습을 계속합니다.
+
+### AWS 플러그인 설치
+
+| 플러그인 | 이 랩에서의 역할 |
+|---|---|
+| `aws-core` | AWS 서비스, 인프라 코드와 배포 작업 지원 |
+| `aws-agents` | Bedrock AgentCore 기반 에이전트, 도구와 메모리 연결 지원 |
+
+Bash 터미널에서 실행합니다.
+
+```bash
+cd -- "$HOME" &&
+(
+  for p in aws-core aws-agents; do
+    claude plugin install "$p@claude-plugins-official" || {
+      printf '설치 실패: %s\n' "$p" >&2
+      exit 1
+    }
+  done
+)
+```
+
+실패하면 해당 항목에서 설치를 중단하고 실패 종료 코드를 반환합니다.\
+괄호 안의 설치 작업만 종료하므로 현재 Bash는 유지됩니다.
+이미 성공한 항목은 보존하고 실패한 플러그인부터 확인합니다.
+
+### 기타 플러그인 설치 (선택)
+
+다음은 요청한 추가 설치 묶음입니다.
+필요한 플러그인만 사용할 경우 `for p in` 뒤의 목록을 줄여 실행합니다.
+
+```bash
+cd -- "$HOME" &&
+(
+  for p in superpowers explanatory-output-style remember data-engineering security-guidance hookify vercel deploy-on-aws ralph-loop; do
+    claude plugin install "$p@claude-plugins-official" || {
+      printf '설치 실패: %s\n' "$p" >&2
+      exit 1
+    }
+  done
+)
+```
+
+`explanatory-output-style`은 구현 선택에 대한 학습 설명을 돕습니다.\
+워크플로, 기억, 데이터, 보안과 배포 관련 플러그인은 해당 기능이 필요할 때 사용합니다.
+플러그인을 설치했다는 이유로 전체 테스트나 반복 작업을 본 실습의 필수 단계로 추가하지 않습니다.
+Vercel 등 별도 서비스의 로그인과 배포도 해당 기능을 선택할 때 진행합니다.
+
+### 설치 후 반영
+
+Bash에서 `claude plugin list`로 설치한 항목과 활성화 상태를 확인합니다.
+
+```bash
+cd -- "$HOME" &&
+claude plugin list
+```
+
+열려 있는 Claude Code에서는 `/reload-plugins`를 실행하거나 새 세션을 엽니다.\
+HUD를 선택했다면 상태줄 설정까지 확인합니다.
+설치 목록 확인은 실제 AWS 배포나 모델 응답 성공을 뜻하지 않습니다.
+
+플러그인은 기존 실습 계정과 승인 범위에서 사용합니다.\
+AgentCore CLI 설치와 5절의 CDK bootstrap 준비는 별도로 완료합니다.
+
+2026-09-25에 요청한 11개 플러그인의 공식 마켓 등록과 HUD 설치 명령을 대조했습니다.\
+참고: [Claude Code 플러그인 설치](https://code.claude.com/docs/en/discover-plugins),
+[공식 플러그인 마켓](https://github.com/anthropics/claude-plugins-official),
+[Claude HUD 원본](https://github.com/jarrodwatts/claude-hud).
 
 ## 5. CDK bootstrap 준비
 

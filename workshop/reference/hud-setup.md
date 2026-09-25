@@ -1,8 +1,20 @@
-# my-codex-hud 설치와 실행 (선택)
+# Codex와 Claude Code HUD 설치 (선택)
 
-HUD는 Codex의 터미널 상태를 표시하는 **선택 도구**입니다.\
-설치하지 않아도 Codex를 사용하고 기본 실습을 완료할 수 있습니다.\
+HUD는 코딩 세션의 상태를 표시하는 **선택 도구**입니다.\
+설치하지 않아도 Agentic AI 코딩 어시스턴트를 사용하고 기본 실습을 완료할 수 있습니다.\
 기본 진행에는 [도구별 안내](ai-cli-environments.md)의 Agentic AI 코딩 어시스턴트 실행 명령을 사용합니다.
+
+| 선택한 도구 | HUD 설치 안내 |
+|---|---|
+| Codex | 이 페이지의 `my-codex-hud` 설치 |
+| Claude Code | [사전 구성의 Claude HUD 설치](preconfiguration.md#claude-hud-설치-선택) |
+| Kiro CLI | HUD 설치 없이 기존 실행 방법 사용 |
+
+Claude Code의 `jarrodwatts/claude-hud`는 마켓 등록, 플러그인 설치,
+세션 리로드, 표시 항목 설정과 상태줄 활성화 순서입니다.\
+같은 사전 구성 페이지에서 [AWS 및 기타 플러그인](preconfiguration.md#aws-플러그인-설치)도 준비할 수 있습니다.
+
+## Codex의 my-codex-hud
 
 HUD를 사용하고 싶을 때만 이 페이지를 진행합니다.\
 이 안내의 my-hud는 Codex용 [my-codex-hud](https://github.com/whchoi98/my-codex-hud)를 뜻합니다.\
@@ -21,7 +33,7 @@ HUD를 사용하고 싶을 때만 이 페이지를 진행합니다.\
 HUD를 설치한 경우 등록한 소스와 실제 설치 버전을 기록하고 수업 중 임의로 갱신하지 않습니다.
 
 이 도구는 Codex의 터미널 상태를 표시하며 AgentCore Runtime에 설치하지 않습니다.\
-Claude Code와 Kiro CLI는 [도구별 안내](ai-cli-environments.md)의 기존 실행 방법을 사용합니다.
+Claude Code HUD는 위의 전용 안내를 사용하고, Kiro CLI는 [도구별 안내](ai-cli-environments.md)의 기존 실행 방법을 사용합니다.
 
 ## HUD를 사용하려는 경우의 준비
 

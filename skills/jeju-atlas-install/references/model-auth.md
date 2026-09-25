@@ -8,7 +8,7 @@
 기본 진행은 키 입력, 설정, SSM 연결과 배포 후 최종 응답 1회다.\
 별도 모델 검사, IAM 정책 시뮬레이터와 로컬 응답 확인은 정상 흐름에 추가하지 않는다.
 
-## 세 가지 인증을 구분한다
+## 인증 대상과 범위를 구분한다
 
 | 대상 | 사용하는 인증과 범위 |
 |---|---|
@@ -30,7 +30,7 @@ API 키는 배포와 invoke용 IAM을 대체하지 않으며 정책 거부를 �
 사용자가 자신의 대화형 Bash에서 실행한다.
 
 ```bash
-cd -- "${ATLAS_CLI_PARENT:?참가자 활성화 파일을 먼저 불러오세요}" || exit 1
+cd -- "${ATLAS_CLI_PARENT:?참가자 활성화 파일을 먼저 불러오세요}" &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/workshop_env.py" status
 ```
@@ -51,6 +51,10 @@ cd -- "${ATLAS_CLI_PARENT:?참가자 활성화 파일을 먼저 불러오세요}
 
 입력 누락을 해결한 뒤 Runtime 설정과 배포를 진행한다.\
 실제 키 유효성은 Bedrock 호출 결과로 확인하며 별도 사전 호출을 추가하지 않는다.
+옛 `Actual key expiry, ISO 8601 UTC` 입력이 나오면 소스를 갱신한다.
+현재 helper는 수동 만료 시각을 요구하지 않으며 이전 만료 메타데이터로 입력을 차단하지 않는다.\
+04장에서 같은 키로 답변을 받았어도 06장 Guide의 연결까지 증명된 것은 아니다.
+06장 오류에서는 키 재발급이나 IAM 권한 확장보다 아래 `agent-key` 연결과 배포 상태를 먼저 확인한다.
 
 에이전트는 `.env`를 직접 열거나 source하지 않는다.\
 키는 프롬프트, 명령 인자, shell history, 코드, 로그, 배포 ZIP과 `RESULTS.md`에 넣지 않는다.
@@ -63,7 +67,7 @@ cd -- "${ATLAS_CLI_PARENT:?참가자 활성화 파일을 먼저 불러오세요}
 AgentCore 프로젝트가 만들어진 뒤 설정한다.
 
 ```bash
-cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" || exit 1
+cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/model_config.py" \
   --project "$ATLAS_CLI" --env-file "$ATLAS_CLI_PARENT/.env"
 ```
@@ -81,8 +85,8 @@ Runtime 설정에 키 원문을 넣지 않는다.
 이전 결과를 덮어쓰지 않는 새 보고서 경로를 사용한다.
 
 ```bash
-cd -- "${ATLAS_CLI_PARENT:?참가자 활성화 파일을 먼저 불러오세요}" || exit 1
-atlas_model_report="$ATLAS_CLI_PARENT/evidence/model-check-$(date -u +%Y%m%dT%H%M%SZ)-$$.json"
+cd -- "${ATLAS_CLI_PARENT:?참가자 활성화 파일을 먼저 불러오세요}" &&
+atlas_model_report="$ATLAS_CLI_PARENT/evidence/model-check-$(date -u +%Y%m%dT%H%M%SZ)-$$.json" &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/model_check.py" \
   --env-file "$ATLAS_CLI_PARENT/.env" \
   --report "$atlas_model_report" --execute
@@ -99,7 +103,7 @@ IAM/SCP를 완화하거나 임의의 다른 리전, 모델이나 인증으로 �
 프로젝트 폴더에서 자식 프로세스에만 키를 전달한다.
 
 ```bash
-cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" || exit 1
+cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/workshop_env.py" run -- \
   agentcore dev --runtime JejuGuide --port 8080 --skip-deploy --no-traces --no-browser --logs
 ```
@@ -117,7 +121,7 @@ cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}"
 이 계획은 키를 읽거나 AWS에 접근하지 않는다.
 
 ```bash
-cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" || exit 1
+cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/workshop_env.py" publish --project "$ATLAS_CLI"
 ```
 
@@ -135,7 +139,7 @@ cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}"
 대상이 일치하면 현재 대화에서 승인된 키 게시와 정책 생성을 이어서 적용한다.
 
 ```bash
-cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" || exit 1
+cd -- "${ATLAS_CLI:?생성된 AgentCore 프로젝트 경로를 확인하세요}" &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/workshop_env.py" publish --project "$ATLAS_CLI" --execute
 ```
 
@@ -173,7 +177,7 @@ helper가 키를 SecureString에 게시하고 기본 Runtime의 `additionalPolic
 심화 Guide의 정리 또는 policy 연결 해제도 실제로 완료된 **뒤에만** 다음을 진행한다.
 
 ```bash
-cd -- "${ATLAS_CLI:?정리할 기존 AgentCore 프로젝트 경로를 확인하세요}" || exit 1
+cd -- "${ATLAS_CLI:?정리할 기존 AgentCore 프로젝트 경로를 확인하세요}" &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/workshop_env.py" cleanup --project "$ATLAS_CLI" &&
 "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/workshop_env.py" cleanup --project "$ATLAS_CLI" --execute
 ```
@@ -192,7 +196,7 @@ helper의 기존 IAM 연결 검사는 policy가 역할, 사용자나 그룹에 �
 사용자가 선택한 모델 호출 리전은 서울 `ap-northeast-2`다.
 
 ```bash
-cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" || exit 1
+cd -- "${ATLAS_REPO:?참가자 활성화 파일을 먼저 불러오세요}" &&
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py model-region \
   --config "$ATLAS_CONFIG" --caller-region ap-northeast-2 &&
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py agent-key --config "$ATLAS_CONFIG" --execute

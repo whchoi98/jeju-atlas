@@ -51,6 +51,21 @@ source workshop/.local/labs/team01/activate.sh &&
 프롬프트에는 실제 구현과 배포, 필요한 계정 확인과 짧은 결과 기록이 포함됩니다.\
 계정 확인은 읽기 전용으로 진행하고, 배포 프롬프트의 승인 범위에서 자원을 만듭니다.
 
+## 하단 프롬프트와 본문 명령
+
+**사전 구성과 01장의 키 입력을 마쳤다면, 03~08장은 하단 프롬프트를 한 장씩 실행하는 방식으로 진행하도록 작성돼 있습니다.**\
+본문 명령은 직접 진행하거나 오류를 확인할 때도 사용할 수 있으며, **프롬프트와 모두 중복 실행할 필요는 없습니다.**
+
+02장에서 계정과 작업 범위를 확인하고 같은 Agentic AI 코딩 어시스턴트로 장별 작업을 이어 갑니다.\
+이미 실행한 작업이 있다면 “이미 완료한 작업은 유지하고, 이 장의 남은 단계만 실행해 주세요”라고 전달합니다.
+
+도구 로그인, 숨김 키 입력과 새 그룹 셸 전환은 사용자 터미널에서 수행합니다.\
+각 장의 실제 완료 결과를 확인한 뒤 다음 장으로 이동합니다.\
+03~04장은 본 실습이며 05~08장은 시간 별도의 선택 심화 과정입니다.
+
+자세한 구분은 [00장의 프롬프트 진행 안내](chapters/00-orientation.md#하단-프롬프트로-진행하는-방법)를 참고합니다.\
+명령어 기준 진행 확인을 프롬프트만으로 전체 과정을 완료한 리허설로 기록하지 않습니다.
+
 ## 100~120분 진행표
 
 | 경과 시간 | 단계 | 확인 결과 |
@@ -120,7 +135,9 @@ SSM 키와 전용 읽기 정책을 공유하고 Gateway, Memory와 Runtime 호�
 참가자 앱은 실제 App 스택의 기본 CloudFront HTTPS URL을 사용합니다.\
 사용자 도메인, ACM과 DNS 설정은 실습 준비에 추가하지 않습니다.
 
-Codex의 [Bedrock provider 설정](reference/codex-bedrock.md)과 [HUD 준비](reference/hud-setup.md)는 필요할 때 진행자가 사전에 적용하는 선택 자료입니다.
+Codex의 [Bedrock provider 설정](reference/codex-bedrock.md)과
+[Codex, Claude Code HUD 준비](reference/hud-setup.md)는 필요할 때 사전에 적용하는 선택 자료입니다.\
+Claude Code 사용자는 [사전 구성의 AWS 및 기타 플러그인 설치](reference/preconfiguration.md#선택-claude-code-hud와-플러그인)도 참고합니다.
 
 ## 학습 참고: AgentCore CLI
 

@@ -21,14 +21,26 @@ install과 필요한 build-push를 수행한 뒤 내 App 스택의 계획과 실
 기본 경로에서 lab.py run check, npm run check와 npm run workshop:check는 생략합니다.
 build-push 내부에서 수행하는 기존 검사는 유지하고 별도 명령으로 중복 실행하지 마세요.
 Public ALB, Private Fargate, Public IP 비활성화와 배포 대상을 확인하세요.
+plan-app의 대상을 확인한 뒤 apply-app은 한 번 실행하고 상태 조회를 별도로 수행하세요.
+완료 상태는 lab.py run status-app --config "$ATLAS_CONFIG" --execute로 확인합니다.
+진행 중에는 status-app만 다시 실행하고 plan-app/apply-app을 반복하지 마세요.
+출력 중 stack과 status가 있는 JSON을 기준으로 CREATE_COMPLETE 또는 UPDATE_COMPLETE를 확인하세요.
+완료 뒤 추가로 출력되는 outputs와 참가자 app의 .local/app-outputs.json을 사용하세요.
+종료 코드 0, 계획 완료나 적용 요청 접수만으로 스택 또는 웹 배포 완료를 보고하지 마세요.
+실패/ROLLBACK이면 출력된 이벤트를 확인하고 후속 단계로 넘어가지 마세요.
 배포 상태와 실제 ApplicationUrl의 health를 한 번 확인하고 Data를 실제 Distribution ARN으로 갱신하세요.
+Data의 계획을 검토한 뒤 apply-data를 한 번 실행하고 status-data로 스택 완료를 확인하세요.
+Data 갱신이 진행 중이면 상태 조회만 반복하고 완료 후 다음 장으로 넘어가세요.
 lab.py url로 참가자 App 스택의 기본 CloudFront HTTPS 주소를 읽고 ApplicationUrl과
 CloudFrontUrl이 같은지 확인하세요. 도메인 등록이나 인증서 발급을 요청하지 마세요.
+주소를 ATLAS_URL에 저장한 뒤 echo "$ATLAS_URL"로 화면에 표시하고 /healthz 응답을 확인하세요.
+응답 뒤에는 줄바꿈을 출력해 터미널 프롬프트와 구분하세요.
 
 정상 배포 후 브라우저, 한영, 경로, 모델 질문 묶음을 자동 실행하지 마세요.
 실제 오류, 위험한 기능 변경 또는 명시적 요청이 있을 때만 해당 부분을 확인합니다.
 진행 중인 배포는 중복 실행하지 말고 필요할 때만 상태를 추가 조회하세요.
 화면 확인이나 모델 응답을 실행하지 않았다면 미실행으로 기록합니다.
+08장의 기본 접속 확인은 URL과 health이며, 실제 AI 응답은 12장이나 전체 앱 완료 단계에서 확인합니다.
 
 교재는 `$ATLAS_REPO/workshop/chapters/08-web.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.
