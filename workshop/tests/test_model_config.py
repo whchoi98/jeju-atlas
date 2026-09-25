@@ -82,7 +82,6 @@ class ModelConfigTests(unittest.TestCase):
         write_env(env_file, {
             "ATLAS_BEDROCK_REGION": "us-west-2",
             "AWS_BEARER_TOKEN_BEDROCK": token,
-            "ATLAS_BEDROCK_KEY_EXPIRES_AT": "2099-09-24T12:00:00Z",
         })
         pyproject = self.project / "app/JejuGuide/pyproject.toml"
         pyproject.write_text('[project]\nname = "test"\nrequires-python = ">=3.10"\n')

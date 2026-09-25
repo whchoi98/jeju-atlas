@@ -137,7 +137,6 @@ def publish(project, env_file, *, execute=False, client_factory=client_for):
     response = call(ssm.put_parameter, **options)
     return {**result, "executed": True, "parameterVersion": response["Version"],
             "parameterTier": options["Tier"], "callerRegion": values["ATLAS_BEDROCK_REGION"],
-            "expiresAt": values["ATLAS_BEDROCK_KEY_EXPIRES_AT"],
             "next": "Validate and deploy this CLI project, then verify a new Runtime session"}
 
 

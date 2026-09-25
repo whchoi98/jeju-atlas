@@ -64,7 +64,7 @@ AWS 자원 생성과 유료 모델 호출 없이 소스, 전용 개발 도구와
    키가 필요하면 사용자가 자신의 Bash에서 다음을 실행하도록 안내하세요.
    cd -- "$ATLAS_CLI_PARENT" || exit 1
    python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
-   Bedrock 단기키, 발급 리전과 실제 만료 시각은 해당 helper로만 입력받으세요.
+   Bedrock 단기키와 발급 리전 두 항목만 해당 helper로 입력받으세요.
    에이전트는 같은 helper의 status로 상태만 확인하고 .env를 직접 읽거나 source하지 마세요.
 
 기존 시스템 Python/Node, Agentic AI 코딩 어시스턴트 로그인, 셸 시작 파일을 유지하세요.
@@ -101,7 +101,7 @@ Codex는 `on-request`와 `auto_review`, Claude Code는 지원되는 사전 검�
 - AWS 대상은 현재 EC2의 실습 계정, 배포 리전은 ap-northeast-2입니다.
 - JejuGuide 모델은 global.anthropic.claude-sonnet-4-6, Runtime은 Python 3.12입니다.
 - 모델 인증은 사용자가 helper로 입력한 Bedrock 단기키입니다.
-  키 발급·호출 리전과 실제 만료 시각은 ATLAS_CLI_PARENT/.env에서 helper로만 사용하세요.
+  단기키와 키 발급·호출 리전은 ATLAS_CLI_PARENT/.env에서 helper로만 사용하세요.
 - 로컬 구현·의존성 설치·검사, 읽기 전용 AWS 조회,
   이 참가자의 Runtime 생성·변경·배포와 필요한 역할·최소 정책 설정을 승인합니다.
 - 이 참가자의 키를 전용 SSM SecureString으로 게시·갱신하고,
@@ -117,7 +117,7 @@ Codex는 `on-request`와 `auto_review`, Claude Code는 지원되는 사전 검�
    새 Bash에서는 출력된 절대 activate.sh를 source하고 명령에 맞는 폴더로 다시 cd하세요.
 2. start.sh의 기본 doctor 결과를 재사용하고 EC2 신원·STS 계정·참가자 설정·default 배포 대상을 대조하세요.
    환경 변경이나 실패가 있을 때만 필요한 진단을 다시 실행하세요.
-   키 상태는 workshop_env.py status로 확인하세요. 누락·만료된 키는 사용자 Bash의
+   키 입력 상태는 workshop_env.py status로 확인하세요. 누락되거나 실제 호출에서 만료가 확인된 키는 사용자 Bash의
    configure 숨김 입력으로 갱신하고 키를 대화나 명령 인자로 받지 마세요.
 3. workshop/prompts/03-codex.md를 읽고 없는 프로젝트만 AgentCore CLI로 생성하세요.
    137개 샘플과 검색 도구, 세션·스트리밍을 연결하세요.
@@ -248,7 +248,7 @@ API 키를 처음 선택할 때는 입력의 `모델 인증`을 `API 키, SSM AR
    기록의 상태는 현재 파일과 AWS의 읽기 전용 조회로 다시 확인하세요.
 3. 완료된 설치·데이터 생성·이미지 빌드는 재사용하세요.
    기존 app을 lab.py prepare로 덮어쓰거나 CLI를 다시 create하지 마세요.
-4. API 키 모드이면 workshop_env.py status로 만료·입력 여부를 확인하세요.
+4. API 키 모드이면 workshop_env.py status로 키와 발급 리전의 입력 여부를 확인하세요.
    키는 .env를 직접 읽거나 source하지 말고, 사용자 Bash의 configure 숨김 입력으로 갱신하세요.
    기본 CLI는 키 갱신이 필요한 경우 publish 계획과 --execute로 전용 SSM 키를 갱신하세요.
    기본 helper와 심화 Guide의 인증 지원을 구분하고, 실제 SSM 전달·역할·로더·배포 환경을 대조하세요.

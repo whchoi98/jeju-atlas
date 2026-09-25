@@ -36,8 +36,13 @@ substitution tokens and narrower workspace instructions are intentional.
 - Participants receive independent labs. `team01` and `AtlasCliTeam01` are
   automatic common identifiers, not team assignments. Do not ask learners to
   select or replace them; retain existing identifiers when resuming.
-- Chapter 00 is orientation only and creates no files. Put preconfiguration
-  before the timed course in navigation, then lead to the chapter 01 start tabs.
+- Chapter 00 owns goals, duration and the next-step choice. Route unprepared
+  participants to preconfiguration and prepared participants directly to
+  chapter 01. Preconfiguration owns source acquisition, installation and
+  readiness checks outside the timed course, then leads directly to chapter 01.
+  Chapter 01 uses one shared activation/key-input command for all assistants,
+  retaining the saved selection. Do not repeat installation or successful
+  checks there or route participants back through chapter 00 after preparation.
   Existing clones run `git pull --ff-only origin main` before new setup commands.
   Preserve work if the update fails; do not suggest recloning, deleting or
   resetting it.
@@ -100,6 +105,10 @@ Runtime's model onto the coding assistant. Keep the deployment region separate f
 the organizer-verified Bedrock caller region. `model_check.py --execute` is an
 explicit real request and must never run inside doctor, build or ordinary tests.
 `workshop_env.py configure` takes hidden key input only in a participant terminal.
+It asks only for the issuing region and short-term key. Do not ask for a manual
+expiration timestamp or use legacy expiry metadata to block setup. Actual key
+validity is checked by Bedrock when the already-planned model request is made;
+do not add a paid model precheck.
 The private `.env` lives outside Runtime codeLocation. Never source it or expose
 its contents in prompts, logs, generated HTML or deployment archives. Basic
 model calls use the short-term Bedrock key; AWS deployment and Runtime inbound

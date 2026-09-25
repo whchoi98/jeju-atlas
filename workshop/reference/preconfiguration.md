@@ -1,17 +1,14 @@
 # EC2 사전 점검과 설치
 
-이 준비는 **100~120분 실습 전에** 끝냅니다.\
-Amazon Linux 2023의 EC2와 VSCode Server, 기존 VPC와 NAT, 참가자용 AWS 역할을 사용합니다.\
-Codex, Claude Code, Kiro CLI 중 하나는 설치와 로그인을 마쳐 둡니다.
+이 페이지에서는 **소스 받기, 도구 설치, 참가자 환경 준비와 점검**을 수업 전에 마칩니다.\
+실습 목표와 시간표는 [00. 이번 실습에서 만들 것](../chapters/00-orientation.md)에서 확인합니다.
 
-진행 순서는 **이 문서의 사전 구성 → [00장 목표 확인](../chapters/00-orientation.md) → [01장 환경 활성화와 키 입력](../chapters/01-setup.md)**입니다.\
-00장은 안내만 제공하므로 읽는 것만으로 참가자 폴더나 활성화 파일이 생기지 않습니다.
+**준비를 마치면 [01. 환경 활성화와 Bedrock 키 입력](../chapters/01-setup.md)으로 바로 이동합니다.**\
+이미 이 준비를 끝낸 환경도 01장부터 이어가면 됩니다.
 
+진행자가 제공한 Amazon Linux 2023 EC2와 VSCode Server, 기존 VPC와 NAT, 참가자용 AWS 역할을 사용합니다.\
 명령은 EC2의 **Bash 터미널**에서 실행합니다.\
-진행자가 전달한 전체 Git 소스의 루트가 작업 위치입니다.
-
-읽기용 교재 ZIP에는 설치 스크립트가 없습니다.\
-소스가 없으면 [EC2 실행 소스 준비](offline-start.md)를 먼저 진행합니다.
+Codex, Claude Code, Kiro CLI 중 사용할 도구 하나의 설치와 로그인도 이 단계에서 완료합니다.
 
 ## 0. 전체 소스 받기
 
@@ -77,7 +74,10 @@ Docker 누락은 기본 검사에서 `[WARN]`, `--containers`를 붙인 검사�
 이 결과로 AWS 인증 성공을 판정하지 않습니다.\
 점검기는 설치, 키 읽기와 모델 호출을 하지 않습니다.
 
-## 2. EC2 기본 도구 설치
+## 2. 누락된 EC2 도구 설치
+
+사전 점검에서 준비가 필요한 항목만 설치합니다.\
+이미 기준을 충족한 항목은 3절의 참가자 환경 준비로 이어갑니다.
 
 ### Node.js 24
 
@@ -218,7 +218,7 @@ uv의 Python 3.12와 helper 패키지는 같은 도구 경로에서 관리합니
 `start.sh`는 AWS 자원을 만들거나 모델을 호출하지 않습니다.\
 설치 과정에는 패키지 다운로드가 있으며 첫 설치 시간은 수업 시간 밖에 둡니다.
 
-## 4. 활성화와 전체 앱용 Python 패키지 설치
+## 4. 활성화와 AWS 자격증명 확인
 
 `start.sh`의 자식 셸은 부모 터미널을 바꾸지 못합니다.\
 출력된 절대 경로를 **현재 Bash에서** 불러옵니다.\
@@ -251,7 +251,21 @@ bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant kiro
 Runtime도 Python 3.12를 사용합니다.\
 기존 환경의 helper가 더 새 Python이어도 Runtime용 Python 3.12를 별도로 찾을 수 있어야 합니다.
 
-**05~14장 전체 앱 또는 교재 유지관리까지 하는 환경만** 다음을 추가합니다.
+## 5. 준비 완료 후 01장으로 이동
+
+`start.sh`의 `passed: true`와 위 점검의 AWS 자격증명 성공을 확인했다면 EC2 준비가 끝났습니다.\
+[01. 환경 활성화와 Bedrock 키 입력](../chapters/01-setup.md)에서 같은 참가자 환경을 불러오고 키를 입력합니다.\
+사전 구성으로 돌아가 설치와 성공한 점검을 다시 실행할 필요는 없습니다.
+
+진행자는 [수업 전 준비 가이드](facilitator.md)에서 배포 권한, CDK bootstrap과 Bedrock 사용 조건을 확인합니다.\
+선택한 도구의 로그인과 권한 모드는 [Agentic AI 코딩 어시스턴트 환경](ai-cli-environments.md)을 따릅니다.
+
+---
+
+## 선택: 05~14장과 교재 유지관리용 Python 패키지
+
+핵심 과정만 진행한다면 위의 01장 링크로 이동합니다.\
+전체 지도 앱이나 교재 유지관리까지 하는 환경에서만 다음 패키지를 추가합니다.
 
 ```bash assistant=codex
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
@@ -281,25 +295,6 @@ bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant kiro --containers
 ```
 PyYAML 확인 전에 `lab.py prepare`로 앱 사본을 만들지 않습니다.\
 시스템 pip에 설치하고 다른 venv에서 실행하는 혼선을 피하도록 `ATLAS_PYTHON`에 설치합니다.
-
-## 5. 수업 시작 조건
-
-진행자는 참가자의 소스 경로, 활성화 경로, 도구 버전, STS와 검사 결과를 기록합니다.\
-다음 항목도 수업 전에 확인합니다.
-
-- 해당 계정과 서울 리전의 CDK bootstrap, 참가자 Runtime과 IAM 역할 배포 권한
-- Bedrock 단기키를 발급할 리전과 모델 사용 권한, 수업 종료까지 남은 유효 시간
-- 선택한 코딩 CLI의 실제 대화와 권한 모드
-- `npm`과 `uv` 의존성 설치 및 CodeZip 패키징 시간
-
-코덱스는 `-a on-request -c 'approvals_reviewer="auto_review"'`, 클로드 코드는 `claude --permission-mode auto`를 권장합니다.\
-키로는 `kiro-cli chat`으로 준비한 로그인과 도구 권한을 사용합니다.\
-지원 모델과 조직 설정에 따라 auto 모드가 제한될 수 있으므로 [Agentic AI 코딩 어시스턴트 환경](ai-cli-environments.md)에서 실제 적용 상태를 확인합니다.\
-HUD와 별도 Codex Bedrock provider 설정은 준비된 환경에서 사용하는 선택 자료입니다.
-
-사전 구성을 마치면 [00장](../chapters/00-orientation.md)에서 목표를 확인하고 [01장](../chapters/01-setup.md)에서 Bedrock 단기키를 숨김 입력합니다.\
-키와 발급 리전, 실제 만료 시각은 참가자 `.env`에 저장합니다.\
-카카오, 관광공사 TourAPI와 VISIT JEJU 키는 첫 배포 후 [선택 연동](keys-and-integrations.md)에서 추가합니다.
 
 ## 이전 소스와 도구 선택 오류
 

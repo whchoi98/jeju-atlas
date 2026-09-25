@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Private terminal input and scoped .env use for the AgentCore workshop."""
 import argparse
-from datetime import datetime, timezone
 import getpass
 import json
 import os
@@ -15,13 +14,12 @@ import warnings
 
 TOKEN_ENV = "AWS_BEARER_TOKEN_BEDROCK"
 REGION_ENV = "ATLAS_BEDROCK_REGION"
-EXPIRY_ENV = "ATLAS_BEDROCK_KEY_EXPIRES_AT"
 INTEGRATIONS = {
     "kakao": "KAKAO_REST_API_KEY",
     "tourapi": "TOURAPI_SERVICE_KEY",
     "visitjeju": "VISIT_JEJU_API_KEY",
 }
-EXPORTED = {TOKEN_ENV, REGION_ENV, EXPIRY_ENV, *INTEGRATIONS.values()}
+EXPORTED = {TOKEN_ENV, REGION_ENV, *INTEGRATIONS.values()}
 
 
 def private_path(value):
@@ -90,16 +88,6 @@ def write_env(path, updates):
     return path
 
 
-def expiration(value):
-    try:
-        result = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        if result.tzinfo is None:
-            raise ValueError()
-        return result.astimezone(timezone.utc)
-    except (ValueError, TypeError, AttributeError):
-        raise ValueError("Enter the actual key expiration with a timezone, for example YYYY-MM-DDTHH:MM:SSZ") from None
-
-
 def model_values(values):
     region = values.get(REGION_ENV, "")
     if not re.fullmatch(r"[a-z]{2}(?:-[a-z0-9]+)+-[0-9]+", region):
@@ -107,9 +95,7 @@ def model_values(values):
     token = values.get(TOKEN_ENV, "")
     if not token or any(c.isspace() for c in token):
         raise ValueError("Enter a Bedrock short-term API key in the private terminal")
-    if expiration(values.get(EXPIRY_ENV, "")) <= datetime.now(timezone.utc):
-        raise ValueError("The recorded Bedrock key has expired; configure a fresh key")
-    return {name: values[name] for name in (REGION_ENV, TOKEN_ENV, EXPIRY_ENV)}
+    return {REGION_ENV: region, TOKEN_ENV: token}
 
 
 def status(path):
@@ -125,18 +111,9 @@ def status(path):
         "bedrockKeyPresent": bool(values.get(TOKEN_ENV)),
         "callerRegion": values.get(REGION_ENV, "") if re.fullmatch(
             r"[a-z]{2}(?:-[a-z0-9]+)+-[0-9]+", values.get(REGION_ENV, "")) else "",
-        "expiresAt": "",
         "readyForModelCheck": ready, "modelAccessVerified": False,
         "integrations": {provider: bool(values.get(name)) for provider, name in INTEGRATIONS.items()},
     }
-    try:
-        result["expiresAt"] = expiration(values.get(EXPIRY_ENV, "")).isoformat()
-    except ValueError:
-        pass
-    if ready:
-        result["minutesRemaining"] = int(
-            (expiration(values[EXPIRY_ENV]) - datetime.now(timezone.utc)).total_seconds() // 60
-        )
     if reason:
         result["next"] = reason
     return result
@@ -161,8 +138,6 @@ def configure(path, integrations=False):
                 updates[REGION_ENV] = selected or current.get(REGION_ENV, "")
                 token = getpass.getpass("Bedrock short-term API key (hidden; Enter keeps existing): ")
                 updates[TOKEN_ENV] = token or current.get(TOKEN_ENV, "")
-                expiry = input(f"Actual key expiry, ISO 8601 UTC [{current.get(EXPIRY_ENV, '')}]: ").strip()
-                updates[EXPIRY_ENV] = expiry or current.get(EXPIRY_ENV, "")
                 model_values(updates)
         except getpass.GetPassWarning:
             raise ValueError("This terminal cannot hide input; use an interactive VSCode Bash terminal") from None
@@ -176,6 +151,8 @@ def run_command(path, command):
     values = read_env(path)
     model_values(values)
     environment = dict(os.environ)
+    # Keep legacy metadata private, including when inherited from the shell.
+    environment.pop("ATLAS_BEDROCK_KEY_EXPIRES_AT", None)
     environment.update({key: value for key, value in values.items() if key in EXPORTED})
     environment["ATLAS_BEDROCK_AUTH"] = "api-key"
     environment["ATLAS_BEDROCK_LOCAL_KEY"] = "1"

@@ -27,7 +27,7 @@ info의 심화 cli 경로 대신 활성화의 ATLAS_CLI를 사용하세요.
 python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" status로 입력 여부를 확인하세요.
 .env는 ATLAS_CLI_PARENT에 있으며 배포 코드 밖에 둡니다.
 파일 내용을 읽거나 source하지 마세요. 키를 프롬프트, 로그와 명령 인자에 넣지 마세요.
-Bedrock 단기 키와 호출 리전, 만료 시각은 사용자가 Bash의 configure에서 비공개로 입력합니다.
+Bedrock 단기키와 발급 리전은 사용자가 Bash의 configure에서 입력하며 키는 숨김 처리합니다.
 키는 모델 호출용이며 AWS 배포에는 현재 EC2 역할과 기존 CDK bootstrap이 필요합니다.
 
 model_check.py의 유료 사전 호출은 기본으로 생략하며 보고서는 진행 조건이 아닙니다.

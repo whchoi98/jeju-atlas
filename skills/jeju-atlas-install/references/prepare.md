@@ -5,7 +5,8 @@
 참조하는 `workshop/` 경로는 발견한 전체 저장소 기준이다.
 
 00장은 안내만 제공하며 참가자 파일을 만들지 않는다.\
-전체 저장소의 `workshop/reference/preconfiguration.md`를 완료한 뒤 00장과 01장으로 이어간다.
+00장에서 목표를 확인하고 준비가 필요한 경우 `workshop/reference/preconfiguration.md`를 진행한다.\
+준비를 마치면 01장의 환경 활성화와 키 입력으로 바로 이어간다.
 
 ## 기존 상태와 선행 도구
 
@@ -120,7 +121,7 @@ cd -- "${ATLAS_CLI_PARENT:?참가자 활성화 파일을 먼저 불러오세요}
 python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
 ```
 
-Bedrock 단기키, 키 발급 리전과 실제 만료 시각을 입력한다.
+Bedrock 단기키와 키 발급 리전 두 항목만 입력한다.
 키를 AI 대화로 받거나 명령 인자·파이프로 전달하지 않는다.
 에이전트는 입력 완료 여부를 다음으로 확인한다.
 
