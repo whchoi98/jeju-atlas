@@ -230,7 +230,11 @@ E. 준비 후 작업 경계
   key_binding의 STS 계정, default 대상, 소유 태그 검사와 단일 SSM 읽기 권한을 유지합니다.
   Runtime 설정에는 SSM ARN만 연결하고 AWS 배포와 Runtime inbound 인증은 IAM을 사용합니다.
   확인된 키 만료나 접근 실패를 해결하며 사전 model-check 보고서는 요구하지 않습니다.
-  심화 Guide/Tools에는 이 인증 방식을 자동 적용하지 않습니다.
+  심화 Guide도 lab.py agent-key --config "$ATLAS_CONFIG" --execute로 같은 최초 키를 연결합니다.
+  기본 과정의 SSM 파라미터와 단일 읽기 정책을 재사용하고, Runtime에는 ARN만 전달합니다.
+  모델 호출은 API 키를 사용하며 Gateway, Memory와 Runtime inbound는 IAM을 유지합니다.
+  기존 app에 prepare를 반복하지 말고 키 연결 후 바뀐 코드와 Runtime 설정을 배포합니다.
+  API 키 경로를 IAM 모델 정책 시뮬레이터로 검증하거나 Bedrock IAM 권한을 넓히지 않습니다.
 - app/JejuGuide에서는 uv sync --python 3.12를 사용하고,
   기존 uv.lock이 있으면 --frozen을 사용합니다. CDK의 package-lock.json이 있으면 npm ci를 사용합니다.
   기본 CodeZip 배포는 먼저 mkdir -p "$ATLAS_CLI_PARENT/evidence"를 실행하고

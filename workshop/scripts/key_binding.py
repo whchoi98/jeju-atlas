@@ -8,7 +8,8 @@ from model_config import configure, runtime_spec
 from workshop_env import model_values, read_env
 
 
-def context(project):
+def session_context(project):
+    """Identify the shared key without requiring a created basic CLI Runtime."""
     project = safe_path(project)
     owner = read_json(project.parent / ".owner.json")
     repo = safe_path(owner.get("repo", ""))
@@ -19,12 +20,6 @@ def context(project):
     account = read_account(repo, participant, name)
     if not account:
         raise ValueError("Initialize and confirm the participant's EC2 account first")
-    targets = read_json(project / "agentcore/aws-targets.json")
-    if targets != [{"name": "default", "account": account, "region": "ap-northeast-2"}]:
-        raise ValueError("The sole default target must match the saved participant account and Seoul")
-    spec = read_json(project / "agentcore/agentcore.json")
-    if spec.get("name") != name:
-        raise ValueError("Project name does not match the participant session")
     parameter = f"/jeju-atlas-lab-{participant}/bedrock-api-key"
     return {
         "project": name, "participant": participant, "account": account,
@@ -32,7 +27,19 @@ def context(project):
         "parameterArn": f"arn:aws:ssm:ap-northeast-2:{account}:parameter{parameter}",
         "policyName": f"{name}-bedrock-key",
         "policyArn": f"arn:aws:iam::{account}:policy/jeju-atlas/{name}-bedrock-key",
-    }, spec
+    }
+
+
+def context(project):
+    project = safe_path(project)
+    info = session_context(project)
+    targets = read_json(project / "agentcore/aws-targets.json")
+    if targets != [{"name": "default", "account": info["account"], "region": info["region"]}]:
+        raise ValueError("The sole default target must match the saved participant account and Seoul")
+    spec = read_json(project / "agentcore/agentcore.json")
+    if spec.get("name") != info["project"]:
+        raise ValueError("Project name does not match the participant session")
+    return info, spec
 
 
 def tags(info):
@@ -103,6 +110,28 @@ def inspect_resources(info, factory):
     return iam, ssm, bool(found_policy), parameters[0] if parameters else None
 
 
+def publish_resources(info, values, inspected):
+    """Write only the shared owned policy/parameter after caller preflight."""
+    size = len(values["AWS_BEARER_TOKEN_BEDROCK"].encode("utf-8"))
+    if size > 8192:
+        raise ValueError("Key exceeds the SSM parameter size limit")
+    iam, ssm, policy_exists, parameter = inspected
+    if not policy_exists:
+        call(iam.create_policy, PolicyName=info["policyName"], Path="/jeju-atlas/",
+             PolicyDocument=json.dumps(policy(info)), Tags=tags(info),
+             Description="Read only this Jeju Atlas workshop participant's Bedrock API key")
+    options = {
+        "Name": info["parameterName"], "Value": values["AWS_BEARER_TOKEN_BEDROCK"],
+        "Type": "SecureString", "Overwrite": parameter is not None,
+        # Existing Advanced parameters cannot be downgraded during renewal.
+        "Tier": "Advanced" if size > 4096 or (parameter and parameter.get("Tier") == "Advanced") else "Standard",
+    }
+    if parameter is None:
+        options["Tags"] = tags(info)
+    response = call(ssm.put_parameter, **options)
+    return {"parameterVersion": response["Version"], "parameterTier": options["Tier"]}
+
+
 def publish(project, env_file, *, execute=False, client_factory=client_for):
     info, _ = context(project)
     # Planning is local, needs no key and must not initialize an AWS client.
@@ -117,31 +146,22 @@ def publish(project, env_file, *, execute=False, client_factory=client_for):
     size = len(values["AWS_BEARER_TOKEN_BEDROCK"].encode("utf-8"))
     if size > 8192:
         raise ValueError("Key exceeds the SSM parameter size limit")
-    iam, ssm, policy_exists, parameter = inspect_resources(info, client_factory)
-    parameter_exists = parameter is not None
+    inspected = inspect_resources(info, client_factory)
     # Validate and prepare every local file before the first cloud mutation.
     configure(project, env_file=env_file, key_parameter_arn=info["parameterArn"], policy_arn=info["policyArn"])
-    if not policy_exists:
-        call(iam.create_policy, PolicyName=info["policyName"], Path="/jeju-atlas/",
-             PolicyDocument=json.dumps(policy(info)), Tags=tags(info),
-             Description="Read only this Jeju Atlas workshop participant's Bedrock API key")
-    options = {
-        "Name": info["parameterName"], "Value": values["AWS_BEARER_TOKEN_BEDROCK"],
-        "Type": "SecureString", "Overwrite": parameter_exists,
-        # Parameter Store permits upgrades, but cannot downgrade an existing
-        # Advanced parameter when a renewed short-term token happens to shrink.
-        "Tier": "Advanced" if size > 4096 or (parameter and parameter.get("Tier") == "Advanced") else "Standard",
-    }
-    if not parameter_exists:
-        options["Tags"] = tags(info)
-    response = call(ssm.put_parameter, **options)
-    return {**result, "executed": True, "parameterVersion": response["Version"],
-            "parameterTier": options["Tier"], "callerRegion": values["ATLAS_BEDROCK_REGION"],
+    publication = publish_resources(info, values, inspected)
+    return {**result, **publication, "executed": True, "callerRegion": values["ATLAS_BEDROCK_REGION"],
             "next": "Validate and deploy this CLI project, then verify a new Runtime session"}
 
 
 def cleanup(project, env_file=None, *, execute=False, client_factory=client_for):
-    info, spec = context(project)
+    project = safe_path(project)
+    # Full-app labs can share the key without ever creating a basic CLI Runtime.
+    # Actual managed-policy attachments still block deletion in either path.
+    if safe_path(project / "agentcore/agentcore.json").exists():
+        info, spec = context(project)
+    else:
+        info, spec = session_context(project), {"runtimes": []}
     result = {**info, "operation": "delete-owned-bedrock-key", "executed": False}
     if not execute:
         return result

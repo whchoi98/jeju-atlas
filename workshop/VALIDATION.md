@@ -1,5 +1,28 @@
 # 120분 워크숍 검증 기록
 
+## 2026-09-25, 심화 Guide의 최초 API 키 연결
+
+06장의 Guide에 최초 `.env` 키를 연결하는 `lab.py agent-key`와 Runtime 인증
+모듈을 추가했습니다. 기본 과정과 같은 SSM 파라미터 및 전용 읽기 정책을
+재사용하며, GuideRole과 Runtime 환경 및 모델 로더만 갱신합니다.
+기존 Gateway, Memory, Tools와 모델 IAM 정책은 보존합니다.
+
+| 확인 | 실제 결과 |
+|---|---|
+| 워크숍 검사 | Python 254개, CLI 준비기 9개, Node/브라우저 44개, 총 307개 통과 |
+| 기존 앱 검사 | Node 683개 통과/5개 생략, Python 203개 통과/2개 생략, CloudFormation lint, npm audit와 production build 통과 |
+| Runtime 인증 | 고정 boto3/botocore 1.43.89, Strands 1.54.0에서 실제 요청 준비 및 직렬화 수행. Converse와 ConverseStream Bearer 헤더, SSM/Gateway/Memory IAM 분리 확인 |
+| 생성 Guide | 실제 생성한 로더와 SDK로 키 버전별 캐시 교체, 키 조회 실패 시 중단, 오류 메시지의 키 비공개 처리 확인 |
+| 기존 app 전환 | 다른 계정과 태그 거부, 사용자 로더와 동시 변경 보존, 로컬 교체 실패 복구, 공유 정책 정리 보호 확인 |
+| 배포 패키지 | 실제 로컬 패키저가 인증 모듈을 ZIP에 포함하고 키 원문은 포함하지 않는지 확인 |
+| 변경 템플릿 | 합성 참가자 템플릿에서 GuideRole/GuideRuntime만 변경, AgentCore 스키마를 포함한 cfn-lint 통과 |
+| 실제 브라우저 | 1366px/390px, 명령 6개와 세 도구용 프롬프트 복사, 기존 Guide 전환 링크와 오프라인 이동 확인 |
+
+SDK 검사는 합성 자격 증명과 응답을 사용하고 네트워크 전송을 차단했습니다.
+실제 참가자 키를 읽거나 모델을 호출한 결과가 아닙니다.
+운영 원본의 Guide 코드와 인프라 템플릿은 수정하지 않았습니다.
+증거는 `workshop/.local/publication-guide-api-key-20260925T060708Z/`에 보관했습니다.
+
 ## 2026-09-25, 06장 서울 호출 리전과 계획 재개 명령
 
 06장의 최초 실행 명령에서 `model-region --caller-region ap-northeast-2`로

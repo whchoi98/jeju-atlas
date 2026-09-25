@@ -113,6 +113,8 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure --integrations
 | [14](chapters/14-project-completion.md) | 설치 스킬과 통합 프롬프트로 전체 앱 완성 |
 
 기본 Runtime과 전체 앱의 Guide/Tools는 별도 배포입니다.\
+06장의 Guide는 `lab.py agent-key`로 처음 입력한 같은 Bedrock API 키를 연결합니다.\
+SSM 키와 전용 읽기 정책을 공유하고 Gateway, Memory와 Runtime 호출은 IAM을 유지합니다.\
 14장의 45분은 범위 정리와 첫 수정 검사 시간이며 전체 앱 구축 시간이 아닙니다.
 
 참가자 앱은 실제 App 스택의 기본 CloudFront HTTPS URL을 사용합니다.\
