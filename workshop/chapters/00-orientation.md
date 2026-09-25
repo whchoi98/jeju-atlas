@@ -1,7 +1,12 @@
 # 00. 이번 실습에서 만들 것
 
-이 장은 5분입니다.\
-준비된 EC2의 VSCode Server에서 제주 여행 질문에 답하는 `JejuGuide`를 만듭니다.\
+이 장은 결과물과 진행 순서를 확인하는 5분짜리 안내입니다.\
+참가자 폴더나 `activate.sh`를 생성하는 단계는 아닙니다.
+
+**실행 준비는 [사전 구성](../reference/preconfiguration.md)부터 진행합니다.**\
+사전 구성을 마친 뒤 이 장에서 목표를 확인하고 [01장](01-setup.md)의 시작 블록을 실행합니다.
+
+이번 과정에서는 준비된 EC2의 VSCode Server에서 제주 여행 질문에 답하는 `JejuGuide`를 만듭니다.\
 AgentCore CLI가 프로젝트 생성, 로컬 실행과 AWS 배포를 담당하고, Codex, Claude Code, Kiro CLI 중 선택한 하나가 코드를 작성합니다.
 
 참가자는 시작 명령을 복사하고, 자신의 터미널에서 키를 입력한 뒤 **구현 프롬프트 하나와 배포 프롬프트 하나**를 전달합니다.\
@@ -58,4 +63,4 @@ Runtime이 READY여도 응답이 실패했다면 원격 검증은 미완료입�
 
 선택 프롬프트: [실습 목표 확인](../prompts/00-orientation.md)
 
-다음: [01. 준비된 환경 확인](01-setup.md)
+다음: 사전 준비가 남았다면 [사전 구성](../reference/preconfiguration.md), 완료했다면 [01. 환경 확인과 Bedrock 키 입력](01-setup.md)

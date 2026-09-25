@@ -4,41 +4,70 @@
 사전 구성이 끝난 EC2에서 참가자 폴더와 도구를 확인합니다.
 
 VSCode Server의 **Bash 터미널**을 사용합니다.\
-설치와 로그인은 [사전 구성](../reference/preconfiguration.md)에서 수업 전에 완료합니다.
+**설치와 로그인은 [사전 구성](../reference/preconfiguration.md)에서 수업 전에 완료합니다.**\
+00장은 안내만 제공하므로 읽는 것만으로 참가자 폴더나 활성화 파일이 생기지 않습니다.
 
 ## 시작 전에 전체 소스 받기
 
-처음 사용하는 EC2에서는 아래 명령을 **수업 전에 한 번** 실행합니다.\
+저장소가 없는 EC2에서만 아래 명령을 **수업 전에 한 번** 실행합니다.\
 VSCode Server의 Bash 터미널에서 실행하며, 현재 폴더가 `claude-lab`이어도 지정한 경로에 저장됩니다.
 
 ```bash
 cd -- "$HOME" && {
-mkdir -p /home/ec2-user/my-project
+mkdir -p /home/ec2-user/my-project &&
 git clone https://github.com/whchoi98/jeju-atlas.git \
   /home/ec2-user/my-project/jeju-atlas
 }
 ```
-이미 해당 경로에 전체 저장소를 받았다면 이 단계는 건너뜁니다.\
+이미 해당 경로에 전체 저장소가 있으면 새 시작 명령을 실행하기 전에 갱신합니다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+git pull --ff-only origin main
+}
+```
+갱신이 중단되면 기존 작업을 보존하고 오류를 진행자에게 전달합니다.\
+새로 받은 환경은 [사전 구성](../reference/preconfiguration.md)을 마친 뒤 돌아옵니다.\
 `/home/ec2-user/my-project/jeju-atlas/workshop/scripts/core.py`가 준비된 뒤 아래 시작 블록을 실행합니다.
 
 ## 시작 블록 한 번 실행
 
-Codex 예시입니다.\
-Claude Code는 `--assistant claude`, Kiro CLI는 `--assistant kiro`로 바꿉니다.
+사용할 Agentic AI 코딩 어시스턴트의 탭 하나를 선택하고 명령 전체를 복사합니다.\
+선택한 탭은 다른 페이지에서도 유지됩니다.
 
 각 참가자는 별도로 제공된 랩을 사용하므로 팀명을 입력하거나 바꾸지 않습니다.\
-시작 도구가 공통 실습 ID `team01`과 프로젝트 이름 `AtlasCliTeam01`을 자동으로 사용합니다.\
+새 환경은 공통 실습 ID `team01`과 프로젝트 이름 `AtlasCliTeam01`을 자동으로 사용합니다.\
 아래 `team01` 경로는 그대로 복사하고, 이미 준비한 설정이 있으면 같은 설정을 이어 씁니다.
 
-```bash
-cd /home/ec2-user/my-project/jeju-atlas && {
+```bash assistant=codex
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
 bash workshop/scripts/start.sh --assistant codex &&
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
+python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
+}
+```
+
+```bash assistant=claude
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+bash workshop/scripts/start.sh --assistant claude &&
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
+python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
+}
+```
+
+```bash assistant=kiro
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+bash workshop/scripts/start.sh --assistant kiro &&
 source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
 python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
 }
 ```
 `start.sh`는 참가자 환경을 준비하고 누락된 핵심 도구를 설치한 뒤 `core.py doctor`를 실행합니다.\
 준비가 끝난 환경에서는 기존 도구와 폴더를 재사용합니다.
+
+전체 시작 명령에 `--assistant`를 지정하면 같은 소유 세션에서 해당 도구로 전환합니다.\
+기존 `.env`, 프로젝트, AWS 계정과 CLI 설정은 유지됩니다.\
+`--assistant`와 `--project-name`을 생략하면 저장된 값을 재사용하며, 새 환경에서 생략한 도구는 Codex입니다.
 
 누락 도구의 다운로드와 설치가 필요하면 사전 구성을 마친 뒤 수업을 시작합니다.\
 이 명령은 Runtime을 만들거나 모델을 호출하지 않습니다.
@@ -88,6 +117,10 @@ source workshop/.local/labs/team01/activate.sh
 }
 ```
 ## 막혔거나 새 터미널을 열었다면
+
+`Usage`에 `--node-only`가 없으면 소스를 갱신한 뒤 선택한 Node 탭 명령을 다시 실행합니다.\
+Codex로 저장된 세션을 Claude Code로 전환할 때는 [소스 갱신 → 전체 시작 → 참가자 활성화](../reference/preconfiguration.md#이전-소스와-도구-선택-오류)를 따릅니다.\
+소유 JSON이나 참가자 이름은 직접 바꾸지 않습니다.
 
 새 Bash에서는 출력된 절대 경로의 `activate.sh`를 다시 `source`합니다.\
 스크립트가 없으면 [실행 소스 위치 확인](../reference/offline-start.md#python-스크립트가-없을-때)을 따릅니다.

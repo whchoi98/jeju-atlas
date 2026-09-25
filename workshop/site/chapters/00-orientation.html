@@ -116,7 +116,7 @@
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
     </a></li></ol>
       </section>
-      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="EC2 사전 점검과 설치 0. 전체 소스 받기 1. EC2 사전 점검 2. EC2 기본 도구 설치 Node.js 24 uv와 Python 3.12 Docker AgentCore CLI의 사용자 npm 경로 3. Node 24와 참가자 도구 준비 4. 활성화와 전체 앱용 Python 패키지 설치 5. 수업 시작 조건 PyYAML 누락으로 이미 사본 생성이 중단됐다면 공식 자료와 확인 범위">
+      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="EC2 사전 점검과 설치 0. 전체 소스 받기 1. EC2 사전 점검 2. EC2 기본 도구 설치 Node.js 24 uv와 Python 3.12 Docker AgentCore CLI의 사용자 npm 경로 3. Node 24와 참가자 도구 준비 4. 활성화와 전체 앱용 Python 패키지 설치 5. 수업 시작 조건 이전 소스와 도구 선택 오류 PyYAML 누락으로 이미 사본 생성이 중단됐다면 공식 자료와 확인 범위">
     <a class="reference-link" href="../reference/preconfiguration.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">EC2 사전 점검과 설치</span>
@@ -202,8 +202,11 @@
         <div class="lesson-location"><span>1 / 5 본 실습</span><span class="lesson-read-state" data-chapter-state>아직 읽지 않음</span></div>
       </header>
       <div class="prose">
-<p>이 장은 5분입니다.<br>
-준비된 EC2의 VSCode Server에서 제주 여행 질문에 답하는 <code>JejuGuide</code>를 만듭니다.<br>
+<p>이 장은 결과물과 진행 순서를 확인하는 5분짜리 안내입니다.<br>
+참가자 폴더나 <code>activate.sh</code>를 생성하는 단계는 아닙니다.</p>
+<p><strong>실행 준비는 <a href="../reference/preconfiguration.html">사전 구성</a>부터 진행합니다.</strong><br>
+사전 구성을 마친 뒤 이 장에서 목표를 확인하고 <a href="01-setup.html">01장</a>의 시작 블록을 실행합니다.</p>
+<p>이번 과정에서는 준비된 EC2의 VSCode Server에서 제주 여행 질문에 답하는 <code>JejuGuide</code>를 만듭니다.<br>
 AgentCore CLI가 프로젝트 생성, 로컬 실행과 AWS 배포를 담당하고, Codex, Claude Code, Kiro CLI 중 선택한 하나가 코드를 작성합니다.</p>
 <p>참가자는 시작 명령을 복사하고, 자신의 터미널에서 키를 입력한 뒤 <strong>구현 프롬프트 하나와 배포 프롬프트 하나</strong>를 전달합니다.<br>
 00~02장의 프롬프트 카드는 설명이나 진단이 필요할 때만 사용합니다.</p>
@@ -285,12 +288,15 @@ HUD도 시간 밖에서 원하는 사람만 준비합니다.</p>
 Runtime이 READY여도 응답이 실패했다면 원격 검증은 미완료입니다.<br>
 기록은 <code>$ATLAS_CLI_PARENT/RESULTS.md</code>에 남기고 비밀값은 넣지 않습니다.</p>
 <p>선택 프롬프트: <a href="../prompts/00-orientation.md" download="00-orientation.md">실습 목표 확인</a></p>
-<p>다음: <a href="01-setup.html">01. 준비된 환경 확인</a></p>
+<p>다음: 사전 준비가 남았다면 <a href="../reference/preconfiguration.html">사전 구성</a>, 완료했다면 <a href="01-setup.html">01. 환경 확인과 Bedrock 키 입력</a></p>
 <h2 id="heading-agentic-ai-코딩-어시스턴트-프롬프트-카드">Agentic AI 코딩 어시스턴트 프롬프트 카드</h2>
 <p>아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. <a href="../prompts/00-orientation.md" download="00-orientation.md">Markdown 카드 다운로드</a></p>
 <section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-1">제주 가이드를 만드는 워크숍의 목표를 짧게 설명해 주세요.
 핵심 과정은 00~04장 100분이며 여유 20분을 포함해 최대 120분입니다.
 장별 시간은 5분, 10분, 10분, 30분, 45분입니다.
+실행 준비는 workshop/reference/preconfiguration.md에서 먼저 완료합니다.
+00장은 목표 안내만 하며 읽거나 이 카드를 사용했다고 참가자 폴더나 activate.sh가 생겼다고 가정하지 마세요.
+사전 구성 뒤 00장에서 목표를 확인하고 01장의 시작 블록과 키 입력으로 이어집니다.
 도구 설치와 로그인, EC2 배포 권한과 CDK bootstrap 준비는 수업 전에 끝냅니다.
 05~14장, 외부 연동과 HUD는 핵심 시간 밖의 선택 과정입니다.
 

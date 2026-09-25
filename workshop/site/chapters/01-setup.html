@@ -116,7 +116,7 @@
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
     </a></li></ol>
       </section>
-      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="EC2 사전 점검과 설치 0. 전체 소스 받기 1. EC2 사전 점검 2. EC2 기본 도구 설치 Node.js 24 uv와 Python 3.12 Docker AgentCore CLI의 사용자 npm 경로 3. Node 24와 참가자 도구 준비 4. 활성화와 전체 앱용 Python 패키지 설치 5. 수업 시작 조건 PyYAML 누락으로 이미 사본 생성이 중단됐다면 공식 자료와 확인 범위">
+      <section class="nav-group reference-group" data-nav-group aria-label="참고 자료"><h2>참고 자료</h2><ul><li data-nav-entry data-search="EC2 사전 점검과 설치 0. 전체 소스 받기 1. EC2 사전 점검 2. EC2 기본 도구 설치 Node.js 24 uv와 Python 3.12 Docker AgentCore CLI의 사용자 npm 경로 3. Node 24와 참가자 도구 준비 4. 활성화와 전체 앱용 Python 패키지 설치 5. 수업 시작 조건 이전 소스와 도구 선택 오류 PyYAML 누락으로 이미 사본 생성이 중단됐다면 공식 자료와 확인 범위">
     <a class="reference-link" href="../reference/preconfiguration.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">EC2 사전 점검과 설치</span>
@@ -205,32 +205,51 @@
 <p>이 장은 10분입니다.<br>
 사전 구성이 끝난 EC2에서 참가자 폴더와 도구를 확인합니다.</p>
 <p>VSCode Server의 <strong>Bash 터미널</strong>을 사용합니다.<br>
-설치와 로그인은 <a href="../reference/preconfiguration.html">사전 구성</a>에서 수업 전에 완료합니다.</p>
+<strong>설치와 로그인은 <a href="../reference/preconfiguration.html">사전 구성</a>에서 수업 전에 완료합니다.</strong><br>
+00장은 안내만 제공하므로 읽는 것만으로 참가자 폴더나 활성화 파일이 생기지 않습니다.</p>
 <h2 id="heading-시작-전에-전체-소스-받기">시작 전에 전체 소스 받기</h2>
-<p>처음 사용하는 EC2에서는 아래 명령을 <strong>수업 전에 한 번</strong> 실행합니다.<br>
+<p>저장소가 없는 EC2에서만 아래 명령을 <strong>수업 전에 한 번</strong> 실행합니다.<br>
 VSCode Server의 Bash 터미널에서 실행하며, 현재 폴더가 <code>claude-lab</code>이어도 지정한 경로에 저장됩니다.</p>
 <div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd -- "$HOME" &#x26;&#x26; {
-mkdir -p /home/ec2-user/my-project
+mkdir -p /home/ec2-user/my-project &#x26;&#x26;
 git clone https://github.com/whchoi98/jeju-atlas.git \
   /home/ec2-user/my-project/jeju-atlas
 }
 </code></pre></div>
-<p>이미 해당 경로에 전체 저장소를 받았다면 이 단계는 건너뜁니다.<br>
+<p>이미 해당 경로에 전체 저장소가 있으면 새 시작 명령을 실행하기 전에 갱신합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+git pull --ff-only origin main
+}
+</code></pre></div>
+<p>갱신이 중단되면 기존 작업을 보존하고 오류를 진행자에게 전달합니다.<br>
+새로 받은 환경은 <a href="../reference/preconfiguration.html">사전 구성</a>을 마친 뒤 돌아옵니다.<br>
 <code>/home/ec2-user/my-project/jeju-atlas/workshop/scripts/core.py</code>가 준비된 뒤 아래 시작 블록을 실행합니다.</p>
 <h2 id="heading-시작-블록-한-번-실행">시작 블록 한 번 실행</h2>
-<p>Codex 예시입니다.<br>
-Claude Code는 <code>--assistant claude</code>, Kiro CLI는 <code>--assistant kiro</code>로 바꿉니다.</p>
+<p>사용할 Agentic AI 코딩 어시스턴트의 탭 하나를 선택하고 명령 전체를 복사합니다.<br>
+선택한 탭은 다른 페이지에서도 유지됩니다.</p>
 <p>각 참가자는 별도로 제공된 랩을 사용하므로 팀명을 입력하거나 바꾸지 않습니다.<br>
-시작 도구가 공통 실습 ID <code>team01</code>과 프로젝트 이름 <code>AtlasCliTeam01</code>을 자동으로 사용합니다.<br>
+새 환경은 공통 실습 ID <code>team01</code>과 프로젝트 이름 <code>AtlasCliTeam01</code>을 자동으로 사용합니다.<br>
 아래 <code>team01</code> 경로는 그대로 복사하고, 이미 준비한 설정이 있으면 같은 설정을 이어 씁니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd /home/ec2-user/my-project/jeju-atlas &#x26;&#x26; {
+<section class="command-tabs" data-command-tabs="" aria-label="도구별 터미널 명령"><div class="command-tool-tabs" role="tablist" aria-label="사용할 코딩 어시스턴트" hidden><button type="button" id="command-group-1-tab-codex" role="tab" data-command-assistant="codex" aria-controls="command-group-1-panel-codex" aria-selected="true" tabindex="0">코덱스</button><button type="button" id="command-group-1-tab-claude" role="tab" data-command-assistant="claude" aria-controls="command-group-1-panel-claude" aria-selected="false" tabindex="-1">클로드 코드</button><button type="button" id="command-group-1-tab-kiro" role="tab" data-command-assistant="kiro" aria-controls="command-group-1-panel-kiro" aria-selected="false" tabindex="-1">키로</button></div><section id="command-group-1-panel-codex" class="command-panel" data-command-panel="codex" role="tabpanel" aria-labelledby="command-group-1-tab-codex" tabindex="0"><p class="command-variant-title"><strong>코덱스 명령</strong></p><div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="코덱스 명령 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
 bash workshop/scripts/start.sh --assistant codex &#x26;&#x26;
 source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &#x26;&#x26;
 python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
 }
-</code></pre></div>
-<p><code>start.sh</code>는 참가자 환경을 준비하고 누락된 핵심 도구를 설치한 뒤 <code>core.py doctor</code>를 실행합니다.<br>
+</code></pre></div></section><section id="command-group-1-panel-claude" class="command-panel" data-command-panel="claude" role="tabpanel" aria-labelledby="command-group-1-tab-claude" tabindex="0"><p class="command-variant-title"><strong>클로드 코드 명령</strong></p><div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="클로드 코드 명령 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+bash workshop/scripts/start.sh --assistant claude &#x26;&#x26;
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
+}
+</code></pre></div></section><section id="command-group-1-panel-kiro" class="command-panel" data-command-panel="kiro" role="tabpanel" aria-labelledby="command-group-1-tab-kiro" tabindex="0"><p class="command-variant-title"><strong>키로 명령</strong></p><div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="키로 명령 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+bash workshop/scripts/start.sh --assistant kiro &#x26;&#x26;
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
+}
+</code></pre></div></section></section><p><code>start.sh</code>는 참가자 환경을 준비하고 누락된 핵심 도구를 설치한 뒤 <code>core.py doctor</code>를 실행합니다.<br>
 준비가 끝난 환경에서는 기존 도구와 폴더를 재사용합니다.</p>
+<p>전체 시작 명령에 <code>--assistant</code>를 지정하면 같은 소유 세션에서 해당 도구로 전환합니다.<br>
+기존 <code>.env</code>, 프로젝트, AWS 계정과 CLI 설정은 유지됩니다.<br>
+<code>--assistant</code>와 <code>--project-name</code>을 생략하면 저장된 값을 재사용하며, 새 환경에서 생략한 도구는 Codex입니다.</p>
 <p>누락 도구의 다운로드와 설치가 필요하면 사전 구성을 마친 뒤 수업을 시작합니다.<br>
 이 명령은 Runtime을 만들거나 모델을 호출하지 않습니다.</p>
 <p>마지막 입력에서 Bedrock 단기키의 발급 리전, 키와 실제 만료 시각을 지정합니다.<br>
@@ -287,11 +306,14 @@ Docker는 사전 설치 항목이며 핵심 CodeZip 경로의 통과 조건에�
 <p>새 터미널은 앞 터미널의 변수를 이어받지 않습니다.<br>
 아래 명령을 먼저 실행한 뒤 다음 장의 터미널 블록을 복사합니다.<br>
 각 블록의 첫 <code>cd</code>는 해당 작업의 시작 위치를 맞춥니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd /home/ec2-user/my-project/jeju-atlas &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-6">cd /home/ec2-user/my-project/jeju-atlas &#x26;&#x26; {
 source workshop/.local/labs/team01/activate.sh
 }
 </code></pre></div>
 <h2 id="heading-막혔거나-새-터미널을-열었다면">막혔거나 새 터미널을 열었다면</h2>
+<p><code>Usage</code>에 <code>--node-only</code>가 없으면 소스를 갱신한 뒤 선택한 Node 탭 명령을 다시 실행합니다.<br>
+Codex로 저장된 세션을 Claude Code로 전환할 때는 <a href="../reference/preconfiguration.html#heading-이전-소스와-도구-선택-오류">소스 갱신 → 전체 시작 → 참가자 활성화</a>를 따릅니다.<br>
+소유 JSON이나 참가자 이름은 직접 바꾸지 않습니다.</p>
 <p>새 Bash에서는 출력된 절대 경로의 <code>activate.sh</code>를 다시 <code>source</code>합니다.<br>
 스크립트가 없으면 <a href="../reference/offline-start.html#heading-python-스크립트가-없을-때">실행 소스 위치 확인</a>을 따릅니다.</p>
 <blockquote>
@@ -309,20 +331,31 @@ source workshop/.local/labs/team01/activate.sh
 <p>다음: <a href="02-aws-environment.html">02. 계정과 작업 폴더</a></p>
 <h2 id="heading-agentic-ai-코딩-어시스턴트-프롬프트-카드">Agentic AI 코딩 어시스턴트 프롬프트 카드</h2>
 <p>아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. <a href="../prompts/01-setup.md" download="01-setup.md">Markdown 카드 다운로드</a></p>
-<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-4">제주 가이드 워크숍의 시작 환경을 진단해 주세요. 읽기 전용 점검을 승인합니다.
+<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-7" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-7">제주 가이드 워크숍의 시작 환경을 진단해 주세요. 읽기 전용 점검을 승인합니다.
 적용되는 AGENTS.md와 workshop/AGENTS.md, skills/jeju-atlas-install/SKILL.md를 읽으세요.
-ATLAS_REPO 또는 /home/ec2-user/my-project/jeju-atlas에서 전체 소스를 찾고,
-현재 참가자의 activate.sh와 비밀값 없는 소유 설정에서 작업 경로를 확인하세요.
-이미 정해진 참가자와 Agentic AI 코딩 어시스턴트를 재사용하고 같은 경로를 반복해서 묻지 마세요.
+ATLAS_REPO 또는 /home/ec2-user/my-project/jeju-atlas에서 전체 소스를 찾으세요.
+전체 준비를 마친 세션은 activate.sh와 비밀값 없는 소유 설정에서 작업 경로를 확인하세요.
+00장은 안내만 제공하므로 읽었다는 이유로 참가자 파일이 생성됐다고 가정하지 마세요.
+기존 참가자와 프로젝트를 재사용하고 같은 경로를 반복해서 묻지 마세요.
 모든 터미널 실행은 올바른 cd로 시작하세요. 새 셸에서는 확인한 저장소 절대 경로로
-이동하고 기존 activate.sh를 source한 뒤 필요한 작업 폴더로 다시 이동하세요.
+이동하고 준비 단계에 맞는 활성화 파일을 source한 뒤 필요한 작업 폴더로 다시 이동하세요.
 경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
 
-기본 시작 명령은 bash workshop/scripts/start.sh --assistant codex입니다.
-실제 선택한 도구를 사용합니다. start.sh는 준비, 누락 도구 설치와 doctor를 수행합니다.
-참가자마다 독립 랩을 사용하므로 새 설정은 공통 내부 ID team01과 프로젝트
-AtlasCliTeam01을 사용합니다. 팀명을 선택하거나 치환하도록 요청하지 마세요.
-기존 이름과 소유 설정이 있으면 그대로 재사용합니다.
+전체 start.sh는 참가자 준비, 누락 도구 설치와 doctor를 수행합니다.
+새 설정의 기본값은 team01, AtlasCliTeam01, codex이며 팀명 선택을 요청하지 마세요.
+기존 세션에서는 --assistant와 --project-name을 생략하면 저장된 값을 재사용합니다.
+참가자가 다른 도구를 선택했다면 전체 start.sh --assistant claude처럼 명시합니다.
+같은 소유 세션을 검증한 뒤 생성된 .owner.json과 activate.sh만 도구 선택에 맞춰 갱신하며,
+.env, 프로젝트, AWS 계정과 CLI 설정은 유지합니다.
+start.sh --node-only는 소유 도구 경로와 Node/npm만 준비하며 참가자 폴더를 확인하거나 만들지 않습니다.
+Node 전용 활성화는 workshop/.local/toolchain/activate-node.sh이며 도구 선택을 저장하지 않습니다.
+
+Usage에 --node-only가 없으면 원본 저장소에서 git pull --ff-only origin main 후 재시도를 안내하세요.
+저장된 codex를 claude로 전환하다 소유 불일치가 났다면 소스 갱신 후
+전체 bash workshop/scripts/start.sh --assistant claude와 참가자 activate.sh의 source를 안내하세요.
+이 읽기 전용 진단에서는 갱신이나 전환을 실행하지 말고 참가자 Bash용 명령을 알려 주세요.
+소유가 다르거나 형식이 잘못되거나 수동 수정된 설정은 덮어쓰지 마세요.
+소유 JSON 직접 편집, 다른 참가자 이름, 폴더 삭제나 저장소를 다시 받는 방법으로 해결하지 마세요.
 실행 소스가 없는 읽기용 교재 ZIP이나 workshop/site를 작업 저장소로 사용하지 마세요.
 AI가 활성화한 자식 셸은 사용자의 Bash를 바꾸지 못합니다.
 사용자에게 실제 activationPath를 source하는 한 줄을 알려 주세요.
@@ -336,7 +369,7 @@ Docker는 사전 설치하되 CodeZip 핵심 과정에서는 요구하지 않습
 lab.py doctor는 심화 점검이며 core.py doctor와 바꾸어 사용하지 마세요.
 기본 진단에 core.py doctor --project나 테스트 파일 작성을 추가하지 마세요.
 
-설치가 필요하면 reference/preconfiguration.md에서 이어갈 항목을 알려 주세요.
+설치가 필요하면 workshop/reference/preconfiguration.md에서 이어갈 항목을 알려 주세요.
 설치와 로그인 시간은 100분 핵심 과정 밖입니다. 현재 로그인과 AI 모델 설정을 유지하세요.
 HUD는 선택 사항입니다. 참가자가 선택하기 전에는 설치하거나 실행하지 마세요.
 긴 Codex 설정을 필수 준비로 추가하지 마세요.

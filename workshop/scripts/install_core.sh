@@ -105,7 +105,7 @@ fi
 
 if (( node_only )); then
   printf '\n%s\n' 'Node.js and npm prepared (Node-only).'
-  printf '%s\n' 'Source your participant activate.sh in your Bash terminal to use Node and npm.'
+  printf '%s\n' 'Source the activationPath printed by start.sh in your Bash terminal to use Node and npm.'
   exit 0
 fi
 

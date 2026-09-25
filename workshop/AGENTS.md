@@ -20,8 +20,8 @@ substitution tokens and narrower workspace instructions are intentional.
 - Tool-specific command tabs use three consecutive `bash assistant=codex`,
   `bash assistant=claude`, `bash assistant=kiro` fences. Each contains the full
   executable command starting with `cd`. The reader synchronizes the choice
-  across groups and copies only the selected command; no-JS/print shows all
-  labelled alternatives. Common commands remain ordinary Bash fences.
+  across groups and pages and copies only the selected command; no-JS/print
+  shows all labelled alternatives. Common commands remain ordinary Bash fences.
 - Call Codex, Claude Code and Kiro CLI "Agentic AI 코딩 어시스턴트" in Korean
   reader text, headings, prompt labels and accessibility labels. Use
   "Agentic AI coding assistant" in English prose.
@@ -36,6 +36,11 @@ substitution tokens and narrower workspace instructions are intentional.
 - Participants receive independent labs. `team01` and `AtlasCliTeam01` are
   automatic common identifiers, not team assignments. Do not ask learners to
   select or replace them; retain existing identifiers when resuming.
+- Chapter 00 is orientation only and creates no files. Put preconfiguration
+  before the timed course in navigation, then lead to the chapter 01 start tabs.
+  Existing clones run `git pull --ff-only origin main` before new setup commands.
+  Preserve work if the update fails; do not suggest recloning, deleting or
+  resetting it.
 - Student prompts default to implementation and deployment with only necessary
   path/account/schema checks, deployment status and one example response.
   Separate test creation, full suites, model prechecks, local smoke calls and
@@ -70,6 +75,22 @@ environment, then resume implementation without asking again for generated paths
 install tools or read keys. `start.sh` explicitly prepares a participant and
 installs missing core tools before the timed course. Reuse a compatible Node
 and npm AgentCore CLI from the user PATH; keep the private installer fallback.
+
+`start.sh --node-only` prepares only the owned toolchain and Node/npm. It does
+not check or create participant folders or save an assistant selection.
+Keep all three assistant tabs for this command, sourcing
+`workshop/.local/toolchain/activate-node.sh` in the current Bash.
+
+Full `start.sh` with an explicit `--assistant` switches the saved assistant
+only for the same verified core session. The switch updates only generated
+`.owner.json` and `activate.sh`, preserving `.env`, the project, AWS account
+and CLI configuration. Omitted `--assistant` and `--project-name` resume saved
+values; fresh defaults are `team01`, `AtlasCliTeam01` and `codex`.
+Do not overwrite foreign, malformed or manually modified setup.
+For old Usage output without `--node-only`, update the source and retry the
+selected Node tab. For a saved Codex session switching to Claude Code, guide
+source update, full `start.sh --assistant claude` and session activation.
+Never suggest manual owner JSON edits or alternate participant IDs.
 
 The workshop Runtime model is `global.anthropic.claude-sonnet-4-6`. Recommend
 `claude --permission-mode auto` with the organizer-verified coding model, and

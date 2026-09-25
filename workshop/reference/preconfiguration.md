@@ -4,6 +4,9 @@
 Amazon Linux 2023의 EC2와 VSCode Server, 기존 VPC와 NAT, 참가자용 AWS 역할을 사용합니다.\
 Codex, Claude Code, Kiro CLI 중 하나는 설치와 로그인을 마쳐 둡니다.
 
+진행 순서는 **이 문서의 사전 구성 → [00장 목표 확인](../chapters/00-orientation.md) → [01장 환경 활성화와 키 입력](../chapters/01-setup.md)**입니다.\
+00장은 안내만 제공하므로 읽는 것만으로 참가자 폴더나 활성화 파일이 생기지 않습니다.
+
 명령은 EC2의 **Bash 터미널**에서 실행합니다.\
 진행자가 전달한 전체 Git 소스의 루트가 작업 위치입니다.
 
@@ -12,17 +15,24 @@ Codex, Claude Code, Kiro CLI 중 하나는 설치와 로그인을 마쳐 둡니�
 
 ## 0. 전체 소스 받기
 
-처음 사용하는 EC2에서는 사전 점검과 설치 명령보다 먼저 실행합니다.\
+저장소가 없는 EC2에서만 사전 점검과 설치 명령보다 먼저 실행합니다.\
 VSCode Server의 Bash 터미널에 다음 명령을 붙여 넣습니다.
 
 ```bash
 cd -- "$HOME" && {
-mkdir -p /home/ec2-user/my-project
+mkdir -p /home/ec2-user/my-project &&
 git clone https://github.com/whchoi98/jeju-atlas.git \
   /home/ec2-user/my-project/jeju-atlas
 }
 ```
-이미 이 경로에 전체 저장소가 있으면 clone을 반복하지 않고 다음 단계로 이동합니다.\
+이미 이 경로에 전체 저장소가 있으면 **새 명령을 실행하기 전에 소스를 갱신합니다.**
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+git pull --ff-only origin main
+}
+```
+갱신이 중단되면 기존 작업을 보존하고 오류를 진행자에게 전달합니다.\
 이후 명령은 `/home/ec2-user/my-project/jeju-atlas`를 기준으로 실행합니다.
 
 ## 1. EC2 사전 점검
@@ -45,7 +55,7 @@ bash workshop/scripts/check_env.sh --assistant kiro
 }
 ```
 탭에서 사용할 도구를 선택한 뒤 표시된 명령을 그대로 복사합니다.\
-선택은 이 페이지의 Node 설치, 도구 준비와 활성화 명령에도 함께 적용됩니다.\
+선택한 탭은 다른 명령 묶음과 다음 페이지에서도 유지됩니다.\
 처음 실행에서 실패가 나오면 아래 설치로 해결한 뒤 같은 명령을 다시 실행합니다.\
 원하면 이 스크립트를 `~/check-env.sh`로 복사해 사용할 수 있습니다.
 
@@ -78,7 +88,7 @@ Docker 누락은 기본 검사에서 `[WARN]`, `--containers`를 붙인 검사�
 ```bash assistant=codex
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
 bash workshop/scripts/start.sh --assistant codex --node-only &&
-source workshop/.local/labs/team01/activate.sh &&
+source workshop/.local/toolchain/activate-node.sh &&
 node --version &&
 npm --version
 }
@@ -87,7 +97,7 @@ npm --version
 ```bash assistant=claude
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
 bash workshop/scripts/start.sh --assistant claude --node-only &&
-source workshop/.local/labs/team01/activate.sh &&
+source workshop/.local/toolchain/activate-node.sh &&
 node --version &&
 npm --version
 }
@@ -96,18 +106,19 @@ npm --version
 ```bash assistant=kiro
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
 bash workshop/scripts/start.sh --assistant kiro --node-only &&
-source workshop/.local/labs/team01/activate.sh &&
+source workshop/.local/toolchain/activate-node.sh &&
 node --version &&
 npm --version
 }
 ```
 
-`--node-only`는 기존 Node 설치 상태를 확인하고 필요하면 프로젝트 전용 경로에 Node 24를 설치합니다.\
+`--node-only`는 소유가 확인된 `workshop/.local/toolchain/`과 Node/npm만 준비합니다.\
+참가자 폴더를 확인하거나 만들지 않으며, `--assistant`로 지정한 도구를 참가자 설정에 저장하지 않습니다.\
 Python 3.12, uv와 AgentCore CLI를 설치하기 전에도 실행할 수 있습니다.\
 시스템 Node와 기존 npm 전역 경로, 로그인 설정을 교체하지 않습니다.
 
 출력에서 Node가 `v24.21.0` 또는 요구 조건을 충족하는 24 계열인지 확인합니다.\
-새 Bash에서는 `activate.sh`를 다시 불러와 같은 Node를 사용합니다.\
+새 Bash에서는 소스 루트로 이동해 `workshop/.local/toolchain/activate-node.sh`를 다시 불러와 같은 Node를 사용합니다.\
 이후 아래 Python과 Docker, AgentCore CLI 준비를 계속합니다.
 
 ### uv와 Python 3.12
@@ -143,7 +154,7 @@ cd -- "$HOME" && {
 docker info >/dev/null && printf '%s\n' 'Docker 사용 가능'
 }
 ```
-이후 새 셸에서 참가자 `activate.sh`를 다시 불러옵니다.\
+전용 Node를 설치했다면 새 셸에서 소스 루트의 `workshop/.local/toolchain/activate-node.sh`를 다시 불러옵니다.\
 Docker는 컨테이너를 다루는 05~14장에 필요합니다.\
 기본 CodeZip 실습만 할 때는 Docker 문제를 본 실습의 필수 통과 조건으로 넣지 않습니다.
 
@@ -172,7 +183,7 @@ AWS CLI와 선택한 Agentic AI 코딩 어시스턴트의 설치 또는 로그�
 
 전체 소스 루트에서 한 번 실행합니다.\
 참가자마다 독립 랩을 사용하므로 팀명 입력과 변경 단계는 없습니다.\
-준비기는 공통 실습 ID `team01`과 프로젝트 `AtlasCliTeam01`을 자동으로 사용합니다.
+새 환경은 공통 실습 ID `team01`과 프로젝트 `AtlasCliTeam01`을 자동으로 사용합니다.
 
 ```bash assistant=codex
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
@@ -197,8 +208,12 @@ bash workshop/scripts/start.sh --assistant kiro
 Node는 `.nvmrc`의 24 계열 버전을 공식 체크섬으로 확인합니다.\
 uv의 Python 3.12와 helper 패키지는 같은 도구 경로에서 관리합니다.
 
-기존 참가자 프로젝트와 인증을 보존합니다.\
-다른 소유자의 폴더나 수정된 활성화 파일은 덮어쓰지 않으므로 오류에 표시된 파일을 확인합니다.
+기존 세션에서 `--assistant`와 `--project-name`을 생략하면 저장된 도구와 프로젝트 이름으로 재개합니다.\
+새 환경에서 생략한 도구의 기본값은 Codex입니다.
+
+다른 도구의 탭으로 전체 `start.sh`를 실행하면 같은 소유 세션의 도구 선택을 전환합니다.\
+전환은 자동 생성된 `.owner.json`과 `activate.sh`만 갱신하며 `.env`, 프로젝트, AWS 계정과 CLI 설정은 보존합니다.\
+소유가 다르거나 형식이 잘못된 설정, 수동 수정된 생성 파일은 덮어쓰지 않으므로 오류에 표시된 파일을 확인합니다.
 
 `start.sh`는 AWS 자원을 만들거나 모델을 호출하지 않습니다.\
 설치 과정에는 패키지 다운로드가 있으며 첫 설치 시간은 수업 시간 밖에 둡니다.
@@ -211,28 +226,26 @@ uv의 Python 3.12와 helper 패키지는 같은 도구 경로에서 관리합니
 
 ```bash assistant=codex
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
-source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh
-python3 -B "$ATLAS_REPO/workshop/scripts/core.py" doctor --assistant codex
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
 bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant codex
 }
 ```
 
 ```bash assistant=claude
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
-source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh
-python3 -B "$ATLAS_REPO/workshop/scripts/core.py" doctor --assistant claude
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
 bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant claude
 }
 ```
 
 ```bash assistant=kiro
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
-source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh
-python3 -B "$ATLAS_REPO/workshop/scripts/core.py" doctor --assistant kiro
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
 bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant kiro
 }
 ```
-`core.py doctor`의 `passed: true`와 STS 점검 성공을 확인합니다.\
+`start.sh`에서 실행한 `core.py doctor`의 `passed: true`와 위 STS 점검 성공을 확인합니다.\
+이미 성공한 doctor를 별도로 반복하지 않습니다.\
 본 실습 helper에는 boto3와 requests가 필요하며 준비기가 설치합니다.
 
 Runtime도 Python 3.12를 사용합니다.\
@@ -284,9 +297,28 @@ PyYAML 확인 전에 `lab.py prepare`로 앱 사본을 만들지 않습니다.\
 지원 모델과 조직 설정에 따라 auto 모드가 제한될 수 있으므로 [Agentic AI 코딩 어시스턴트 환경](ai-cli-environments.md)에서 실제 적용 상태를 확인합니다.\
 HUD와 별도 Codex Bedrock provider 설정은 준비된 환경에서 사용하는 선택 자료입니다.
 
-참가자는 [01장](../chapters/01-setup.md)에서 Bedrock 단기키를 숨김 입력합니다.\
+사전 구성을 마치면 [00장](../chapters/00-orientation.md)에서 목표를 확인하고 [01장](../chapters/01-setup.md)에서 Bedrock 단기키를 숨김 입력합니다.\
 키와 발급 리전, 실제 만료 시각은 참가자 `.env`에 저장합니다.\
 카카오, 관광공사 TourAPI와 VISIT JEJU 키는 첫 배포 후 [선택 연동](keys-and-integrations.md)에서 추가합니다.
+
+## 이전 소스와 도구 선택 오류
+
+`--node-only`를 실행했는데 `Usage`만 나오고 도움말에 해당 옵션이 없으면 소스가 오래된 상태입니다.\
+0절의 소스 갱신 후 선택한 Node 탭 명령을 다시 실행합니다.
+
+Codex로 저장된 세션을 Claude Code로 사용하다 소유 불일치가 발생했다면 다음을 실행합니다.\
+소스를 갱신하고 **전체 시작 명령**으로 도구를 전환한 뒤 같은 참가자 환경을 현재 Bash에 불러옵니다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+git pull --ff-only origin main &&
+bash workshop/scripts/start.sh --assistant claude &&
+source workshop/.local/labs/team01/activate.sh
+}
+```
+Node 전용 설치만으로는 저장된 도구가 바뀌지 않습니다.\
+소유 JSON을 직접 편집하거나 참가자 이름을 바꾸지 않습니다.\
+갱신이나 소유 검증이 중단되면 기존 폴더와 작업을 보존하고 오류를 진행자에게 전달합니다.
 
 ## PyYAML 누락으로 이미 사본 생성이 중단됐다면
 
