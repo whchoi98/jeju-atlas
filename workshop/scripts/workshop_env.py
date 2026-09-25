@@ -91,10 +91,10 @@ def write_env(path, updates):
 def model_values(values):
     region = values.get(REGION_ENV, "")
     if not re.fullmatch(r"[a-z]{2}(?:-[a-z0-9]+)+-[0-9]+", region):
-        raise ValueError("Set ATLAS_BEDROCK_REGION to the region where the short-term key was issued")
+        raise ValueError("Set ATLAS_BEDROCK_REGION to an allowed Bedrock model region")
     token = values.get(TOKEN_ENV, "")
     if not token or any(c.isspace() for c in token):
-        raise ValueError("Enter a Bedrock short-term API key in the private terminal")
+        raise ValueError("Enter a Bedrock API key (short-term or long-term) in the private terminal")
     return {REGION_ENV: region, TOKEN_ENV: token}
 
 
@@ -134,9 +134,9 @@ def configure(path, integrations=False):
                     if value:
                         updates[name] = value
             else:
-                selected = input(f"Bedrock key issuing region [{current.get(REGION_ENV, '')}]: ").strip()
+                selected = input(f"Bedrock model region [{current.get(REGION_ENV, '')}]: ").strip()
                 updates[REGION_ENV] = selected or current.get(REGION_ENV, "")
-                token = getpass.getpass("Bedrock short-term API key (hidden; Enter keeps existing): ")
+                token = getpass.getpass("Bedrock API key (short-term or long-term; hidden; Enter keeps existing): ")
                 updates[TOKEN_ENV] = token or current.get(TOKEN_ENV, "")
                 model_values(updates)
         except getpass.GetPassWarning:

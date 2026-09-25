@@ -82,15 +82,20 @@ AWS 변경과 유료 호출의 승인이 불명확하면 로컬 준비와 변경
   **출력된 절대 `activationPath`를 같은 Bash에서 source**한 뒤 후속 작업을 한다.
   새 셸마다 다시 활성화하며, 활성화가 cwd를 저장소로 바꾼다는 점에 유의한다.
   셸 명령의 첫 줄에서 확인한 실제 작업 폴더로 `cd`하고, 활성화 뒤에도 필요한 폴더로 이동한다.
+- `cdk_bootstrap.py`로 현재 계정의 서울 CDKToolkit과 버전 파라미터를 읽기 전용으로 확인한다.
+  버전 30 이상과 `ready: true`가 키 게시와 패키징의 선행 조건이다.
+  누락은 사전 구성의 진행자용 처음 생성 절차로 연결한다.
+  접근 거부나 진행 중인 상태를 부재로 취급하거나 `deploy --dry-run --yes`로 해결하지 않는다.
 - 프로젝트가 아직 없으면 Agentic AI 코딩 어시스턴트는 `$ATLAS_CLI_PARENT`에서 시작한다.
   에이전트가 AgentCore CLI로 `$ATLAS_CLI`를 만든다. 존재하는 프로젝트에는 `create`를 반복하지 않는다.
   심화 앱은 `lab.py`와 별도 참가자 `app/`을 사용한다.
 - 키는 사용자가 `workshop_env.py configure`의 숨김 입력으로 넣는다.
-  발급 리전과 단기키 두 항목만 받으며 수동 만료 시각을 요구하지 않는다.
+  모델 호출 리전과 API 키 두 항목만 받는다. 단기 또는 장기 Bedrock API 키를
+  모두 허용하며 유형 선택이나 수동 만료 시각을 요구하지 않는다.
   기본 파일은 `$ATLAS_CLI_PARENT/.env`이며 Runtime 코드·ZIP 밖에 둔다.
   에이전트는 `status`, `run`, `publish` 등 지정 helper를 사용하고 `.env`를 직접 읽거나 source하지 않는다.
 - JejuGuide 모델은 `global.anthropic.claude-sonnet-4-6`이다.
-  Agentic AI 코딩 어시스턴트의 모델 고정이나 공통 인증키를 뜻하지 않는다. Bedrock 단기키는
+  Agentic AI 코딩 어시스턴트의 모델 고정이나 공통 인증키를 뜻하지 않는다. Bedrock API 키는
   Runtime·모델 검사에 쓰며 배포·STS·CDK bootstrap·Runtime 호출용 IAM을 대체하지 않는다.
 - 카카오·관광공사·VISIT JEJU 키는 첫 배포 뒤 선택적으로 추가한다.
   기본 Runtime의 키 전달을 심화 Guide에 자동 적용된 것으로 보고하지 않는다.

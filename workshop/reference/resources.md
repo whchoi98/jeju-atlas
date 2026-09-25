@@ -12,7 +12,7 @@
 | Codex, Kiro CLI, Claude Code | 하나를 선택해 코드와 테스트 작성 |
 | AgentCore CLI 0.28.1 | Strands 프로젝트 생성, dev, deploy, invoke, status, logs |
 | Python과 Strands | 제주 장소 JSON 검색 도구와 응답 규칙 구현 |
-| Bedrock | 발급 리전의 모델을 Bedrock 단기 API 키로 호출 |
+| Bedrock | 선택한 리전의 모델을 Bedrock API 키로 호출 |
 | AgentCore Runtime | 참가자 이름의 JejuGuide 배포와 응답 확인 |
 | CloudFormation과 CDK bootstrap | CLI 배포가 사용하는 스택과 준비된 아티팩트 기반 확인 |
 

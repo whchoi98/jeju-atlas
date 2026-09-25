@@ -15,7 +15,7 @@ CLI 스키마의 `PYTHON_3_12`를 확인했습니다.\
 로컬 uv 0.10.9에서 같은 설치 인자로 잠금 버전이 적용되는 것을 확인했습니다.\
 이 확인은 실제 Runtime 배포나 모델 호출 검증을 대신하지 않습니다.
 
-기본 모델 인증은 [비공개 .env와 Bedrock 단기키](keys-and-integrations.md)입니다.\
+기본 모델 인증은 [비공개 .env와 Bedrock API 키](keys-and-integrations.md)입니다.\
 원격에서는 키 원문 대신 SSM ARN과 읽기 정책을 연결하며 AWS 배포 인증은 IAM입니다.\
 Claude Code는 [현재 Agentic AI 코딩 어시스턴트 안내](ai-cli-environments.md)의 `--permission-mode auto`를 사용하고 지원되는 코딩 모델은 진행자가 확인합니다.
 

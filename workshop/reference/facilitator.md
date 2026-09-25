@@ -12,13 +12,18 @@ EC2 설치, CLI 로그인과 패키지 다운로드 준비는 수업 전에 끝�
 
 ```bash
 cd /home/ec2-user/my-project/jeju-atlas && {
-bash workshop/scripts/start.sh --assistant codex
-source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh
-bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant "$ATLAS_ASSISTANT"
+bash workshop/scripts/start.sh --assistant codex &&
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
+bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant "$ATLAS_ASSISTANT" &&
+"$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/cdk_bootstrap.py"
 }
 ```
 다른 도구를 쓰는 참가자는 `--assistant claude` 또는 `--assistant kiro`를 지정합니다.\
 `start.sh`는 참가자 준비, 필요한 core 도구 설치와 로컬 doctor를 묶습니다.
+
+새 계정에서는 [사전 구성의 CDK bootstrap 준비](preconfiguration.md#5-cdk-bootstrap-준비)를 먼저 완료합니다.\
+기존 스택과 버전 파라미터가 모두 없을 때만 계정 관리자가 처음 생성합니다.\
+기존 정책을 바꾸는 업그레이드와 Runtime 배포를 혼동하지 않습니다.
 
 Docker 설치는 사전 구성의 dnf/systemctl/usermod 절차를 사용합니다.\
 새 로그인 셸의 `docker info`까지 확인하며 CodeZip 기본 과정에서는 선택 항목입니다.
@@ -32,10 +37,10 @@ Docker 설치는 사전 구성의 dnf/systemctl/usermod 절차를 사용합니�
 | Agentic AI 코딩 어시스턴트 | 한 도구의 실제 대화, 기존 로그인과 모델, 권한 모드 |
 | Codex | `on-request`와 `auto_review`, workspace-write의 실제 적용 |
 | Claude Code | `--permission-mode auto`, provider/모델 지원과 화면의 Auto 표시 |
-| AWS | EC2 identity와 STS 계정 일치, 서울 CDK bootstrap |
+| AWS | EC2 identity와 STS 계정 일치, 서울 CDK bootstrap 버전 30 이상과 `ready: true` |
 | 배포 권한 | Runtime, CloudFormation, 실행 역할과 PassRole, bootstrap 자산 |
 | 키 게시 권한 | 소유 SSM 파라미터와 태그 조회/쓰기, 전용 IAM 정책 생성/조회/연결 |
-| 모델 키 | 단기키, 발급 리전과 허용된 Sonnet 4.6 호출 |
+| 모델 키 | 단기 또는 장기 API 키, 호출 리전과 허용된 Sonnet 4.6 호출 |
 | 의존성 | 생성 프로젝트의 npm/uv 설치와 Python 3.12용 CodeZip 패키징 |
 | 전체 앱 선택 | Docker와 같은 helper Python의 PyYAML/cfn-lint |
 
@@ -67,14 +72,14 @@ HUD는 희망자만 설치하며 기본 이미지나 본 실습의 필수 완료
 
 ## 키와 계정 준비
 
-참가자에게 Bedrock 콘솔의 **단기키와 발급 리전**을 안내합니다.\
+참가자에게 Bedrock 콘솔의 **단기 또는 장기 API 키와 모델 호출 리전**을 안내합니다.\
 키는 수업 직전에 본인 터미널의 `workshop_env.py configure`로 입력합니다.
 
 발급자의 권한과 만료 조건이 적용되므로 수업 종료까지 유효해야 합니다.\
 키 원문을 공용 문서, 프롬프트, 제출물이나 설치 스킬에 기록하지 않습니다.
 
 배포 인증에는 EC2 IAM 역할을 계속 사용합니다.\
-키 발급 리전과 서울 배포 리전을 구분하고, 모델 키가 AWS 배포 권한까지 제공한다고 안내하지 않습니다.
+모델 호출 리전과 서울 배포 리전을 구분하고, 모델 키가 AWS 배포 권한까지 제공한다고 안내하지 않습니다.
 
 참가자 Runtime은 IAM으로 호출되며 모델에만 Bearer 키를 사용합니다.\
 SSM 경로와 정책은 참가자별 이름과 소유 태그로 분리합니다.
@@ -94,7 +99,7 @@ SSM 경로와 정책은 참가자별 이름과 소유 태그로 분리합니다.
 5. Runtime 제거 반영, 정책 연결 해제와 키 자원 정리 또는 유지 인계
 
 설치, 코드 검사, Runtime READY와 모델 응답 완료를 나눠 기록합니다.\
-호출이 실패하면 모델과 발급 리전, 오류 분류, 재개 위치만 남기고 키를 기록하지 않습니다.
+호출이 실패하면 모델과 호출 리전, 오류 분류, 재개 위치만 남기고 키를 기록하지 않습니다.
 
 패키징 실패 시 실제 `uv.lock`, Python 버전, CodeZip 진입점과 CLI 로그부터 확인합니다.\
 진행 중인 배포를 중복 실행하거나 실패를 숨기도록 프롬프트를 바꾸지 않습니다.
@@ -130,5 +135,5 @@ SSM 경로와 정책은 참가자별 이름과 소유 태그로 분리합니다.
 2026-09-15의 다른 EC2 설치에서는 Node 20, Runtime Python과 helper/AgentCore 부재가 확인되었습니다.\
 같은 날짜의 서울 IAM Converse 요청은 SCP 명시적 거부로 실패했습니다.
 
-이는 당시의 관찰이며 현재 참가자 또는 새 단기키의 성공/실패를 대신하지 않습니다.\
+이는 당시의 관찰이며 현재 참가자 또는 새 API 키의 성공/실패를 대신하지 않습니다.\
 날짜가 있는 [검증 기록](../VALIDATION.md)과 [공개 배포 기록](../DEPLOYMENT.md)을 보존합니다.

@@ -78,8 +78,11 @@ agentcore status --target default --runtime JejuGuide --json
 
 Runtime이 준비되면 04장 카드대로 질문을 한 번 호출하고 도구 사용·샘플 출처·응답 완료를 확인한다.
 `READY`만으로 모델 응답 성공이라 기록하지 않는다.
-이미 진행 중인 배포는 상태를 조회한다. 새 CDK bootstrap이 필요하면 공유 작업의
-기존 승인 여부를 확인하고, 승인되지 않았다면 필요한 변경을 구체적으로 보고한다.
+이미 진행 중인 배포는 상태를 조회한다. 키 게시와 긴 패키징 전에
+`cdk_bootstrap.py --expected-account "$ATLAS_ACCOUNT"`의 읽기 전용 확인을 수행한다.
+준비되지 않았으면 사전 구성의 진행자용 CDK bootstrap 절차로 안내한다.
+기존 코드와 제약 파일은 유지하며 `deploy --dry-run --yes`로 자동 생성을 우회 실행하지 않는다.
+새 공유 bootstrap의 생성이나 갱신은 Runtime 배포 승인에 자동 포함되지 않는다.
 
 `$ATLAS_CLI_PARENT/RESULTS.md`에 실행한 필수 확인·배포·최종 답변과 생략한 선택 검사를
 구분해 기록한다. 별도 삭제 요청에는 [키·Runtime 정리](model-auth.md#키-갱신과-정리)를 따른다.

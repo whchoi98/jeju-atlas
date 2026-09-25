@@ -25,6 +25,7 @@ SOURCE_FILES = (
     "workshop/scripts/core.py", "workshop/scripts/install_core.sh",
     "workshop/scripts/start.sh", "workshop/scripts/check_env.sh",
     "workshop/scripts/workshop_env.py", "workshop/scripts/key_binding.py",
+    "workshop/scripts/cdk_bootstrap.py",
     "workshop/.env.example",
     "workshop/requirements-core.txt", "workshop/scripts/lab.py",
     "workshop/scripts/lab_config.py", "workshop/scripts/lab_workspace.py",

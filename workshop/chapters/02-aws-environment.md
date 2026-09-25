@@ -13,12 +13,12 @@ AWS 계정과 EC2는 실제 환경에서 읽어 기록하고, 기존 설정과 �
 | 용도 | 사용하는 설정 |
 |---|---|
 | AWS 배포와 Runtime 호출 | 현재 EC2 역할의 IAM 자격 증명 |
-| Bedrock 모델 호출 | 참가자 `.env`의 단기 API 키와 발급 리전 |
+| Bedrock 모델 호출 | 참가자 `.env`의 단기 또는 장기 API 키와 모델 호출 리전 |
 | Agentic AI 코딩 어시스턴트 | 이미 준비한 도구의 로그인과 모델 설정 |
 
 Bedrock 키는 AWS 배포 자격 증명을 대신하지 않습니다.\
-진행자는 EC2 역할의 배포 권한과 CDK bootstrap을 미리 준비합니다.\
-Runtime 배포 리전은 `ap-northeast-2`이며 키 발급 리전과 구분합니다.
+진행자는 [사전 구성의 CDK bootstrap 준비](../reference/preconfiguration.md#5-cdk-bootstrap-준비)까지 미리 완료합니다.\
+Runtime 배포 리전은 `ap-northeast-2`이며 모델 호출 리전과 구분합니다.
 
 03장 프롬프트가 `aws sts get-caller-identity`와 `lab.py init-ec2 --identity-only`로 실제 계정과 EC2를 확인합니다.\
 같은 확인이 이미 완료되었다면 저장한 결과를 재사용합니다.\
@@ -27,7 +27,7 @@ Runtime 배포 리전은 `ap-northeast-2`이며 키 발급 리전과 구분합�
 ## 입력 상태만 확인하고 진행
 
 01장에서 활성화한 Bash에서 실행합니다.\
-이 명령은 키와 발급 리전의 입력 상태만 확인하며 모델을 호출하지 않습니다.
+이 명령은 키와 모델 호출 리전의 입력 상태만 확인하며 모델을 호출하지 않습니다.
 
 ```bash
 cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {

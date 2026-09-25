@@ -20,7 +20,7 @@ helper 명령은 `ATLAS_REPO`, 앱 명령은 `ATLAS_APP`으로 다시 이동하�
 같은 소스와 잠금 버전으로 만든 소유 아티팩트가 이미 있으면 재사용하세요.
 agent-build/publish/plan의 소스, 버전, 대상을 검토한 뒤 요청된 apply/status/configure-logs를 수행하세요.
 운영 ZIP/Runtime/Memory를 재사용하지 마세요. Sol/Astra와 SigV4 호출 코드를 유지하세요.
-이 심화 배포는 기본 Python 3.12 JejuGuide와 별도이며 .env 단기키를 자동 적용하지 마세요.
+이 심화 배포는 기본 Python 3.12 JejuGuide와 별도이며 .env API 키를 자동 적용하지 마세요.
 
 기본 실행은 빌드, 배포에 필요한 스키마, 계정, 대상 확인과 배포 상태 조회에 한정합니다.
 별도 모델 사전 호출, 로컬 agentcore dev, 한영 질문 묶음과 Gateway/Memory 전체 검증은 생략합니다.

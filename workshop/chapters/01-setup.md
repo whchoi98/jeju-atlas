@@ -1,7 +1,10 @@
 # 01. 환경 활성화와 Bedrock 키 입력
 
 이 장은 10분입니다.\
-[사전 구성](../reference/preconfiguration.md)을 마친 EC2에서 기존 실습 환경을 불러오고 Bedrock 단기키를 입력합니다.
+[사전 구성](../reference/preconfiguration.md)을 마친 EC2에서 기존 실습 환경을 불러오고 Bedrock API 키를 입력합니다.
+
+**단기 또는 장기 Bedrock API 키 중 준비된 키 하나를 사용합니다.**\
+두 유형 모두 아래의 같은 입력 명령을 사용합니다.
 
 사전 구성의 `start.sh`와 AWS 자격증명 점검까지 완료했다면 아래 명령으로 이어갑니다.\
 소스나 설치 준비가 남아 있으면 사전 구성의 해당 단계부터 마칩니다.
@@ -28,8 +31,12 @@ source workshop/.local/labs/team01/activate.sh &&
 
 | 터미널 입력란 | 입력할 내용 |
 |---|---|
-| `Bedrock key issuing region` | 단기키를 발급한 AWS 리전 |
-| `Bedrock short-term API key` | 발급받은 단기키. 입력 중 화면에 표시되지 않음 |
+| `Bedrock model region` | Bedrock 모델을 호출할 AWS 리전 |
+| `Bedrock API key` | 단기 또는 장기 API 키. 입력 중 화면에 표시되지 않음 |
+
+단기키는 키를 발급한 리전을 사용합니다.\
+장기키는 해당 키의 권한으로 모델을 사용할 수 있는 호출 리전을 지정합니다.\
+키 유형이나 만료 시각을 추가로 입력하지 않습니다.
 
 ### 저장되는 위치
 
@@ -54,7 +61,7 @@ source workshop/.local/labs/team01/activate.sh
 |---|---|
 | 소스나 `activate.sh`가 없습니다. | [사전 구성의 소스와 참가자 환경 준비](../reference/preconfiguration.md) |
 | 도구를 바꾸거나 이전 소스에서 오류가 났습니다. | [기존 실습 재개와 도구 선택](../reference/preconfiguration.md#이전-소스와-도구-선택-오류) |
-| 키나 발급 리전을 다시 입력해야 합니다. | 이 장의 키 입력 명령 |
+| 키나 모델 호출 리전을 다시 입력해야 합니다. | 이 장의 키 입력 명령 |
 
 필요할 때만 사용하는 선택 프롬프트: [환경 진단](../prompts/01-setup.md)
 

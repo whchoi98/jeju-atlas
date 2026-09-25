@@ -26,6 +26,7 @@ def copy_core_source(repo):
                  "workshop/scripts/install_core.sh", "workshop/requirements-core.txt",
                  "workshop/scripts/start.sh", "workshop/scripts/check_env.sh",
                  "workshop/scripts/workshop_env.py", "workshop/scripts/key_binding.py",
+                 "workshop/scripts/cdk_bootstrap.py",
                  "workshop/.env.example",
                  "agent/tools/data/jeju_pois.json"):
         destination = repo / name

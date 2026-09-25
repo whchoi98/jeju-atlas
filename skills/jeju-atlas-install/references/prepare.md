@@ -114,6 +114,11 @@ source "$PWD/workshop/.local/labs/team01/activate.sh"
 
 ## 참가자 키 입력과 작업 위치
 
+키 입력과 본 실습 전에 소스의 `workshop/scripts/cdk_bootstrap.py`를 helper Python으로 실행한다.\
+현재 계정의 CDKToolkit과 `/cdk-bootstrap/hnb659fds/version`이 일치하고 버전 30 이상이어야 한다.\
+누락이면 `workshop/reference/preconfiguration.md`의 진행자용 처음 생성 절차로 안내한다.\
+조회 거부나 진행 중인 스택을 없는 것으로 간주하거나 자동으로 업그레이드하지 않는다.
+
 활성화 후 사용자가 자신의 대화형 Bash에서 실행한다.
 
 ```bash
@@ -121,7 +126,8 @@ cd -- "${ATLAS_CLI_PARENT:?참가자 활성화 파일을 먼저 불러오세요}
 python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
 ```
 
-Bedrock 단기키와 키 발급 리전 두 항목만 입력한다.
+단기 또는 장기 Bedrock API 키와 모델 호출 리전 두 항목만 입력한다.\
+단기키는 발급 리전, 장기키는 해당 키 권한으로 모델을 호출할 수 있는 리전을 사용한다.
 키를 AI 대화로 받거나 명령 인자·파이프로 전달하지 않는다.
 에이전트는 입력 완료 여부를 다음으로 확인한다.
 
