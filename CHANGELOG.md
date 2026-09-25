@@ -8,6 +8,7 @@
 
 ### Changed
 
+- 02장 이름을 과정 목록의 `계정과 작업 폴더`로 통일했습니다. 00장 표, 워크숍 README, 프롬프트 카드와 참조 색인의 표기를 맞췄습니다.
 - Docker 그룹 적용과 새 셸 확인 안내를 `jeju-3d:41`에 게시했습니다. 공개 교재와 다운로드, PC와 모바일의 명령 복사 및 오프라인 이동을 확인했습니다. [배포 기록](workshop/DEPLOYMENT.md)
 - Docker 사전 구성을 설치, 그룹 등록과 새 셸 시작, 새 셸의 `docker info` 확인으로 분리했습니다. 설치 직후 소켓 권한 오류와 VSCode Server의 기존 그룹 상속을 구분해 안내합니다.
 - 심화 Guide의 최초 API 키 연결 소스를 GitHub main에 반영하고 교재를 `jeju-3d:40`에 게시했습니다. SDK 요청 준비와 공개 교재를 확인했으며 참가자 Runtime 갱신 절차를 안내합니다. [배포 기록](workshop/DEPLOYMENT.md)

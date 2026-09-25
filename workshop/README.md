@@ -57,7 +57,7 @@ source workshop/.local/labs/team01/activate.sh &&
 |---|---|---|
 | 0~5분 | [00. 목표](chapters/00-orientation.md) | 결과물과 종료 기준 |
 | 5~15분 | [01. 환경과 키](chapters/01-setup.md) | 환경 활성화와 숨김 `.env` 입력 |
-| 15~25분 | [02. 계정과 모델](chapters/02-aws-environment.md) | EC2 대상과 호출 리전, 입력 상태 |
+| 15~25분 | [02. 계정과 작업 폴더](chapters/02-aws-environment.md) | EC2 대상과 호출 리전, 입력 상태 |
 | 25~55분 | [03. 구현](chapters/03-codex.md) | AgentCore 프로젝트와 검색 도구 |
 | 55~100분 | [04. 배포와 결과 보기](chapters/04-agentcore-cli.md) | 키 연결, Runtime 배포, 예시 응답과 인계 |
 | 100~120분 | 여유 시간 | 지연 대응, 실제 상태와 남은 자원 정리 |
