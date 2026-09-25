@@ -17,6 +17,11 @@ substitution tokens and narrower workspace instructions are intentional.
   across the course manifest, reader, and READMEs when changing the curriculum.
 - Keep shell commands separate from prompts for coding assistants. Preserve
   the terminal/prompt rendering and copy behavior tested by the reader suite.
+- Tool-specific command tabs use three consecutive `bash assistant=codex`,
+  `bash assistant=claude`, `bash assistant=kiro` fences. Each contains the full
+  executable command starting with `cd`. The reader synchronizes the choice
+  across groups and copies only the selected command; no-JS/print shows all
+  labelled alternatives. Common commands remain ordinary Bash fences.
 - Call Codex, Claude Code and Kiro CLI "Agentic AI 코딩 어시스턴트" in Korean
   reader text, headings, prompt labels and accessibility labels. Use
   "Agentic AI coding assistant" in English prose.

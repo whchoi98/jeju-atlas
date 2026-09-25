@@ -177,6 +177,46 @@ with open(os.environ["ATLAS_TEST_COMMANDS"], "a") as stream:
         helper.chmod(0o755)
         return helper
 
+    def restrict_path(self, missing=()):
+        """Expose only fixture tools and the installer's real OS utilities."""
+        for name in ("bash", "dirname", "uname", "mktemp", "rm", "mv", "tar",
+                     "gzip", "sha256sum", "awk", "cat"):
+            (self.bin / name).symlink_to(shutil.which(name))
+        for name in missing:
+            (self.bin / name).unlink()
+        self.env["PATH"] = str(self.bin) + ":" + str(self.global_prefix / "bin")
+        self.env.pop("PYTHONPATH", None)
+
+    def trace_bootstrap(self):
+        # Unlink the fixture symlink before writing a wrapper around real Python.
+        binary = self.bin / "python3"
+        binary.unlink()
+        self.program(binary, f"os.execv({sys.executable!r}, [{sys.executable!r}, *sys.argv[1:]])\n")
+
+    def node_download(self, *, checksum_ok=True, include_npm=True, reported_version="24.21.0"):
+        """Serve a local archive; keep extraction and checksum validation real."""
+        arch = "arm64" if os.uname().machine in {"aarch64", "arm64"} else "x64"
+        name = "node-v24.21.0-linux-" + arch
+        unpacked = self.directory / name
+        self.program(unpacked / "bin/node", f'print("v{reported_version}")\n')
+        if include_npm:
+            shutil.copyfile(self.bin / "npm", unpacked / "bin/npm")
+            (unpacked / "bin/npm").chmod(0o755)
+        archive = self.directory / (name + ".tar.gz")
+        with tarfile.open(archive, "w:gz") as stream:
+            stream.add(unpacked, arcname=name)
+        digest = hashlib.sha256(archive.read_bytes()).hexdigest() if checksum_ok else "0" * 64
+        self.program(self.bin / "curl", f"""
+args = sys.argv[1:]
+output = Path(args[args.index("--output") + 1])
+if args[-1] == "https://nodejs.org/dist/v24.21.0/SHASUMS256.txt":
+    output.write_text("{digest}  {name}.tar.gz\\n")
+elif args[-1] == "https://nodejs.org/dist/v24.21.0/{name}.tar.gz":
+    output.write_bytes(Path({str(archive)!r}).read_bytes())
+else:
+    sys.exit(96)
+""")
+
     def calls(self):
         return [json.loads(line) for line in self.commands.read_text().splitlines()] if self.commands.exists() else []
 
@@ -453,11 +493,171 @@ class CoreTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(list(tools.iterdir()), [tools / "keep.txt"])
 
-    def install(self, fixture):
+    def install(self, fixture, *args):
         return subprocess.run(
-            ["bash", str(ROOT / "workshop/scripts/install_core.sh"), "--repo", str(self.repo)],
+            ["bash", str(ROOT / "workshop/scripts/install_core.sh"),
+             *(args or ("--repo", str(self.repo)))],
             env=fixture.env, capture_output=True, text=True, timeout=30,
         )
+
+    def test_node_only_installs_pinned_node_for_node20_without_uv_or_other_tools(self):
+        report = self.prepare()
+        fixture = InstallFixture(self.directory, self.repo, node_version="20.20.2", cli_version=None)
+        fixture.restrict_path(missing=("uv", "aws", "codex", "claude", "kiro-cli", "docker"))
+        fixture.node_download()
+        before = {path: path.read_bytes() for path in (fixture.bin / "node", fixture.bin / "npm")}
+        result = self.install(fixture, "--repo", str(self.repo), "--node-only")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(".tar.gz: OK", result.stdout)
+        self.assertNotIn("Core tools prepared", result.stdout)
+        self.assertNotIn("doctor", result.stdout)
+        private = fixture.tools / "node-v24.21.0"
+        self.assertTrue((private / "bin/node").is_file())
+        self.assertTrue((private / "bin/npm").is_file())
+        self.assertEqual({path.name for path in fixture.tools.iterdir()}, {".owner.json", "node-v24.21.0"})
+        for path, content in before.items():
+            self.assertEqual(path.read_bytes(), content, "The user-global tools must remain untouched")
+        calls = fixture.calls()
+        self.assertEqual(sum(call[0] == "curl" for call in calls), 2)
+        self.assertTrue(all(call[0] in {"node", "npm", "curl"} for call in calls), calls)
+        self.assertTrue(all(call[1:] == ["--version"] for call in calls if call[0] == "npm"))
+        downloads = [Path(call[call.index("--output") + 1]) for call in calls if call[0] == "curl"]
+        self.assertTrue(all(path.parent.parent == fixture.tools
+                            and path.parent.name.startswith(".node-install-") for path in downloads))
+        activation = subprocess.run(
+            ["bash", "--noprofile", "--norc", "-c",
+             'source "$1" && command -v node && command -v npm && node --version && npm --version',
+             "bash", report["activationPath"]],
+            env=fixture.env, capture_output=True, text=True, timeout=15,
+        )
+        self.assertEqual(activation.returncode, 0, activation.stderr)
+        self.assertEqual(activation.stdout.splitlines(), [
+            str(private / "bin/node"), str(private / "bin/npm"), "v24.21.0", "11.11.0",
+        ])
+        again = self.install(fixture, "--node-only", "--repo", str(self.repo))
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertEqual(sum(call[0] == "curl" for call in fixture.calls()), 2)
+        self.assertEqual({path.name for path in fixture.tools.iterdir()}, {".owner.json", "node-v24.21.0"})
+
+    def test_node_only_reuses_compatible_global_node_in_either_argument_order(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo, cli_version=None)
+        fixture.restrict_path()
+        for version, args in (
+            ("24.18.1", ("--node-only", "--repo", str(self.repo))),
+            ("24.21.0", ("--repo", str(self.repo), "--node-only")),
+        ):
+            with self.subTest(version=version):
+                fixture.program(fixture.bin / "node", f'print("v{version}")\n')
+                result = self.install(fixture, *args)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual({path.name for path in fixture.tools.iterdir()}, {".owner.json"})
+        calls = fixture.calls()
+        self.assertTrue(all(call[0] in {"node", "npm"} and call[1:] == ["--version"] for call in calls), calls)
+
+    def test_node_only_rejects_bad_checksum_without_publishing_node(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo, node_version="20.20.2", cli_version=None)
+        fixture.restrict_path(missing=("uv",))
+        fixture.node_download(checksum_ok=False)
+        result = self.install(fixture, "--node-only", "--repo", str(self.repo))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("checksum", (result.stdout + result.stderr).lower())
+        self.assertEqual({path.name for path in fixture.tools.iterdir()}, {".owner.json"})
+        self.assertEqual(sum(call[0] == "node" for call in fixture.calls()), 1,
+                         "A download with a bad checksum must never execute")
+        self.assertTrue(all(call[0] in {"node", "curl"} for call in fixture.calls()))
+
+    def test_node_only_checks_staged_node_version_before_publishing(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo, node_version="20.20.2", cli_version=None)
+        fixture.restrict_path(missing=("uv",))
+        fixture.node_download(reported_version="24.18.0")
+        result = self.install(fixture, "--repo", str(self.repo), "--node-only")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(".tar.gz: OK", result.stdout)
+        self.assertEqual({path.name for path in fixture.tools.iterdir()}, {".owner.json"})
+        self.assertTrue(all(call[0] in {"node", "curl"} for call in fixture.calls()))
+
+    def test_node_only_checks_staged_npm_before_publishing(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo, node_version="20.20.2", cli_version=None)
+        fixture.restrict_path(missing=("uv",))
+        fixture.node_download(include_npm=False)
+        result = self.install(fixture, "--repo", str(self.repo), "--node-only")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("npm", result.stderr)
+        self.assertIn(".tar.gz: OK", result.stdout)
+        self.assertEqual({path.name for path in fixture.tools.iterdir()}, {".owner.json"})
+
+    def test_node_only_preserves_incomplete_private_npm_instead_of_using_global_npm(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo)
+        fixture.restrict_path(missing=("uv",))
+        private = fixture.tools / "node-v24.21.0"
+        fixture.program(private / "bin/node", 'print("v24.21.0")\n')
+        before = (private / "bin/node").read_bytes()
+        for missing in (True, False):
+            with self.subTest(missing=missing):
+                if not missing:
+                    fixture.program(private / "bin/npm", "sys.exit(91)\n")
+                result = self.install(fixture, "--repo", str(self.repo), "--node-only")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("npm", result.stderr)
+                self.assertEqual((private / "bin/node").read_bytes(), before)
+                self.assertEqual({path.name for path in fixture.tools.iterdir()}, {".owner.json", "node-v24.21.0"})
+        self.assertTrue(all(call[0] in {"node", "npm"} for call in fixture.calls()))
+
+    def test_node_only_rejects_unowned_storage_before_probes_or_downloads(self):
+        fixture = InstallFixture(self.directory, self.repo, node_version="20.20.2", cli_version=None)
+        fixture.restrict_path(missing=("uv",))
+        fixture.tools.mkdir(parents=True)
+        keep = fixture.tools / "keep.txt"
+        keep.write_text("foreign tools\n")
+        result = self.install(fixture, "--node-only", "--repo", str(self.repo))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Core workshop:", result.stderr)
+        self.assertEqual(keep.read_text(), "foreign tools\n")
+        self.assertEqual(list(fixture.tools.iterdir()), [keep])
+        self.assertEqual(fixture.calls(), [])
+
+    def test_node_only_rejects_linked_node_before_probes_or_downloads(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo)
+        fixture.restrict_path(missing=("uv",))
+        private = fixture.tools / "node-v24.21.0"
+        private.symlink_to(self.other, target_is_directory=True)
+        result = self.install(fixture, "--repo", str(self.repo), "--node-only")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("symlink", result.stderr.lower())
+        self.assertTrue(private.is_symlink())
+        self.assertEqual((self.other / "keep.txt").read_text(), "existing project\n")
+        self.assertEqual(fixture.calls(), [])
+
+    def test_node_only_keeps_linux_and_architecture_checks_before_downloads(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo, node_version="20.20.2", cli_version=None)
+        fixture.restrict_path(missing=("uv",))
+        (fixture.bin / "uname").unlink()
+        for system, arch in (("Darwin", "arm64"), ("Linux", "armv7l")):
+            with self.subTest(system=system, arch=arch):
+                fixture.program(fixture.bin / "uname",
+                                f'print({system!r} if sys.argv[1:] == ["-s"] else {arch!r})\n')
+                result = self.install(fixture, "--node-only", "--repo", str(self.repo))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("Linux EC2", result.stderr)
+                self.assertEqual({path.name for path in fixture.tools.iterdir()}, {".owner.json"})
+        self.assertTrue(all(call[0] == "uname" for call in fixture.calls()))
+
+    def test_full_installer_still_requires_uv_before_preparing_node(self):
+        self.prepare()
+        fixture = InstallFixture(self.directory, self.repo, node_version="20.20.2", cli_version=None)
+        fixture.restrict_path(missing=("uv",))
+        result = self.install(fixture)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Prerequisite missing: uv", result.stderr)
+        self.assertEqual({path.name for path in fixture.tools.iterdir()}, {".owner.json"})
+        self.assertEqual(fixture.calls(), [])
 
     def test_installer_reuses_user_global_node_and_cli_and_creates_python312_helpers(self):
         report = self.prepare()

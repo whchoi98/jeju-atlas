@@ -3,39 +3,50 @@
 set -euo pipefail
 
 usage() {
-  printf '%s\n' 'Usage: bash workshop/scripts/start.sh [--assistant codex|claude|kiro] [--participant team01] [--project-name AtlasCliTeam01]'
+  printf '%s\n' 'Usage: bash workshop/scripts/start.sh [--assistant codex|claude|kiro] [--participant team01] [--project-name AtlasCliTeam01] [--repo /absolute/source/path] [--node-only]'
 }
 
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+repo="$(cd -- "$script_dir/../.." && pwd -P)"
 assistant=codex
 participant=team01
 project=""
+node_only=0
 while (($#)); do
   case "$1" in
-    --assistant|--participant|--project-name)
+    --assistant|--participant|--project-name|--repo)
       [[ $# -ge 2 && -n "$2" && "$2" != --* ]] ||
         { usage >&2; exit 2; }
       case "$1" in
         --assistant) assistant="$2" ;;
         --participant) participant="$2" ;;
         --project-name) project="$2" ;;
+        --repo) repo="$2" ;;
       esac
       shift 2
       ;;
+    --node-only) node_only=1; shift ;;
     --help|-h) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
 done
 if [[ -z "$project" ]]; then project="AtlasCli${participant^}"; fi
 
-script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-repo="$(cd -- "$script_dir/../.." && pwd -P)"
 # prepare runs on the EC2's Python 3.9+ standard library. It validates names,
 # source and ownership before the installer is allowed to write or download.
 session="$(python3 -B "$script_dir/core.py" prepare --repo "$repo" \
   --participant "$participant" --project-name "$project" --assistant "$assistant")"
 activation_path="$(python3 -B -c 'import json,sys; print(json.load(sys.stdin)["activationPath"])' <<< "$session")"
 
-bash "$script_dir/install_core.sh" --repo "$repo"
+installer_args=(--repo "$repo")
+if (( node_only )); then installer_args+=(--node-only); fi
+bash "$script_dir/install_core.sh" "${installer_args[@]}"
+if (( node_only )); then
+  # The parent Bash shell activates Node explicitly; no full-tool readiness probe.
+  printf '\nactivationPath: %s\n' "$activation_path"
+  printf '\nNext, in your Bash terminal:\nsource %q\n' "$activation_path"
+  exit 0
+fi
 source "$activation_path"
 
 # CodeZip does not need Docker. Report daemon access for later container labs

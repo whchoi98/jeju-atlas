@@ -4,12 +4,23 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repo="$(cd -- "$script_dir/../.." && pwd -P)"
-if [[ $# == 2 && "$1" == --repo ]]; then
-  repo="$2"
-elif [[ $# != 0 ]]; then
-  printf '%s\n' 'Usage: bash workshop/scripts/install_core.sh [--repo /absolute/source/path]' >&2
-  exit 2
-fi
+usage() {
+  printf '%s\n' 'Usage: bash workshop/scripts/install_core.sh [--repo /absolute/source/path] [--node-only]'
+}
+node_only=0
+while (($#)); do
+  case "$1" in
+    --repo)
+      [[ $# -ge 2 && -n "$2" && "$2" != --* ]] ||
+        { usage >&2; exit 2; }
+      repo="$2"
+      shift 2
+      ;;
+    --node-only) node_only=1; shift ;;
+    --help|-h) usage; exit 0 ;;
+    *) usage >&2; exit 2 ;;
+  esac
+done
 bootstrap_python="$(command -v python3)"
 settings="$("$bootstrap_python" -B "$script_dir/core.py" tools --repo "$repo")"
 tools="$("$bootstrap_python" -B -c 'import json,sys; print(json.load(sys.stdin)["toolchainPath"])' <<< "$settings")"
@@ -23,7 +34,9 @@ case "$(uname -m)" in
   x86_64) arch=x64 ;;
   *) printf '%s\n' 'Use an ARM64 or x86_64 Linux EC2.' >&2; exit 2 ;;
 esac
-command -v uv >/dev/null || { printf '%s\n' 'Prerequisite missing: uv' >&2; exit 2; }
+if (( ! node_only )); then
+  command -v uv >/dev/null || { printf '%s\n' 'Prerequisite missing: uv' >&2; exit 2; }
+fi
 
 matches_agentcore() {
   # Inspect npm metadata without launching the CLI or initializing login/config.
@@ -38,6 +51,11 @@ except (OSError, ValueError, KeyError, TypeError, AttributeError):
 PY
 }
 
+node_npm_ready() {
+  [[ -x "$1/bin/npm" ]] &&
+    PATH="$1/bin:$PATH" "$1/bin/npm" --version >/dev/null 2>&1
+}
+
 # Refuse links or incompatible partial installations. Never replace system bins.
 node_dir="$tools/node-v$node_version"
 for directory in "$node_dir" "$tools/helpers" "$tools/agentcore" "$tools/python" "$tools/cache"; do
@@ -46,6 +64,10 @@ done
 if [[ -e "$node_dir" ]]; then
   [[ -x "$node_dir/bin/node" && "$("$node_dir/bin/node" --version)" == "v$node_version" ]] ||
     { printf 'Preserve and inspect the existing Node directory: %s\n' "$node_dir" >&2; exit 2; }
+  if (( node_only )) && ! node_npm_ready "$node_dir"; then
+    printf 'Preserve and inspect the existing Node directory; npm is unavailable: %s\n' "$node_dir" >&2
+    exit 2
+  fi
   printf 'Reusing Node %s: %s\n' "$node_version" "$node_dir/bin/node"
 elif node_binary="$(command -v node)" \
     && detected_node="$("$node_binary" --version 2>/dev/null)" \
@@ -72,9 +94,19 @@ else
   fi
   tar -xzf "$stage/$archive" -C "$stage"
   [[ "$("$stage/node-v$node_version-linux-$arch/bin/node" --version)" == "v$node_version" ]]
+  if (( node_only )) && ! node_npm_ready "$stage/node-v$node_version-linux-$arch"; then
+    printf '%s\n' 'Node npm check failed; no Node installation was published.' >&2
+    exit 2
+  fi
   mv -- "$stage/node-v$node_version-linux-$arch" "$node_dir"
   rm -rf -- "$stage"
   trap - EXIT
+fi
+
+if (( node_only )); then
+  printf '\n%s\n' 'Node.js and npm prepared (Node-only).'
+  printf '%s\n' 'Source your participant activate.sh in your Bash terminal to use Node and npm.'
+  exit 0
 fi
 
 export PATH="$node_dir/bin:$tools/agentcore/node_modules/.bin:$PATH"

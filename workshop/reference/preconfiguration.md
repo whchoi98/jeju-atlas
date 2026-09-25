@@ -27,12 +27,25 @@ git clone https://github.com/whchoi98/jeju-atlas.git \
 
 ## 1. EC2 사전 점검
 
-```bash
+```bash assistant=codex
 cd /home/ec2-user/my-project/jeju-atlas && {
 bash workshop/scripts/check_env.sh --assistant codex
 }
 ```
-선택한 도구에 따라 마지막 값을 `claude` 또는 `kiro`로 바꿉니다.\
+
+```bash assistant=claude
+cd /home/ec2-user/my-project/jeju-atlas && {
+bash workshop/scripts/check_env.sh --assistant claude
+}
+```
+
+```bash assistant=kiro
+cd /home/ec2-user/my-project/jeju-atlas && {
+bash workshop/scripts/check_env.sh --assistant kiro
+}
+```
+탭에서 사용할 도구를 선택한 뒤 표시된 명령을 그대로 복사합니다.\
+선택은 이 페이지의 Node 설치, 도구 준비와 활성화 명령에도 함께 적용됩니다.\
 처음 실행에서 실패가 나오면 아래 설치로 해결한 뒤 같은 명령을 다시 실행합니다.\
 원하면 이 스크립트를 `~/check-env.sh`로 복사해 사용할 수 있습니다.
 
@@ -55,6 +68,47 @@ Docker 누락은 기본 검사에서 `[WARN]`, `--containers`를 붙인 검사�
 점검기는 설치, 키 읽기와 모델 호출을 하지 않습니다.
 
 ## 2. EC2 기본 도구 설치
+
+### Node.js 24
+
+사전 점검에서 `[FAIL] Node.js 20.20.2; need >=24.18.1 within major 24.`처럼 표시되면 먼저 실행합니다.\
+이 저장소는 Node 24 계열 24.18.1 이상을 사용하며 `.nvmrc`의 설치 버전은 24.21.0입니다.\
+아래 탭에서 사용할 도구를 선택하고 명령 전체를 복사합니다.
+
+```bash assistant=codex
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+bash workshop/scripts/start.sh --assistant codex --node-only &&
+source workshop/.local/labs/team01/activate.sh &&
+node --version &&
+npm --version
+}
+```
+
+```bash assistant=claude
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+bash workshop/scripts/start.sh --assistant claude --node-only &&
+source workshop/.local/labs/team01/activate.sh &&
+node --version &&
+npm --version
+}
+```
+
+```bash assistant=kiro
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+bash workshop/scripts/start.sh --assistant kiro --node-only &&
+source workshop/.local/labs/team01/activate.sh &&
+node --version &&
+npm --version
+}
+```
+
+`--node-only`는 기존 Node 설치 상태를 확인하고 필요하면 프로젝트 전용 경로에 Node 24를 설치합니다.\
+Python 3.12, uv와 AgentCore CLI를 설치하기 전에도 실행할 수 있습니다.\
+시스템 Node와 기존 npm 전역 경로, 로그인 설정을 교체하지 않습니다.
+
+출력에서 Node가 `v24.21.0` 또는 요구 조건을 충족하는 24 계열인지 확인합니다.\
+새 Bash에서는 `activate.sh`를 다시 불러와 같은 Node를 사용합니다.\
+이후 아래 Python과 Docker, AgentCore CLI 준비를 계속합니다.
 
 ### uv와 Python 3.12
 
@@ -120,9 +174,21 @@ AWS CLI와 선택한 Agentic AI 코딩 어시스턴트의 설치 또는 로그�
 참가자마다 독립 랩을 사용하므로 팀명 입력과 변경 단계는 없습니다.\
 준비기는 공통 실습 ID `team01`과 프로젝트 `AtlasCliTeam01`을 자동으로 사용합니다.
 
-```bash
+```bash assistant=codex
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
 bash workshop/scripts/start.sh --assistant codex
+}
+```
+
+```bash assistant=claude
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+bash workshop/scripts/start.sh --assistant claude
+}
+```
+
+```bash assistant=kiro
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+bash workshop/scripts/start.sh --assistant kiro
 }
 ```
 준비기는 `core.py prepare`, `install_core.sh`, 활성화와 `core.py doctor`를 순서대로 실행합니다.\
@@ -143,11 +209,27 @@ uv의 Python 3.12와 helper 패키지는 같은 도구 경로에서 관리합니
 출력된 절대 경로를 **현재 Bash에서** 불러옵니다.\
 새 터미널에서도 같은 명령을 사용합니다.
 
-```bash
+```bash assistant=codex
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
 source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh
-python3 -B "$ATLAS_REPO/workshop/scripts/core.py" doctor --assistant "$ATLAS_ASSISTANT"
-bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant "$ATLAS_ASSISTANT"
+python3 -B "$ATLAS_REPO/workshop/scripts/core.py" doctor --assistant codex
+bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant codex
+}
+```
+
+```bash assistant=claude
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh
+python3 -B "$ATLAS_REPO/workshop/scripts/core.py" doctor --assistant claude
+bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant claude
+}
+```
+
+```bash assistant=kiro
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh
+python3 -B "$ATLAS_REPO/workshop/scripts/core.py" doctor --assistant kiro
+bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant kiro
 }
 ```
 `core.py doctor`의 `passed: true`와 STS 점검 성공을 확인합니다.\
@@ -158,12 +240,30 @@ Runtime도 Python 3.12를 사용합니다.\
 
 **05~14장 전체 앱 또는 교재 유지관리까지 하는 환경만** 다음을 추가합니다.
 
-```bash
+```bash assistant=codex
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
 uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt"
 "$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")'
 cfn-lint --version
-bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant "$ATLAS_ASSISTANT" --containers
+bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant codex --containers
+}
+```
+
+```bash assistant=claude
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt"
+"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")'
+cfn-lint --version
+bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant claude --containers
+}
+```
+
+```bash assistant=kiro
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt"
+"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")'
+cfn-lint --version
+bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant kiro --containers
 }
 ```
 PyYAML 확인 전에 `lab.py prepare`로 앱 사본을 만들지 않습니다.\
@@ -179,7 +279,8 @@ PyYAML 확인 전에 `lab.py prepare`로 앱 사본을 만들지 않습니다.\
 - 선택한 코딩 CLI의 실제 대화와 권한 모드
 - `npm`과 `uv` 의존성 설치 및 CodeZip 패키징 시간
 
-Claude Code는 `claude --permission-mode auto`, Codex는 `-a on-request -c 'approvals_reviewer="auto_review"'`를 권장합니다.\
+코덱스는 `-a on-request -c 'approvals_reviewer="auto_review"'`, 클로드 코드는 `claude --permission-mode auto`를 권장합니다.\
+키로는 `kiro-cli chat`으로 준비한 로그인과 도구 권한을 사용합니다.\
 지원 모델과 조직 설정에 따라 auto 모드가 제한될 수 있으므로 [Agentic AI 코딩 어시스턴트 환경](ai-cli-environments.md)에서 실제 적용 상태를 확인합니다.\
 HUD와 별도 Codex Bedrock provider 설정은 준비된 환경에서 사용하는 선택 자료입니다.
 

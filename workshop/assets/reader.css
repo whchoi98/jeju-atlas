@@ -333,6 +333,14 @@ main:focus { outline: none; }
 .terminal-light-zoom { background: #28c840; }
 .terminal-destination { padding: 11px 22px 0; color: #a7b4c7; font: 11px/1.7 NanumSquare, sans-serif; }
 .prose .terminal-window pre { background: #181d25; color: #edf1f7; font-size: 13px; }
+.command-tabs { margin: 25px 0 29px; min-width: 0; }
+.command-tool-tabs { display: flex; gap: 6px; padding: 9px; border: 1px solid var(--line); border-bottom: 0; border-radius: 12px 12px 0 0; background: var(--surface); }
+.command-tool-tabs button { flex: 1; min-width: 0; min-height: 40px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--muted); font: 13px/1.5 NanumSquare, sans-serif; white-space: nowrap; }
+.command-tool-tabs button[aria-selected="true"] { border-color: var(--interactive); background: var(--interactive-soft); color: var(--interactive-text); font-weight: 700; }
+.command-tool-tabs button:focus-visible { outline-color: var(--interactive); outline-offset: 2px; }
+.command-tabs[data-command-ready] .command-variant-title { display: none; }
+.command-tabs[data-command-ready] .code-block { margin: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+.prose .command-variant-title { margin-bottom: 9px; font-size: 14px; }
 .prose .prompt-screen { --prompt-accent: #0d7862; --prompt-soft: #eef9f5; border-color: var(--prompt-accent); background: var(--surface); }
 .prompt-screen[data-assistant="kiro"] { --prompt-accent: #6f4ab6; --prompt-soft: #f4f0fd; }
 .prompt-screen[data-assistant="claude"] { --prompt-accent: #a94d2d; --prompt-soft: #fff3ed; }
@@ -593,6 +601,9 @@ main:focus { outline: none; }
   .code-toolbar { min-height: 26px; padding: 5px 12px; background: var(--paper); color: var(--text); }
   .prose pre { padding: 12px; background: white; color: var(--text); overflow: visible; font-size: 8pt; }
   .prose .prompt-screen pre { max-height: none; }
+  .command-tool-tabs { display: none !important; }
+  .command-panel[hidden] { display: block !important; }
+  .command-tabs[data-command-ready] .command-variant-title { display: block; margin-top: 14px; }
   .prompt-tools, .terminal-lights, .terminal-destination, .prompt-destination { display: none !important; }
   .prose pre > code { white-space: pre-wrap; overflow-wrap: anywhere; }
   .table-scroll { overflow: visible; }
