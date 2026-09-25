@@ -277,6 +277,9 @@ source workshop/.local/labs/team01/activate.sh &&
 아래의 CloudFormation 실행 역할에는 `AdministratorAccess`를 지정합니다.\
 기관에서 승인한 별도 실행 정책이 있으면 해당 정책 ARN으로 바꿉니다.
 
+프로젝트 생성 전에는 아래의 고정 버전 `npx`를 사용합니다.\
+04장까지 진행해 프로젝트가 이미 있다면 다음 절의 프로젝트 CDK 경로만 사용합니다.
+
 ```bash
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
 source workshop/.local/labs/team01/activate.sh &&
@@ -295,6 +298,27 @@ npx --yes --package aws-cdk@2.1126.0 cdk bootstrap \
 계정이 맞지 않거나 기존 bootstrap 자원이 있으면 생성 전에 멈춥니다.\
 기존 스택을 자동으로 갱신하거나 삭제하는 복구 명령이 아닙니다.\
 고정한 CDK CLI의 표준 템플릿은 bootstrap 버전 32를 제공합니다.
+
+### 04장에서 이미 프로젝트를 만든 경우
+
+bootstrap이 없고 `$ATLAS_CLI/agentcore/cdk/node_modules/`가 준비되어 있다면 설치된 CDK를 그대로 사용합니다.\
+이 경로도 처음 생성하는 계정의 관리자용이며, 기본 CloudFormation 실행 역할에는 `AdministratorAccess`가 적용됩니다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source workshop/.local/labs/team01/activate.sh &&
+"$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/cdk_bootstrap.py" \
+  --expected-account "${ATLAS_ACCOUNT:?03장에서 확인한 계정이 필요합니다}" --require-missing &&
+cd -- "$ATLAS_CLI/agentcore/cdk" &&
+./node_modules/.bin/cdk bootstrap "aws://$ATLAS_ACCOUNT/ap-northeast-2" \
+  --termination-protection &&
+"$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/cdk_bootstrap.py" \
+  --expected-account "$ATLAS_ACCOUNT"
+}
+```
+
+이미 bootstrap을 실행했다면 5절의 첫 번째 읽기 전용 확인 명령만 수행합니다.\
+`ready: true`이면 키를 입력한 뒤 기존 코드와 제약 파일을 그대로 사용해 04장을 재개합니다.
 
 bootstrap은 계정과 리전의 공용 배포 기반이므로 실습 Runtime 정리 후에도 유지합니다.\
 04장 프롬프트의 Runtime 배포 승인과 별도로, 이 사전 준비를 먼저 완료합니다.

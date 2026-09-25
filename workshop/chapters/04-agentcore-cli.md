@@ -28,6 +28,7 @@
 과거 만료 시각 오류가 기록되어 있어도 만료 시각을 다시 입력하지 않습니다.
 
 `AWS environment needs bootstrapping`이면 [사전 구성의 CDK bootstrap 준비](../reference/preconfiguration.md#5-cdk-bootstrap-준비)로 이동합니다.\
+프로젝트가 이미 만들어졌다면 그 안내의 `"$ATLAS_CLI/agentcore/cdk"`에 설치된 CDK를 우선 사용합니다.\
 현재 계정의 준비 여부를 먼저 확인하므로 키 게시나 긴 패키징 전에 누락을 찾을 수 있습니다.\
 준비한 코드와 제약 파일은 그대로 유지하고 완료 후 같은 프로젝트에서 재개합니다.
 

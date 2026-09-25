@@ -57,6 +57,8 @@ npm run check와 npm run workshop:check는 기본으로 생략합니다.
    "$ATLAS_PYTHON" -B "$ATLAS_REPO/workshop/scripts/cdk_bootstrap.py" --expected-account "$ATLAS_ACCOUNT"
    위 읽기 전용 확인의 ready가 true인 경우에만 키 게시와 패키징을 계속합니다.
    누락 또는 버전 부족이면 사전 구성의 '5. CDK bootstrap 준비'를 진행자에게 안내합니다.
+   프로젝트가 이미 있으면 ATLAS_CLI/agentcore/cdk의 ./node_modules/.bin/cdk 경로를 우선 안내합니다.
+   사용자가 bootstrap 완료를 알렸다면 다시 생성하지 말고 준비 상태 확인 후 이어갑니다.
    기존 코드, 잠금 파일과 제약 파일은 보존하고 준비 완료 후 같은 프로젝트로 재개하세요.
    공유 bootstrap 생성/갱신은 이 카드의 승인 범위에 넣지 않습니다.
    bootstrap 오류를 넘기려고 deploy --dry-run에 --yes를 덧붙이지 마세요.
