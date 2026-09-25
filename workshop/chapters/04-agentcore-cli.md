@@ -97,3 +97,18 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure --integrations
 본 실습 종료: [전체 과정](../README.md)
 
 선택 실습: [05. 컨테이너 저장소와 장소 데이터](05-foundation-and-data.md)
+
+## 참고: 이 랩에서 AgentCore CLI가 맡은 역할
+
+03장에서 `agentcore create`로 만든 프로젝트를 이 장에서 `agentcore deploy`로 배포하고, `agentcore invoke`로 호출합니다.\
+코딩 어시스턴트는 검색 코드를 작성하고 이 명령을 실행하며, AgentCore CLI는 프로젝트와 AWS Runtime의 배포 흐름을 담당합니다.
+
+| 학습 단계 | 핵심 명령 |
+|---|---|
+| 프로젝트 생성과 설정 확인 | `agentcore create`, `agentcore validate` |
+| 배포 준비와 실제 AWS 배포 | `agentcore deploy --dry-run`, `agentcore deploy` |
+| 상태와 실제 응답 확인 | `agentcore status`, `agentcore invoke` |
+
+Python 보조 스크립트는 환경과 키 연결을 준비하고, CDK bootstrap은 계정과 리전의 배포 기반을 준비합니다.\
+명령별 의미와 주요 파일은 [AgentCore CLI 역할과 실행 흐름](../reference/agentcore-cli-role.md)에서 복습합니다.\
+이 참고 자료를 위해 완료한 명령을 다시 실행할 필요는 없습니다.

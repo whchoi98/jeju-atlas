@@ -26,6 +26,7 @@
     "reference/offline-start.html",
     "reference/ai-cli-environments.html",
     "reference/hud-setup.html",
-    "reference/codex-bedrock.html"
+    "reference/codex-bedrock.html",
+    "reference/agentcore-cli-role.html"
   ]
 }

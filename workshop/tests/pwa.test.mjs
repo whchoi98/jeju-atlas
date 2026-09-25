@@ -139,15 +139,16 @@ async function builtWorker(t, options) {
   return { ...input, files, worker: workerHarness(files.get('sw.js').toString(), files, options) };
 }
 
-test('build emits a relative install manifest, valid icons and all 26 real course pages', async (t) => {
+test('build emits a relative install manifest, valid icons and all declared course pages', async (t) => {
   const outputDir = join(await temporaryDirectory(t), 'site');
+  const course = JSON.parse(await readFile(new URL('../course.json', import.meta.url), 'utf8'));
+  const expectedPages = [
+    'index.html',
+    ...course.chapters.map((chapter) => `chapters/${chapter.slug}.html`),
+    ...course.references.map((reference) => `reference/${reference.slug}.html`),
+  ].sort();
   const result = await buildSite({ outputDir });
-  assert.equal(result.pages.length, 26);
-  assert.ok(result.pages.includes('chapters/14-project-completion.html'));
-  assert.ok(result.pages.includes('reference/hud-setup.html'));
-  assert.ok(result.pages.includes('reference/codex-bedrock.html'));
-  assert.ok(result.pages.includes('reference/preconfiguration.html'));
-  assert.ok(result.pages.includes('reference/keys-and-integrations.html'));
+  assert.deepEqual([...result.pages].sort(), expectedPages);
   assert.ok(result.assets.includes('manifest.webmanifest'), 'Include the install manifest in build outputs');
   assert.ok(result.assets.includes('sw.js'), 'Include the generated worker in build outputs');
   const manifest = JSON.parse(await readFile(join(outputDir, 'manifest.webmanifest'), 'utf8'));
@@ -173,7 +174,7 @@ test('build emits a relative install manifest, valid icons and all 26 real cours
   const worker = workerHarness(files.get('sw.js').toString(), files);
   await worker.dispatch('install');
   const cached = [...worker.store.values()][0];
-  for (const page of result.pages) {
+  for (const page of expectedPages) {
     assert.ok(cached.has(`https://atlas.example/workshop/${page}`), `Precache generated page ${page}`);
   }
   assert.ok(cached.has('https://atlas.example/workshop/prompts/14-project-completion.md'));

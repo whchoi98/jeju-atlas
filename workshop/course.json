@@ -166,6 +166,10 @@
     {
       "slug": "codex-bedrock",
       "title": "Codex 환경 설정과 Bedrock 연결"
+    },
+    {
+      "slug": "agentcore-cli-role",
+      "title": "AgentCore CLI 역할과 실행 흐름"
     }
   ],
   "coreChapterCount": 5,
