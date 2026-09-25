@@ -1,20 +1,33 @@
 # EC2 설치 준비
 
-[스킬 본문](../SKILL.md)에서 설치 준비 또는 복구를 선택했을 때 읽는다.
-설치·다운로드는 본 실습 100분과 여유 20분 전에 끝낸다.
+[스킬 본문](../SKILL.md)에서 설치 준비 또는 복구를 선택했을 때 읽는다.\
+설치·다운로드는 본 실습 100분과 여유 20분 전에 끝낸다.\
 참조하는 `workshop/` 경로는 발견한 전체 저장소 기준이다.
+
+00장은 안내만 제공하며 참가자 파일을 만들지 않는다.\
+전체 저장소의 `workshop/reference/preconfiguration.md`를 완료한 뒤 00장과 01장으로 이어간다.
 
 ## 기존 상태와 선행 도구
 
-저장소·참가자·프로젝트·현재 Agentic AI 코딩 어시스턴트를 기존 설정에서 찾는다.
-`workshop/.local/labs/`의 소유 파일과 활성화 파일을 확인하고 기존 작업을 보존한다.
-여러 기존 프로젝트 중 재개 대상을 식별할 수 없을 때만 확인한다.
+전체 준비나 세션 재개는 저장소·참가자·프로젝트·현재 Agentic AI 코딩 어시스턴트를 기존 설정에서 찾는다.\
+`workshop/.local/labs/`의 소유 파일과 활성화 파일을 확인하고 기존 작업을 보존한다.\
+Node/npm만 준비하는 요청에서는 참가자 탐색을 생략한다.\
+여러 기존 프로젝트 중 재개 대상을 식별할 수 없을 때만 확인한다.\
 원본 저장소와 참가자 프로젝트를 구분한다.
 
-참가자별 AWS 자원 범위가 분리된 독립 랩에서 새 설치는 공통 내부 ID `team01`,
-프로젝트 `AtlasCliTeam01`을 자동 사용한다.
-팀 배정이나 이름 선택 절차를 추가하지 않는다.
+참가자별 AWS 자원 범위가 분리된 독립 랩에서 새 설치의 기본값은 `team01`, `AtlasCliTeam01`, `codex`다.\
+팀 배정이나 이름 선택 절차를 추가하지 않는다.\
 재개 시에는 기존 참가자 값·프로젝트 이름·경로를 그대로 사용한다.
+
+기존 clone은 새 준비 명령을 실행하기 전에 전체 소스 루트에서 갱신한다.
+
+```bash
+cd -- "${ATLAS_REPO:-/home/ec2-user/my-project/jeju-atlas}" && {
+git pull --ff-only origin main
+}
+```
+갱신이 중단되면 기존 작업을 보존하고 오류를 보고한다.\
+저장소를 다시 받거나 폴더 삭제·reset으로 해결하지 않는다.
 
 | 항목 | 본 실습 기준 |
 |---|---|
@@ -43,12 +56,12 @@ docker 그룹 이름이나 systemd 상태만으로 사용 가능하다고 판정
 
 ## 한 번의 준비 명령
 
-새 독립 랩의 기본값과 Codex 예시다.
-기존 작업은 저장된 ID·프로젝트·도구를 사용한다.
+새 독립 랩은 위 기본값을 사용한다.\
+기존 세션에서 `--assistant`와 `--project-name`을 생략하면 저장된 도구와 프로젝트 이름으로 재개한다.
 
 ```bash
 cd -- "${ATLAS_REPO:-/home/ec2-user/my-project/jeju-atlas}" || exit 1
-bash workshop/scripts/start.sh --assistant codex --participant team01
+bash workshop/scripts/start.sh
 ```
 
 이 명령은 `core.py prepare`, `install_core.sh`, 활성화와 `core.py doctor`를 수행한다.
@@ -70,10 +83,33 @@ cd -- "${ATLAS_REPO:-/home/ec2-user/my-project/jeju-atlas}" || exit 1
 source "$PWD/workshop/.local/labs/team01/activate.sh"
 ```
 
-기존 프로젝트 이름이 기본값과 다르면 `start.sh --project-name`에 저장된 이름을 전달한다.
-소유 파일·활성화 내용·기존 도구의 불일치로 중단되면 해당 차이를 확인한다.
-기존 경로를 지우거나 다른 참가자 폴더를 가져와 해결하지 않는다.
+참가자가 도구를 바꾸면 전체 `start.sh --assistant claude`처럼 선택한 도구를 명시한다.\
+같은 소유 세션을 검증한 뒤 자동 생성된 `.owner.json`과 `activate.sh`만 도구 선택에 맞춰 갱신한다.\
+`.env`, 프로젝트, AWS 계정과 CLI 설정은 보존한다.
+
+소유가 다르거나 형식이 잘못되거나 수동 수정된 설정은 덮어쓰지 않는다.\
+불일치로 중단되면 해당 차이를 확인하며 소유 JSON을 직접 고치거나 참가자 이름을 바꾸지 않는다.\
 설치기의 소유 검사, Node 체크섬, uv `--no-bin` 처리를 유지한다.
+
+## Node만 준비하거나 이전 명령에서 막힌 경우
+
+Node/npm만 필요하면 `start.sh --node-only`로 소유 도구 경로와 Node/npm만 준비한다.\
+이 단계는 참가자 폴더를 확인하거나 만들지 않으며 `--assistant` 선택도 저장하지 않는다.\
+현재 Bash에서 소스 루트로 이동해 `workshop/.local/toolchain/activate-node.sh`를 source한다.\
+전체 준비 후에는 참가자 `activate.sh`를 사용한다.
+
+`Usage`에 `--node-only`가 없으면 소스를 갱신한 뒤 Node 명령을 다시 실행한다.\
+Codex로 저장된 세션을 Claude Code로 시작하다 소유 불일치가 발생한 경우에는 다음을 사용한다.
+
+```bash
+cd -- "${ATLAS_REPO:-/home/ec2-user/my-project/jeju-atlas}" && {
+git pull --ff-only origin main &&
+bash workshop/scripts/start.sh --assistant claude &&
+source "$PWD/workshop/.local/labs/team01/activate.sh"
+}
+```
+출력된 참가자 활성화 경로가 다르면 확인한 실제 경로를 사용한다.\
+`--node-only`만 다시 실행해서는 저장된 도구가 바뀌지 않는다.
 
 ## 참가자 키 입력과 작업 위치
 

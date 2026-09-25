@@ -4,6 +4,9 @@
 핵심은 AgentCore CLI와 Codex, Claude Code, Kiro CLI 중 선택한 도구 하나입니다.\
 참가자는 환경을 활성화하고 Bedrock 단기키를 입력한 후, **구현 프롬프트와 배포 프롬프트 두 개**로 작업을 이어 갑니다.
 
+진행 순서는 **[사전 구성](reference/preconfiguration.md) → [00장 목표 확인](chapters/00-orientation.md) → [01장 시작 블록](chapters/01-setup.md)**입니다.\
+00장은 안내만 제공하며 참가자 폴더나 활성화 파일을 만들지 않습니다.
+
 첫 결과물은 137개 시드를 검색하는 `JejuGuide`와 참가자 전용 AgentCore Runtime입니다.\
 카카오, 관광공사와 VISIT JEJU 키는 첫 배포에 필요하지 않습니다.\
 3D 웹과 전체 AWS 인프라를 만드는 05~14장은 추가 시간의 선택 과정입니다.
@@ -24,37 +27,50 @@ Docker도 사전 준비하되 기본 CodeZip 과정에서는 필수로 요구하
 
 ## 시작 전에 전체 소스 받기
 
-처음 사용하는 EC2의 Bash 터미널에서 **수업 전에 한 번** 실행합니다.\
-이미 이 경로에 전체 저장소를 받았다면 참가자 시작 명령으로 이동합니다.
+저장소가 없는 EC2의 Bash 터미널에서 **수업 전에 한 번** 실행합니다.\
+이미 이 경로에 전체 저장소를 받았다면 아래 갱신 명령을 사용합니다.
 
 ```bash
 cd -- "$HOME" && {
-mkdir -p /home/ec2-user/my-project
+mkdir -p /home/ec2-user/my-project &&
 git clone https://github.com/whchoi98/jeju-atlas.git \
   /home/ec2-user/my-project/jeju-atlas
 }
 ```
-## 참가자 시작 명령
-
-사전 구성에서 `start.sh`를 이미 실행했다면 다시 설치하지 않고 활성화부터 시작합니다.\
-참가자마다 독립된 랩을 사용하므로 팀명을 선택하거나 바꾸지 않습니다.\
-시작 도구가 공통 실습 ID `team01`과 프로젝트 `AtlasCliTeam01`을 자동으로 사용합니다.\
-아래는 Codex를 선택한 참가자의 EC2 Bash 명령입니다.
+기존 clone에서는 새 시작 명령을 실행하기 전에 소스를 갱신합니다.
 
 ```bash
-cd /home/ec2-user/my-project/jeju-atlas && {
-bash workshop/scripts/start.sh --assistant codex &&
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+git pull --ff-only origin main
+}
+```
+갱신이 중단되면 기존 작업을 보존하고 오류를 진행자에게 전달합니다.
+
+## 참가자 시작 명령
+
+사전 구성을 마친 뒤 아래 명령으로 저장된 세션을 재개합니다.\
+참가자마다 독립된 랩을 사용하므로 팀명을 선택하거나 바꾸지 않습니다.\
+새 환경의 기본값은 `team01`, `AtlasCliTeam01`, Codex입니다.\
+기존 세션에서는 생략한 `--assistant`와 `--project-name`의 저장값을 사용합니다.
+
+Claude Code나 Kiro CLI를 선택하거나 기존 도구를 바꾸려면 [01장의 도구별 시작 탭](chapters/01-setup.md#시작-블록-한-번-실행)을 사용합니다.\
+전체 `start.sh --assistant ...`는 같은 소유 세션의 도구 선택만 전환하며 `.env`, 프로젝트, AWS 계정과 CLI 설정을 보존합니다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+bash workshop/scripts/start.sh &&
 source /home/ec2-user/my-project/jeju-atlas/workshop/.local/labs/team01/activate.sh &&
-python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure &&
-codex -C "$ATLAS_CLI_PARENT" --sandbox workspace-write -a on-request -c 'approvals_reviewer="auto_review"'
+python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure
 }
 ```
 키 입력은 본인 터미널에서 숨김 처리되고 `$ATLAS_CLI_PARENT/.env`에 저장됩니다.\
 키 원문을 프롬프트나 화면 출력으로 전달하지 않습니다.\
-Claude Code는 같은 참가자 폴더에서 **`claude --permission-mode auto`**, Kiro CLI는 **`kiro-cli chat`**을 사용합니다.
+[03장의 도구별 실행 명령](chapters/03-codex.md)으로 선택한 Agentic AI 코딩 어시스턴트를 참가자 폴더에서 시작합니다.
 
 [Agentic AI 코딩 어시스턴트 환경](reference/ai-cli-environments.md)에 도구별 실행과 권한 모드 확인을 정리했습니다.\
 기존 인증과 코딩 모델을 유지하며 지원 여부는 수업 전에 확인합니다.
+
+예전 `Usage`나 저장된 도구와의 소유 불일치는 [소스 갱신과 도구 전환 안내](reference/preconfiguration.md#이전-소스와-도구-선택-오류)를 따릅니다.
 
 이후 [03장 구현 프롬프트](prompts/03-codex.md), [04장 배포 프롬프트](prompts/04-agentcore-cli.md)를 순서대로 전달합니다.\
 프롬프트에는 실제 구현과 배포, 필요한 계정 확인과 짧은 결과 기록이 포함됩니다.\

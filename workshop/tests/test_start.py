@@ -33,7 +33,7 @@ class StartTests(unittest.TestCase):
             env=self.fixture.env, capture_output=True, text=True, timeout=30,
         )
 
-    def test_node_only_start_prepares_node_and_activation_without_full_readiness(self):
+    def test_node_only_start_prepares_node_without_creating_a_participant(self):
         self.fixture.restrict_path(missing=("uv", "aws", "codex", "claude", "kiro-cli", "docker"))
         shutil.rmtree(self.fixture.global_prefix)
         self.fixture.trace_bootstrap()
@@ -42,7 +42,7 @@ class StartTests(unittest.TestCase):
         result = self.start("--assistant", "claude", "--node-only")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         parent = self.repo / "workshop/.local/labs/team01"
-        activation = parent / "activate.sh"
+        activation = self.fixture.tools / "activate-node.sh"
         self.assertIn("activationPath: " + str(activation), result.stdout)
         source_line = next(line for line in result.stdout.splitlines() if line.startswith("source "))
         self.assertNotIn("Core tools prepared", result.stdout)
@@ -50,43 +50,32 @@ class StartTests(unittest.TestCase):
         self.assertNotIn("doctor", result.stdout)
         self.assertNotIn("Docker", result.stdout)
         self.assertNotIn("workshop_env.py", result.stdout)
-        self.assertFalse((parent / ".env").exists())
-        self.assertFalse((parent / "AtlasCliTeam01").exists())
-        owner = json.loads((parent / ".owner.json").read_text())
-        self.assertEqual(owner["assistant"], "claude")
-        self.assertEqual(owner["participant"], "team01")
-        self.assertEqual(owner["project"], "AtlasCliTeam01")
-        self.assertEqual({path.name for path in self.fixture.tools.iterdir()}, {".owner.json", "node-v24.21.0"})
+        self.assertFalse(parent.exists())
+        self.assertEqual({path.name for path in self.fixture.tools.iterdir()}, {
+            ".owner.json", "activate-node.sh", "node-v24.21.0",
+        })
         calls = self.fixture.calls()
         actions = [call[3] for call in calls if call[0] == "python3"
                    and len(call) > 3 and Path(call[2]).name == "core.py"]
-        self.assertEqual(actions, ["prepare", "tools"], "Node-only must stop before activation/doctor")
+        self.assertEqual(actions, ["prepare-tools", "tools"], "Node-only must stop before activation/doctor")
         self.assertTrue(all(call[0] in {"python3", "node", "npm", "curl"} for call in calls), calls)
         self.assertTrue(all(call[1:] == ["--version"] for call in calls if call[0] == "npm"))
         restored = subprocess.run(
             ["bash", "--noprofile", "--norc", "-c", source_line
              + ' && command -v node && command -v npm && node --version && npm --version'
-             + ' && printf "%s\\n" "$ATLAS_ASSISTANT" "$ATLAS_TEAM"'],
+              + ' && printf "%s\\n" "${ATLAS_ASSISTANT-unset}" "${ATLAS_TEAM-unset}"'],
             cwd=self.directory, env=self.fixture.env, capture_output=True, text=True, timeout=15,
         )
         self.assertEqual(restored.returncode, 0, restored.stderr)
         private = self.fixture.tools / "node-v24.21.0/bin"
         self.assertEqual(restored.stdout.splitlines(), [
-            str(private / "node"), str(private / "npm"), "v24.21.0", "11.11.0", "claude", "team01",
+            str(private / "node"), str(private / "npm"), "v24.21.0", "11.11.0", "unset", "unset",
         ])
-        # Resuming must keep the existing session and participant files.
-        env_file = parent / ".env"
-        env_file.write_text("TOKEN=TEST_SECRET_MUST_NOT_BE_PRINTED\n")
-        project = parent / "AtlasCliTeam01"
-        project.mkdir()
-        student = project / "student.py"
-        student.write_text("# participant work\n")
-        before = {path: path.read_bytes() for path in (activation, env_file, student)}
+        before = activation.read_bytes()
         again = self.start("--node-only", "--assistant", "claude")
         self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
-        self.assertNotIn("TEST_SECRET_MUST_NOT_BE_PRINTED", again.stdout + again.stderr)
-        for path, content in before.items():
-            self.assertEqual(path.read_bytes(), content)
+        self.assertEqual(activation.read_bytes(), before)
+        self.assertFalse(parent.exists())
         self.assertEqual(sum(call[0] == "curl" for call in self.fixture.calls()), 2)
 
     def test_node_only_start_accepts_repo_in_either_flag_order(self):
@@ -102,28 +91,40 @@ class StartTests(unittest.TestCase):
                     result = self.start(*args)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                     parent = destination / "workshop/.local/labs/team01"
-                    self.assertIn(str(parent / "activate.sh"), result.stdout)
-                    owner = json.loads((parent / ".owner.json").read_text())
-                    self.assertEqual(owner["repo"], str(destination))
-                    self.assertEqual(owner["assistant"], assistant)
-                    self.assertFalse((self.repo / "workshop/.local").exists())
                     tools = destination / "workshop/.local/toolchain"
-                    self.assertEqual({path.name for path in tools.iterdir()}, {".owner.json"})
+                    self.assertIn(str(tools / "activate-node.sh"), result.stdout)
+                    owner = json.loads((tools / ".owner.json").read_text())
+                    self.assertEqual(owner["repo"], str(destination))
+                    self.assertFalse(parent.exists())
+                    self.assertFalse((self.repo / "workshop/.local").exists())
+                    self.assertEqual({path.name for path in tools.iterdir()}, {".owner.json", "activate-node.sh"})
         self.assertTrue(all(call[0] in {"node", "npm"} for call in self.fixture.calls()))
 
-    def test_node_only_start_blocks_unowned_session_before_installation(self):
+    def test_node_only_start_does_not_read_or_change_an_existing_participant(self):
         self.fixture.restrict_path(missing=("uv",))
         parent = self.repo / "workshop/.local/labs/team01"
         parent.mkdir(parents=True)
         keep = parent / "keep.txt"
         keep.write_text("foreign session\n")
         result = self.start("--node-only")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Core workshop:", result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(keep.read_text(), "foreign session\n")
         self.assertEqual(list(parent.iterdir()), [keep])
-        self.assertFalse(self.fixture.tools.exists())
-        self.assertEqual(self.fixture.calls(), [])
+        self.assertTrue((self.fixture.tools / "activate-node.sh").is_file())
+        self.assertTrue(all(call[0] in {"node", "npm"} for call in self.fixture.calls()))
+
+    def test_node_only_preserves_a_modified_node_activation_before_downloads(self):
+        result = self.start("--node-only")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        activation = self.fixture.tools / "activate-node.sh"
+        activation.write_text(activation.read_text() + "# participant customization\n")
+        before = activation.read_bytes()
+        calls = self.fixture.calls()
+        again = self.start("--node-only")
+        self.assertNotEqual(again.returncode, 0)
+        self.assertIn("preserve", again.stderr.lower())
+        self.assertEqual(activation.read_bytes(), before)
+        self.assertEqual(self.fixture.calls(), calls)
 
     def test_node_only_start_propagates_checksum_failure_without_source_instructions(self):
         self.fixture.restrict_path(missing=("uv",))
@@ -135,7 +136,7 @@ class StartTests(unittest.TestCase):
         self.assertNotIn("activationPath:", result.stdout)
         self.assertNotIn("Next,", result.stdout)
         self.assertNotIn('"passed":', result.stdout)
-        self.assertEqual({path.name for path in self.fixture.tools.iterdir()}, {".owner.json"})
+        self.assertEqual({path.name for path in self.fixture.tools.iterdir()}, {".owner.json", "activate-node.sh"})
         self.assertTrue(all(call[0] in {"node", "curl"} for call in self.fixture.calls()))
 
     def test_default_start_prepares_codex_team01_and_reports_next_commands(self):
@@ -205,6 +206,59 @@ class StartTests(unittest.TestCase):
         for path, content in before.items():
             self.assertEqual(path.read_bytes(), content)
         self.assertEqual(sum("venv" in call for call in self.fixture.calls()), 1)
+
+    def test_resume_uses_saved_assistant_and_project_when_flags_are_omitted(self):
+        result = self.start("--assistant", "claude", "--project-name", "AtlasCliLearning")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        previous = len(self.fixture.calls())
+        again = self.start()
+        self.assertEqual(again.returncode, 0, again.stderr)
+        parent = self.repo / "workshop/.local/labs/team01"
+        owner = json.loads((parent / ".owner.json").read_text())
+        self.assertEqual(owner["assistant"], "claude")
+        self.assertEqual(owner["project"], "AtlasCliLearning")
+        self.assertEqual(
+            [call for call in self.fixture.calls()[previous:] if call[0] in {"claude", "codex", "kiro-cli"}],
+            [["claude", "--version"]],
+        )
+
+    def test_codex_session_can_install_node_then_continue_with_claude(self):
+        result = self.start("--assistant", "codex")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        parent = self.repo / "workshop/.local/labs/team01"
+        project = parent / "AtlasCliTeam01"
+        project.mkdir()
+        student = project / "student.py"
+        student.write_text("# existing participant work\n")
+        env_file = parent / ".env"
+        env_file.write_text("TOKEN=TEST_SECRET_MUST_NOT_BE_PRINTED\n")
+        env_file.chmod(0o600)
+        before = {path: path.read_bytes() for path in parent.rglob("*") if path.is_file()}
+        self.fixture.program(self.fixture.bin / "node", 'print("v20.20.2")\n')
+        self.fixture.node_download()
+        node_only = self.start("--assistant", "claude", "--node-only")
+        self.assertEqual(node_only.returncode, 0, node_only.stderr)
+        self.assertEqual(before, {path: path.read_bytes() for path in before})
+        previous = len(self.fixture.calls())
+        switched = self.start("--assistant", "claude")
+        self.assertEqual(switched.returncode, 0, switched.stderr)
+        self.assertNotIn("TEST_SECRET_MUST_NOT_BE_PRINTED", switched.stdout + switched.stderr)
+        self.assertEqual(json.loads((parent / ".owner.json").read_text())["assistant"], "claude")
+        self.assertEqual(
+            [call for call in self.fixture.calls()[previous:] if call[0] in {"claude", "codex", "kiro-cli"}],
+            [["claude", "--version"]],
+        )
+        self.assertEqual(student.read_bytes(), before[student])
+        self.assertEqual(env_file.read_bytes(), before[env_file])
+        self.assertEqual(env_file.stat().st_mode & 0o777, 0o600)
+        activated = subprocess.run(
+            ["bash", "--noprofile", "--norc", "-c",
+             'source "$1" && node --version && printf "%s\\n" "$ATLAS_ASSISTANT" "$ATLAS_PROJECT"',
+             "bash", str(parent / "activate.sh")],
+            env=self.fixture.env, capture_output=True, text=True,
+        )
+        self.assertEqual(activated.returncode, 0, activated.stderr)
+        self.assertEqual(activated.stdout.splitlines(), ["v24.21.0", "claude", "AtlasCliTeam01"])
 
     def test_modified_activation_is_preserved_and_stops_before_installation(self):
         result = self.start()

@@ -282,6 +282,108 @@ class CoreTests(unittest.TestCase):
             self.core.prepare(self.repo, "team01", "AtlasCliAnother")
         self.assertEqual(activation.read_bytes(), before)
 
+    def test_switching_assistant_preserves_project_credentials_and_account(self):
+        report = self.core.prepare(self.repo, "team01", "AtlasCliTeam01", "codex")
+        parent = Path(report["activationPath"]).parent
+        project = Path(report["projectPath"])
+        project.mkdir()
+        student = project / "student.py"
+        student.write_text("# participant implementation\n")
+        env_file = parent / ".env"
+        env_file.write_text("TOKEN=TEST_SECRET_MUST_NOT_BE_PRINTED\n")
+        env_file.chmod(0o600)
+        account = self.repo / "workshop/.local/team01.json"
+        account.write_text(json.dumps({
+            "participant": "team01", "accountId": "123456789012", "region": "ap-northeast-2",
+        }))
+        protected = (student, env_file, account, parent / "cli-config/config.json")
+        before = {path: (path.read_bytes(), path.stat().st_mode) for path in protected}
+        for assistant in ("claude", "kiro", "codex"):
+            with self.subTest(assistant=assistant):
+                self.core.prepare(self.repo, "team01", "AtlasCliTeam01", assistant)
+                result = subprocess.run(
+                    ["bash", "--noprofile", "--norc", "-c",
+                     'source "$1" && printf "%s\\n" "$ATLAS_ASSISTANT" "$ATLAS_ACCOUNT" "$ATLAS_CLI"',
+                     "bash", report["activationPath"]],
+                    env={"PATH": os.defpath, "BASH_ENV": "/dev/null"},
+                    capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.splitlines(), [
+                    assistant, "123456789012", str(project),
+                ])
+                self.assertEqual(json.loads((parent / ".owner.json").read_text())["assistant"], assistant)
+                self.assertEqual(before, {
+                    path: (path.read_bytes(), path.stat().st_mode) for path in protected
+                })
+
+    def test_assistant_switch_keeps_modified_setup_and_reports_conflicting_field(self):
+        report = self.prepare()
+        parent = Path(report["activationPath"]).parent
+        owner_file = parent / ".owner.json"
+        owner = owner_file.read_bytes()
+        activation = Path(report["activationPath"])
+        original_activation = activation.read_bytes()
+        for field, value in (("repo", str(self.other)), ("project", "AtlasCliAnother"),
+                             ("format", "foreign-session/v1"), ("participant", "team02")):
+            with self.subTest(field=field):
+                data = json.loads(owner)
+                data[field] = value
+                owner_file.write_text(json.dumps(data))
+                before = owner_file.read_bytes()
+                with self.assertRaisesRegex(ValueError, field):
+                    self.core.prepare(self.repo, "team01", "AtlasCliTeam01", "kiro")
+                self.assertEqual(owner_file.read_bytes(), before)
+                self.assertEqual(activation.read_bytes(), original_activation)
+        owner_file.write_bytes(owner)
+        activation.write_bytes(original_activation + b"# participant customization\n")
+        before = activation.read_bytes()
+        with self.assertRaisesRegex(ValueError, "Activation"):
+            self.core.prepare(self.repo, "team01", "AtlasCliTeam01", "kiro")
+        self.assertEqual(activation.read_bytes(), before)
+        self.assertEqual(owner_file.read_bytes(), owner)
+
+    def test_assistant_switch_restores_original_metadata_when_replace_fails(self):
+        report = self.prepare()
+        parent = Path(report["activationPath"]).parent
+        before = {path: (path.read_bytes(), path.stat().st_mode)
+                  for path in (parent / ".owner.json", parent / "activate.sh")}
+        replace = os.replace
+        failed = False
+
+        def fail_owner_once(source, destination):
+            nonlocal failed
+            if Path(destination) == parent / ".owner.json" and not failed:
+                failed = True
+                raise OSError("simulated metadata write failure")
+            return replace(source, destination)
+
+        with patch.object(self.core.os, "replace", side_effect=fail_owner_once):
+            with self.assertRaisesRegex(OSError, "simulated"):
+                self.core.prepare(self.repo, "team01", "AtlasCliTeam01", "kiro")
+        self.assertTrue(failed)
+        self.assertEqual(before, {
+            path: (path.read_bytes(), path.stat().st_mode) for path in before
+        })
+        self.core.check_session(self.repo, "team01", "AtlasCliTeam01")
+        self.core.prepare(self.repo, "team01", "AtlasCliTeam01", "kiro")
+        self.assertFalse(list(parent.glob(".assistant-update-*")))
+
+    def test_assistant_switch_refuses_linked_metadata_without_changing_link_target(self):
+        report = self.prepare()
+        parent = Path(report["activationPath"]).parent
+        for name in (".owner.json", "activate.sh"):
+            with self.subTest(file=name):
+                path = parent / name
+                linked = self.other / ("linked-" + name)
+                os.link(path, linked)
+                before = linked.read_bytes()
+                with self.assertRaisesRegex(ValueError, "link"):
+                    self.core.prepare(self.repo, "team01", "AtlasCliTeam01", "kiro")
+                self.assertEqual(linked.read_bytes(), before)
+                self.assertEqual(path.read_bytes(), before)
+                linked.unlink()
+
     def test_foreign_or_symlinked_local_storage_is_not_adopted(self):
         storage = self.repo / "workshop/.local"
         storage.symlink_to(self.other, target_is_directory=True)

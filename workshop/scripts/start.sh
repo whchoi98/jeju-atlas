@@ -8,7 +8,7 @@ usage() {
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repo="$(cd -- "$script_dir/../.." && pwd -P)"
-assistant=codex
+assistant=""
 participant=team01
 project=""
 node_only=0
@@ -30,12 +30,22 @@ while (($#)); do
     *) usage >&2; exit 2 ;;
   esac
 done
-if [[ -z "$project" ]]; then project="AtlasCli${participant^}"; fi
+case "$assistant" in
+  ""|codex|claude|kiro) ;;
+  *) usage >&2; exit 2 ;;
+esac
 
 # prepare runs on the EC2's Python 3.9+ standard library. It validates names,
 # source and ownership before the installer is allowed to write or download.
-session="$(python3 -B "$script_dir/core.py" prepare --repo "$repo" \
-  --participant "$participant" --project-name "$project" --assistant "$assistant")"
+if (( node_only )); then
+  # Node is shared by the coding assistants; do not create or inspect a session.
+  session="$(python3 -B "$script_dir/core.py" prepare-tools --repo "$repo")"
+else
+  prepare_args=(prepare --repo "$repo" --participant "$participant")
+  if [[ -n "$project" ]]; then prepare_args+=(--project-name "$project"); fi
+  if [[ -n "$assistant" ]]; then prepare_args+=(--assistant "$assistant"); fi
+  session="$(python3 -B "$script_dir/core.py" "${prepare_args[@]}")"
+fi
 activation_path="$(python3 -B -c 'import json,sys; print(json.load(sys.stdin)["activationPath"])' <<< "$session")"
 
 installer_args=(--repo "$repo")
@@ -48,6 +58,7 @@ if (( node_only )); then
   exit 0
 fi
 source "$activation_path"
+printf 'Participant assistant: %s\n' "$ATLAS_ASSISTANT"
 
 # CodeZip does not need Docker. Report daemon access for later container labs
 # without requiring sudo, starting a container, or changing group membership.
@@ -58,7 +69,7 @@ else
   printf '%s\n' 'Docker preflight: unavailable or daemon access failed; check Docker before container labs. Core CodeZip can continue.'
 fi
 
-"$ATLAS_PYTHON" -B "$script_dir/core.py" doctor --repo "$repo" --assistant "$assistant"
+"$ATLAS_PYTHON" -B "$script_dir/core.py" doctor --repo "$repo" --assistant "$ATLAS_ASSISTANT"
 
 printf '\nactivationPath: %s\nenvFile: %s\n' "$activation_path" "$ATLAS_CLI_PARENT/.env"
 printf '\nNext, in your Bash terminal:\nsource %q\n' "$activation_path"

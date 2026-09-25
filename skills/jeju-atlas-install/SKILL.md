@@ -22,7 +22,9 @@ description: "Use when preparing, installing, deploying, or resuming Jeju Atlas 
 | 이어서, 복구 | 기존 기록과 실제 상태를 대조한 뒤 미완료 단계 | 아래 재개 절과 해당 단계의 참조 |
 
 도구 설치는 수업 전에 끝낸다. 본 실습은 00–04장 **100분 + 여유 20분**이며,
-05–14장 전체 앱 구축은 별도 심화 과정으로 같은 시간 안의 완료를 약속하지 않는다.
+05–14장 전체 앱 구축은 별도 심화 과정으로 같은 시간 안의 완료를 약속하지 않는다.\
+00장은 목표 안내만 제공하며 참가자 파일을 만들지 않는다.\
+실행 준비는 사전 구성부터 완료하고 00장과 01장 시작 블록으로 이어간다.\
 HUD는 선택 사항이며 설치·실행·진단 없이 본 실습을 완료할 수 있다.
 
 기본 흐름은 준비 → 구현·필요한 빌드 → 배포 → 상태와 최종 응답 1회 확인이다.
@@ -47,14 +49,22 @@ AWS 변경과 유료 호출의 승인이 불명확하면 로컬 준비와 변경
    없으면 사용자 지정 위치 또는 `~/my-project/jeju-atlas`에
    `https://github.com/whchoi98/jeju-atlas.git`을 clone한다.
    새 helper와 이 패키지가 실제로 포함됐는지 확인한다. 교재 ZIP은 설치 소스가 아니다.
-   기존 폴더를 덮어쓰거나 수정 사항을 자동 reset/stash하지 않는다.
-2. `workshop/.local/completion-context.json`, 참가자 설정, `labs/*/RESULTS.md`와
-   `activate.sh`를 먼저 확인한다. 여러 기존 프로젝트에서 재개 대상을 식별할 수 없을 때만 묻는다.
+   기존 clone은 새 준비 명령 전에 소스 루트에서 `git pull --ff-only origin main`으로 갱신한다.\
+   갱신이 실패하면 기존 작업을 보존한다.\
+   저장소를 다시 받거나 삭제·자동 reset/stash로 대체하지 않는다.
+2. 전체 준비와 재개는 `workshop/.local/completion-context.json`, 참가자 설정, `labs/*/RESULTS.md`와
+   `activate.sh`를 먼저 확인한다. 여러 기존 프로젝트에서 재개 대상을 식별할 수 없을 때만 묻는다.\
+   Node/npm만 준비하는 요청에서는 참가자 탐색을 생략한다.
 3. 참가자마다 AWS 자원 범위가 분리된 독립 랩을 전제로 한다.
-   새 설치는 공통 내부 ID `team01`과 프로젝트 `AtlasCliTeam01`을 자동 사용한다.
-   실제 팀 배정이 아니므로 팀명·새 ID·이름 변경을 요청하지 않는다.
-   재개 시에는 기본값으로 바꾸지 않고 기존 참가자 값·프로젝트 이름·소유 설정을 유지한다.
-4. 선택한 Agentic AI 코딩 어시스턴트 하나와 사전 검증된 모델·provider·인증을 사용한다.
+   새 설치의 기본값은 공통 내부 ID `team01`, 프로젝트 `AtlasCliTeam01`, 도구 `codex`다.\
+   실제 팀 배정이 아니므로 팀명·새 ID·이름 변경을 요청하지 않는다.\
+   재개 시 생략한 `--assistant`와 `--project-name`은 저장된 값을 사용한다.
+4. 선택한 Agentic AI 코딩 어시스턴트 하나와 사전 검증된 모델·provider·인증을 사용한다.\
+   참가자가 도구를 바꾸면 전체 `start.sh --assistant`로 같은 소유 세션에서 전환한다.\
+   검증된 세션의 생성 `.owner.json`과 `activate.sh`만 갱신하며
+   `.env`, 프로젝트, AWS 계정과 CLI 설정은 보존한다.\
+   소유가 다르거나 형식이 잘못되거나 수동 수정된 설정은 덮어쓰지 않는다.\
+   소유 JSON 직접 편집이나 다른 참가자 이름으로 우회하지 않는다.\
    현재 대화가 되는 도구에 재로그인을 요구하지 않는다.
    실제 계정과 네트워크는 EC2 identity와 STS로 대조하며 다른 profile로 자동 전환하지 않는다.
 
@@ -63,7 +73,11 @@ AWS 변경과 유료 호출의 승인이 불명확하면 로컬 준비와 변경
 - Node는 24 계열의 24.18.1 이상, Runtime Python은 3.12,
   npm `@aws/agentcore`는 0.28.1이다. 보조 Python은 3.12 이상을 허용한다.
   `.nvmrc`, `core.py`, requirements와 잠금 파일을 확인하고 Python starter CLI와 구분한다.
-- 사전 준비는 `start.sh`가 참가자 준비·전용 도구 설치·`core.py doctor`를 수행한다.
+- `start.sh --node-only`는 소유 도구 경로와 Node/npm만 준비하며 참가자 폴더를 확인하거나 만들지 않는다.\
+  `--assistant`를 지정해도 이 단계에서는 저장하지 않는다.\
+  Node 활성화는 현재 Bash에서 소스 루트로 이동해 `workshop/.local/toolchain/activate-node.sh`를 source한다.\
+  예전 Usage에 해당 옵션이 없으면 소스 갱신 후 다시 시도한다.
+- 전체 사전 준비는 `start.sh`가 참가자 준비·전용 도구 설치·`core.py doctor`를 수행한다.
   이 기본 진단이 성공했으면 반복하지 않는다. 환경이 바뀌거나 명령이 실패할 때만 다시 확인한다.
   **출력된 절대 `activationPath`를 같은 Bash에서 source**한 뒤 후속 작업을 한다.
   새 셸마다 다시 활성화하며, 활성화가 cwd를 저장소로 바꾼다는 점에 유의한다.
