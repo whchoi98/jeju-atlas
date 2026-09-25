@@ -9,6 +9,8 @@
 사전 구성의 `start.sh`와 AWS 자격증명 점검까지 완료했다면 아래 명령으로 이어갑니다.\
 소스나 설치 준비가 남아 있으면 사전 구성의 해당 단계부터 마칩니다.
 
+CDK 조회가 `status: missing`, `ready: false`이면 [서울 리전 bootstrap 생성 명령](../reference/preconfiguration.md#5-2-서울-리전에서-cdk-bootstrap-생성)을 먼저 실행합니다.
+
 ## 환경을 불러오고 키 입력
 
 EC2의 VSCode Server에서 **Bash 터미널**을 사용합니다.\

@@ -6,6 +6,10 @@
 **준비를 마치면 [01. 환경 활성화와 Bedrock 키 입력](../chapters/01-setup.md)으로 바로 이동합니다.**\
 이미 이 준비를 끝낸 환경도 01장부터 이어가면 됩니다.
 
+> **CDK 점검에서 `status: missing`, `ready: false`가 나온 경우**\
+> [5-2. 서울 리전에서 CDK bootstrap 생성](#5-2-서울-리전에서-cdk-bootstrap-생성)의 명령 블록 전체를 실행합니다.\
+> 이 단계가 해당 계정의 `ap-northeast-2` 리전에 CDK 배포 기반을 실제로 생성합니다.
+
 진행자가 제공한 Amazon Linux 2023 EC2와 VSCode Server, 기존 VPC와 NAT, 참가자용 AWS 역할을 사용합니다.\
 명령은 EC2의 **Bash 터미널**에서 실행합니다.\
 Codex, Claude Code, Kiro CLI 중 사용할 도구 하나의 설치와 로그인도 이 단계에서 완료합니다.
@@ -256,6 +260,11 @@ Runtime도 Python 3.12를 사용합니다.\
 새 AWS 계정에서는 **서울 리전의 CDK 배포 기반을 한 번 준비**해야 합니다.\
 Node와 AWS 자격증명 점검이 통과해도 이 준비가 없으면 04장에서 배포가 중단됩니다.
 
+**진행 순서: 5-1 조회 → 없으면 5-2 생성 → 5-3 완료 확인**\
+CDK bootstrap은 EC2 인스턴스마다 반복하는 작업이 아니라 AWS 계정과 리전별로 준비하는 배포 기반입니다.
+
+### 5-1. 현재 계정과 서울 리전의 상태 조회
+
 다음 명령은 현재 계정의 `CDKToolkit` 스택과 `/cdk-bootstrap/hnb659fds/version`을 조회합니다.\
 자원을 만들거나 바꾸지 않으며, AgentCore CLI 0.28.1이 요구하는 bootstrap 버전 **30 이상**인지 확인합니다.
 
@@ -266,19 +275,31 @@ source workshop/.local/labs/team01/activate.sh &&
 }
 ```
 
-`ready: true`이면 다음 절로 이동합니다.\
-스택과 버전 파라미터가 모두 없을 때만 아래의 처음 생성 절차를 사용합니다.\
-기존 스택의 버전이 낮거나 조회 권한이 부족한 경우에는 진행자가 기존 설정과 권한부터 확인합니다.
+새 계정에서 다음과 같이 나오면 **조회는 끝났지만 bootstrap 생성은 아직 안 된 상태**입니다.
 
-### 진행자: 새 독립 실습 계정에서 처음 생성
+```json
+{
+  "status": "missing",
+  "ready": false
+}
+```
 
-이 명령은 **해당 실습 계정의 관리자 권한으로 수업 전에** 실행합니다.\
+이 경우 확인 명령을 반복하지 말고 **바로 아래 5-2의 생성 명령**을 실행합니다.\
+`ready: true`이면 이미 준비된 계정이므로 생성을 건너뛰고 6절로 이동합니다.\
+`outdated`, `access_denied`, `not_ready` 등 다른 상태는 기존 버전, 권한이나 진행 중인 작업을 먼저 확인합니다.
+
+### 5-2. 서울 리전에서 CDK bootstrap 생성
+
+**5-1의 결과가 `status: missing`, `ready: false`일 때 실행합니다.**\
+진행자 또는 해당 실습 계정의 관리자가 아래 명령 블록 전체를 Bash에 붙여 넣습니다.
+
+명령은 현재 실습 계정을 확인한 뒤 **`ap-northeast-2` 리전에 `CDKToolkit`을 실제로 생성**합니다.\
 자산용 S3 버킷과 ECR 저장소, CDK 배포용 IAM 역할, 버전 SSM 파라미터를 생성합니다.\
 아래의 CloudFormation 실행 역할에는 `AdministratorAccess`를 지정합니다.\
 기관에서 승인한 별도 실행 정책이 있으면 해당 정책 ARN으로 바꿉니다.
 
 프로젝트 생성 전에는 아래의 고정 버전 `npx`를 사용합니다.\
-04장까지 진행해 프로젝트가 이미 있다면 다음 절의 프로젝트 CDK 경로만 사용합니다.
+04장까지 진행해 프로젝트가 이미 있다면 아래의 프로젝트 CDK 경로를 대신 사용합니다.
 
 ```bash
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
@@ -299,7 +320,23 @@ npx --yes --package aws-cdk@2.1126.0 cdk bootstrap \
 기존 스택을 자동으로 갱신하거나 삭제하는 복구 명령이 아닙니다.\
 고정한 CDK CLI의 표준 템플릿은 bootstrap 버전 32를 제공합니다.
 
-### 04장에서 이미 프로젝트를 만든 경우
+### 5-3. 생성 완료 확인
+
+생성 명령 블록은 마지막에 준비 상태를 다시 조회합니다.\
+처음 출력되는 `requireMissing: true`, `status: missing`은 생성 전 확인 결과입니다.\
+이어서 CDK 생성 로그가 나오고, 작업이 끝난 뒤 **마지막 JSON이 아래와 같아야 완료**입니다.
+
+```json
+{
+  "status": "ready",
+  "ready": true
+}
+```
+
+완료했다면 6절을 거쳐 01장으로 이동합니다.\
+생성이 실패했거나 마지막 값이 `ready: false`이면 출력된 오류를 진행자와 확인합니다.
+
+### 복구: 04장에서 이미 프로젝트를 만든 경우
 
 bootstrap이 없고 `$ATLAS_CLI/agentcore/cdk/node_modules/`가 준비되어 있다면 설치된 CDK를 그대로 사용합니다.\
 이 경로도 처음 생성하는 계정의 관리자용이며, 기본 CloudFormation 실행 역할에는 `AdministratorAccess`가 적용됩니다.
