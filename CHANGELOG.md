@@ -8,6 +8,7 @@
 
 ### Changed
 
+- Claude Code의 검증 워크플로 생략 요청 문구를 GitHub main과 `jeju-3d:46`에 게시했습니다. 공개 교재와 다운로드, PC·모바일 프롬프트 복사와 오프라인 열람을 확인했습니다. [배포 기록](workshop/DEPLOYMENT.md)
 - Claude Code에서 ultracode를 유지할 때 03–08장 요청 끝에 “검증 워크플로 없이 진행”을 포함했습니다. 별도 검증 워크플로는 생략하고 장별 필수 검사와 완료 확인은 유지하도록 교재와 설치 스킬을 맞췄습니다.
 - Claude Code 사전 설치와 설치·재개 스킬, 장별 프롬프트 진행 및 App/Data 완료 안내를 GitHub main과 `jeju-3d:45`에 게시했습니다. 공개 교재와 다운로드, PC·모바일 복사와 오프라인 이동을 확인했습니다. [배포 기록](workshop/DEPLOYMENT.md)
 - Claude Code 사전 구성에 선택 HUD와 AWS 플러그인 2개, 기타 플러그인 9개의 설치 안내를 추가했습니다. Bash 설치와 세션 리로드·HUD 설정을 구분하고 설치 실패 시 후속 항목이 실행되지 않도록 했습니다.
