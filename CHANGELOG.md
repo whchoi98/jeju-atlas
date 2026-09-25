@@ -8,6 +8,7 @@
 
 ### Changed
 
+- AgentCore CLI 역할 학습 참고를 `jeju-3d:37`과 27페이지 교재에 게시했습니다. 04장 하단과 참고 메뉴의 연결, 인쇄와 오프라인 열람을 확인했습니다. [배포 기록](workshop/DEPLOYMENT.md)
 - 04장 하단과 참고 자료 메뉴 하단에 AgentCore CLI 학습 자료를 추가했습니다. 명령별 역할, 생성 파일, 코딩 어시스턴트와 CDK 및 보조 스크립트의 관계를 정리했습니다.
 - 서울 리전 CDK bootstrap의 실제 생성 단계와 바로가기를 `jeju-3d:36`에 게시했습니다. 조회의 `missing`과 생성 완료의 `ready: true`를 구분해 안내합니다. [배포 기록](workshop/DEPLOYMENT.md)
 - 사전 구성의 CDK 절을 조회, 서울 리전 실제 생성, 완료 확인으로 구분했습니다. `missing/ready: false` 출력 예시와 생성 명령 바로가기를 추가했습니다.
