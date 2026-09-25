@@ -18,7 +18,25 @@ helper 명령은 `ATLAS_REPO`, 앱 명령은 `ATLAS_APP`으로 다시 이동하�
 
 실습 app의 커밋된 uv.lock으로 ARM64/Python 3.14 의존성을 만들고 소유 버킷에 게시하세요.
 같은 소스와 잠금 버전으로 만든 소유 아티팩트가 이미 있으면 재사용하세요.
-agent-build/publish/plan의 소스, 버전, 대상을 검토한 뒤 요청된 apply/status/configure-logs를 수행하세요.
+05장의 app 준비와 Data 스택, 카탈로그 게시가 완료되었는지 기존 결과로 확인하세요.
+주최자가 검토한 Runtime 역할 권한과 심화 설정의 bedrockCallerRegion이 필요합니다.
+호출 리전이 누락되었으면 이 장의 model-region 절차로 기록하고 이미 설정된 값은 유지하세요.
+
+agent-build → agent-publish → agent-plan은 빌드, 게시와 변경 세트 생성입니다.
+여러 명령은 &&로 연결하거나 각 종료 상태를 확인해 첫 실패 뒤에 후속 명령을 실행하지 마세요.
+agent-plan의 CREATE_COMPLETE는 계획 준비 완료이며 스택 배포 완료가 아닙니다.
+계획의 소스, 버전, 변경 대상을 검토한 뒤 이 챕터에서 요청한 agent-apply로 실제 배포를 시작하세요.
+execution: started 뒤에는 agent-status로 스택 상태를 조회하세요.
+CREATE_IN_PROGRESS 또는 UPDATE_IN_PROGRESS 등 배포 진행 중이면 상태 조회만 반복하세요.
+NOT_CREATED이면 마지막 계획 출력과 현재 참가자 설정을 확인하고, 기다리거나 로그 설정을 반복하지 마세요.
+REVIEW_IN_PROGRESS이면 변경 세트 준비 완료를 확인한 뒤 아직 실행하지 않은 agent-apply로 이어 가세요.
+계획이 PENDING이면 출력된 changeSetId의 Status와 ExecutionStatus를 읽기 전용으로 확인하세요.
+CREATE_COMPLETE와 AVAILABLE을 확인하기 전에는 적용하지 말고, 대기 중 새 계획을 만들지 마세요.
+실패 또는 ROLLBACK 상태는 원인과 스택 이벤트를 확인하고 후속 로그 설정을 중단하세요.
+agent-status의 스택이 CREATE_COMPLETE 또는 UPDATE_COMPLETE이고 출력 자원이 본인 것일 때만
+agent-configure-logs를 실행하세요. Complete the independent stack 오류는 상태 조회로 돌아가 해결하세요.
+소스가 바뀌지 않았다면 성공한 빌드와 게시를 다시 수행하지 마세요.
+
 운영 ZIP/Runtime/Memory를 재사용하지 마세요. Sol/Astra와 SigV4 호출 코드를 유지하세요.
 이 심화 배포는 기본 Python 3.12 JejuGuide와 별도이며 .env API 키를 자동 적용하지 마세요.
 
