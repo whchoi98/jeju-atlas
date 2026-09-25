@@ -151,7 +151,7 @@
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">PC 다운로드, EC2 실행</span>
 
-    </a></li><li data-nav-entry data-search="Agentic AI 코딩 어시스턴트 환경 같은 Bash에서 활성화하고 시작 Codex: auto-review와 on-request Claude Code: auto mode Kiro CLI 프롬프트 두 개로 이어 가기 재개와 도구 전환 공식 자료">
+    </a></li><li data-nav-entry data-search="Agentic AI 코딩 어시스턴트 환경 같은 Bash에서 활성화하고 시작 Codex: auto-review와 on-request Claude Code: auto mode ultracode를 유지하는 경우 Kiro CLI 프롬프트 두 개로 이어 가기 재개와 도구 전환 공식 자료">
     <a class="reference-link" href="ai-cli-environments.html" aria-current="page">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">Agentic AI 코딩 어시스턴트 환경</span>
@@ -248,8 +248,19 @@ Anthropic API의 Sonnet 4.6을 지원하더라도 Bedrock 연결에서 같은 �
 <p>지원되지 않으면 Manual로 시작할 수 있으므로 auto 적용으로 표시하지 않습니다.<br>
 모델 변경이 필요한 환경은 수업 전에 준비하고, 수업 중에는 배정된 도구의 일반 승인 흐름으로 진행한 사실을 기록합니다.<br>
 권한 검사를 모두 끄는 옵션을 대체 명령으로 쓰지 않습니다.</p>
+<h4 id="heading-ultracode를-유지하는-경우">ultracode를 유지하는 경우</h4>
+<p>Claude Code에서 이미 <code>ultracode</code>를 사용 중이라면 현재 설정을 유지합니다.<br>
+03~08장 요청 끝에는 다음 Claude Code용 문구가 포함되어 있습니다.</p>
+<div class="code-block file-window" data-code-kind="file"><div class="code-toolbar"><div class="code-window-title"><strong>참고 내용</strong><span class="code-language">text</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="text 코드 복사">복사</button></div><pre tabindex="0" aria-label="참고 내용: text"><code class="language-text" id="code-4">Claude Code 요청: 검증 워크플로 없이 진행
+</code></pre></div>
+<p>별도 검증 에이전트나 전체 검증 워크플로를 추가하지 않도록 요청하는 문구입니다.<br>
+교재와 배포 명령에 필요한 검사, 해당 장의 스택 완료와 응답 확인은 유지합니다.
+오류가 생기면 관련 부분만 확인하고, 생략한 검사를 통과로 기록하지 않습니다.</p>
+<p><code>ultracode</code>는 검증을 포함한 여러 워크플로를 구성할 수 있으므로 요청 범위를 명확히 적습니다.<br>
+위 문구는 CLI 설정을 끄는 명령이 아니며, 새로운 세션에 <code>ultracode</code>를 켜도록 요구하지 않습니다.
+자세한 동작은 <a href="https://code.claude.com/docs/en/workflows#let-claude-decide-with-ultracode" class="external-link" rel="noopener noreferrer" target="_blank">Claude Code 워크플로 안내<span class="sr-only"> (새 탭)</span></a>를 참고합니다.</p>
 <h3 id="heading-kiro-cli">Kiro CLI</h3>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "${ATLAS_CLI_PARENT:?}" &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "${ATLAS_CLI_PARENT:?}" &#x26;&#x26; {
 kiro-cli chat
 }
 </code></pre></div>
@@ -257,7 +268,7 @@ kiro-cli chat
 교재의 Kiro 탭은 같은 프롬프트를 복사하는 선택이며 CLI 설정을 변경하지 않습니다.</p>
 <h2 id="heading-프롬프트-두-개로-이어-가기">프롬프트 두 개로 이어 가기</h2>
 <ol>
-<li><a href="../prompts/03-codex.md" download="03-codex.md">03장 구현 프롬프트</a>: 기존 소스와 참가자 환경을 확인하고 프로젝트, 검색 도구와 테스트를 준비합니다.</li>
+<li><a href="../prompts/03-codex.md" download="03-codex.md">03장 구현 프롬프트</a>: 기존 소스와 참가자 환경을 확인하고 프로젝트와 검색 도구를 구현합니다.</li>
 <li><a href="../prompts/04-agentcore-cli.md" download="04-agentcore-cli.md">04장 배포 프롬프트</a>: 명시한 참가자 범위에서 키 게시, 모델 호출, 배포와 실제 응답을 확인합니다.</li>
 </ol>
 <p>AI는 저장소의 <code>skills/jeju-atlas-install/SKILL.md</code>를 읽고 기존 작업을 재사용합니다.<br>
@@ -270,7 +281,7 @@ kiro-cli chat
 <h2 id="heading-재개와-도구-전환">재개와 도구 전환</h2>
 <p>새 Bash마다 활성화를 반복합니다.<br>
 프로젝트를 이미 생성했다면 다음 위치에서 선택한 CLI를 다시 시작할 수 있습니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "${ATLAS_CLI:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-6">cd -- "${ATLAS_CLI:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
 test -f "${ATLAS_CLI:?}/agentcore/agentcore.json" &#x26;&#x26; cd -- "$ATLAS_CLI"
 }
 </code></pre></div>

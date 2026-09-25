@@ -53,6 +53,11 @@ substitution tokens and narrower workspace instructions are intentional.
   `core.py doctor --project` requires test files and belongs only to that
   optional path. Never report skipped checks as passed. HUD is optional.
   Maintainer checks and production publication proofs below remain separate.
+- The chapter 03–08 prompt payloads end with the Claude-specific instruction
+  `Claude Code 요청: 검증 워크플로 없이 진행`. Preserve an existing ultracode
+  selection; do not opt learners into it by adding its trigger keyword to
+  copied chapter prompts. This omits extra verification workflows, not required
+  deployment checks, chapter completion checks, or targeted error diagnosis.
 - Claude Code's optional preconfiguration includes `claude-hud`, the two
   `aws-core`/`aws-agents` plugins, and the selected additional plugins documented
   in `reference/preconfiguration.md`. Keep these specific to Claude Code and

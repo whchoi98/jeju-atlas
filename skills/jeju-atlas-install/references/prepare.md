@@ -272,6 +272,11 @@ JejuGuide Runtime의 Sonnet 4.6 설정과 Agentic AI 코딩 어시스턴트의 �
 HUD 설치나 진단을 이 실행의 선행 조건으로 두지 않는다.
 HUD를 원하는 경우에만 전체 저장소의 `workshop/reference/hud-setup.md`를 안내한다.
 
+Claude Code의 `ultracode`를 유지하는 경우 요청 끝에
+`Claude Code 요청: 검증 워크플로 없이 진행`을 포함한다.
+03–08장 카드에는 이 조건이 이미 있으므로 같은 문구를 다시 붙일 필요는 없다.
+별도 검증 워크플로를 추가하지 않고 교재의 필수 검사와 장별 완료 확인은 유지한다.
+
 도구 옵션의 근거는 [Codex CLI](https://developers.openai.com/codex/cli/reference),
 [Codex 설정](https://developers.openai.com/codex/config-reference),
 [Claude 권한 모드](https://code.claude.com/docs/en/permission-modes)다.
