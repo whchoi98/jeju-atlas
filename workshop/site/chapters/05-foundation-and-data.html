@@ -217,21 +217,29 @@
 기본 과정의 CLI Runtime과 새 CloudFormation 스택을 같은 자원으로 취급하지 않습니다.</p>
 <p>앱 사본을 만들기 전에 <a href="../reference/preconfiguration.html">사전 구성</a>의 전체 앱용 보조 패키지 설치를 완료합니다.<br>
 기본 <code>core.py doctor</code>는 PyYAML을 검사하지 않습니다.<br>
-아래 명령은 준비된 같은 helper Python에 패키지를 설치하고 확인합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26;
-(
-  set -e
-  uv --no-config pip install --python "${ATLAS_PYTHON:?활성화 파일을 먼저 source하세요}" \
-    -r "${ATLAS_REPO:?}/workshop/requirements.txt"
-  "$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("App helper imports OK")'
-  cfn-lint --version
-)
+새 터미널에서는 아래 블록 전체를 실행해 기존 참가자 환경부터 불러옵니다.<br>
+절대 경로에서 시작하므로 <code>ATLAS_REPO</code>가 비어 있어도 실행할 수 있습니다.<br>
+<code>source</code>로 복원한 같은 helper Python에 패키지를 설치하고 확인합니다.</p>
+<p><strong>04장까지 완료했더라도 새 터미널에서는 환경 활성화가 필요합니다.</strong><br>
+<code>ATLAS_REPO: 먼저 01장의 activate.sh를 source하세요</code>는 현재 셸에 변수가 없어 명령이 시작되지 않았다는 뜻입니다.<br>
+04장의 배포나 키 입력을 다시 수행하는 단계가 아닙니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+uv --no-config pip install --python "$ATLAS_PYTHON" \
+  -r "$ATLAS_REPO/workshop/requirements.txt" &#x26;&#x26;
+"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("App helper imports OK")' &#x26;&#x26;
+cfn-lint --version
+}
 </code></pre></div>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd "$ATLAS_REPO" &#x26;&#x26; {
-export ATLAS_APP="$ATLAS_REPO/workshop/.local/labs/$ATLAS_TEAM/app"
-"$ATLAS_PYTHON" workshop/scripts/lab.py discover --config "$ATLAS_CONFIG"
-"$ATLAS_PYTHON" workshop/scripts/lab.py prepare --config "$ATLAS_CONFIG"
-"$ATLAS_PYTHON" workshop/scripts/lab.py info --config "$ATLAS_CONFIG"
+<p>이 블록은 <strong>현재 Bash에 환경변수를 남기므로 같은 터미널에서 아래 명령으로 이어 갑니다.</strong><br>
+<code>activate.sh</code>가 없으면 저장소 경로와 사전 구성에서 출력한 <code>activationPath</code>를 먼저 확인합니다.<br>
+아직 준비하지 않은 새 환경일 때만 <a href="../reference/preconfiguration.html#heading-3-node-24와-참가자-도구-준비">사전 구성 3절의 참가자 도구 준비</a>를 수행합니다.<br>
+기존 키를 다시 입력하거나 환경변수를 직접 만들어 넣을 필요는 없습니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "${ATLAS_REPO:?먼저 위의 환경 활성화 블록을 실행하세요}" &#x26;&#x26; {
+export ATLAS_APP="$ATLAS_REPO/workshop/.local/labs/$ATLAS_TEAM/app" &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py discover --config "$ATLAS_CONFIG" &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py prepare --config "$ATLAS_CONFIG" &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py info --config "$ATLAS_CONFIG"
 }
 </code></pre></div>
 <p>이미 본인의 app 폴더가 있다면 prepare를 다시 실행하지 말고 현재 파일과 바인딩을 확인합니다.<br>
@@ -239,30 +247,48 @@ export ATLAS_APP="$ATLAS_REPO/workshop/.local/labs/$ATLAS_TEAM/app"
 PyYAML 오류로 binding 파일 없이 중단된 사본은 <a href="../reference/preconfiguration.html#heading-pyyaml-누락으로-이미-사본-생성이-중단됐다면">사전 구성의 복구 절차</a>에 따라 먼저 백업한 뒤 같은 참가자 설정으로 재준비합니다.</p>
 <h2 id="heading-ecr-생성">ECR 생성</h2>
 <p>각 plan 출력에서 참가자 이름과 생성 자원을 확인한 뒤 apply를 실행합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd "$ATLAS_REPO" &#x26;&#x26; {
-python3 workshop/scripts/lab.py run network --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run plan-bootstrap --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-bootstrap --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-bootstrap --config "$ATLAS_CONFIG" --execute
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd -- "${ATLAS_REPO:?먼저 위의 환경 활성화 블록을 실행하세요}" &#x26;&#x26; {
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run network --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run plan-bootstrap --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run apply-bootstrap --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run status-bootstrap --config "$ATLAS_CONFIG" --execute
 }
 </code></pre></div>
 <p><code>CREATE_COMPLETE</code>가 된 뒤 진행합니다.<br>
-진행 중이면 status를 다시 확인하며 apply를 반복하지 않습니다.<br>
+출력이 <code>CREATE_IN_PROGRESS</code>이면 잠시 기다린 뒤 <strong>아래 상태 조회 블록만 다시 실행</strong>합니다.<br>
+<code>plan-bootstrap</code>과 <code>apply-bootstrap</code>을 반복하지 않습니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run status-bootstrap \
+  --config "$ATLAS_CONFIG" --execute
+}
+</code></pre></div>
+<p>이 명령은 참가자의 ECR Registry 스택 상태와 최근 이벤트를 읽기 전용으로 조회합니다.<br>
+공통 실습 ID에서는 <code>stack</code>이 <code>AtlasLabTeam01Registry</code>로 표시됩니다.<br>
+<code>CREATE_COMPLETE</code>이면 다음 데이터 버킷 단계로 이동하고, 실패 또는 <code>ROLLBACK</code> 상태면 오류 이벤트부터 확인합니다.<br>
 ECR은 웹, 수집 작업, 라우터 이미지를 불변 태그와 digest로 관리합니다.</p>
 <h2 id="heading-cloudfront-없이-비공개-데이터-버킷-생성">CloudFront 없이 비공개 데이터 버킷 생성</h2>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
-python3 workshop/scripts/lab.py run plan-data --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-data --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-data --config "$ATLAS_CONFIG" --execute
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run plan-data --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run apply-data --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run status-data --config "$ATLAS_CONFIG" --execute
 }
 </code></pre></div>
 <p>실습용 데이터 템플릿은 초기의 빈 Distribution 입력을 처리합니다.<br>
 Public Access Block, 버전 관리, 암호화, 미디어 OAC를 만들지만 CloudFront 미디어 읽기 허용은 실제 Distribution을 연결할 때까지 없습니다.<br>
 수집 이미지와 Schedule은 아직 활성화하지 않습니다.</p>
 <p>데이터 → AgentCore → 웹 → 실제 Distribution 연결 순서로 최초 배포 의존성을 해결합니다.</p>
+<p>데이터 스택도 <code>CREATE_COMPLETE</code>가 된 뒤 카탈로그 생성과 게시로 진행합니다.<br>
+진행 중이면 다음 조회만 반복합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-6">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run status-data \
+  --config "$ATLAS_CONFIG" --execute
+}
+</code></pre></div>
 <h2 id="heading-카탈로그-생성-게시">카탈로그 생성, 게시</h2>
 <p>전체 실습에서는 공개 OSM 장소를 포함해 새 카탈로그를 만듭니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-7" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-7">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
 python3 workshop/scripts/lab.py catalog --osm --config "$ATLAS_CONFIG" --execute
 python3 workshop/scripts/lab.py publish-catalog --config "$ATLAS_CONFIG" --execute
 }
@@ -315,7 +341,7 @@ OSM 개수는 조회 시점과 조건에 따라 달라지며 과거 운영의 6,
 <p>다음: <a href="06-atlas-agentcore.html">06, 실제 Atlas AgentCore</a></p>
 <h2 id="heading-agentic-ai-코딩-어시스턴트-프롬프트-카드">Agentic AI 코딩 어시스턴트 프롬프트 카드</h2>
 <p>아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. <a href="../prompts/05-foundation-and-data.md" download="05-foundation-and-data.md">Markdown 카드 다운로드</a></p>
-<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-6"># 05, 컨테이너 저장소와 장소 데이터. Agentic AI 코딩 어시스턴트 카드
+<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-8" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-8"># 05, 컨테이너 저장소와 장소 데이터. Agentic AI 코딩 어시스턴트 카드
 
 이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다.\
 Agentic AI 코딩 어시스턴트 하나로 같은 계정, VPC, 작업 폴더를 유지합니다.
@@ -330,6 +356,13 @@ Agentic AI 코딩 어시스턴트 하나로 같은 계정, VPC, 작업 폴더를
 새 셸에서는 확인한 저장소로 이동하고 기존 `activate.sh`를 source한 뒤
 helper 명령은 `ATLAS_REPO`, 앱 명령은 `ATLAS_APP`으로 다시 이동하세요.
 경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
+`ATLAS_REPO`가 없으면 그 변수로 cd하지 말고 확인한 저장소 절대 경로로 이동하세요.
+기본 경로는 /home/ec2-user/my-project/jeju-atlas이며
+workshop/.local/labs/team01/activate.sh를 현재 Bash에서 source합니다.
+source를 별도 괄호 서브셸에 넣어 후속 명령에서 환경변수를 잃지 마세요.
+04장을 완료했어도 새 셸의 활성화는 필요합니다. 키 입력이나 기존 배포를 반복하지 마세요.
+활성화 파일이 없으면 기존 activationPath와 저장소 경로부터 확인하세요.
+아직 준비하지 않은 환경일 때만 사전 구성 3절로 안내하세요.
 
 ## 작업
 
@@ -341,6 +374,10 @@ PyYAML 오류로 binding 없는 부분 사본이 남았다면 같은 참가자 �
 백업으로 보존한 뒤 동일한 ATLAS_CONFIG로 재준비합니다. 참가자 이름을 바꾸지 마세요.
 
 내 실습 Registry와 Data 스택의 plan을 검토한 뒤 요청된 apply/status를 진행하세요.
+Registry 진행 상태는 lab.py run status-bootstrap --config "$ATLAS_CONFIG" --execute로,
+Data 진행 상태는 lab.py run status-data --config "$ATLAS_CONFIG" --execute로 조회하세요.
+진행 중에는 해당 상태 조회만 반복하고 plan이나 apply를 다시 실행하지 마세요.
+Registry가 CREATE_COMPLETE인 뒤 Data로, Data가 CREATE_COMPLETE인 뒤 카탈로그 게시로 진행하세요.
 초기 Data에는 실제 Distribution이 없으므로 CloudFront 읽기 허용이 없는 조건을 유지하세요.
 catalog --osm 또는 명시한 offline 모드로 새 카탈로그를 만들고 sample/OSM 출처와 해시를 확인하세요.
 publish-catalog는 내 버킷에만 수행하세요.

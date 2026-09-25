@@ -422,36 +422,43 @@ bootstrap은 계정과 리전의 공용 배포 기반이므로 실습 Runtime �
 ## 선택: 05~14장과 교재 유지관리용 Python 패키지
 
 핵심 과정만 진행한다면 위의 01장 링크로 이동합니다.\
-전체 지도 앱이나 교재 유지관리까지 하는 환경에서만 다음 패키지를 추가합니다.
+전체 지도 앱이나 교재 유지관리까지 하는 환경에서만 다음 패키지를 추가합니다.\
+[3절의 참가자 도구 준비](#3-node-24와-참가자-도구-준비)를 마친 뒤 실행합니다.\
+각 블록은 절대 경로에서 기존 `activate.sh`를 불러오므로 새 터미널에서도 사용할 수 있습니다.
 
 ```bash assistant=codex
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
-uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt"
-"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")'
-cfn-lint --version
+source workshop/.local/labs/team01/activate.sh &&
+uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt" &&
+"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")' &&
+cfn-lint --version &&
 bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant codex --containers
 }
 ```
 
 ```bash assistant=claude
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
-uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt"
-"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")'
-cfn-lint --version
+source workshop/.local/labs/team01/activate.sh &&
+uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt" &&
+"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")' &&
+cfn-lint --version &&
 bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant claude --containers
 }
 ```
 
 ```bash assistant=kiro
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {
-uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt"
-"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")'
-cfn-lint --version
+source workshop/.local/labs/team01/activate.sh &&
+uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt" &&
+"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")' &&
+cfn-lint --version &&
 bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant kiro --containers
 }
 ```
 PyYAML 확인 전에 `lab.py prepare`로 앱 사본을 만들지 않습니다.\
-시스템 pip에 설치하고 다른 venv에서 실행하는 혼선을 피하도록 `ATLAS_PYTHON`에 설치합니다.
+시스템 pip에 설치하고 다른 venv에서 실행하는 혼선을 피하도록 `ATLAS_PYTHON`에 설치합니다.\
+`activate.sh`가 없으면 저장소 경로와 기존 `activationPath`를 확인하고, 아직 준비하지 않은 환경일 때만 3절부터 진행합니다.\
+이미 준비한 환경에서는 활성화만 다시 하며 키 입력이나 전체 설치를 반복하지 않습니다.
 
 ## 이전 소스와 도구 선택 오류
 

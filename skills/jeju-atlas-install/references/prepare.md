@@ -220,5 +220,17 @@ HUD를 원하는 경우에만 전체 저장소의 `workshop/reference/hud-setup.
 
 심화 앱은 같은 보조 Python에 `workshop/requirements.txt`를 설치하고
 `import yaml`, `cfn-lint`, Docker 접근을 추가 확인한다.
+04장을 완료했더라도 새 터미널에서 `ATLAS_REPO`가 비어 있으면 기존 환경부터 불러온다.\
+설치나 배포를 처음부터 반복하지 않고 다음처럼 확인한 저장소 경로에서 활성화한다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" &&
+source workshop/.local/labs/team01/activate.sh
+```
+
+이후 같은 Bash에서 05장의 보조 패키지 설치와 app 준비로 이어간다.\
+`source`를 별도 괄호 서브셸 안에 넣어 다음 명령에서 환경변수를 잃지 않는다.\
+활성화 파일이 없으면 기존 `activationPath`와 저장소 경로를 먼저 확인하고, 미준비 환경에서만 사전 구성을 수행한다.
+
 앱 준비는 `lab.py`를 사용하며 전체 진단은 문제 발생 또는 요청 시에만 수행한다.
 이어서 [배포](deploy.md)를 읽는다.
