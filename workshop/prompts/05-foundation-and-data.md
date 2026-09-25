@@ -13,6 +13,13 @@ Agentic AI 코딩 어시스턴트 하나로 같은 계정, VPC, 작업 폴더를
 새 셸에서는 확인한 저장소로 이동하고 기존 `activate.sh`를 source한 뒤
 helper 명령은 `ATLAS_REPO`, 앱 명령은 `ATLAS_APP`으로 다시 이동하세요.
 경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
+`ATLAS_REPO`가 없으면 그 변수로 cd하지 말고 확인한 저장소 절대 경로로 이동하세요.
+기본 경로는 /home/ec2-user/my-project/jeju-atlas이며
+workshop/.local/labs/team01/activate.sh를 현재 Bash에서 source합니다.
+source를 별도 괄호 서브셸에 넣어 후속 명령에서 환경변수를 잃지 마세요.
+04장을 완료했어도 새 셸의 활성화는 필요합니다. 키 입력이나 기존 배포를 반복하지 마세요.
+활성화 파일이 없으면 기존 activationPath와 저장소 경로부터 확인하세요.
+아직 준비하지 않은 환경일 때만 사전 구성 3절로 안내하세요.
 
 ## 작업
 
@@ -24,6 +31,10 @@ PyYAML 오류로 binding 없는 부분 사본이 남았다면 같은 참가자 �
 백업으로 보존한 뒤 동일한 ATLAS_CONFIG로 재준비합니다. 참가자 이름을 바꾸지 마세요.
 
 내 실습 Registry와 Data 스택의 plan을 검토한 뒤 요청된 apply/status를 진행하세요.
+Registry 진행 상태는 lab.py run status-bootstrap --config "$ATLAS_CONFIG" --execute로,
+Data 진행 상태는 lab.py run status-data --config "$ATLAS_CONFIG" --execute로 조회하세요.
+진행 중에는 해당 상태 조회만 반복하고 plan이나 apply를 다시 실행하지 마세요.
+Registry가 CREATE_COMPLETE인 뒤 Data로, Data가 CREATE_COMPLETE인 뒤 카탈로그 게시로 진행하세요.
 초기 Data에는 실제 Distribution이 없으므로 CloudFront 읽기 허용이 없는 조건을 유지하세요.
 catalog --osm 또는 명시한 offline 모드로 새 카탈로그를 만들고 sample/OSM 출처와 해시를 확인하세요.
 publish-catalog는 내 버킷에만 수행하세요.

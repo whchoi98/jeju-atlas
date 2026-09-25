@@ -14,24 +14,35 @@ ECR과 비공개 데이터 S3를 먼저 만듭니다.\
 
 앱 사본을 만들기 전에 [사전 구성](../reference/preconfiguration.md)의 전체 앱용 보조 패키지 설치를 완료합니다.\
 기본 `core.py doctor`는 PyYAML을 검사하지 않습니다.\
-아래 명령은 준비된 같은 helper Python에 패키지를 설치하고 확인합니다.
+새 터미널에서는 아래 블록 전체를 실행해 기존 참가자 환경부터 불러옵니다.\
+절대 경로에서 시작하므로 `ATLAS_REPO`가 비어 있어도 실행할 수 있습니다.\
+`source`로 복원한 같은 helper Python에 패키지를 설치하고 확인합니다.
+
+**04장까지 완료했더라도 새 터미널에서는 환경 활성화가 필요합니다.**\
+`ATLAS_REPO: 먼저 01장의 activate.sh를 source하세요`는 현재 셸에 변수가 없어 명령이 시작되지 않았다는 뜻입니다.\
+04장의 배포나 키 입력을 다시 수행하는 단계가 아닙니다.
 
 ```bash
-cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &&
-(
-  set -e
-  uv --no-config pip install --python "${ATLAS_PYTHON:?활성화 파일을 먼저 source하세요}" \
-    -r "${ATLAS_REPO:?}/workshop/requirements.txt"
-  "$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("App helper imports OK")'
-  cfn-lint --version
-)
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source workshop/.local/labs/team01/activate.sh &&
+uv --no-config pip install --python "$ATLAS_PYTHON" \
+  -r "$ATLAS_REPO/workshop/requirements.txt" &&
+"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("App helper imports OK")' &&
+cfn-lint --version
+}
 ```
+
+이 블록은 **현재 Bash에 환경변수를 남기므로 같은 터미널에서 아래 명령으로 이어 갑니다.**\
+`activate.sh`가 없으면 저장소 경로와 사전 구성에서 출력한 `activationPath`를 먼저 확인합니다.\
+아직 준비하지 않은 새 환경일 때만 [사전 구성 3절의 참가자 도구 준비](../reference/preconfiguration.md#3-node-24와-참가자-도구-준비)를 수행합니다.\
+기존 키를 다시 입력하거나 환경변수를 직접 만들어 넣을 필요는 없습니다.
+
 ```bash
-cd "$ATLAS_REPO" && {
-export ATLAS_APP="$ATLAS_REPO/workshop/.local/labs/$ATLAS_TEAM/app"
-"$ATLAS_PYTHON" workshop/scripts/lab.py discover --config "$ATLAS_CONFIG"
-"$ATLAS_PYTHON" workshop/scripts/lab.py prepare --config "$ATLAS_CONFIG"
-"$ATLAS_PYTHON" workshop/scripts/lab.py info --config "$ATLAS_CONFIG"
+cd -- "${ATLAS_REPO:?먼저 위의 환경 활성화 블록을 실행하세요}" && {
+export ATLAS_APP="$ATLAS_REPO/workshop/.local/labs/$ATLAS_TEAM/app" &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py discover --config "$ATLAS_CONFIG" &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py prepare --config "$ATLAS_CONFIG" &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py info --config "$ATLAS_CONFIG"
 }
 ```
 이미 본인의 app 폴더가 있다면 prepare를 다시 실행하지 말고 현재 파일과 바인딩을 확인합니다.\
@@ -43,24 +54,37 @@ PyYAML 오류로 binding 파일 없이 중단된 사본은 [사전 구성의 복
 각 plan 출력에서 참가자 이름과 생성 자원을 확인한 뒤 apply를 실행합니다.
 
 ```bash
-cd "$ATLAS_REPO" && {
-python3 workshop/scripts/lab.py run network --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run plan-bootstrap --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-bootstrap --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-bootstrap --config "$ATLAS_CONFIG" --execute
+cd -- "${ATLAS_REPO:?먼저 위의 환경 활성화 블록을 실행하세요}" && {
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run network --config "$ATLAS_CONFIG" --execute &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run plan-bootstrap --config "$ATLAS_CONFIG" --execute &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run apply-bootstrap --config "$ATLAS_CONFIG" --execute &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run status-bootstrap --config "$ATLAS_CONFIG" --execute
 }
 ```
 `CREATE_COMPLETE`가 된 뒤 진행합니다.\
-진행 중이면 status를 다시 확인하며 apply를 반복하지 않습니다.\
+출력이 `CREATE_IN_PROGRESS`이면 잠시 기다린 뒤 **아래 상태 조회 블록만 다시 실행**합니다.\
+`plan-bootstrap`과 `apply-bootstrap`을 반복하지 않습니다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source workshop/.local/labs/team01/activate.sh &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run status-bootstrap \
+  --config "$ATLAS_CONFIG" --execute
+}
+```
+
+이 명령은 참가자의 ECR Registry 스택 상태와 최근 이벤트를 읽기 전용으로 조회합니다.\
+공통 실습 ID에서는 `stack`이 `AtlasLabTeam01Registry`로 표시됩니다.\
+`CREATE_COMPLETE`이면 다음 데이터 버킷 단계로 이동하고, 실패 또는 `ROLLBACK` 상태면 오류 이벤트부터 확인합니다.\
 ECR은 웹, 수집 작업, 라우터 이미지를 불변 태그와 digest로 관리합니다.
 
 ## CloudFront 없이 비공개 데이터 버킷 생성
 
 ```bash
 cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
-python3 workshop/scripts/lab.py run plan-data --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run apply-data --config "$ATLAS_CONFIG" --execute
-python3 workshop/scripts/lab.py run status-data --config "$ATLAS_CONFIG" --execute
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run plan-data --config "$ATLAS_CONFIG" --execute &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run apply-data --config "$ATLAS_CONFIG" --execute &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run status-data --config "$ATLAS_CONFIG" --execute
 }
 ```
 실습용 데이터 템플릿은 초기의 빈 Distribution 입력을 처리합니다.\
@@ -68,6 +92,17 @@ Public Access Block, 버전 관리, 암호화, 미디어 OAC를 만들지만 Clo
 수집 이미지와 Schedule은 아직 활성화하지 않습니다.
 
 데이터 → AgentCore → 웹 → 실제 Distribution 연결 순서로 최초 배포 의존성을 해결합니다.
+
+데이터 스택도 `CREATE_COMPLETE`가 된 뒤 카탈로그 생성과 게시로 진행합니다.\
+진행 중이면 다음 조회만 반복합니다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source workshop/.local/labs/team01/activate.sh &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run status-data \
+  --config "$ATLAS_CONFIG" --execute
+}
+```
 
 ## 카탈로그 생성, 게시
 

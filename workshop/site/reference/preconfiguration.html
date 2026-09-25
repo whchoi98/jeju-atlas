@@ -532,27 +532,34 @@ cd -- "$ATLAS_CLI/agentcore/cdk" &#x26;&#x26;
 <hr>
 <h2 id="heading-선택-0514장과-교재-유지관리용-python-패키지">선택: 05~14장과 교재 유지관리용 Python 패키지</h2>
 <p>핵심 과정만 진행한다면 위의 01장 링크로 이동합니다.<br>
-전체 지도 앱이나 교재 유지관리까지 하는 환경에서만 다음 패키지를 추가합니다.</p>
+전체 지도 앱이나 교재 유지관리까지 하는 환경에서만 다음 패키지를 추가합니다.<br>
+<a href="#heading-3-node-24와-참가자-도구-준비">3절의 참가자 도구 준비</a>를 마친 뒤 실행합니다.<br>
+각 블록은 절대 경로에서 기존 <code>activate.sh</code>를 불러오므로 새 터미널에서도 사용할 수 있습니다.</p>
 <section class="command-tabs" data-command-tabs="" aria-label="도구별 터미널 명령"><div class="command-tool-tabs" role="tablist" aria-label="사용할 코딩 어시스턴트" hidden><button type="button" id="command-group-5-tab-codex" role="tab" data-command-assistant="codex" aria-controls="command-group-5-panel-codex" aria-selected="true" tabindex="0">코덱스</button><button type="button" id="command-group-5-tab-claude" role="tab" data-command-assistant="claude" aria-controls="command-group-5-panel-claude" aria-selected="false" tabindex="-1">클로드 코드</button><button type="button" id="command-group-5-tab-kiro" role="tab" data-command-assistant="kiro" aria-controls="command-group-5-panel-kiro" aria-selected="false" tabindex="-1">키로</button></div><section id="command-group-5-panel-codex" class="command-panel" data-command-panel="codex" role="tabpanel" aria-labelledby="command-group-5-tab-codex" tabindex="0"><p class="command-variant-title"><strong>코덱스 명령</strong></p><div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-26" aria-label="코덱스 명령 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-26">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
-uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt"
-"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")'
-cfn-lint --version
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt" &#x26;&#x26;
+"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")' &#x26;&#x26;
+cfn-lint --version &#x26;&#x26;
 bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant codex --containers
 }
 </code></pre></div></section><section id="command-group-5-panel-claude" class="command-panel" data-command-panel="claude" role="tabpanel" aria-labelledby="command-group-5-tab-claude" tabindex="0"><p class="command-variant-title"><strong>클로드 코드 명령</strong></p><div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-27" aria-label="클로드 코드 명령 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-27">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
-uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt"
-"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")'
-cfn-lint --version
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt" &#x26;&#x26;
+"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")' &#x26;&#x26;
+cfn-lint --version &#x26;&#x26;
 bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant claude --containers
 }
 </code></pre></div></section><section id="command-group-5-panel-kiro" class="command-panel" data-command-panel="kiro" role="tabpanel" aria-labelledby="command-group-5-tab-kiro" tabindex="0"><p class="command-variant-title"><strong>키로 명령</strong></p><div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-28" aria-label="키로 명령 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-28">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
-uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt"
-"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")'
-cfn-lint --version
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+uv --no-config pip install --python "$ATLAS_PYTHON" -r "$ATLAS_REPO/workshop/requirements.txt" &#x26;&#x26;
+"$ATLAS_PYTHON" -B -c 'import boto3, requests, yaml; print("helper imports OK")' &#x26;&#x26;
+cfn-lint --version &#x26;&#x26;
 bash "$ATLAS_REPO/workshop/scripts/check_env.sh" --assistant kiro --containers
 }
 </code></pre></div></section></section><p>PyYAML 확인 전에 <code>lab.py prepare</code>로 앱 사본을 만들지 않습니다.<br>
-시스템 pip에 설치하고 다른 venv에서 실행하는 혼선을 피하도록 <code>ATLAS_PYTHON</code>에 설치합니다.</p>
+시스템 pip에 설치하고 다른 venv에서 실행하는 혼선을 피하도록 <code>ATLAS_PYTHON</code>에 설치합니다.<br>
+<code>activate.sh</code>가 없으면 저장소 경로와 기존 <code>activationPath</code>를 확인하고, 아직 준비하지 않은 환경일 때만 3절부터 진행합니다.<br>
+이미 준비한 환경에서는 활성화만 다시 하며 키 입력이나 전체 설치를 반복하지 않습니다.</p>
 <h2 id="heading-이전-소스와-도구-선택-오류">이전 소스와 도구 선택 오류</h2>
 <p><code>--node-only</code>를 실행했는데 <code>Usage</code>만 나오고 도움말에 해당 옵션이 없으면 소스가 오래된 상태입니다.<br>
 0절의 소스 갱신 후 선택한 Node 탭 명령을 다시 실행합니다.</p>
