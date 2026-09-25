@@ -34,11 +34,11 @@
 
 - [100~120분 실습 안내](../workshop/README.md)
 - [사전 구성: Node, Python과 AgentCore CLI 설치](../workshop/reference/preconfiguration.md)
-- [Bedrock 단기키와 .env, 배포 후 선택 연동](../workshop/reference/keys-and-integrations.md)
+- [Bedrock API 키와 .env, 배포 후 선택 연동](../workshop/reference/keys-and-integrations.md)
 - [EC2 설치와 재개 스킬](../skills/jeju-atlas-install/SKILL.md)
 - [워크숍 소스와 생성물 작업 지침](../workshop/AGENTS.md)
 - [진행자 준비](../workshop/reference/facilitator.md)
-- [본 실습 소스와 전용 도구 사전검사](../workshop/chapters/01-setup.md)
+- [환경 활성화와 API 키 입력](../workshop/chapters/01-setup.md)
 - [Sonnet 4.6 실제 호출과 리전 확인](../workshop/chapters/02-aws-environment.md)
 - [Agentic AI 코딩 어시스턴트 환경](../workshop/reference/ai-cli-environments.md)
 - [my-codex-hud 사전 설치](../workshop/reference/hud-setup.md)
@@ -48,6 +48,7 @@
 - [전체 자원 매핑](../workshop/reference/resources.md)
 - [PC 교재 다운로드](../workshop/reference/offline-start.md)
 - [최근 공개 교재 배포](../workshop/DEPLOYMENT.md)
+- [학습 참고: AgentCore CLI 역할과 실행 흐름](../workshop/reference/agentcore-cli-role.md)
 
 ## 배포 기록
 

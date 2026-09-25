@@ -27,7 +27,7 @@ Claude Code는 [현재 Agentic AI 코딩 어시스턴트 안내](ai-cli-environm
 | `agentcore validate --json` | 프로젝트와 배포 대상 설정 검사 |
 | `agentcore dev --skip-deploy` | AWS 자동 배포 없이 로컬 실행 |
 | `agentcore dev "질문" --runtime JejuGuide --port 8080` | 로컬 서버 호출 |
-| `agentcore deploy --target default --dry-run` | 배포 전 변경 내용 확인 |
+| `agentcore deploy --target default --dry-run` | CloudFormation 합성과 배포 선행 조건 확인 |
 | `agentcore deploy --target default` | 참가자 Runtime 배포 |
 | `agentcore invoke "질문" --runtime JejuGuide --target default --json` | 배포한 Runtime 호출 |
 | `agentcore status`와 `agentcore logs` | 상태와 오류 원인 확인 |
@@ -55,6 +55,8 @@ Claude Code는 [현재 Agentic AI 코딩 어시스턴트 안내](ai-cli-environm
 공식 문서는 계속 갱신됩니다.\
 수업 중 새 버전으로 바꾸기보다, 진행자가 검증한 버전의 `agentcore <명령> --help`와 생성 파일을 기준으로 진행합니다.\
 CLI 설치, 로컬 테스트, 배포 상태와 실제 응답 성공은 각각 확인해야 합니다.
+
+학습 참고: [AgentCore CLI 역할과 실행 흐름](agentcore-cli-role.md)에서 03~04장의 명령, 주요 파일과 다른 도구의 관계를 확인합니다.
 
 ## Sonnet 4.6과 세 리전 구분
 

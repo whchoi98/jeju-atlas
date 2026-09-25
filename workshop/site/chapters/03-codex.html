@@ -56,7 +56,7 @@
       <span class="nav-number">03</span>
       <span class="nav-title">Agentic AI 코딩 어시스턴트로 제주 가이드 구현</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="04 AgentCore CLI로 배포하고 결과 보기 키 연결과 배포 후 예시 응답을 보고 마칩니다. 종합 검증은 선택입니다. 기본 실행 순서 결과 응답 한 번 보기 필요한 경우에만 추가 진단 결과와 자원 인계 배포 후 선택 사항 Agentic AI 코딩 어시스턴트 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="04 AgentCore CLI로 배포하고 결과 보기 키 연결과 배포 후 예시 응답을 보고 마칩니다. 종합 검증은 선택입니다. 기본 실행 순서 결과 응답 한 번 보기 필요한 경우에만 추가 진단 결과와 자원 인계 배포 후 선택 사항 참고: 이 랩에서 AgentCore CLI가 맡은 역할 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="04-agentcore-cli.html" data-chapter-link="04-agentcore-cli" data-core-chapter="true">
       <span class="nav-number">04</span>
       <span class="nav-title">AgentCore CLI로 배포하고 결과 보기</span>
@@ -165,6 +165,11 @@
     <a class="reference-link" href="../reference/codex-bedrock.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">Codex 환경 설정과 Bedrock 연결</span>
+
+    </a></li><li data-nav-entry data-search="AgentCore CLI 역할과 실행 흐름 누가 어떤 일을 하는가 04장까지 이어지는 핵심 흐름 배포 명령에 제약 파일을 전달하는 이유 명령과 연결되는 주요 파일 CDK와 보조 스크립트가 함께 보이는 이유 정상 진행에서는 생략하는 명령 설명할 수 있으면 이해한 내용">
+    <a class="reference-link" href="../reference/agentcore-cli-role.html">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
+      <span class="nav-title">AgentCore CLI 역할과 실행 흐름</span>
 
     </a></li></ul></section>
       <p class="search-empty" data-search-empty hidden>검색 결과가 없습니다.<br>다른 제목이나 주제를 입력하세요.</p>
@@ -287,6 +292,7 @@ helper가 키를 노출하지 않고 생성된 로더와 Python 3.12 설정을 �
 설치 오류가 남으면 <a href="../reference/preconfiguration.html">사전 구성</a>의 해당 항목부터 재개합니다.</p>
 <p>필수 프롬프트 1: <a href="../prompts/03-codex.md" download="03-codex.md">제주 가이드 구현</a></p>
 <p>다음: <a href="04-agentcore-cli.html">04. AgentCore CLI로 실행하고 배포하기</a></p>
+<p>학습 참고: <a href="../reference/agentcore-cli-role.html">AgentCore CLI 역할과 실행 흐름</a>에서 코딩 어시스턴트, 생성된 코드와 CLI 명령의 역할을 구분해 봅니다.</p>
 <h2 id="heading-agentic-ai-코딩-어시스턴트-프롬프트-카드">Agentic AI 코딩 어시스턴트 프롬프트 카드</h2>
 <p>아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. <a href="../prompts/03-codex.md" download="03-codex.md">Markdown 카드 다운로드</a></p>
 <section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-4">제주 가이드 워크숍 03장을 실제로 수행해 주세요. 이 장의 시간은 30분입니다.

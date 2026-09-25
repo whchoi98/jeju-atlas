@@ -120,6 +120,12 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure --integrations
 
 Codex의 [Bedrock provider 설정](reference/codex-bedrock.md)과 [HUD 준비](reference/hud-setup.md)는 필요할 때 진행자가 사전에 적용하는 선택 자료입니다.
 
+## 학습 참고: AgentCore CLI
+
+[AgentCore CLI 역할과 실행 흐름](reference/agentcore-cli-role.md)에서 프로젝트 생성, 배포와 원격 호출을 복습합니다.\
+코딩 어시스턴트, CLI, Runtime, CDK와 보조 스크립트가 맡는 역할과 주요 파일을 정리했습니다.\
+04장 하단과 참고 자료 메뉴 하단에서도 같은 자료를 찾을 수 있습니다.
+
 ## 교재 유지관리
 
 다음은 교재 작성자의 명령이며 참가자 본 실습의 필수 명령이 아닙니다.\

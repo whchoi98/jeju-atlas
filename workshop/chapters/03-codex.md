@@ -85,3 +85,5 @@ AI가 알려 준 변경 파일을 VSCode에서 확인합니다.\
 필수 프롬프트 1: [제주 가이드 구현](../prompts/03-codex.md)
 
 다음: [04. AgentCore CLI로 실행하고 배포하기](04-agentcore-cli.md)
+
+학습 참고: [AgentCore CLI 역할과 실행 흐름](../reference/agentcore-cli-role.md)에서 코딩 어시스턴트, 생성된 코드와 CLI 명령의 역할을 구분해 봅니다.
