@@ -13,7 +13,7 @@
 | Tools | 장소, 주변 검색, 공식 상세, 날씨, 코스 등의 MCP 도구 |
 | Gateway | IAM 인증으로 자기 Tools Runtime에 연결 |
 | Memory | facts, preferences, summaries, episodes, 30일 event 만료 |
-| 모델 | Global Sonnet 4.6, 주최자가 확인한 Bedrock 호출 리전 |
+| 모델 | Global Sonnet 4.6, 서울(`ap-northeast-2`) 호출 리전 |
 | 관측 | 메타데이터 중심 OTel, 입력, 답변 내용 capture 비활성화 |
 
 AgentCore는 관리형 `PUBLIC` 네트워크와 IAM 인증을 사용합니다.\
@@ -26,19 +26,12 @@ ECS를 Private Subnet에 배치하는 설정과 구분합니다.\
 `Prepare the participant workspace first`가 나오면 05장의 작업 사본 준비부터 마칩니다.
 
 이 심화 Runtime은 IAM으로 모델을 호출하며, 01장의 `.env` API 키 설정이 자동 적용되지 않습니다.\
-주최자가 Sonnet과 선택한 호출 리전에 맞는 Runtime 역할 권한을 검토해야 합니다.\
-검토한 호출 리전을 아직 심화 설정에 기록하지 않았다면 아래 명령을 한 번 실행합니다.
+이 장은 배포와 모델 호출에 **서울 리전(`ap-northeast-2`)**을 사용합니다.\
+주최자가 Sonnet과 서울 리전에 맞는 Runtime 역할 권한을 검토해야 합니다.
 
-```bash
-cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
-read -r -p "주최자가 확인한 심화 Runtime의 Bedrock 호출 리전: " atlas_bedrock_region &&
-"$ATLAS_PYTHON" -B workshop/scripts/lab.py model-region \
-  --config "$ATLAS_CONFIG" --caller-region "$atlas_bedrock_region"
-}
-```
-이 명령은 참가자 설정의 `bedrockCallerRegion`만 저장합니다.\
-모델을 호출하거나 IAM을 변경하지 않으며, 이미 기록한 리전은 다시 입력할 필요가 없습니다.\
-`modelAccessVerified: false`는 이 명령이 모델 호출을 검증하지 않았다는 뜻입니다.
+아래 1번 명령이 참가자 설정의 `bedrockCallerRegion`을 서울로 저장합니다.\
+별도 리전 입력은 받지 않으며, 01장의 `.env` 리전과 구분해 기록합니다.\
+이미 빌드와 게시가 성공한 뒤 호출 리전 오류로 중단됐다면 [서울 리전 설정 후 계획 재개](#서울-리전-설정-후-계획-재개)로 바로 이동합니다.
 
 ## 새 의존성 ZIP
 
@@ -70,12 +63,15 @@ ZIP의 Python 실행 파일은 빌드 호스트 가상환경 경로를 사용하
 
 ```bash
 cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py model-region \
+  --config "$ATLAS_CONFIG" --caller-region ap-northeast-2 &&
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-build --config "$ATLAS_CONFIG" --execute &&
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-publish --config "$ATLAS_CONFIG" --execute &&
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-plan --config "$ATLAS_CONFIG" --execute
 }
 ```
-이 블록은 코드 ZIP을 만들고 S3에 게시한 뒤 CloudFormation 변경 세트를 생성합니다.\
+이 블록은 호출 리전을 서울로 저장하고 코드 ZIP을 만든 뒤 S3 게시와 CloudFormation 변경 세트 생성을 수행합니다.\
+`model-region`의 `modelAccessVerified: false`는 설정 저장 시 모델을 호출하지 않았다는 뜻입니다.\
 **실제 Runtime 배포는 아직 시작하지 않습니다. 기다려도 다음 단계가 자동 실행되지 않습니다.**
 
 마지막 `agent-plan` 출력의 `status`가 `CREATE_COMPLETE`이면 **배포 계획 준비 완료**입니다.\
@@ -147,8 +143,8 @@ ATLAS_THINKING_DEEP=disabled
 ```
 
 배포된 Bedrock 호출용 ID이며 Codex의 모델 설정을 바꾸는 값이 아닙니다.\
-배포 대상은 서울에 유지하고 `BedrockCallerRegion` 매개변수로 별도 `ATLAS_BEDROCK_REGION`을 Runtime에 전달합니다.\
-이 장의 [시작 전 준비](#시작-전-준비)에서 `lab.py model-region`으로 주최자가 확인한 값을 기록합니다.
+배포 리전과 모델 호출 리전은 모두 서울(`ap-northeast-2`)입니다.\
+`lab.py model-region --caller-region ap-northeast-2`로 저장한 값을 `BedrockCallerRegion` 매개변수와 `ATLAS_BEDROCK_REGION` 환경 변수로 Runtime에 전달합니다.
 
 계정의 모델 접근, 서비스 가용성, Global CRIS IAM 정책을 확인해야 합니다.\
 목록 조회만으로 호출 성공을 보장하지 않습니다.\
@@ -160,7 +156,7 @@ ATLAS_THINKING_DEEP=disabled
 
 기존 GuideRole의 모델 권한도 자동 확장하지 않습니다.\
 EC2에서의 Converse 성공이 Runtime 역할의 권한을 대신하지 않습니다.\
-현재 기록된 서울 실측은 SCP 명시적 거부이며 성공한 호출 리전은 아직 배정되지 않았습니다.
+과거 서울 호출의 SCP 거부는 검증 기록에 보존하며, 현재 실습 계정의 호출 결과와 구분합니다.
 
 실제 여행 질문과 도구, Memory 동작은 웹을 연결한 뒤 12장에서 확인합니다.\
 Runtime READY만으로 여행 답변까지 검증됐다고 기록하지 않습니다.
@@ -181,7 +177,23 @@ Runtime READY만으로 여행 답변까지 검증됐다고 기록하지 않습�
 계속 생성 중이면 해당 변경 세트 상태만 다시 확인하고, `FAILED`이면 표시된 실패 이유를 해결합니다.\
 이때 스택의 `REVIEW_IN_PROGRESS`만으로 계획 준비 완료를 판단하지 않습니다.
 
-`Provide an explicit organizer-verified Bedrock caller region` 오류는 [시작 전 준비](#시작-전-준비)의 호출 리전 기록부터 확인합니다.\
+### 서울 리전 설정 후 계획 재개
+
+`agent-build`와 `agent-publish`가 성공한 뒤 `Provide an explicit organizer-verified Bedrock caller region` 오류가 나왔다면 아래 명령만 실행합니다.\
+호출 리전을 서울로 저장한 뒤 **`agent-plan`만 다시 실행**합니다.\
+성공한 빌드와 게시는 반복하지 않습니다.
+
+```bash
+cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" && {
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py model-region \
+  --config "$ATLAS_CONFIG" --caller-region ap-northeast-2 &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-plan \
+  --config "$ATLAS_CONFIG" --execute
+}
+```
+
+마지막 `agent-plan` 출력이 `CREATE_COMPLETE`이고 변경 대상이 본인 자원이면 [2. 실제 배포 시작](#2-실제-배포-시작)으로 진행합니다.\
+`PENDING`이면 기존 변경 세트 상태를 확인합니다.\
 명령을 실행했다는 사실만으로 성공했다고 판단하지 않고 마지막 출력과 종료 상태를 확인합니다.
 
 게시 후 소스가 바뀌면 해당 코드의 build → publish → plan을 다시 수행합니다.\

@@ -19,8 +19,12 @@ helper 명령은 `ATLAS_REPO`, 앱 명령은 `ATLAS_APP`으로 다시 이동하�
 실습 app의 커밋된 uv.lock으로 ARM64/Python 3.14 의존성을 만들고 소유 버킷에 게시하세요.
 같은 소스와 잠금 버전으로 만든 소유 아티팩트가 이미 있으면 재사용하세요.
 05장의 app 준비와 Data 스택, 카탈로그 게시가 완료되었는지 기존 결과로 확인하세요.
-주최자가 검토한 Runtime 역할 권한과 심화 설정의 bedrockCallerRegion이 필요합니다.
-호출 리전이 누락되었으면 이 장의 model-region 절차로 기록하고 이미 설정된 값은 유지하세요.
+이 장은 배포와 모델 호출에 서울 리전 ap-northeast-2를 사용합니다.
+주최자가 검토한 Runtime 역할 권한을 확인하고, model-region --caller-region ap-northeast-2로
+심화 설정의 bedrockCallerRegion을 저장하세요. 호출 리전을 다시 입력하도록 묻지 마세요.
+이미 agent-build와 agent-publish가 성공하고 호출 리전 누락으로 중단되었다면
+교재의 서울 리전 설정 후 계획 재개 명령으로 model-region → agent-plan만 수행하세요.
+성공한 빌드와 게시는 반복하지 마세요.
 
 agent-build → agent-publish → agent-plan은 빌드, 게시와 변경 세트 생성입니다.
 여러 명령은 &&로 연결하거나 각 종료 상태를 확인해 첫 실패 뒤에 후속 명령을 실행하지 마세요.
