@@ -103,6 +103,9 @@ def run_step(config, args):
           "project": resource_names(config)["project"], "command": command})
     if not require_execute(args, args.step):
         return
+    if args.step in {"agent-build", "agent-publish", "agent-plan", "agent-apply"}:
+        from agent_key import require_binding
+        require_binding(ROOT, config, workspace)
     if args.step in {"agent-plan", "agent-apply"}:
         caller_region(config.get("bedrockCallerRegion", ""))
     if uses_aws:
@@ -338,6 +341,10 @@ def main():
     model_region = commands.add_parser("model-region", parents=[common],
                                        help="Record an organizer-selected Bedrock caller region locally; no IAM or model call")
     model_region.add_argument("--caller-region", required=True)
+    agent_key = commands.add_parser("agent-key", parents=[common],
+                                    help="Bind the advanced Guide to the initial private Bedrock API key")
+    agent_key.add_argument("--env-file", type=Path)
+    agent_key.add_argument("--execute", action="store_true")
     run = commands.add_parser("run", parents=[common])
     run.add_argument("step", choices=sorted(DEPLOY_STEPS | set(AGENT_STEPS) | set(LOCAL_STEPS) | set(VERIFICATION_STEPS)))
     run.add_argument("--execute", action="store_true")
@@ -426,6 +433,19 @@ def main():
         set_provider_secret(config, args)
         return
     workspace = verify_workspace(config, workspace_path(config))
+    if args.action == "agent-key":
+        from agent_key import configure
+        from botocore.config import Config
+        sessions = []
+        def clients(service):
+            if not sessions:
+                sessions.append(aws_session(config))
+            return sessions[0].client(service, region_name=config["region"], config=Config(
+                connect_timeout=5, read_timeout=30, retries={"total_max_attempts": 1},
+            ))
+        emit(configure(ROOT, config, workspace, env_file=args.env_file,
+                       execute=args.execute, client_factory=clients))
+        return
     if args.action == "cleanup":
         session = aws_session(config)
         stacks = cleanup_inventory(config, session)

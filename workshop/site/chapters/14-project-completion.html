@@ -69,7 +69,7 @@
       <span class="nav-number">05</span>
       <span class="nav-title">컨테이너 저장소와 장소 데이터</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide, Tools, Gateway, Memory와 Strands를 배포합니다. 구성 시작 전 준비 새 의존성 ZIP 앱 코드 패키징, 배포 1. 코드 빌드와 게시, 배포 계획 생성 2. 실제 배포 시작 3. 스택 완료까지 상태 조회 4. 완료 후 로그 보관 설정 모델 설정 중단된 위치에서 재개 서울 리전 설정 후 계획 재개 Agentic AI 코딩 어시스턴트 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide, Tools, Gateway, Memory와 Strands를 배포합니다. 구성 시작 전 준비 새 의존성 ZIP 앱 코드 패키징, 배포 1. 코드 빌드와 게시, 배포 계획 생성 2. 실제 배포 시작 3. 스택 완료까지 상태 조회 4. 완료 후 로그 보관 설정 모델 설정 중단된 위치에서 재개 서울 리전 설정 후 계획 재개 기존 IAM Guide를 같은 API 키로 전환 SSM 키 값만 갱신 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="06-atlas-agentcore.html" data-chapter-link="06-atlas-agentcore" data-core-chapter="false">
       <span class="nav-number">06</span>
       <span class="nav-title">제주 가이드 AgentCore 배포</span>
@@ -121,7 +121,7 @@
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">EC2 사전 점검과 설치</span>
 
-    </a></li><li data-nav-entry data-search=".env, Bedrock API 키와 선택 연동 본인 터미널에서 입력 세 가지 인증 구분 로컬 호출과 배포 연결 만료되거나 리전을 바꿨을 때 배포 후 선택 키 입력 키 자원 정리 공식 근거">
+    </a></li><li data-nav-entry data-search=".env, Bedrock API 키와 선택 연동 본인 터미널에서 입력 세 가지 인증 구분 로컬 호출과 배포 연결 06장 Guide에 같은 키 연결 만료되거나 리전을 바꿨을 때 배포 후 선택 키 입력 키 자원 정리 공식 근거">
     <a class="reference-link" href="../reference/keys-and-integrations.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">.env, Bedrock API 키와 선택 연동</span>
@@ -700,7 +700,11 @@ E. 준비 후 작업 경계
   key_binding의 STS 계정, default 대상, 소유 태그 검사와 단일 SSM 읽기 권한을 유지합니다.
   Runtime 설정에는 SSM ARN만 연결하고 AWS 배포와 Runtime inbound 인증은 IAM을 사용합니다.
   확인된 키 만료나 접근 실패를 해결하며 사전 model-check 보고서는 요구하지 않습니다.
-  심화 Guide/Tools에는 이 인증 방식을 자동 적용하지 않습니다.
+  심화 Guide도 lab.py agent-key --config "$ATLAS_CONFIG" --execute로 같은 최초 키를 연결합니다.
+  기본 과정의 SSM 파라미터와 단일 읽기 정책을 재사용하고, Runtime에는 ARN만 전달합니다.
+  모델 호출은 API 키를 사용하며 Gateway, Memory와 Runtime inbound는 IAM을 유지합니다.
+  기존 app에 prepare를 반복하지 말고 키 연결 후 바뀐 코드와 Runtime 설정을 배포합니다.
+  API 키 경로를 IAM 모델 정책 시뮬레이터로 검증하거나 Bedrock IAM 권한을 넓히지 않습니다.
 - app/JejuGuide에서는 uv sync --python 3.12를 사용하고,
   기존 uv.lock이 있으면 --frozen을 사용합니다. CDK의 package-lock.json이 있으면 npm ci를 사용합니다.
   기본 CodeZip 배포는 먼저 mkdir -p "$ATLAS_CLI_PARENT/evidence"를 실행하고

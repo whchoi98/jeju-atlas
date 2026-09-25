@@ -98,7 +98,11 @@ AWS 변경과 유료 호출의 승인이 불명확하면 로컬 준비와 변경
   Agentic AI 코딩 어시스턴트의 모델 고정이나 공통 인증키를 뜻하지 않는다. Bedrock API 키는
   Runtime·모델 검사에 쓰며 배포·STS·CDK bootstrap·Runtime 호출용 IAM을 대체하지 않는다.
 - 카카오·관광공사·VISIT JEJU 키는 첫 배포 뒤 선택적으로 추가한다.
-  기본 Runtime의 키 전달을 심화 Guide에 자동 적용된 것으로 보고하지 않는다.
+  심화 Guide는 `lab.py agent-key`로 처음 입력한 같은 `.env` 키와 소유 SSM/읽기 정책을 연결한다.
+  Runtime에는 키 ARN만 전달하고 모델 요청에 Bearer 인증을 사용한다.
+  Gateway, Memory와 AWS 제어 호출은 IAM을 유지한다.
+  키 연결 후 바뀐 Guide 코드와 Runtime 설정을 배포해야 원격에 적용된다.
+  기존 사용자 로더는 덮어쓰지 않으며, 기본/심화 역할이 모두 해제되기 전에는 공유 키를 삭제하지 않는다.
 - 참가자 웹은 실제 App 스택의 기본 CloudFront HTTPS URL을 사용하고 기존 VPC/Subnet/NAT를 재사용한다.
   설치 편의를 위한 ACM·사용자 도메인·DNS 작업이나 원본 운영 계정·배포기 사용을 추가하지 않는다.
 - 변경 계획의 계정과 참가자 자원을 대조한 뒤 승인 범위에서 적용한다.

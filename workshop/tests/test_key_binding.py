@@ -238,6 +238,19 @@ class KeyBindingTests(unittest.TestCase):
         self.assertIsNone(self.cloud.policy)
         self.assertTrue(self.env_file.exists(), "Cloud cleanup must not erase the participant's local settings")
 
+    def test_advanced_only_session_keeps_key_until_its_role_detaches(self):
+        self.module.publish(self.project, self.env_file, execute=True, client_factory=self.cloud.client)
+        shutil.rmtree(self.project)
+        self.cloud.attached = True
+        before = list(self.cloud.writes)
+        with self.assertRaisesRegex(ValueError, "still attached"):
+            self.module.cleanup(self.project, execute=True, client_factory=self.cloud.client)
+        self.assertEqual(self.cloud.writes, before)
+        self.cloud.attached = False
+        result = self.module.cleanup(self.project, execute=True, client_factory=self.cloud.client)
+        self.assertTrue(result["parameterRemoved"])
+        self.assertTrue(self.env_file.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

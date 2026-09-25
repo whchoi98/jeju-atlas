@@ -124,12 +124,23 @@ expiration timestamp or use legacy expiry metadata to block setup. Actual key
 validity is checked by Bedrock when the already-planned model request is made;
 do not add a paid model precheck.
 The private `.env` lives outside Runtime codeLocation. Never source it or expose
-its contents in prompts, logs, generated HTML or deployment archives. Basic
-model calls use the supplied Bedrock API key; AWS deployment and Runtime inbound
-authentication use IAM. Publish only the owned SSM parameter ARN and its scoped
-policy into CLI configuration. Key renewal and optional provider publication
-are explicit actions; local doctor/build/check never invoke them. The advanced
-Guide/Tools deployment keeps its own authentication contract.
+its contents in prompts, logs, generated HTML or deployment archives. Both the
+basic JejuGuide and advanced Guide model calls use the initially supplied Bedrock
+API key. AWS deployment, Runtime inbound, Gateway and Memory continue using IAM.
+`lab.py agent-key` connects the existing advanced app to the same SSM parameter
+and single-parameter managed policy as chapter 04. Its preview reads no key and
+calls no AWS service; `--execute` validates the saved session/account and
+publishes the original `.env` key before updating the Guide loader and template.
+Only the ARN and auth mode enter Runtime environment variables. Do not widen
+Bedrock model IAM permissions or use IAM policy simulation as a model-key check.
+The runtime adapter uses Bearer auth only for Bedrock, fails closed on missing
+keys and preserves IAM for other AWS clients. Keep key values out of cache IDs.
+Existing custom loaders, symlinks, foreign key tags/policies and concurrent edits
+must be preserved, not overwritten by migration. Build/publish/plan/apply require
+the key binding; status and logs remain available for existing deployments.
+Key renewal and optional provider publication are explicit actions; local
+doctor/build/check never publish keys or invoke a model. Keep the shared key
+until both basic and advanced roles have detached from its managed policy.
 
 Keep real failures (including the reported Seoul SCP deny) separate from local
 test success. Do not change IAM/SCP to make a test pass.

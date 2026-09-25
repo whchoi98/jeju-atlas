@@ -69,7 +69,7 @@
       <span class="nav-number">05</span>
       <span class="nav-title">컨테이너 저장소와 장소 데이터</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide, Tools, Gateway, Memory와 Strands를 배포합니다. 구성 시작 전 준비 새 의존성 ZIP 앱 코드 패키징, 배포 1. 코드 빌드와 게시, 배포 계획 생성 2. 실제 배포 시작 3. 스택 완료까지 상태 조회 4. 완료 후 로그 보관 설정 모델 설정 중단된 위치에서 재개 서울 리전 설정 후 계획 재개 Agentic AI 코딩 어시스턴트 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="06 제주 가이드 AgentCore 배포 실제 Guide, Tools, Gateway, Memory와 Strands를 배포합니다. 구성 시작 전 준비 새 의존성 ZIP 앱 코드 패키징, 배포 1. 코드 빌드와 게시, 배포 계획 생성 2. 실제 배포 시작 3. 스택 완료까지 상태 조회 4. 완료 후 로그 보관 설정 모델 설정 중단된 위치에서 재개 서울 리전 설정 후 계획 재개 기존 IAM Guide를 같은 API 키로 전환 SSM 키 값만 갱신 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="06-atlas-agentcore.html" aria-current="page" data-chapter-link="06-atlas-agentcore" data-core-chapter="false">
       <span class="nav-number">06</span>
       <span class="nav-title">제주 가이드 AgentCore 배포</span>
@@ -121,7 +121,7 @@
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">EC2 사전 점검과 설치</span>
 
-    </a></li><li data-nav-entry data-search=".env, Bedrock API 키와 선택 연동 본인 터미널에서 입력 세 가지 인증 구분 로컬 호출과 배포 연결 만료되거나 리전을 바꿨을 때 배포 후 선택 키 입력 키 자원 정리 공식 근거">
+    </a></li><li data-nav-entry data-search=".env, Bedrock API 키와 선택 연동 본인 터미널에서 입력 세 가지 인증 구분 로컬 호출과 배포 연결 06장 Guide에 같은 키 연결 만료되거나 리전을 바꿨을 때 배포 후 선택 키 입력 키 자원 정리 공식 근거">
     <a class="reference-link" href="../reference/keys-and-integrations.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">.env, Bedrock API 키와 선택 연동</span>
@@ -209,7 +209,8 @@
       <div class="prose">
 <p>이 장은 120분 본 실습 이후에 선택하는 심화 자료입니다.</p>
 <p>저장소의 <code>agent/guide</code>와 <code>agent/tools</code>로 Guide, Tools, Gateway, Memory를 배포합니다.<br>
-기본 과정에서 만든 CLI 프로젝트와 별도 소유 스택으로 배포합니다.</p>
+기본 과정에서 만든 CLI 프로젝트와 별도 소유 스택으로 배포합니다.<br>
+Guide는 <strong>01장에서 처음 입력한 것과 같은 Bedrock API 키</strong>를 사용합니다.</p>
 <h2 id="heading-구성">구성</h2>
 <div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
 <thead>
@@ -245,18 +246,26 @@
 </tr>
 </tbody>
 </table></div>
-<p>AgentCore는 관리형 <code>PUBLIC</code> 네트워크와 IAM 인증을 사용합니다.<br>
-ECS를 Private Subnet에 배치하는 설정과 구분합니다.<br>
+<p>AgentCore는 관리형 <code>PUBLIC</code> 네트워크와 IAM 인바운드 인증을 사용합니다.<br>
+Guide의 Bedrock 모델 호출만 API 키의 Bearer 인증을 사용합니다.<br>
+Gateway, Memory와 AWS 제어 작업은 계속 IAM으로 인증합니다.</p>
+<p>ECS를 Private Subnet에 배치하는 설정과 구분합니다.<br>
 <code>JejuAtlasTools</code>는 각 Gateway 안의 대상 이름이며 같은 Gateway를 공유하는 뜻이 아닙니다.</p>
 <h2 id="heading-시작-전-준비">시작 전 준비</h2>
 <p><a href="05-foundation-and-data.html#heading-심화-작업-폴더-준비">05장의 심화 작업 폴더 준비</a>와 Data 스택 생성, 카탈로그 게시를 완료한 Bash에서 이어 갑니다.<br>
-<code>Prepare the participant workspace first</code>가 나오면 05장의 작업 사본 준비부터 마칩니다.</p>
-<p>이 심화 Runtime은 IAM으로 모델을 호출하며, 01장의 <code>.env</code> API 키 설정이 자동 적용되지 않습니다.<br>
-이 장은 배포와 모델 호출에 **서울 리전(<code>ap-northeast-2</code>)**을 사용합니다.<br>
-주최자가 Sonnet과 서울 리전에 맞는 Runtime 역할 권한을 검토해야 합니다.</p>
-<p>아래 1번 명령이 참가자 설정의 <code>bedrockCallerRegion</code>을 서울로 저장합니다.<br>
-별도 리전 입력은 받지 않으며, 01장의 <code>.env</code> 리전과 구분해 기록합니다.<br>
-이미 빌드와 게시가 성공한 뒤 호출 리전 오류로 중단됐다면 <a href="#heading-서울-리전-설정-후-계획-재개">서울 리전 설정 후 계획 재개</a>로 바로 이동합니다.</p>
+<code>ATLAS_PYTHON</code>은 사전 구성에서 확인한 <code>helperPython</code>을 사용합니다.<br>
+새 Bash에서는 기존 <code>activate.sh</code>로 경로와 도구를 복원합니다.</p>
+<p><code>Prepare the participant workspace first</code>가 나오면 05장의 준비 상태를 확인합니다.<br>
+이미 있는 app은 보존하고 <code>lab.py prepare</code>를 반복하지 않습니다.</p>
+<p>키는 01장의 원본 **<code>$ATLAS_CLI_PARENT/.env</code>**에서 가져옵니다.<br>
+키를 다시 입력하거나 app에 <code>.env</code>를 복사하지 않습니다.<br>
+<code>agent-key</code>가 파일을 데이터로 읽으며 <code>source .env</code>를 실행하지 않습니다.</p>
+<p>이 장은 선택한 **서울 리전(<code>ap-northeast-2</code>)**에서 배포하고 모델을 호출합니다.<br>
+아래 1번의 <code>model-region</code>이 참가자 설정의 <code>bedrockCallerRegion</code>을 서울로 저장합니다.<br>
+원본 <code>.env</code>의 <code>ATLAS_BEDROCK_REGION</code>도 이 값과 같아야 <code>agent-key</code>가 진행합니다.</p>
+<p>리전이 다르면 원본 파일 경로와 키를 사용할 수 있는 리전을 확인합니다.<br>
+리전 설정만 바꿔 키의 사용 가능 범위가 바뀌는 것은 아닙니다.<br>
+이미 배포한 IAM Guide는 <a href="#heading-기존-iam-guide를-같은-api-키로-전환">기존 IAM Guide 전환</a>으로 이어갑니다.</p>
 <h2 id="heading-새-의존성-zip">새 의존성 ZIP</h2>
 <p>커밋된 <code>uv.lock</code>에서 ARM64/Python 3.14 wheel을 설치해 새 ZIP을 만듭니다.<br>
 운영 버킷의 기존 ZIP은 필요하지 않습니다.</p>
@@ -268,7 +277,7 @@ ECS를 Private Subnet에 배치하는 설정과 구분합니다.<br>
 <p>build는 로컬 파일, 공개 패키지 다운로드를, publish는 소유 S3만 사용합니다.<br>
 소유 태그, 비공개 설정, 버전 관리를 확인하고 새 객체 버전과 SHA-256을 <code>agent/dependency-artifacts.json</code>에 기록합니다.<br>
 가짜 VersionId를 넣지 않습니다.</p>
-<p>같은 소스와 잠금 버전으로 만든 소유 의존성 ZIP이 이미 게시되어 있으면 재사용합니다.<br>
+<p>같은 의존성 잠금 버전으로 만든 소유 ZIP이 이미 게시되어 있으면 재사용합니다.<br>
 명령 사이의 <code>&#x26;&#x26;</code>는 앞 명령이 실패했을 때 다음 명령을 실행하지 않게 합니다.</p>
 <p>ZIP의 Python 실행 파일은 빌드 호스트 가상환경 경로를 사용하지 않도록 정규화합니다.<br>
 원래 빌드 환경을 제거한 뒤에도 launcher가 실행되는지 로컬 재배치 검사로 확인합니다.</p>
@@ -276,20 +285,50 @@ ECS를 Private Subnet에 배치하는 설정과 구분합니다.<br>
 <p><strong>계획 생성 → 실제 배포 시작 → 스택 완료 확인 → 로그 설정</strong> 순서로 진행합니다.<br>
 아래 네 단계를 각각 실행하고, 출력에 적힌 다음 진행 조건을 확인합니다.</p>
 <h3 id="heading-1-코드-빌드와-게시-배포-계획-생성">1. 코드 빌드와 게시, 배포 계획 생성</h3>
+<p><strong>서울 호출 리전 저장 → 같은 키 연결 → 코드 빌드 → 게시 → 계획 생성</strong> 순서입니다.</p>
 <div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py model-region \
   --config "$ATLAS_CONFIG" --caller-region ap-northeast-2 &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py agent-key --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-build --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-publish --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-plan --config "$ATLAS_CONFIG" --execute
 }
 </code></pre></div>
-<p>이 블록은 호출 리전을 서울로 저장하고 코드 ZIP을 만든 뒤 S3 게시와 CloudFormation 변경 세트 생성을 수행합니다.<br>
-<code>model-region</code>의 <code>modelAccessVerified: false</code>는 설정 저장 시 모델을 호출하지 않았다는 뜻입니다.<br>
-<strong>실제 Runtime 배포는 아직 시작하지 않습니다. 기다려도 다음 단계가 자동 실행되지 않습니다.</strong></p>
+<p><code>agent-key --execute</code>는 소유 core 세션과 app, 현재 AWS 계정을 확인합니다.<br>
+원본 <code>.env</code>의 리전과 설정이 일치하면 같은 키를 다음 공유 자원에 게시하거나 기존 연결을 재사용합니다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col">04장과 함께 사용하는 자원</th>
+<th scope="col">이름과 범위</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SSM SecureString</td>
+<td><code>/jeju-atlas-lab-team01/bedrock-api-key</code></td>
+</tr>
+<tr>
+<td>IAM managed policy</td>
+<td><code>/jeju-atlas/AtlasCliTeam01-bedrock-key</code>, 위 파라미터 한 개의 <code>ssm:GetParameter</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>정책을 참가자 app의 <code>GuideRole.ManagedPolicyArns</code>에 연결합니다.<br>
+GuideRole의 Bedrock 모델 IAM 권한은 확장하지 않습니다.</p>
+<p>helper는 app의 기존 <code>agent/guide/model/load.py</code>, 새 <code>agent/guide/model/workshop_auth.py</code>와 <code>infra/agentcore.yaml</code>을 반영합니다.<br>
+변경할 기존 로컬 파일은 비공개 <code>app/.local</code> 아래에 백업합니다.<br>
+직접 수정한 사용자 로더는 덮어쓰지 않고 중단하며, 오류 시 원본 소스와 기존 app 상태를 보존합니다.</p>
+<p><code>--execute</code>를 빼면 키를 읽거나 AWS를 호출하지 않는 로컬 미리보기입니다.<br>
+선택 옵션 <code>--env-file "$ATLAS_CLI_PARENT/.env"</code>도 01장의 원본 참가자 파일만 가리켜야 합니다.</p>
+<p>키 연결 뒤 코드 ZIP을 빌드하고 S3 게시와 CloudFormation 변경 세트 생성을 수행합니다.<br>
+<code>model-region</code>의 <code>modelAccessVerified: false</code>는 설정 저장 시 모델을 호출하지 않았다는 뜻입니다.</p>
+<p><strong>실제 Runtime 배포는 아직 시작하지 않습니다. 기다려도 다음 단계가 자동 실행되지 않습니다.</strong></p>
 <p>마지막 <code>agent-plan</code> 출력의 <code>status</code>가 <code>CREATE_COMPLETE</code>이면 <strong>배포 계획 준비 완료</strong>입니다.<br>
-계획의 <code>resources</code>에서 새 Runtime 두 개, Memory, Gateway/target와 각 역할을 확인한 뒤 2번으로 진행합니다.<br>
-기존 Runtime, Memory 교체나 다른 프로젝트 변경이 있으면 적용하지 않습니다.<br>
+새 배포는 <code>resources</code>에서 Runtime 두 개, Memory, Gateway/target와 각 역할을 확인합니다.<br>
+기존 Guide 전환은 같은 스택의 코드, Guide 역할과 환경 변경을 확인한 뒤 2번으로 진행합니다.</p>
+<p>기존 Runtime이나 Memory 교체, 다른 프로젝트 변경이 있으면 적용하지 않습니다.<br>
 <code>PENDING</code>이나 오류가 나오면 아래 <a href="#heading-중단된-위치에서-재개">중단된 위치에서 재개</a>를 먼저 확인합니다.</p>
 <h3 id="heading-2-실제-배포-시작">2. 실제 배포 시작</h3>
 <p>1번의 계획 생성이 성공하고 변경 대상이 본인 자원임을 확인한 뒤 실행합니다.</p>
@@ -361,15 +400,16 @@ ATLAS_THINKING_DEEP=disabled
 <p>배포된 Bedrock 호출용 ID이며 Codex의 모델 설정을 바꾸는 값이 아닙니다.<br>
 배포 리전과 모델 호출 리전은 모두 서울(<code>ap-northeast-2</code>)입니다.<br>
 <code>lab.py model-region --caller-region ap-northeast-2</code>로 저장한 값을 <code>BedrockCallerRegion</code> 매개변수와 <code>ATLAS_BEDROCK_REGION</code> 환경 변수로 Runtime에 전달합니다.</p>
-<p>계정의 모델 접근, 서비스 가용성, Global CRIS IAM 정책을 확인해야 합니다.<br>
-목록 조회만으로 호출 성공을 보장하지 않습니다.<br>
-<code>agent/guide/model/load.py</code>의 BedrockModel과 모델별 reasoning 설정을 확인합니다.</p>
-<p>기존 설정을 확인하지 않고 모델 ID만 교체하지 않습니다.<br>
-준비기는 참가자 사본의 모델 기본값과 Runtime 환경만 Sonnet으로 바꿉니다.<br>
-운영 원본의 모델과 IAM/SCP는 변경하지 않습니다.</p>
-<p>기존 GuideRole의 모델 권한도 자동 확장하지 않습니다.<br>
-EC2에서의 Converse 성공이 Runtime 역할의 권한을 대신하지 않습니다.<br>
-과거 서울 호출의 SCP 거부는 검증 기록에 보존하며, 현재 실습 계정의 호출 결과와 구분합니다.</p>
+<p>키 관련 Runtime 환경에는 **<code>ATLAS_BEDROCK_AUTH=api-key</code>**와 **<code>ATLAS_BEDROCK_API_KEY_SSM_ARN</code>**만 전달합니다.<br>
+키 원문은 Runtime 환경, 템플릿, 코드 ZIP이나 로그에 넣지 않습니다.<br>
+모델 로더는 SSM SecureString을 복호화해 읽고 Bedrock 요청에만 Bearer 인증을 사용합니다.</p>
+<p>키 조회나 인증이 실패해도 IAM 모델 인증으로 대체하지 않습니다.<br>
+Gateway, Memory, 제어 작업과 Runtime 인바운드 호출의 IAM 인증은 유지합니다.</p>
+<p>정상 진행에는 별도 모델 사전 호출이나 IAM 정책 시뮬레이터를 추가하지 않습니다.<br>
+실제 호출 오류가 나면 키의 사용 가능 리전, 모델 권한과 오류를 확인합니다.<br>
+운영 원본의 모델이나 IAM/SCP를 오류 회피 목적으로 변경하지 않습니다.</p>
+<p>과거 IAM 모델 호출에서 발생한 서울 SCP 거부는 당시 검증 기록으로 보존합니다.<br>
+현재 실습 계정에서 같은 API 키로 호출한 결과와 구분합니다.</p>
 <p>실제 여행 질문과 도구, Memory 동작은 웹을 연결한 뒤 12장에서 확인합니다.<br>
 Runtime READY만으로 여행 답변까지 검증됐다고 기록하지 않습니다.</p>
 <h2 id="heading-중단된-위치에서-재개">중단된 위치에서 재개</h2>
@@ -382,12 +422,16 @@ Runtime READY만으로 여행 답변까지 검증됐다고 기록하지 않습�
 </thead>
 <tbody>
 <tr>
+<td><code>agent-key</code> 오류</td>
+<td>core 세션과 app 소유, 계정, 원본 <code>.env</code> 경로와 리전, 사용자 로더 여부를 확인합니다. 원본 소스와 app을 보존하고 불일치를 해결합니다.</td>
+</tr>
+<tr>
 <td><code>agent-build</code> 또는 <code>agent-publish</code> 오류</td>
 <td>첫 오류부터 해결하고 실패한 명령 이후만 이어 갑니다. 소스와 잠금 버전이 그대로라면 성공한 빌드를 반복하지 않습니다.</td>
 </tr>
 <tr>
 <td><code>agent-plan</code> 오류</td>
-<td>마지막 오류와 필요한 입력을 확인합니다. 원인을 해결한 뒤 소스와 게시물이 그대로이면 <code>agent-plan</code>부터 재개합니다.</td>
+<td>마지막 오류와 필요한 입력을 확인합니다. API 키 연결이 반영된 소스와 게시물이 그대로이면 <code>agent-plan</code>부터 재개합니다.</td>
 </tr>
 <tr>
 <td><code>agent-plan</code>의 <code>PENDING</code></td>
@@ -412,25 +456,47 @@ Runtime READY만으로 여행 답변까지 검증됐다고 기록하지 않습�
 계속 생성 중이면 해당 변경 세트 상태만 다시 확인하고, <code>FAILED</code>이면 표시된 실패 이유를 해결합니다.<br>
 이때 스택의 <code>REVIEW_IN_PROGRESS</code>만으로 계획 준비 완료를 판단하지 않습니다.</p>
 <h3 id="heading-서울-리전-설정-후-계획-재개">서울 리전 설정 후 계획 재개</h3>
-<p><code>agent-build</code>와 <code>agent-publish</code>가 성공한 뒤 <code>Provide an explicit organizer-verified Bedrock caller region</code> 오류가 나왔다면 아래 명령만 실행합니다.<br>
-호출 리전을 서울로 저장한 뒤 <strong><code>agent-plan</code>만 다시 실행</strong>합니다.<br>
-성공한 빌드와 게시는 반복하지 않습니다.</p>
+<p>과거 <code>Provide an explicit organizer-verified Bedrock caller region</code> 오류로 중단했다면 키 연결이 반영된 산출물인지 먼저 확인합니다.<br>
+<code>agent-key</code> 적용 전 빌드라면 <a href="#heading-1-코드-빌드와-게시-배포-계획-생성">1번</a>의 <code>model-region → agent-key → agent-build → agent-publish → agent-plan</code>을 수행합니다.<br>
+IAM 로더로 만든 ZIP을 그대로 다시 계획하지 않습니다.</p>
+<p>서울 설정과 원본 <code>.env</code> 리전이 일치하고 같은 키 연결을 반영해 게시했다면 소스, 역할과 환경 설정을 확인합니다.<br>
+모두 그대로이면 <code>agent-plan</code>부터 재개합니다.<br>
+계획이 <code>CREATE_COMPLETE</code>이고 변경 대상이 본인 자원이면 <a href="#heading-2-실제-배포-시작">2번</a>으로 진행합니다.<br>
+<code>PENDING</code>이면 기존 변경 세트 상태를 확인합니다.</p>
+<h3 id="heading-기존-iam-guide를-같은-api-키로-전환">기존 IAM Guide를 같은 API 키로 전환</h3>
+<p>소스 루트에서 helper를 갱신한 뒤 기존 app에 키 연결을 적용합니다.<br>
+<code>lab.py prepare</code>, 의존성 ZIP 재빌드, 스택 재생성과 키 재입력은 필요하지 않습니다.<br>
+기존 소유 의존성 ZIP과 참가자 설정을 유지합니다.</p>
 <div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-7" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-7">cd -- "${ATLAS_REPO:?먼저 01장의 activate.sh를 source하세요}" &#x26;&#x26; {
+git pull --ff-only origin main &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py model-region \
   --config "$ATLAS_CONFIG" --caller-region ap-northeast-2 &#x26;&#x26;
-"$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-plan \
-  --config "$ATLAS_CONFIG" --execute
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py agent-key --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-build --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-publish --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run agent-plan --config "$ATLAS_CONFIG" --execute
 }
 </code></pre></div>
-<p>마지막 <code>agent-plan</code> 출력이 <code>CREATE_COMPLETE</code>이고 변경 대상이 본인 자원이면 <a href="#heading-2-실제-배포-시작">2. 실제 배포 시작</a>으로 진행합니다.<br>
-<code>PENDING</code>이면 기존 변경 세트 상태를 확인합니다.<br>
-명령을 실행했다는 사실만으로 성공했다고 판단하지 않고 마지막 출력과 종료 상태를 확인합니다.</p>
+<p>소스 갱신이나 helper가 실패하면 그 위치에서 멈추고 원본 소스와 app을 보존합니다.<br>
+삭제, reset, 재준비로 사용자 변경을 덮어쓰지 않습니다.</p>
+<p>역할, Runtime 환경과 소스 변경은 재배포해야 적용됩니다.<br>
+계획 준비가 완료되면 <a href="#heading-2-실제-배포-시작">2번 apply</a>와 <a href="#heading-3-스택-완료까지-상태-조회">3번 status</a>를 각각 수행합니다.<br>
+스택이 완료된 뒤에만 <a href="#heading-4-완료-후-로그-보관-설정">4번 로그 설정</a>으로 이어갑니다.</p>
+<h3 id="heading-ssm-키-값만-갱신">SSM 키 값만 갱신</h3>
+<p>만료 등으로 키를 갱신할 때는 <a href="../reference/keys-and-integrations.html#heading-만료되거나-리전을-바꿨을-때">원본 키 갱신 절차</a>를 따릅니다.<br>
+같은 파라미터 ARN의 키 값만 바뀌면 공유 정책을 재사용하며 소스 재빌드나 재배포가 필요하지 않습니다.<br>
+역할, Runtime 환경이나 소스가 바뀌면 해당 변경을 다시 배포합니다.</p>
+<p>새로 생성되는 모델 클라이언트는 갱신된 SSM 버전을 읽습니다.<br>
+진행 중인 요청이나 이미 생성된 모델 인스턴스가 자동으로 바뀐다고 보장하지 않습니다.</p>
 <p>게시 후 소스가 바뀌면 해당 코드의 build → publish → plan을 다시 수행합니다.<br>
 의존성 staging이 존재하면 덮어쓰지 않고, 로그 확인 후 해당 참가자의 로컬 staging만 정리합니다.<br>
-생성 실패 후 남은 Memory는 소유 ID부터 확인합니다.<br>
-모델 접근 오류는 계정과 Runtime 역할, 모델 접근 설정을 확인하고 IAM/SCP를 임의로 변경하지 않습니다.</p>
+생성 실패 후 남은 Memory는 소유 ID부터 확인합니다.</p>
+<p>공유 키를 정리할 때는 기본 JejuGuide 역할과 심화 GuideRole <strong>양쪽에서 정책 연결이 해제될 때까지</strong> 기다립니다.<br>
+기존 IAM 연결 검사가 조기 삭제를 차단합니다.<br>
+<a href="../reference/keys-and-integrations.html#heading-키-자원-정리">키 자원 정리</a>의 순서를 따릅니다.</p>
 <ul class="contains-task-list">
 <li class="task-list-item"><input type="checkbox" disabled> 두 Runtime과 Gateway, Memory가 완료되었습니다.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Guide의 공유 SSM 정책과 API 키 인증 환경이 배포에 반영되었습니다.</li>
 <li class="task-list-item"><input type="checkbox" disabled> 웹에 전달할 출력이 내 자원만 가리킵니다.</li>
 <li class="task-list-item"><input type="checkbox" disabled> 로그 보관과 내용 capture 설정을 확인했습니다.</li>
 </ul>
@@ -443,70 +509,120 @@ Runtime READY만으로 여행 답변까지 검증됐다고 기록하지 않습�
 이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다.\
 Agentic AI 코딩 어시스턴트 하나로 같은 계정, VPC, 작업 폴더를 유지합니다.
 
-당신은 제주 아틀라스 워크숍의 구현 조교입니다. 학습자가 선택한 이 챕터만 진행합니다.
-`ATLAS_REPO`, `ATLAS_CONFIG`, `ATLAS_APP`, `ATLAS_CLI`는 학습자의 터미널에서 지정한 경로입니다.
-값이 없으면 기존 `activate.sh`와 비밀값 없는 소유 설정에서 복원하세요.
-참가자마다 독립 랩이며 새 설정에는 공통 내부 ID `team01`과 프로젝트
-`AtlasCliTeam01`을 사용합니다. 팀명 선택이나 치환을 요구하지 말고 기존 설정은 유지하세요.
+당신은 제주 아틀라스 워크숍의 구현 조교입니다.\
+학습자가 선택한 이 챕터만 진행합니다.
 
-모든 터미널 실행은 올바른 `cd`로 시작하세요.
-새 셸에서는 확인한 저장소로 이동하고 기존 `activate.sh`를 source한 뒤
+`ATLAS_REPO`, `ATLAS_CONFIG`, `ATLAS_APP`, `ATLAS_CLI`, `ATLAS_CLI_PARENT`는 학습자의 터미널에서 지정한 경로입니다.\
+값이 없으면 기존 `activate.sh`와 비밀값 없는 소유 설정에서 복원하세요.
+
+참가자마다 독립 랩이며 새 설정에는 공통 내부 ID `team01`과 프로젝트 `AtlasCliTeam01`을 사용합니다.\
+팀명 선택이나 치환을 요구하지 말고 기존 설정은 유지하세요.
+
+모든 터미널 실행은 실패를 차단하는 `cd`로 시작하세요.\
+새 셸에서는 확인한 저장소로 이동하고 기존 `activate.sh`를 source하세요.\
 helper 명령은 `ATLAS_REPO`, 앱 명령은 `ATLAS_APP`으로 다시 이동하세요.
+
+helper는 사전 구성의 `helperPython`과 같은 `"$ATLAS_PYTHON" -B`로 실행하세요.\
 경로 이동이나 활성화가 실패하면 그 셸의 후속 명령을 실행하지 마세요.
 
 ## 작업
 
-실습 app의 커밋된 uv.lock으로 ARM64/Python 3.14 의존성을 만들고 소유 버킷에 게시하세요.
-같은 소스와 잠금 버전으로 만든 소유 아티팩트가 이미 있으면 재사용하세요.
-05장의 app 준비와 Data 스택, 카탈로그 게시가 완료되었는지 기존 결과로 확인하세요.
-이 장은 배포와 모델 호출에 서울 리전 ap-northeast-2를 사용합니다.
-주최자가 검토한 Runtime 역할 권한을 확인하고, model-region --caller-region ap-northeast-2로
-심화 설정의 bedrockCallerRegion을 저장하세요. 호출 리전을 다시 입력하도록 묻지 마세요.
-이미 agent-build와 agent-publish가 성공하고 호출 리전 누락으로 중단되었다면
-교재의 서울 리전 설정 후 계획 재개 명령으로 model-region → agent-plan만 수행하세요.
-성공한 빌드와 게시는 반복하지 마세요.
+05장의 app 준비와 Data 스택, 카탈로그 게시가 완료되었는지 기존 결과로 확인하세요.\
+실습 app의 커밋된 uv.lock으로 ARM64/Python 3.14 의존성을 만들고 소유 버킷에 게시하세요.\
+같은 의존성 잠금 버전의 소유 아티팩트가 있으면 재사용하세요.
 
-agent-build → agent-publish → agent-plan은 빌드, 게시와 변경 세트 생성입니다.
-여러 명령은 &#x26;&#x26;로 연결하거나 각 종료 상태를 확인해 첫 실패 뒤에 후속 명령을 실행하지 마세요.
-agent-plan의 CREATE_COMPLETE는 계획 준비 완료이며 스택 배포 완료가 아닙니다.
-계획의 소스, 버전, 변경 대상을 검토한 뒤 이 챕터에서 요청한 agent-apply로 실제 배포를 시작하세요.
-execution: started 뒤에는 agent-status로 스택 상태를 조회하세요.
-CREATE_IN_PROGRESS 또는 UPDATE_IN_PROGRESS 등 배포 진행 중이면 상태 조회만 반복하세요.
-NOT_CREATED이면 마지막 계획 출력과 현재 참가자 설정을 확인하고, 기다리거나 로그 설정을 반복하지 마세요.
-REVIEW_IN_PROGRESS이면 변경 세트 준비 완료를 확인한 뒤 아직 실행하지 않은 agent-apply로 이어 가세요.
-계획이 PENDING이면 출력된 changeSetId의 Status와 ExecutionStatus를 읽기 전용으로 확인하세요.
-CREATE_COMPLETE와 AVAILABLE을 확인하기 전에는 적용하지 말고, 대기 중 새 계획을 만들지 마세요.
-실패 또는 ROLLBACK 상태는 원인과 스택 이벤트를 확인하고 후속 로그 설정을 중단하세요.
-agent-status의 스택이 CREATE_COMPLETE 또는 UPDATE_COMPLETE이고 출력 자원이 본인 것일 때만
-agent-configure-logs를 실행하세요. Complete the independent stack 오류는 상태 조회로 돌아가 해결하세요.
-소스가 바뀌지 않았다면 성공한 빌드와 게시를 다시 수행하지 마세요.
+Guide는 01장에서 처음 입력한 것과 **같은 Bedrock API 키**를 사용합니다.\
+원본 파일은 `$ATLAS_CLI_PARENT/.env`이며 키 재입력이나 app으로의 복사를 요구하지 마세요.\
+사용자가 선택한 배포 리전과 모델 호출 리전은 서울 `ap-northeast-2`입니다.
 
-운영 ZIP/Runtime/Memory를 재사용하지 마세요. Sol/Astra와 SigV4 호출 코드를 유지하세요.
-이 심화 배포는 기본 Python 3.12 JejuGuide와 별도이며 .env API 키를 자동 적용하지 마세요.
+`model-region --caller-region ap-northeast-2`로 `bedrockCallerRegion`을 저장하세요.\
+이어서 `"$ATLAS_PYTHON" -B workshop/scripts/lab.py agent-key --config "$ATLAS_CONFIG" --execute`를 실행하세요.\
+정상 순서는 `model-region → agent-key → agent-build → agent-publish → agent-plan`입니다.
 
-기본 실행은 빌드, 배포에 필요한 스키마, 계정, 대상 확인과 배포 상태 조회에 한정합니다.
-별도 모델 사전 호출, 로컬 agentcore dev, 한영 질문 묶음과 Gateway/Memory 전체 검증은 생략합니다.
-실제 오류, 위험한 기능 변경 또는 명시적 요청이 있을 때만 해당 부분을 확인하세요.
-상태는 배포 후 한 번 조회하고 진행 중이거나 실패한 경우에만 추가 조회합니다.
-Runtime READY와 실제 답변 성공을 구분하고 생략한 검사를 통과로 기록하지 마세요.
+`agent-key`에서 `--execute`를 빼면 키를 읽거나 AWS를 호출하지 않는 로컬 미리보기입니다.\
+선택 옵션 `--env-file "$ATLAS_CLI_PARENT/.env"`도 01장의 원본 참가자 파일만 지정하세요.\
+helper가 소유 core 세션과 app, 현재 AWS 계정을 검증하고 원본 `.env`를 데이터로 읽게 하세요.
 
-교재는 `$ATLAS_REPO/workshop/chapters/06-atlas-agentcore.md`입니다.
-명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.
-원본 교재, 소스는 읽기만 하고, 코드 변경은 생성된 실습 작업 공간에서 수행하세요.
+원본 `.env`의 `ATLAS_BEDROCK_REGION`은 설정의 `bedrockCallerRegion`과 같아야 합니다.\
+불일치하면 원본 경로와 키의 사용 가능 리전을 확인하세요.\
+호출 리전을 다시 선택하게 하거나 `.env`를 source하지 마세요.
+
+04장의 SSM `/jeju-atlas-lab-team01/bedrock-api-key`와 managed policy `/jeju-atlas/AtlasCliTeam01-bedrock-key`를 함께 사용하세요.\
+helper는 같은 키를 게시하거나 기존 연결을 재사용하고, 정책은 해당 파라미터 한 개의 `ssm:GetParameter`만 허용합니다.\
+참가자 app의 `GuideRole.ManagedPolicyArns`에 이 정책을 연결하며 Bedrock 모델 IAM 권한을 넓히지 않습니다.
+
+helper가 app의 기존 `agent/guide/model/load.py`, 새 `agent/guide/model/workshop_auth.py`와 `infra/agentcore.yaml`을 반영합니다.\
+변경할 기존 로컬 파일은 비공개 `app/.local` 아래에 백업합니다.\
+직접 수정한 사용자 로더는 덮어쓰지 않고 중단하므로, 오류 시 소스와 app을 보존하고 차이를 확인하세요.
+
+키 관련 Runtime 환경에는 `ATLAS_BEDROCK_AUTH=api-key`와 `ATLAS_BEDROCK_API_KEY_SSM_ARN`만 전달하세요.\
+키 원문을 Runtime 환경, 코드 ZIP, 템플릿이나 로그에 넣지 마세요.\
+로더는 SecureString을 읽어 Bedrock에만 Bearer 인증을 사용하며 IAM 모델 인증으로 대체하지 않습니다.
+
+Gateway, Memory, AWS 제어 작업과 Runtime 인바운드 호출의 IAM/SigV4는 유지하세요.\
+기존 모델 선택과 reasoning 흐름을 보존하고 운영 ZIP, Runtime, Memory를 재사용하지 마세요.\
+기본 Python 3.12 JejuGuide와 심화 배포의 자원 경계도 유지하세요.
+
+기존에 배포한 IAM Guide는 소스 루트에서 `git pull --ff-only origin main`으로 먼저 갱신하세요.\
+소스 루트에서 기존 app을 대상으로 `agent-key`를 적용한 뒤 코드 build → publish → plan과 apply → status를 이어 가세요.\
+`lab.py prepare`, 의존성 ZIP 재빌드, 스택 재생성과 키 재입력은 하지 마세요.
+
+소스 갱신이나 helper가 실패하면 그 위치에서 멈추고 소스와 app 상태를 보존하세요.\
+reset, 삭제나 재준비로 사용자 변경을 덮어쓰지 마세요.\
+이 전환은 로더, 역할과 환경이 바뀌므로 기존 IAM 코드 ZIP을 재사용하지 마세요.
+
+여러 명령은 `&#x26;&#x26;`로 연결하거나 각 종료 상태를 확인해 첫 실패 뒤에 후속 명령을 실행하지 마세요.\
+`agent-build → agent-publish → agent-plan`은 빌드, 게시와 변경 세트 생성입니다.\
+`agent-plan`의 `CREATE_COMPLETE`는 계획 준비 완료이며 스택 배포 완료가 아닙니다.
+
+계획의 소스, 버전과 소유 자원을 확인한 뒤 이 챕터에서 요청한 `agent-apply`로 배포를 시작하세요.\
+기존 Runtime이나 Memory 교체, 다른 프로젝트 변경이 있으면 적용하지 마세요.\
+`execution: started` 뒤에는 별도 `agent-status`로 스택 상태를 조회하세요.
+
+`CREATE_IN_PROGRESS`, `UPDATE_IN_PROGRESS`, `UPDATE_COMPLETE_CLEANUP_IN_PROGRESS`이면 상태 조회만 반복하세요.\
+`NOT_CREATED`이면 마지막 계획 출력과 현재 참가자 설정을 확인하세요.\
+`REVIEW_IN_PROGRESS`이면 변경 세트 준비 완료를 확인한 뒤 아직 실행하지 않은 `agent-apply`로 이어 가세요.
+
+계획이 `PENDING`이면 출력된 `changeSetId`의 `Status`와 `ExecutionStatus`를 읽기 전용으로 확인하세요.\
+`CREATE_COMPLETE`와 `AVAILABLE`을 확인하기 전에는 적용하지 말고, 대기 중 새 계획을 만들지 마세요.\
+실패 또는 `ROLLBACK` 상태는 스택 이벤트와 원인을 확인하고 후속 로그 설정을 중단하세요.
+
+`agent-status`의 스택이 `CREATE_COMPLETE` 또는 `UPDATE_COMPLETE`이고 출력 자원이 본인 것일 때만 `agent-configure-logs`를 실행하세요.\
+`Complete the independent stack` 오류는 상태 조회로 돌아가 해결하세요.\
+API 키 연결을 반영한 소스와 게시물이 그대로이면 성공한 빌드와 게시를 반복하지 마세요.
+
+같은 SSM ARN의 키 값만 갱신하면 공유 정책을 재사용하며 소스 재빌드와 재배포는 필요하지 않습니다.\
+역할, Runtime 환경이나 소스 변경은 다시 배포하세요.\
+새 모델 클라이언트는 갱신된 SSM 버전을 읽지만 진행 중인 요청이나 기존 모델 인스턴스의 변경을 보장하지 마세요.
+
+기본 실행은 빌드, 배포에 필요한 스키마, 계정, 대상 확인과 배포 상태 조회에 한정합니다.\
+모델 사전 호출, IAM 정책 시뮬레이터, 로컬 `agentcore dev`, 한영 질문 묶음과 Gateway/Memory 전체 검증은 생략하세요.\
+실제 오류나 명시적 요청이 있을 때만 해당 진단을 수행하세요.
+
+상태는 배포 후 한 번 조회하고 진행 중이거나 실패한 경우에만 추가 조회하세요.\
+Runtime READY와 실제 답변 성공을 구분하고 생략한 검사를 통과로 기록하지 마세요.\
+과거 IAM 서울 호출의 SCP 거부는 당시 실패 기록으로 보존하세요.
+
+공유 키 정리가 요청되면 기본 JejuGuide 역할과 심화 GuideRole 양쪽의 정책 연결 해제를 기다리세요.\
+기존 IAM 연결 검사가 조기 삭제를 차단하므로 이를 우회하지 마세요.
+
+교재는 `$ATLAS_REPO/workshop/chapters/06-atlas-agentcore.md`입니다.\
+명령 문법은 `"$ATLAS_PYTHON" -B workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.\
+소스 갱신 명령 외에는 원본 교재와 소스를 읽기만 하고, 코드 변경은 생성된 실습 작업 공간에서 수행하세요.
 
 ## 공통 경계
 
 - 이미 지정된 계정, participant, 네트워크 바인딩을 오류 회피 목적으로 바꾸지 않습니다.
 - `agentcore-cli`, 기존 제주 운영 스택, 다른 참가자 폴더를 수정하지 않습니다.
-- 자격 증명 파일, API 키, 원문 사용자 대화를 읽거나 출력하지 않습니다.
+- 자격 증명 파일, API 키와 원문 사용자 대화를 직접 읽거나 출력하지 않습니다. 키는 지정 helper가 데이터로 처리합니다.
 - 실습 도구의 기본 표시와 `--execute`, plan과 apply를 구분합니다.
 - 승인된 챕터 작업은 이어 진행하되, 범위를 넓히거나 제한 우회 옵션을 사용하지 않습니다.
 - 샘플 기본 정보와 확인된 공공 근거를 분리합니다.
 
 ## 결과
 
-변경 파일, 실행한 명령과 종료 상태, 확인한 소유 자원, 실제로 검증한 항목,
-아직 실행하지 않은 클라우드 단계와 다음 재개 위치를 간결하게 보고하세요.
+변경 파일, 실행한 명령과 종료 상태, 확인한 소유 자원과 실제로 검증한 항목을 간결하게 보고하세요.\
+아직 실행하지 않은 클라우드 단계와 다음 재개 위치도 남기세요.\
 코드나 계획을 작성한 사실만으로 배포 성공이라고 말하지 마세요.
 </code></pre></section></div>
       <section class="reading-check js-only" aria-label="이 장의 읽기 기록">
@@ -521,7 +637,7 @@ Runtime READY와 실제 답변 성공을 구분하고 생략한 검사를 통과
   </a>
       </nav>
     </article>
-    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-구성" data-toc-link>구성</a></li><li class="toc-depth-2"><a href="#heading-시작-전-준비" data-toc-link>시작 전 준비</a></li><li class="toc-depth-2"><a href="#heading-새-의존성-zip" data-toc-link>새 의존성 ZIP</a></li><li class="toc-depth-2"><a href="#heading-앱-코드-패키징-배포" data-toc-link>앱 코드 패키징, 배포</a></li><li class="toc-depth-3"><a href="#heading-1-코드-빌드와-게시-배포-계획-생성" data-toc-link>1. 코드 빌드와 게시, 배포 계획 생성</a></li><li class="toc-depth-3"><a href="#heading-2-실제-배포-시작" data-toc-link>2. 실제 배포 시작</a></li><li class="toc-depth-3"><a href="#heading-3-스택-완료까지-상태-조회" data-toc-link>3. 스택 완료까지 상태 조회</a></li><li class="toc-depth-3"><a href="#heading-4-완료-후-로그-보관-설정" data-toc-link>4. 완료 후 로그 보관 설정</a></li><li class="toc-depth-2"><a href="#heading-모델-설정" data-toc-link>모델 설정</a></li><li class="toc-depth-2"><a href="#heading-중단된-위치에서-재개" data-toc-link>중단된 위치에서 재개</a></li><li class="toc-depth-3"><a href="#heading-서울-리전-설정-후-계획-재개" data-toc-link>서울 리전 설정 후 계획 재개</a></li><li class="toc-depth-2"><a href="#heading-agentic-ai-코딩-어시스턴트-프롬프트-카드" data-toc-link>Agentic AI 코딩 어시스턴트 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-구성" data-toc-link>구성</a></li><li class="toc-depth-2"><a href="#heading-시작-전-준비" data-toc-link>시작 전 준비</a></li><li class="toc-depth-2"><a href="#heading-새-의존성-zip" data-toc-link>새 의존성 ZIP</a></li><li class="toc-depth-2"><a href="#heading-앱-코드-패키징-배포" data-toc-link>앱 코드 패키징, 배포</a></li><li class="toc-depth-3"><a href="#heading-1-코드-빌드와-게시-배포-계획-생성" data-toc-link>1. 코드 빌드와 게시, 배포 계획 생성</a></li><li class="toc-depth-3"><a href="#heading-2-실제-배포-시작" data-toc-link>2. 실제 배포 시작</a></li><li class="toc-depth-3"><a href="#heading-3-스택-완료까지-상태-조회" data-toc-link>3. 스택 완료까지 상태 조회</a></li><li class="toc-depth-3"><a href="#heading-4-완료-후-로그-보관-설정" data-toc-link>4. 완료 후 로그 보관 설정</a></li><li class="toc-depth-2"><a href="#heading-모델-설정" data-toc-link>모델 설정</a></li><li class="toc-depth-2"><a href="#heading-중단된-위치에서-재개" data-toc-link>중단된 위치에서 재개</a></li><li class="toc-depth-3"><a href="#heading-서울-리전-설정-후-계획-재개" data-toc-link>서울 리전 설정 후 계획 재개</a></li><li class="toc-depth-3"><a href="#heading-기존-iam-guide를-같은-api-키로-전환" data-toc-link>기존 IAM Guide를 같은 API 키로 전환</a></li><li class="toc-depth-3"><a href="#heading-ssm-키-값만-갱신" data-toc-link>SSM 키 값만 갱신</a></li><li class="toc-depth-2"><a href="#heading-agentic-ai-코딩-어시스턴트-프롬프트-카드" data-toc-link>Agentic AI 코딩 어시스턴트 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
   </div>
     </main>
     <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.25 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>

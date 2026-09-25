@@ -151,6 +151,8 @@ Docker, 사용자 npm 경로의 `@aws/agentcore` 0.28.1, AWS 역할과 선택한
 
 Bedrock 단기 또는 장기 API 키는 본인 터미널의 `workshop_env.py configure`에서 숨김 입력합니다.
 API 키와 모델 호출 리전을 참가자 `.env`에 보관하고, 배포 시에는 SSM ARN으로 연결합니다.
+06장의 심화 Guide도 `lab.py agent-key`로 처음 입력한 같은 키를 사용합니다.
+기존 Guide에는 코드와 Runtime 설정 변경을 배포하며 Gateway와 Memory는 IAM 인증을 유지합니다.
 카카오, 관광공사 TourAPI와 VISIT JEJU 키는 **첫 배포 후 선택 입력**합니다.
 AWS 배포에는 EC2 IAM 역할을 계속 사용합니다.
 [키와 연동 안내](workshop/reference/keys-and-integrations.md)에 실제 반영과 갱신 절차가 있습니다.
