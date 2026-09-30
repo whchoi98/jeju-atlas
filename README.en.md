@@ -168,6 +168,11 @@ This is a course plan, not evidence of a completed cloud rehearsal. The basic CL
 and advanced Guide/Tools/Gateway/Memory deployments are separate. Advanced participants use
 their App stack's default CloudFront HTTPS URL without ACM, DNS or custom-domain setup.
 
+Chapter 07 can [reuse a shared Jeju PBF](workshop/chapters/07-routing.md#기본-공유-pbf로-추출-생략)
+to skip the national download, geographic extraction and admin database generation.
+The facilitator distributes a v2 bundle with the PBF, matching admin database and metadata;
+elevation, tile and router image preparation still run.
+
 The [installation skill](skills/jeju-atlas-install/SKILL.md) supports preparation and resuming
 unfinished work. [Chapter 14's integrated prompt](workshop/prompts/14-project-completion.md)
 is optional full-app work; its 45 minutes cover scoping and checking the first change.

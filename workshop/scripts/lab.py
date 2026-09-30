@@ -99,6 +99,20 @@ def participant_image(config, workspace):
 def run_step(config, args):
     workspace = verify_workspace(config, workspace_path(config))
     command, uses_aws = command_for(args.step)
+    jeju_pbf = getattr(args, "jeju_pbf", None)
+    input_metadata = getattr(args, "input_metadata", None)
+    if jeju_pbf is not None or input_metadata is not None:
+        if args.step != "routing-build" or jeju_pbf is None:
+            raise ValueError("--jeju-pbf and --input-metadata require routing-build with a shared PBF")
+        # Use the current source builder even when the app was prepared earlier.
+        # The participant's Docker context and existing scripts remain intact.
+        command = [
+            sys.executable, str(ROOT / "scripts/build-routing-data.py"), "build",
+            "--project-root", str(workspace), "--output", str(workspace / ".local/routing-data"),
+            "--jeju-pbf", str(Path(jeju_pbf).expanduser().absolute()),
+        ]
+        if input_metadata is not None:
+            command += ["--input-metadata", str(Path(input_metadata).expanduser().absolute())]
     emit({"workspace": str(workspace), "accountId": config["accountId"],
           "project": resource_names(config)["project"], "command": command})
     if not require_execute(args, args.step):
@@ -348,6 +362,8 @@ def main():
     run = commands.add_parser("run", parents=[common])
     run.add_argument("step", choices=sorted(DEPLOY_STEPS | set(AGENT_STEPS) | set(LOCAL_STEPS) | set(VERIFICATION_STEPS)))
     run.add_argument("--execute", action="store_true")
+    run.add_argument("--jeju-pbf", type=Path, help="routing-build only: reuse a shared Jeju PBF without re-extracting it")
+    run.add_argument("--input-metadata", type=Path, help="routing-build only: metadata beside the shared PBF by default")
     for action in ["deps-build", "deps-publish", "publish-catalog", "cli-prepare",
                     "enable-schedule", "cleanup"]:
         command = commands.add_parser(action, parents=[common])

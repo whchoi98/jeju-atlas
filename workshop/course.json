@@ -1,7 +1,7 @@
 {
   "title": "100~120분 AgentCore CLI 실습",
   "subtitle": "EC2 사전 준비 후 Agentic AI 코딩 어시스턴트와 두 개의 프롬프트로 제주 가이드 구현과 배포",
-  "updatedAt": "2026-09-25",
+  "updatedAt": "2026-09-30",
   "language": "ko",
   "includePromptCards": true,
   "chapters": [
@@ -67,7 +67,7 @@
       "title": "실제 경로와 고도 데이터",
       "day": 2,
       "minutes": 45,
-      "summary": "Valhalla, OSM, HGT로 도보, 차량 경로 이미지를 빌드합니다."
+      "summary": "공유 제주 PBF로 추출을 생략하고 Valhalla, HGT 경로 이미지를 빌드합니다. 직접 추출은 선택합니다."
     },
     {
       "id": "08",

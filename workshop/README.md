@@ -131,6 +131,11 @@ python3 "$ATLAS_REPO/workshop/scripts/workshop_env.py" configure --integrations
 | [13](chapters/13-cleanup.md) | 전체 실습 자원 정리 |
 | [14](chapters/14-project-completion.md) | 설치 스킬과 통합 프롬프트로 전체 앱 완성 |
 
+07장은 진행자가 전달한 PBF, 행정경계 DB와 메타데이터를 담은 v2 묶음으로
+[전국 다운로드와 추출, 행정경계 재생성을 생략](chapters/07-routing.md#기본-공유-pbf로-추출-생략)할 수 있습니다.
+고도와 타일, 라우터 이미지 생성은 이어서 수행합니다.
+직접 OSM을 추출하는 과정은 선택 경로로 유지합니다.
+
 기본 Runtime과 전체 앱의 Guide/Tools는 별도 배포입니다.\
 06장의 Guide는 `lab.py agent-key`로 처음 입력한 같은 Bedrock API 키를 연결합니다.\
 SSM 키와 전용 읽기 정책을 공유하고 Gateway, Memory와 Runtime 호출은 IAM을 유지합니다.\

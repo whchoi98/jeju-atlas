@@ -66,6 +66,23 @@ substitution tokens and narrower workspace instructions are intentional.
   Stop an install batch on failure without closing the participant's parent
   shell. Reuse existing installations and keep the lab's scope and optional
   verification policy when plugins are present.
+- Chapter 07 defaults to a facilitator-provided v2 bundle containing `jeju.osm.pbf`,
+  matching `admin.sqlite`, `jeju-input.json`, checksum list and provenance.
+  `lab.py run routing-build --jeju-pbf ...` verifies the owned
+  app, then invokes the current source builder with that app's Docker context.
+  Do not rewrite or re-prepare existing participant copies to adopt this path.
+  Validate shared bytes/hash, bounds, timestamp and provenance before downloads
+  or Docker; preserve differing existing input. Shared admins must match the PBF
+  snapshot and pinned engine, contain KR and Jeju with nonempty geometry, and
+  match declared level counts. v2 skips national download, extraction and admin
+  generation; v1 keeps national input for admins. Keep DEM and graph/image checks.
+  Check PBF object timestamps before tiles. The graph date comes from the shared
+  PBF; national admin provenance is recorded separately.
+  Resume with the same shared-input flags; never silently fall back to extraction.
+  Bundle delivery is separate from the HTML handbook and must not invent a download URL.
+  The ZIP checksum must be provided through a trusted channel, independently of
+  its internal SHA256SUMS. Do not present producer provenance as a participant's
+  fresh national-file verification or claim route equivalence across snapshots.
 
 ## Commands
 

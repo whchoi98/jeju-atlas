@@ -185,6 +185,11 @@ Claude Code는 `claude --permission-mode auto`, Codex는
 심화 앱은 참가자 App 스택의 기본 CloudFront HTTPS URL을 사용합니다.
 ACM, DNS와 사용자 도메인 준비는 실습에 포함하지 않습니다.
 
+07장은 [공유 제주 PBF 단축 경로](workshop/chapters/07-routing.md#기본-공유-pbf로-추출-생략)로
+전국 다운로드·범위 추출·행정경계 재생성을 생략할 수 있습니다.
+진행자가 PBF·행정경계 DB·메타데이터를 담은 v2 묶음을 전달하며,
+고도·타일과 라우터 이미지 생성은 계속 수행합니다.
+
 [설치 스킬](skills/jeju-atlas-install/SKILL.md)은 준비와 중단 작업 재개를 지원합니다.
 [14장 통합 프롬프트](workshop/prompts/14-project-completion.md)의 전체 앱 완성은 선택 과정이며,
 45분은 범위 정리와 첫 수정 검사 시간입니다. Codex Bedrock provider와 HUD도 선택 준비입니다.

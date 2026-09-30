@@ -99,6 +99,47 @@ class LabExecutionTests(unittest.TestCase):
                     lab.run_step(self.config, SimpleNamespace(step=step, execute=False))
         self.assertFalse((self.app / ".local/workshop-last-step.json").exists())
 
+    def test_shared_routing_uses_current_builder_without_editing_old_app_script(self):
+        old_script = self.app / "scripts/build-routing-data.py"
+        old_script.write_text("# Participant's existing builder must be preserved\n")
+        commands = []
+        def run(command, **kwargs):
+            commands.append((command, kwargs["cwd"]))
+            return SimpleNamespace(returncode=0)
+        argv = ["lab.py", "run", "routing-build", "--config", str(self.config_path),
+                "--jeju-pbf", str(self.directory / "jeju.osm.pbf"), "--execute"]
+        with patch.object(sys, "argv", argv), patch.object(lab.subprocess, "run", side_effect=run):
+            try:
+                lab.main()
+            except SystemExit as error:
+                self.fail("Shared PBF command was rejected: " + str(error))
+        self.assertEqual(len(commands), 1)
+        command, cwd = commands[0]
+        self.assertEqual(Path(command[1]), ROOT / "scripts/build-routing-data.py")
+        self.assertEqual(cwd, self.app)
+        self.assertEqual(command[command.index("--project-root") + 1], str(self.app))
+        self.assertEqual(command[command.index("--output") + 1], str(self.app / ".local/routing-data"))
+        self.assertEqual(old_script.read_text(), "# Participant's existing builder must be preserved\n")
+        result = json.loads((self.app / ".local/workshop-last-step.json").read_text())
+        self.assertEqual(result["step"], "routing-build")
+        self.assertEqual(result["exitCode"], 0)
+
+    def test_shared_routing_preview_does_not_read_missing_input_or_run_a_process(self):
+        with patch.object(lab.subprocess, "run",
+                          side_effect=AssertionError("Preview must not build")):
+            lab.run_step(self.config, SimpleNamespace(
+                step="routing-build", execute=False,
+                jeju_pbf=self.directory / "missing.pbf", input_metadata=None,
+            ))
+        self.assertFalse((self.app / ".local/workshop-last-step.json").exists())
+
+    def test_shared_pbf_option_is_rejected_for_other_steps(self):
+        with self.assertRaisesRegex(ValueError, "routing-build"):
+            lab.run_step(self.config, SimpleNamespace(
+                step="build-push", execute=False, jeju_pbf=self.directory / "jeju.osm.pbf",
+                input_metadata=None,
+            ))
+
     def test_ssm_input_and_worker_policy_use_the_same_team_prefix(self):
         names = resource_names(self.config)
         template = read_template(self.app / "infra/data.yaml")
