@@ -74,7 +74,7 @@
       <span class="nav-number">06</span>
       <span class="nav-title">제주 가이드 AgentCore 배포</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="07 실제 경로와 고도 데이터 Valhalla, OSM, HGT로 도보, 차량 경로 이미지를 빌드합니다. 입력 자료 복구: 다운로드 후 Docker 권한으로 빌드가 중단됐다면 선택: 기존 그래프 파일을 다시 확인할 때 라우터 이미지 웹 연결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="07 실제 경로와 고도 데이터 공유 제주 PBF로 추출을 생략하고 Valhalla, HGT 경로 이미지를 빌드합니다. 직접 추출은 선택합니다. 입력 자료 기본: 공유 PBF로 추출 생략 선택: 전국 원본부터 직접 빌드 복구: 다운로드 후 Docker 권한으로 빌드가 중단됐다면 선택: 기존 그래프 파일을 다시 확인할 때 라우터 이미지 웹 연결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="../chapters/07-routing.html" data-chapter-link="07-routing" data-core-chapter="false">
       <span class="nav-number">07</span>
       <span class="nav-title">실제 경로와 고도 데이터</span>
@@ -131,7 +131,7 @@
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">AWS 자원, 기술 전체 매핑</span>
 
-    </a></li><li data-nav-entry data-search="진행자 준비 가이드 수업 전에 준비 랩 분리와 공통 식별자 검증과 HUD 운영 키와 계정 준비 리허설 수업 중 확인 시점 종료와 재개 이전 관찰 기록">
+    </a></li><li data-nav-entry data-search="진행자 준비 가이드 수업 전에 준비 랩 분리와 공통 식별자 검증과 HUD 운영 키와 계정 준비 리허설 07장 공유 PBF 자료 준비 기본 과정 리허설 수업 중 확인 시점 종료와 재개 이전 관찰 기록">
     <a class="reference-link" href="facilitator.html" aria-current="page">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">진행자 준비 가이드</span>
@@ -324,6 +324,80 @@ SSM 경로와 정책은 참가자별 이름과 소유 태그로 분리합니다.
 <p>카카오, TourAPI와 VISIT JEJU 키는 처음에 요구하지 않습니다.<br>
 <a href="keys-and-integrations.html">배포 후 선택 연동</a>에서 <code>.env</code>에 추가하고 전체 앱을 만든 참가자만 10장의 반영 절차를 수행합니다.</p>
 <h2 id="heading-리허설">리허설</h2>
+<h3 id="heading-07장-공유-pbf-자료-준비">07장 공유 PBF 자료 준비</h3>
+<p>07장의 기본 경로는 사전 추출 PBF와 같은 전국 스냅샷의 행정경계 DB를 재사용합니다.
+HTML 교재 ZIP과 별도로 <code>jeju-routing-input-20260910-v2.zip</code>과 <code>.zip.sha256</code>을 전달합니다.<br>
+참가자는 압축을 푼 <code>jeju-routing-input</code> 폴더 전체를 EC2 홈에 두고 07장 명령이나 하단 프롬프트를 사용합니다.
+공개 다운로드 URL을 마련하지 않았다면 실제 파일 전송 방법을 함께 안내합니다.</p>
+<p>준비된 v2 ZIP은 2026-09-10 기준 자료입니다.
+다른 날짜의 PBF에 기존 메타데이터를 붙이거나 최신 자료로 설명하지 않습니다.
+바이너리 데이터와 ZIP은 Git에 넣지 않고 행사별 자료로 전달합니다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col"><code>jeju-input.json</code> 필드</th>
+<th scope="col">값의 기준</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind</code>, <code>file</code></td>
+<td><code>jeju-atlas-pre-extracted-osm/v2</code>, <code>jeju.osm.pbf</code></td>
+</tr>
+<tr>
+<td><code>bytes</code>, <code>sha256</code></td>
+<td>실제 공유 PBF의 바이트 수와 SHA-256</td>
+</tr>
+<tr>
+<td><code>osmTimestamp</code></td>
+<td>원본의 실제 OSM 기준일, UTC <code>Z</code> 형식</td>
+</tr>
+<tr>
+<td><code>bounds</code></td>
+<td><code>[126.1, 33.0, 127.05, 33.75]</code></td>
+</tr>
+<tr>
+<td><code>originalSource</code></td>
+<td>추출에 사용한 전국 PBF의 <code>url</code>, <code>sha256</code>, <code>md5</code></td>
+</tr>
+<tr>
+<td><code>attribution</code></td>
+<td><code>© OpenStreetMap contributors</code></td>
+</tr>
+<tr>
+<td><code>license</code>, <code>licenseUrl</code></td>
+<td><code>ODbL-1.0</code>, <code>https://www.openstreetmap.org/copyright</code></td>
+</tr>
+<tr>
+<td><code>admin</code></td>
+<td><code>admin.sqlite</code>의 크기, SHA-256, 같은 기준일과 전국 원본 SHA-256, 엔진과 행정구역 개수</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>SHA256SUMS</code>에는 PBF, DB, 메타데이터, <code>PROVENANCE.json</code>, <code>README.txt</code>의 체크섬을 넣습니다.
+자기 자신은 목록에 넣지 않습니다.
+ZIP 자체의 체크섬은 교재 또는 별도의 신뢰할 수 있는 전달 경로에서 제공합니다.
+폴더 안의 파일들을 따로 수정하거나 일부만 전달하지 않습니다.</p>
+<p>DB는 읽기 전용 무결성 확인과 실제 행정구역 조회를 수행합니다.
+대한민국 KR, 제주특별자치도와 비어 있지 않은 경계가 있어야 합니다.
+이번 자료의 결과는 국가 1개와 광역 16개입니다.
+파일 존재와 해시만으로 빈 행정경계 DB를 통과시키지 않습니다.</p>
+<p>추출에 사용한 원본과 완료된 빌드 기록에서 값을 가져옵니다.
+파일 수정 시각을 OSM 기준일로 쓰거나 해시를 임의로 채우지 않습니다.
+배포할 PBF가 메타데이터와 일치하는지 행사 전에 확인합니다.<br>
+입력 메타데이터는 그래프 완료 기록인 <code>source.json</code>과 구분합니다.</p>
+<p>이번 묶음은 보관된 전국 원본의 실제 해시를 대조하고 헤더의 9/10 시각을 확인했습니다.
+제주 객체의 가장 늦은 수정 시각도 선언한 기준일 이전입니다.
+이 확인 자료는 <code>PROVENANCE.json</code>에 들어 있습니다.
+<code>-latest</code> 주소가 지금도 같은 파일을 제공한다는 뜻은 아니므로 원본 스냅샷은 별도로 보관합니다.
+다른 날짜의 배포 그래프와 경로 결과가 동일하다는 보장으로 설명하지 않습니다.</p>
+<p>새 옵션은 현재 소스의 빌더와 참가자의 Docker 작업 폴더를 사용하므로
+기존 참가자 app을 재생성하거나 스크립트를 수동 수정할 필요가 없습니다.
+v2는 전국 다운로드, 추출과 행정경계 재생성을 생략합니다.
+고도 준비, 타일과 라우터 이미지의 OS 업데이트 및 게시 시간은 남습니다.<br>
+행사와 같은 EC2에서 추출 생략 여부와 전체 소요 시간을 따로 기록합니다.
+PBF 전용 v1 입력은 호환되지만 전국 원본으로 행정경계를 생성하는 기존 경로를 사용합니다.</p>
+<h3 id="heading-기본-과정-리허설">기본 과정 리허설</h3>
 <p>행사와 같은 EC2 종류, 역할, CLI 버전과 설정으로 다음을 한 차례 수행하고 각 단계의 경과 시간을 기록합니다.<br>
 이미 완성된 운영 앱을 참가자의 결과물로 대신하지 않습니다.</p>
 <ol>
@@ -406,10 +480,10 @@ SSM 경로와 정책은 참가자별 이름과 소유 태그로 분리합니다.
   </a>
       </nav>
     </article>
-    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-수업-전에-준비" data-toc-link>수업 전에 준비</a></li><li class="toc-depth-2"><a href="#heading-랩-분리와-공통-식별자" data-toc-link>랩 분리와 공통 식별자</a></li><li class="toc-depth-2"><a href="#heading-검증과-hud-운영" data-toc-link>검증과 HUD 운영</a></li><li class="toc-depth-2"><a href="#heading-키와-계정-준비" data-toc-link>키와 계정 준비</a></li><li class="toc-depth-2"><a href="#heading-리허설" data-toc-link>리허설</a></li><li class="toc-depth-2"><a href="#heading-수업-중-확인-시점" data-toc-link>수업 중 확인 시점</a></li><li class="toc-depth-2"><a href="#heading-종료와-재개" data-toc-link>종료와 재개</a></li><li class="toc-depth-2"><a href="#heading-이전-관찰-기록" data-toc-link>이전 관찰 기록</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-수업-전에-준비" data-toc-link>수업 전에 준비</a></li><li class="toc-depth-2"><a href="#heading-랩-분리와-공통-식별자" data-toc-link>랩 분리와 공통 식별자</a></li><li class="toc-depth-2"><a href="#heading-검증과-hud-운영" data-toc-link>검증과 HUD 운영</a></li><li class="toc-depth-2"><a href="#heading-키와-계정-준비" data-toc-link>키와 계정 준비</a></li><li class="toc-depth-2"><a href="#heading-리허설" data-toc-link>리허설</a></li><li class="toc-depth-3"><a href="#heading-07장-공유-pbf-자료-준비" data-toc-link>07장 공유 PBF 자료 준비</a></li><li class="toc-depth-3"><a href="#heading-기본-과정-리허설" data-toc-link>기본 과정 리허설</a></li><li class="toc-depth-2"><a href="#heading-수업-중-확인-시점" data-toc-link>수업 중 확인 시점</a></li><li class="toc-depth-2"><a href="#heading-종료와-재개" data-toc-link>종료와 재개</a></li><li class="toc-depth-2"><a href="#heading-이전-관찰-기록" data-toc-link>이전 관찰 기록</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
   </div>
     </main>
-    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.25 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
+    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.30 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
   </div>
   <p class="reader-status" role="status" aria-live="polite" data-reader-status></p>
 </body>

@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#232f3e">
   <meta name="referrer" content="no-referrer">
-  <meta name="description" content="Valhalla, OSM, HGT로 도보, 차량 경로 이미지를 빌드합니다.">
+  <meta name="description" content="공유 제주 PBF로 추출을 생략하고 Valhalla, HGT 경로 이미지를 빌드합니다. 직접 추출은 선택합니다.">
   <title>실제 경로와 고도 데이터, Jeju Atlas 워크숍</title>
   <link rel="icon" type="image/svg+xml" href="../assets/mark.svg">
   <link rel="apple-touch-icon" href="../assets/icons/atlas-192.png">
@@ -74,7 +74,7 @@
       <span class="nav-number">06</span>
       <span class="nav-title">제주 가이드 AgentCore 배포</span>
       <span class="read-indicator" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>
-    </a></li><li data-nav-entry data-search="07 실제 경로와 고도 데이터 Valhalla, OSM, HGT로 도보, 차량 경로 이미지를 빌드합니다. 입력 자료 복구: 다운로드 후 Docker 권한으로 빌드가 중단됐다면 선택: 기존 그래프 파일을 다시 확인할 때 라우터 이미지 웹 연결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
+    </a></li><li data-nav-entry data-search="07 실제 경로와 고도 데이터 공유 제주 PBF로 추출을 생략하고 Valhalla, HGT 경로 이미지를 빌드합니다. 직접 추출은 선택합니다. 입력 자료 기본: 공유 PBF로 추출 생략 선택: 전국 원본부터 직접 빌드 복구: 다운로드 후 Docker 권한으로 빌드가 중단됐다면 선택: 기존 그래프 파일을 다시 확인할 때 라우터 이미지 웹 연결 Agentic AI 코딩 어시스턴트 프롬프트 카드">
     <a class="chapter-link" href="07-routing.html" aria-current="page" data-chapter-link="07-routing" data-core-chapter="false">
       <span class="nav-number">07</span>
       <span class="nav-title">실제 경로와 고도 데이터</span>
@@ -131,7 +131,7 @@
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">AWS 자원, 기술 전체 매핑</span>
 
-    </a></li><li data-nav-entry data-search="진행자 준비 가이드 수업 전에 준비 랩 분리와 공통 식별자 검증과 HUD 운영 키와 계정 준비 리허설 수업 중 확인 시점 종료와 재개 이전 관찰 기록">
+    </a></li><li data-nav-entry data-search="진행자 준비 가이드 수업 전에 준비 랩 분리와 공통 식별자 검증과 HUD 운영 키와 계정 준비 리허설 07장 공유 PBF 자료 준비 기본 과정 리허설 수업 중 확인 시점 종료와 재개 이전 관찰 기록">
     <a class="reference-link" href="../reference/facilitator.html">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/></svg>
       <span class="nav-title">진행자 준비 가이드</span>
@@ -203,7 +203,7 @@
       <header class="lesson-header">
         <p class="eyebrow"><span class="chapter-stamp">07</span>심화 선택<span class="meta-separator">/</span>45분, 별도 일정</p>
         <h1 id="heading-07-실제-경로와-고도-데이터">실제 경로와 고도 데이터</h1>
-        <p class="lesson-summary">Valhalla, OSM, HGT로 도보, 차량 경로 이미지를 빌드합니다.</p>
+        <p class="lesson-summary">공유 제주 PBF로 추출을 생략하고 Valhalla, HGT 경로 이미지를 빌드합니다. 직접 추출은 선택합니다.</p>
         <div class="lesson-location"><span>선택한 사람만 진행하는 심화 자료</span><span class="lesson-read-state" data-chapter-state>아직 읽지 않음</span></div>
       </header>
       <div class="prose">
@@ -212,10 +212,116 @@
 도보, 차량 거리를 직선 거리로 대신하지 않습니다.<br>
 HGT 고도 자료의 기준일은 현재 위성 영상 촬영일이나 정밀 현장 측량일이 아닙니다.</p>
 <h2 id="heading-입력-자료">입력 자료</h2>
+<p><strong>시간을 줄이려면 제주 PBF와 행정경계 DB가 함께 있는 v2 묶음을 사용합니다.</strong><br>
+전국 PBF 다운로드, 제주 범위 추출과 행정경계 DB 생성을 건너뜁니다.
+고도 준비와 타일 생성, 라우터 이미지 빌드와 게시는 계속 수행합니다.</p>
+<p>진행자는 <code>jeju-routing-input-20260910-v2.zip</code>과 ZIP의 <code>.sha256</code> 파일을 함께 전달합니다.
+압축을 풀면 <code>jeju-routing-input</code> 폴더가 생깁니다.
+이 폴더 전체를 참가자 EC2의 홈 폴더에 둡니다.</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="가로로 스크롤할 수 있는 표"><table>
+<thead>
+<tr>
+<th scope="col">파일</th>
+<th scope="col">묶음에서의 위치</th>
+<th scope="col">용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>jeju.osm.pbf</code></td>
+<td><code>jeju-routing-input/</code></td>
+<td>이미 제주 범위로 추출한 입력</td>
+</tr>
+<tr>
+<td><code>admin.sqlite</code></td>
+<td>같은 폴더</td>
+<td>같은 전국 스냅샷으로 만든 행정경계 DB</td>
+</tr>
+<tr>
+<td><code>jeju-input.json</code></td>
+<td>같은 폴더</td>
+<td>입력 해시, 기준일, 엔진과 행정구역 개수</td>
+</tr>
+<tr>
+<td><code>SHA256SUMS</code></td>
+<td>같은 폴더</td>
+<td>PBF, DB, 메타데이터와 설명 파일의 체크섬</td>
+</tr>
+<tr>
+<td><code>PROVENANCE.json</code>, <code>README.txt</code></td>
+<td>같은 폴더</td>
+<td>원본 헤더, 객체 시각과 재현 정보, 사용 안내</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>자료 ZIP은 HTML 교재 ZIP과 별도로 진행자가 전달합니다.</strong><br>
+<code>$HOME/jeju-routing-input/jeju.osm.pbf</code>는 저장 위치이며 다운로드 URL이 아닙니다.
+이 묶음은 2026-09-10 기준 자료이며 최신 자료로 표시하지 않습니다.
+다른 자료를 받았다면 그 자료와 짝이 맞는 메타데이터를 사용합니다.</p>
+<p>ZIP을 EC2 홈에 올린 경우 다음으로 체크섬을 확인하고 압축을 풉니다.
+이미 같은 폴더가 준비됐다면 이 블록을 건너뜁니다.
+기존 폴더가 있으면 덮어쓰지 않습니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd -- "$HOME" &#x26;&#x26;
+(
+  set -e
+  test ! -e jeju-routing-input
+  test ! -L jeju-routing-input
+  printf '%s\n' '3790fcc8fafcfab9226644046df912fe73f014864efc65848078849e98987c7a  jeju-routing-input-20260910-v2.zip' |
+    sha256sum -c -
+  python3 -m zipfile -e jeju-routing-input-20260910-v2.zip .
+)
+</code></pre></div>
+<p>위 체크섬은 명시한 v2 ZIP에만 적용합니다.
+다른 버전은 진행자가 별도로 제공한 신뢰할 수 있는 체크섬과 대조합니다.
+묶음 내부의 체크섬만으로 배포자의 신원까지 확인되는 것은 아닙니다.</p>
+<p><code>jeju-input.json</code>은 입력 정보입니다.
+그래프 빌드 완료 파일인 <code>source.json</code>으로 이름을 바꾸거나 대신 복사하지 않습니다.
+진행자의 준비 내용은 <a href="../reference/facilitator.html#heading-07장-공유-pbf-자료-준비">공유 PBF 자료 준비</a>에 있습니다.</p>
+<h2 id="heading-기본-공유-pbf로-추출-생략">기본: 공유 PBF로 추출 생략</h2>
+<p>05장의 참가자 app이 준비된 상태에서 실행합니다.
+아래 명령 전체 또는 <strong>하단 프롬프트</strong> 중 하나로 진행하며 같은 작업을 중복 실행하지 않습니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+docker info >/dev/null &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-build \
+  --config "$ATLAS_CONFIG" --jeju-pbf "$HOME/jeju-routing-input/jeju.osm.pbf" --execute
+}
+</code></pre></div>
+<p>같은 폴더의 <code>jeju-input.json</code>, <code>SHA256SUMS</code>와 <code>admin.sqlite</code>를 자동으로 읽습니다.
+v2 묶음의 파일은 이름과 위치를 함께 유지합니다.<br>
+파일, 체크섬, 기준일, 엔진과 행정경계가 맞지 않으면 다운로드나 빌드 전에 중단합니다.
+자료가 없는 상태에서 긴 직접 추출로 자동 전환하지 않습니다.</p>
+<p><code>jeju_extract_skipped</code>가 나오면 공유 PBF를 확인하고 추출을 생략한 것입니다.<br>
+<code>admin_build_skipped</code>는 공유 행정경계 DB를 확인해 재사용했다는 뜻입니다.
+대한민국과 제주특별자치도, 비어 있지 않은 경계와 메타데이터에 선언된 행정구역 개수를 확인합니다.
+이번 묶음에는 국가 1개와 광역 16개가 들어 있습니다.
+제주 PBF의 객체 시각이 선언한 기준일을 넘으면 중단합니다.<br>
+이후 HGT를 준비하고 타일을 생성합니다.
+마지막 <code>graph_verified</code>와 명령 성공을 확인한 뒤 라우터 이미지 단계로 이동합니다.</p>
+<p>이전 PBF 전용 v1 묶음도 지원하지만 행정경계 DB용 전국 다운로드와 DB 생성은 남습니다.
+v2에서 DB가 빠졌거나 불일치하면 v1 방식으로 자동 전환하지 않습니다.</p>
+<p>이미 준비된 참가자 app에도 현재 소스의 빌더를 연결합니다.
+app의 스크립트를 직접 수정하거나 <code>lab.py prepare</code>를 다시 실행할 필요는 없습니다.<br>
+<code>unrecognized arguments: --jeju-pbf</code>가 나오면 전체 소스 루트에서 갱신한 뒤 같은 명령을 실행합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26;
+git pull --ff-only origin main
+</code></pre></div>
+<p>갱신이 실패하면 기존 변경을 보존하고 원인을 확인합니다.<br>
+기존 <code>jeju.osm.pbf</code>가 공유 파일과 다르면 덮어쓰지 않습니다.
+이미 완료한 그래프는 기존 출처와 파일을 확인해 재사용하고 새 입력으로 임의 교체하지 않습니다.</p>
+<p><code>source.json</code>의 라우팅 자료 기준일은 공유 PBF에서 가져옵니다.
+행정구역 DB에 사용한 전국 원본의 시각과 해시는 <code>admin_source</code>에 별도로 기록합니다.<br>
+새로 다운로드한 전국 원본의 날짜로 공유 PBF의 날짜를 바꾸지 않습니다.
+v2의 전국 원본 해시는 진행자가 보관 파일과 대조한 출처 정보입니다.
+참가자가 전국 파일까지 새로 다운로드해 검증한 결과로 표시하지 않습니다.
+다른 날짜의 그래프와 경로 결과가 같다는 뜻도 아닙니다.</p>
+<h2 id="heading-선택-전국-원본부터-직접-빌드">선택: 전국 원본부터 직접 빌드</h2>
+<p>OSM 추출 과정까지 학습하려는 경우에만 이 경로를 선택합니다.
+위의 공유 PBF 경로를 완료했다면 다시 실행하지 않습니다.</p>
 <p>07장은 Docker를 사용하는 과정입니다.<br>
 아래 블록은 기존 참가자 환경을 활성화하고 <strong>현재 터미널의 Docker 접근부터 확인</strong>합니다.<br>
 확인이 실패하면 다운로드와 빌드를 시작하지 않습니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-1" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-1">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
 source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
 docker info >/dev/null &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-fetch --config "$ATLAS_CONFIG" --execute &#x26;&#x26;
@@ -233,6 +339,14 @@ docker info >/dev/null &#x26;&#x26;
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>jeju_extract_skipped</code></td>
+<td>공유 PBF가 확인됐고 제주 범위 추출을 생략했습니다. 후속 그래프 빌드는 아직 완료되지 않았습니다.</td>
+</tr>
+<tr>
+<td><code>admin_build_skipped</code></td>
+<td>공유 행정경계 DB의 해시와 내용을 확인했습니다. 전국 다운로드와 행정경계 재생성을 생략합니다.</td>
+</tr>
 <tr>
 <td><code>sources_verified</code></td>
 <td>OSM과 고도 입력 자료가 준비됐습니다. 그래프 빌드는 아직 별도 단계입니다.</td>
@@ -254,20 +368,30 @@ docker info >/dev/null &#x26;&#x26;
 <p>빌더는 완성된 그래프의 파일과 해시를 확인한 뒤 참가자 app의 <code>.local/routing-data/source.json</code>을 작성합니다.<br>
 <code>source.json</code>에서 출처 시각, 엔진, 기반 이미지, 파일 크기, SHA-256을 확인합니다.<br>
 자료를 갱신하면 이전 실습과 거리, 예상 시간이 달라질 수 있습니다.</p>
-<p>Docker의 <code>FINISHED</code>는 빌더 이미지 준비가 끝났다는 뜻이며, 이후 행정구역 DB와 도로 타일 처리가 이어집니다.<br>
+<p>Docker의 <code>FINISHED</code>는 빌더 이미지 준비가 끝났다는 뜻이며, 이후 선택한 경로의 도로 타일 처리가 이어집니다.<br>
 중간 로그의 경고나 <code>Finished</code> 한 줄만으로 전체 완료를 판단하지 않습니다.<br>
 <strong>명령이 성공적으로 끝나고 마지막에 <code>graph_verified</code>가 나왔는지</strong> 확인합니다.<br>
 이 결과는 그래프 파일과 해시 확인이며, 실제 웹의 경로 응답까지 확인한 결과는 아닙니다.</p>
 <h2 id="heading-복구-다운로드-후-docker-권한으로-빌드가-중단됐다면">복구: 다운로드 후 Docker 권한으로 빌드가 중단됐다면</h2>
 <p>사전 구성에서 Docker를 확인했더라도 새 터미널이나 기존 VSCode Server에서 실행한 프로세스는 다른 그룹 권한을 가질 수 있습니다.<br>
 <strong>실제로 라우팅 빌드를 실행할 터미널</strong>에서 아래 블록만 실행합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-2" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-2">cd -- "$HOME" &#x26;&#x26;
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "$HOME" &#x26;&#x26;
 sudo usermod -aG docker "$(id -un)" &#x26;&#x26;
 newgrp docker
 </code></pre></div>
 <p>새 프롬프트가 나타난 뒤 다음 블록을 별도로 실행합니다.<br>
-<code>sources_verified</code>까지 성공했다면 기존 <code>downloads.json</code>, OSM과 HGT 파일을 보존하고 <strong>빌드부터 재개</strong>합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-3" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-3">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+공유 PBF 경로를 사용했다면 <strong>같은 <code>--jeju-pbf</code>를 포함해 재개</strong>합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-6">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
+docker info >/dev/null &#x26;&#x26;
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-build \
+  --config "$ATLAS_CONFIG" --jeju-pbf "$HOME/jeju-routing-input/jeju.osm.pbf" --execute
+}
+</code></pre></div>
+<p>공유 PBF, 행정경계 DB, 메타데이터와 체크섬 파일을 모두 유지합니다.
+옵션을 빼면 직접 추출 경로가 되므로 실패 후 재개할 때도 같은 옵션을 사용합니다.<br>
+직접 빌드 경로에서 <code>sources_verified</code>까지 성공했다면 기존 <code>downloads.json</code>, OSM과 HGT 파일을 보존하고 <strong>다음 명령으로 빌드부터 재개</strong>합니다.</p>
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-7" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-7">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
 source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
 docker info >/dev/null &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-build \
@@ -282,7 +406,7 @@ Docker 접근이 계속 실패하면 <a href="../reference/preconfiguration.html
 <h2 id="heading-선택-기존-그래프-파일을-다시-확인할-때">선택: 기존 그래프 파일을 다시 확인할 때</h2>
 <p><code>routing-build</code>가 <code>graph_verified</code>로 끝났으면 별도 <code>routing-verify</code>는 기본으로 생략합니다.<br>
 파일을 옮겼거나 기존 그래프의 무결성을 다시 확인해야 할 때만 실행합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-4" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-4">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-8" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-8">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
 source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-verify \
   --config "$ATLAS_CONFIG" --execute
@@ -291,7 +415,7 @@ source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
 <p>빌드가 실패했거나 <code>source.json</code>이 없으면 이 검증을 반복하지 않고 실패한 빌드 단계부터 해결합니다.</p>
 <h2 id="heading-라우터-이미지">라우터 이미지</h2>
 <p><code>graph_verified</code>가 확인된 뒤 같은 터미널에서 실행합니다.</p>
-<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-5" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-5">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
+<div class="code-block terminal-window" data-code-kind="terminal"><div class="code-toolbar"><div class="code-window-title"><span class="terminal-lights" aria-hidden="true"><span class="terminal-light-close"></span><span class="terminal-light-minimize"></span><span class="terminal-light-zoom"></span></span><strong>터미널</strong><span class="code-language">bash</span></div><button type="button" class="copy-button js-only" data-copy-code="code-9" aria-label="bash 코드 복사">복사</button></div><div class="terminal-destination">VSCode Server 터미널에서 실행</div><pre tabindex="0" aria-label="터미널: bash"><code class="language-bash" id="code-9">cd -- "/home/ec2-user/my-project/jeju-atlas" &#x26;&#x26; {
 source workshop/.local/labs/team01/activate.sh &#x26;&#x26;
 docker info >/dev/null &#x26;&#x26;
 "$ATLAS_PYTHON" -B workshop/scripts/lab.py run build-routing-push --config "$ATLAS_CONFIG" --execute
@@ -348,7 +472,7 @@ docker info >/dev/null &#x26;&#x26;
 <p>다음: <a href="08-web.html">08, 웹과 Fargate</a></p>
 <h2 id="heading-agentic-ai-코딩-어시스턴트-프롬프트-카드">Agentic AI 코딩 어시스턴트 프롬프트 카드</h2>
 <p>아래 프롬프트를 복사해 실습 EC2에서 선택한 Codex, Kiro CLI, Claude Code의 대화 입력창에 붙여넣습니다. <a href="../prompts/07-routing.md" download="07-routing.md">Markdown 카드 다운로드</a></p>
-<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-6" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-6"># 07, 실제 경로와 고도 데이터. Agentic AI 코딩 어시스턴트 카드
+<section class="code-block prompt-screen" data-prompt-screen="" data-assistant="codex" aria-label="Agentic AI 코딩 어시스턴트 프롬프트 입력"><div class="prompt-tools js-only" role="group" aria-label="프롬프트를 전달할 Agentic AI 코딩 어시스턴트 선택"><button type="button" data-prompt-tool="codex" aria-pressed="true">Codex</button><button type="button" data-prompt-tool="kiro" aria-pressed="false">Kiro CLI</button><button type="button" data-prompt-tool="claude" aria-pressed="false">Claude Code</button></div><div class="code-toolbar prompt-toolbar"><div class="prompt-heading"><strong data-prompt-app="">Codex</strong><span>프롬프트 입력</span></div><button type="button" class="copy-button js-only" data-copy-code="code-10" data-copy-label="Codex 프롬프트 복사" aria-label="Codex 프롬프트 복사">복사</button></div><p class="prompt-destination" data-prompt-destination="">선택한 Agentic AI 코딩 어시스턴트의 대화 입력창에 붙여넣으세요. 세 도구가 같은 프롬프트를 사용합니다.</p><pre tabindex="0" aria-label="Agentic AI 코딩 어시스턴트에 붙여넣을 프롬프트"><code class="language-ai-prompt" id="code-10"># 07, 실제 경로와 고도 데이터. Agentic AI 코딩 어시스턴트 카드
 
 이 카드는 같은 실습 EC2의 Codex, Kiro CLI, Claude Code에 공통으로 전달할 수 있습니다.\
 Agentic AI 코딩 어시스턴트 하나로 같은 계정, VPC, 작업 폴더를 유지합니다.
@@ -372,11 +496,42 @@ ATLAS_REPO가 비어 있으면 확인한 저장소 절대 경로에서 기존 ac
 새 프롬프트에서 기존 activate.sh와 docker info를 실행한 뒤 재개합니다.
 이미 실행 중인 코딩 어시스턴트도 이전 그룹을 유지할 수 있으므로 Docker가 가능한 셸에서 실행하세요.
 
-routing-fetch/build로 현재 실습의 OSM 그래프와 HGT를 준비하세요.
-같은 입력과 버전으로 생성한 소유 자료가 있으면 재사용합니다.
+기본 경로는 진행자가 제공한 PBF와 행정경계 DB가 포함된 v2 묶음입니다.
+입력 폴더는 $HOME/jeju-routing-input이며, jeju.osm.pbf, admin.sqlite,
+jeju-input.json, SHA256SUMS, PROVENANCE.json, README.txt를 함께 유지합니다.
+자료 ZIP은 HTML 교재 ZIP과 별도로 전달받습니다. 다운로드 URL을 임의로 만들지 마세요.
+ZIP만 받았다면 교재에 고정된 v2 체크섬 또는 진행자가 별도로 제공한 값과 대조한 뒤
+기존 폴더를 덮어쓰지 않고 준비하세요. 이미 준비된 파일은 재사용하세요.
+기존에 완료한 소유 그래프가 있으면 입력, 엔진 버전과 기록을 확인해 재사용하세요.
+빌드가 필요한 경우 원본 소스 루트에서 다음 명령으로 진행하세요.
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-build --config "$ATLAS_CONFIG" --jeju-pbf "$HOME/jeju-routing-input/jeju.osm.pbf" --execute
+
+빌더가 공유 파일의 SHA-256, 크기, 기준일, 범위와 원본 출처를 확인하게 하세요.
+admin.sqlite는 같은 스냅샷과 Valhalla 3.8.3 ARM64 엔진인지 확인하고,
+대한민국과 제주특별자치도 및 메타데이터의 행정구역 수를 실제 DB에서 대조합니다.
+파일 존재와 해시만으로 비어 있는 행정경계 DB를 통과시키지 마세요.
+입력이나 메타데이터가 없거나 일치하지 않으면 필요한 자료만 진행자에게 확인하세요.
+직접 추출로 자동 전환하거나 공유 파일을 덮어쓰지 마세요.
+참가자 app의 빌더를 수정하거나 prepare를 반복하지 마세요.
+unrecognized arguments: --jeju-pbf이면 소스 루트에서 git pull --ff-only origin main 후 같은 명령을 재개하세요.
+갱신이 실패하면 기존 변경을 보존하고 원인을 확인하세요.
+
+jeju_extract_skipped와 admin_build_skipped는 공유 입력 확인과 재사용이며 그래프 완료가 아닙니다.
+v2에서는 전국 다운로드, osmium extract와 valhalla_build_admins를 건너뛰고
+HGT, Valhalla 타일과 valhalla_tiles.tar를 준비합니다.
+객체 시각이 공유 PBF의 기준일보다 늦으면 중단하세요.
+공유 PBF의 날짜를 라우팅 자료 기준일로 유지하고 행정경계 원본 정보는 admin_source로 기록하세요.
+전국 원본 해시는 진행자의 보관본 검증 정보이며 참가자가 원본까지 검증했다고 표시하지 마세요.
+기존 배포의 다른 날짜 그래프와 경로 결과가 같다고 가정하지 마세요.
+제주 PBF를 전국 PBF로 이름만 바꾸거나 기준일을 현재 시각으로 만들지 마세요.
+
+참가자가 전국 원본부터 직접 빌드를 명시적으로 선택한 경우에만 기존 routing-fetch와 routing-build를 사용하세요.
+이전 PBF 전용 v1 묶음은 전국 원본을 사용해 행정경계 DB를 만듭니다.
+v2 파일이 빠졌다고 v1 또는 직접 추출로 자동 전환하지 마세요.
 명령은 &#x26;&#x26;로 연결하거나 종료 상태를 확인해 실패 뒤 후속 작업을 실행하지 마세요.
 sources_verified는 다운로드 완료이며 graph_verified가 빌드와 필수 검증 완료입니다.
-다운로드 뒤 Docker 권한으로 build가 중단됐다면 기존 자료를 보존하고 routing-build부터 재개하세요.
+공유 PBF 빌드가 중단되면 파일과 메타데이터를 보존하고 같은 --jeju-pbf 옵션으로 재개하세요.
+직접 빌드 경로가 다운로드 뒤 중단됐다면 기존 자료를 보존하고 routing-build부터 재개하세요.
 routing-fetch를 반복하거나 routing-data 폴더를 삭제하지 마세요.
 source.json은 빌더가 검증 후 생성합니다. 파일이 없으면 앞선 build 오류부터 해결하고 직접 만들지 마세요.
 엔진 3.8.3, 자료 시각, 입력 크기와 해시를 확인한 뒤 build-routing-push를 수행하세요.
@@ -391,7 +546,7 @@ source.json은 빌더가 검증 후 생성합니다. 파일이 없으면 앞선 
 
 교재는 `$ATLAS_REPO/workshop/chapters/07-routing.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.
-원본 교재, 소스는 읽기만 하고, 코드 변경은 생성된 실습 작업 공간에서 수행하세요.
+필요한 소스 갱신 외에는 원본 교재와 소스를 읽기만 하고, 코드 변경은 생성된 실습 작업 공간에서 수행하세요.
 
 ## 공통 경계
 
@@ -427,10 +582,10 @@ Claude Code 요청: 검증 워크플로 없이 진행
   </a>
       </nav>
     </article>
-    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-입력-자료" data-toc-link>입력 자료</a></li><li class="toc-depth-2"><a href="#heading-복구-다운로드-후-docker-권한으로-빌드가-중단됐다면" data-toc-link>복구: 다운로드 후 Docker 권한으로 빌드가 중단됐다면</a></li><li class="toc-depth-2"><a href="#heading-선택-기존-그래프-파일을-다시-확인할-때" data-toc-link>선택: 기존 그래프 파일을 다시 확인할 때</a></li><li class="toc-depth-2"><a href="#heading-라우터-이미지" data-toc-link>라우터 이미지</a></li><li class="toc-depth-2"><a href="#heading-웹-연결" data-toc-link>웹 연결</a></li><li class="toc-depth-2"><a href="#heading-agentic-ai-코딩-어시스턴트-프롬프트-카드" data-toc-link>Agentic AI 코딩 어시스턴트 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
+    <aside class="article-toc" aria-label="이 페이지 목차"><details open data-page-toc><summary id="on-this-page">이 페이지에서<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><nav aria-labelledby="on-this-page"><ol><li class="toc-depth-2"><a href="#heading-입력-자료" data-toc-link>입력 자료</a></li><li class="toc-depth-2"><a href="#heading-기본-공유-pbf로-추출-생략" data-toc-link>기본: 공유 PBF로 추출 생략</a></li><li class="toc-depth-2"><a href="#heading-선택-전국-원본부터-직접-빌드" data-toc-link>선택: 전국 원본부터 직접 빌드</a></li><li class="toc-depth-2"><a href="#heading-복구-다운로드-후-docker-권한으로-빌드가-중단됐다면" data-toc-link>복구: 다운로드 후 Docker 권한으로 빌드가 중단됐다면</a></li><li class="toc-depth-2"><a href="#heading-선택-기존-그래프-파일을-다시-확인할-때" data-toc-link>선택: 기존 그래프 파일을 다시 확인할 때</a></li><li class="toc-depth-2"><a href="#heading-라우터-이미지" data-toc-link>라우터 이미지</a></li><li class="toc-depth-2"><a href="#heading-웹-연결" data-toc-link>웹 연결</a></li><li class="toc-depth-2"><a href="#heading-agentic-ai-코딩-어시스턴트-프롬프트-카드" data-toc-link>Agentic AI 코딩 어시스턴트 프롬프트 카드</a></li></ol></nav><a class="back-to-top" href="#top">맨 위로 ↑</a></details></aside>
   </div>
     </main>
-    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.25 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
+    <footer class="site-footer"><span>Jeju Atlas 워크숍<span class="footer-date">2026.09.30 기준</span></span><a href="../assets/fonts/OFL-NanumSquare.txt">나눔스퀘어 글꼴 라이선스</a></footer>
   </div>
   <p class="reader-status" role="status" aria-live="polite" data-reader-status></p>
 </body>

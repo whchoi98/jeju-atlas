@@ -241,11 +241,33 @@ git pull --ff-only origin main
 
 ### 07장 라우팅과 Docker 권한 복구
 
+기본 경로는 진행자가 제공한 v2 묶음이다.
+PBF, 행정경계 DB, 메타데이터와 체크섬을 `$HOME/jeju-routing-input`에 함께 둔다.
+자료는 HTML 교재 ZIP과 별도로 전달받는다. 다운로드 URL을 만들어 안내하지 않는다.
+이미 완료한 소유 그래프는 재사용하고, 새 그래프가 필요한 경우 다음을 실행한다.
+
+```bash
+cd -- "/home/ec2-user/my-project/jeju-atlas" && {
+source workshop/.local/labs/team01/activate.sh &&
+docker info >/dev/null &&
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-build \
+  --config "$ATLAS_CONFIG" --jeju-pbf "$HOME/jeju-routing-input/jeju.osm.pbf" --execute
+}
+```
+
+입력 검증 후 `jeju_extract_skipped`, `admin_build_skipped`로 재사용을 알린다.
+v2는 같은 원본과 엔진의 DB, 대한민국과 제주, 행정구역 수와 비어 있지 않은 경계를 확인한다.
+전국 다운로드와 추출, DB 생성은 생략하고 마지막 `graph_verified`까지 확인한다.
+PBF 전용 v1 입력은 호환되지만 행정경계에 전국 원본을 계속 사용한다.
+공유 PBF의 기준일을 라우팅 자료 기준일로 유지하고 전국 원본 정보는 `admin_source`에 기록한다.
+중단 후에도 같은 옵션으로 재개하며 참가자 빌더 수정이나 app 재준비는 하지 않는다.
+옵션이 인식되지 않으면 소스 루트를 갱신한 뒤 재개한다.
+
 라우팅 다운로드 전에 실제 빌드를 실행할 같은 셸에서 `docker info` 성공을 확인한다.\
 권한 오류이면 사전 구성의 그룹 등록과 `newgrp docker`를 별도 블록으로 실행한다.\
 새 프롬프트에서 기존 참가자 환경을 활성화하고 Docker 접근을 확인한다.
 
-`sources_verified`까지 성공한 뒤 Docker 권한으로 빌드가 중단되었다면 다음으로 이어 간다.
+전국 원본부터 직접 빌드를 선택했고 `sources_verified` 뒤 중단되었다면 다음으로 이어 간다.
 
 ```bash
 cd -- "/home/ec2-user/my-project/jeju-atlas" && {

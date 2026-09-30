@@ -251,7 +251,13 @@ Git push는 이 승인에 포함하지 않습니다.
    CREATE_COMPLETE 또는 UPDATE_COMPLETE일 때만 agent-configure-logs를 실행하세요.
    Bedrock 모델 요청은 같은 키의 Bearer 인증, Gateway·Memory·배포는 IAM을 유지하세요.
    별도 모델 검사와 Runtime 직접 호출은 오류 진단 또는 추가 확인 요청 시에만 수행하세요.
-6. 07장 다운로드가 sources_verified까지 끝났다면 Docker 복구 뒤 routing-build부터 재개하세요.
+6. 07장은 진행자가 제공한 PBF와 같은 스냅샷의 admin.sqlite, 메타데이터와 체크섬이 담긴 v2 묶음을 사용하세요.
+   폴더 전체를 $HOME/jeju-routing-input에 두고 routing-build에
+   --jeju-pbf "$HOME/jeju-routing-input/jeju.osm.pbf"를 전달하세요.
+   새 헬퍼가 해시, DB의 대한민국과 제주, 행정구역 수와 객체 시각을 확인하게 하세요.
+   입력이 누락되거나 불일치하면 직접 추출로 자동 우회하지 마세요.
+   현재 참가자 사본을 재준비하거나 빌더를 직접 수정하지 말고 소스 갱신으로 새 옵션을 사용하세요.
+   직접 빌드를 선택한 경우 sources_verified 뒤 Docker 복구는 routing-build부터 재개하세요.
    마지막 graph_verified를 확인하고 별도 routing-verify는 필요할 때만 실행하세요.
    첫 실패 뒤 후속 명령이 실행되지 않도록 순차 명령을 &&로 연결하세요.
    필요한 빌드와 확인은 참가자 사본에서 수행하고 소스·이미지·결과가 같은 변경을 가리키게 하세요.
@@ -322,7 +328,8 @@ Claude Code 요청: 검증 워크플로 없이 진행
    계획 준비 완료, 배포 시작과 실제 스택 완료를 구분하세요.
    진행 중에는 status-bootstrap, status-data, agent-status, status-app 중 해당 조회만 실행하세요.
    agent-configure-logs는 AgentCore 스택이 CREATE_COMPLETE 또는 UPDATE_COMPLETE일 때만 수행하세요.
-   Docker 권한 문제는 현재 셸을 복구하고 완료된 다운로드를 보존한 채 routing-build부터 재개하세요.
+   Docker 권한 문제는 현재 셸을 복구하고 입력과 완료된 다운로드를 보존한 채 routing-build부터 재개하세요.
+   공유 v2 묶음은 폴더 안의 모든 파일과 같은 --jeju-pbf 옵션을 유지하세요.
 6. 남은 필수 배포·응답 실패가 있으면 실패한 명령과 원인을 확인하고 관련 진단만 수행하세요.
    HUD, 전체 테스트·브라우저·한영 응답·core.py doctor --project는 기본으로 생략하세요.
    과거의 선택 검사 미실행 기록을 필수 작업으로 바꾸지 마세요.

@@ -22,11 +22,42 @@ ATLAS_REPO가 비어 있으면 확인한 저장소 절대 경로에서 기존 ac
 새 프롬프트에서 기존 activate.sh와 docker info를 실행한 뒤 재개합니다.
 이미 실행 중인 코딩 어시스턴트도 이전 그룹을 유지할 수 있으므로 Docker가 가능한 셸에서 실행하세요.
 
-routing-fetch/build로 현재 실습의 OSM 그래프와 HGT를 준비하세요.
-같은 입력과 버전으로 생성한 소유 자료가 있으면 재사용합니다.
+기본 경로는 진행자가 제공한 PBF와 행정경계 DB가 포함된 v2 묶음입니다.
+입력 폴더는 $HOME/jeju-routing-input이며, jeju.osm.pbf, admin.sqlite,
+jeju-input.json, SHA256SUMS, PROVENANCE.json, README.txt를 함께 유지합니다.
+자료 ZIP은 HTML 교재 ZIP과 별도로 전달받습니다. 다운로드 URL을 임의로 만들지 마세요.
+ZIP만 받았다면 교재에 고정된 v2 체크섬 또는 진행자가 별도로 제공한 값과 대조한 뒤
+기존 폴더를 덮어쓰지 않고 준비하세요. 이미 준비된 파일은 재사용하세요.
+기존에 완료한 소유 그래프가 있으면 입력, 엔진 버전과 기록을 확인해 재사용하세요.
+빌드가 필요한 경우 원본 소스 루트에서 다음 명령으로 진행하세요.
+"$ATLAS_PYTHON" -B workshop/scripts/lab.py run routing-build --config "$ATLAS_CONFIG" --jeju-pbf "$HOME/jeju-routing-input/jeju.osm.pbf" --execute
+
+빌더가 공유 파일의 SHA-256, 크기, 기준일, 범위와 원본 출처를 확인하게 하세요.
+admin.sqlite는 같은 스냅샷과 Valhalla 3.8.3 ARM64 엔진인지 확인하고,
+대한민국과 제주특별자치도 및 메타데이터의 행정구역 수를 실제 DB에서 대조합니다.
+파일 존재와 해시만으로 비어 있는 행정경계 DB를 통과시키지 마세요.
+입력이나 메타데이터가 없거나 일치하지 않으면 필요한 자료만 진행자에게 확인하세요.
+직접 추출로 자동 전환하거나 공유 파일을 덮어쓰지 마세요.
+참가자 app의 빌더를 수정하거나 prepare를 반복하지 마세요.
+unrecognized arguments: --jeju-pbf이면 소스 루트에서 git pull --ff-only origin main 후 같은 명령을 재개하세요.
+갱신이 실패하면 기존 변경을 보존하고 원인을 확인하세요.
+
+jeju_extract_skipped와 admin_build_skipped는 공유 입력 확인과 재사용이며 그래프 완료가 아닙니다.
+v2에서는 전국 다운로드, osmium extract와 valhalla_build_admins를 건너뛰고
+HGT, Valhalla 타일과 valhalla_tiles.tar를 준비합니다.
+객체 시각이 공유 PBF의 기준일보다 늦으면 중단하세요.
+공유 PBF의 날짜를 라우팅 자료 기준일로 유지하고 행정경계 원본 정보는 admin_source로 기록하세요.
+전국 원본 해시는 진행자의 보관본 검증 정보이며 참가자가 원본까지 검증했다고 표시하지 마세요.
+기존 배포의 다른 날짜 그래프와 경로 결과가 같다고 가정하지 마세요.
+제주 PBF를 전국 PBF로 이름만 바꾸거나 기준일을 현재 시각으로 만들지 마세요.
+
+참가자가 전국 원본부터 직접 빌드를 명시적으로 선택한 경우에만 기존 routing-fetch와 routing-build를 사용하세요.
+이전 PBF 전용 v1 묶음은 전국 원본을 사용해 행정경계 DB를 만듭니다.
+v2 파일이 빠졌다고 v1 또는 직접 추출로 자동 전환하지 마세요.
 명령은 &&로 연결하거나 종료 상태를 확인해 실패 뒤 후속 작업을 실행하지 마세요.
 sources_verified는 다운로드 완료이며 graph_verified가 빌드와 필수 검증 완료입니다.
-다운로드 뒤 Docker 권한으로 build가 중단됐다면 기존 자료를 보존하고 routing-build부터 재개하세요.
+공유 PBF 빌드가 중단되면 파일과 메타데이터를 보존하고 같은 --jeju-pbf 옵션으로 재개하세요.
+직접 빌드 경로가 다운로드 뒤 중단됐다면 기존 자료를 보존하고 routing-build부터 재개하세요.
 routing-fetch를 반복하거나 routing-data 폴더를 삭제하지 마세요.
 source.json은 빌더가 검증 후 생성합니다. 파일이 없으면 앞선 build 오류부터 해결하고 직접 만들지 마세요.
 엔진 3.8.3, 자료 시각, 입력 크기와 해시를 확인한 뒤 build-routing-push를 수행하세요.
@@ -41,7 +72,7 @@ source.json은 빌더가 검증 후 생성합니다. 파일이 없으면 앞선 
 
 교재는 `$ATLAS_REPO/workshop/chapters/07-routing.md`입니다.
 명령 문법은 `$ATLAS_REPO/workshop/scripts/lab.py --help`와 해당 하위 명령 help로 확인하세요.
-원본 교재, 소스는 읽기만 하고, 코드 변경은 생성된 실습 작업 공간에서 수행하세요.
+필요한 소스 갱신 외에는 원본 교재와 소스를 읽기만 하고, 코드 변경은 생성된 실습 작업 공간에서 수행하세요.
 
 ## 공통 경계
 

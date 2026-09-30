@@ -161,6 +161,14 @@ Registry/Data/App 조회는 `stack`과 `status` JSON 뒤에 `outputs` JSON도 �
 
 ## 07장 Docker와 라우팅 재개
 
+공유 PBF 경로는 `--jeju-pbf`와 짝이 맞는 `jeju-input.json`을 유지해 재개한다.
+v2는 `admin.sqlite`, `SHA256SUMS`와 함께 묶음 전체를 유지한다.
+빈 행정경계나 다른 스냅샷의 DB를 해시만 맞춰 통과시키지 않는다.
+`jeju_extract_skipped`, `admin_build_skipped`는 재사용 확인이며 그래프 완료가 아니다.
+입력 누락이나 불일치는 진행자의 자료를 확인하고 자동으로 직접 추출하지 않는다.
+다른 내용의 기존 PBF를 덮어쓰거나 입력 메타데이터를 `source.json`으로 바꾸지 않는다.
+현재 소스의 옵션을 사용하면 이전 참가자 app도 재준비 없이 사용할 수 있다.
+
 `permission denied ... /var/run/docker.sock`이면 [Docker 그룹 적용](prepare.md#docker-설치-후-소켓-권한-오류)을 수행한다.
 새 프롬프트에서 활성화하고 `docker info`가 성공한 같은 셸에서 작업한다.\
 `sources_verified`까지 성공한 다운로드는 보존하고 [빌드 재개 명령](deploy.md#07장-라우팅과-docker-권한-복구)을 사용한다.
